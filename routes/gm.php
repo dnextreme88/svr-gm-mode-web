@@ -6,13 +6,16 @@ use App\Http\Controllers\Gm\DraftController;
 use App\Http\Controllers\Gm\EmailController;
 use App\Http\Controllers\Gm\FinancialsController;
 use App\Http\Controllers\Gm\FreeAgencyController;
+use App\Http\Controllers\Gm\NewsController;
 use App\Http\Controllers\Gm\ReportsController;
 use App\Http\Controllers\Gm\ResultsController;
+use App\Http\Controllers\Gm\RivalryController;
 use App\Http\Controllers\Gm\RosterController;
 use App\Http\Controllers\Gm\SaveController;
 use App\Http\Controllers\Gm\ScheduleController;
 use App\Http\Controllers\Gm\TitleAssignmentController;
 use App\Http\Controllers\Gm\TitleHistoryController;
+use App\Http\Controllers\Gm\TradeController;
 use App\Http\Controllers\Gm\WeekController;
 use App\Http\Middleware\ShareGameState;
 use Illuminate\Support\Facades\Route;
@@ -50,6 +53,10 @@ Route::middleware(['auth'])->prefix('gm')->name('gm.')->group(function () {
             Route::post('shows/{show}/cash-in', [CardController::class, 'cashIn'])->name('card.cash-in');
             Route::get('reports', ReportsController::class)->name('reports');
             Route::get('titles', TitleHistoryController::class)->name('titles.history');
+            Route::get('news', NewsController::class)->name('news');
+            Route::get('rivalries', RivalryController::class)->name('rivalries');
+            Route::get('trade', [TradeController::class, 'show'])->name('trade.show');
+            Route::post('trade', [TradeController::class, 'store'])->name('trade.store');
 
             Route::get('email', [EmailController::class, 'index'])->name('email');
 

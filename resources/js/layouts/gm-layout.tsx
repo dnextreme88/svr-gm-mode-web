@@ -33,6 +33,12 @@ function navItems(game: GameShell): NavItem[] {
             href: gm.titles.history.url(id),
             match: '/titles',
         },
+        { label: 'Rivalry', href: gm.rivalries.url(id), match: '/rivalries' },
+        {
+            label: 'Propose Trade',
+            href: gm.trade.show.url(id),
+            match: '/trade',
+        },
         {
             label: 'Free Agency',
             href: gm.freeAgency.url(id),
@@ -43,6 +49,7 @@ function navItems(game: GameShell): NavItem[] {
             href: gm.financials.url(id),
             match: '/financials',
         },
+        { label: 'News', href: gm.news.url(id), match: '/news' },
     ];
 }
 

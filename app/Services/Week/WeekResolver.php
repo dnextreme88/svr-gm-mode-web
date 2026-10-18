@@ -26,10 +26,12 @@ class WeekResolver
         Steps\RecoverFatigue::class,
         Steps\InjuryReturns::class,
         Steps\TickContracts::class,
+        Steps\UpdateMorale::class,
         Steps\ApplyPendingMoves::class,
         Steps\TitleUpkeep::class,
         Steps\TrackDeficit::class,
         Steps\SendContractEmails::class,
+        Steps\PpvBuzz::class,
         Steps\AdvanceWeek::class,
     ];
 

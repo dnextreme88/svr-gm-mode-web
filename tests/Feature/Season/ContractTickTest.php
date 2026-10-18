@@ -122,8 +122,8 @@ it('resets weeks_remaining and clears the contract extension complaint on renego
     $cena->refresh();
 
     expect(weeksLeft($cena))->toBe(24)
-        ->and($cena->complaints()->whereNull('resolved_week')->count())->toBe(0)
-        ->and($cena->morale)->toBe(Morale::Happy)
+        ->and($cena->complaints()->where('type', MoraleComplaintType::ContractExtension)->whereNull('resolved_week')->count())->toBe(0)
+        ->and($cena->morale)->not->toBe(Morale::Unsatisfied)
         ->and(Contract::where('save_wrestler_id', $cena->id)->where('status', ContractStatus::Superseded)->count())->toBe(1);
 });
 

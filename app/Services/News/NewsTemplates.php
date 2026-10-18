@@ -73,11 +73,13 @@ class NewsTemplates
      */
     public function render(NewsEventType $type, array $payload): string
     {
-        return (string) preg_replace_callback('/\{(\w+)\}/', function (array $m) use ($payload): string {
+        $text = (string) preg_replace_callback('/\{(\w+)\}/', function (array $m) use ($payload): string {
             $value = $payload[$m[1]] ?? null;
 
             return is_scalar($value) ? (string) $value : $m[0];
         }, $this->template($type));
+
+        return (string) preg_replace('/1 weeks/', '1 week', $text);
     }
 
     /**
