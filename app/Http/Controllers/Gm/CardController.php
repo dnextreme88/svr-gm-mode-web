@@ -10,6 +10,8 @@ use App\Http\Presenters\TitleContextPresenter;
 use App\Http\Presenters\WrestlerPresenter;
 use App\Models\MatchSlot;
 use App\Models\MatchType;
+use App\Models\PromoSlot;
+use App\Models\PromoType;
 use App\Models\Save;
 use App\Models\Show;
 use App\Services\Card\Booking;
@@ -21,6 +23,7 @@ use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -74,10 +77,31 @@ class CardController extends Controller
             'match_types' => $types,
             'roster' => $roster,
             'title_context' => $this->titleContext->forShow($save, $show, $brand),
+            'promo_slots' => PromoSlot::with('promoType')->where('show_id', $show->id)->orderBy('position')->get()->map(fn (PromoSlot $p): array => [
+                'position' => $p->position,
+                'promo_type_id' => $p->promo_type_id,
+                'target_wrestler_id' => $p->target_wrestler_id,
+                'target_wrestler_b_id' => $p->target_wrestler_b_id,
+                'succeeded' => $p->succeeded,
+                'backfired' => $p->backfired,
+                'outcome_note' => $p->outcome_note,
+            ])->values(),
+            'promo_types' => PromoType::orderBy('sort_order')->get()->map(fn (PromoType $t): array => [
+                'id' => $t->id,
+                'key' => $t->key->value,
+                'name' => $t->name,
+                'amount' => $t->base_amount,
+                'success_rate' => $t->successRate(),
+                'needs_wrestler' => $t->needs_wrestler,
+                'needs_rival_pair' => $t->needs_rival_pair,
+                'targets_rival' => $t->targets_rival,
+                'variable_amount' => $t->variable_amount,
+                'effect' => $t->effect,
+            ])->values(),
         ]);
     }
 
-    public function book(Request $request, Save $save, Show $show, int $position): RedirectResponse
+    public function book(Request $request, Save $save, Show $show, int $position): RedirectResponse|HttpResponse
     {
         $this->assertOwnShow($save, $show);
 
@@ -94,6 +118,11 @@ class CardController extends Controller
         ]);
 
         DB::transaction(fn () => $this->cards->book($show, $position, Booking::fromArray($data), $save->player_brand));
+
+        // Randomize / Preset confirm via fetch (§24); a redirect would re-send the PUT.
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+            return response()->noContent();
+        }
 
         return back();
     }

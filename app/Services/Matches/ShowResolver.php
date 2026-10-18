@@ -15,6 +15,7 @@ use App\Services\Fatigue\FatigueZones;
 use App\Services\Finance\LedgerService;
 use App\Services\Injuries\InjuryService;
 use App\Services\News\NewsRecorder;
+use App\Services\Promos\PromoService;
 use App\Services\Rivalries\RivalryService;
 use App\Services\Week\WeekContext;
 use App\Support\Rng\Rng;
@@ -33,6 +34,7 @@ class ShowResolver
         private LedgerService $ledger,
         private NewsRecorder $news,
         private MatchOutcomeHandler $outcomes,
+        private PromoService $promos,
     ) {}
 
     public function air(Show $show, WeekContext $context): void
@@ -54,6 +56,8 @@ class ShowResolver
 
             $this->airMatch($slot, $show, $context, $rng);
         }
+
+        $this->promos->resolve($show, $context->rng("promos.{$show->streamKey()}"));
 
         $show->update(['status' => ShowStatus::Aired]);
     }

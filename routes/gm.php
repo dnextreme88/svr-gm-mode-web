@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Gm\CardController;
+use App\Http\Controllers\Gm\CardToolsController;
 use App\Http\Controllers\Gm\ContractController;
 use App\Http\Controllers\Gm\DraftController;
 use App\Http\Controllers\Gm\EmailController;
@@ -52,6 +53,10 @@ Route::middleware(['auth'])->prefix('gm')->name('gm.')->group(function () {
             Route::put('shows/{show}/slots/{position}', [CardController::class, 'book'])->whereNumber('position')->name('card.book');
             Route::delete('shows/{show}/slots/{position}', [CardController::class, 'clear'])->whereNumber('position')->name('card.clear');
             Route::post('shows/{show}/cash-in', [CardController::class, 'cashIn'])->name('card.cash-in');
+            Route::post('shows/{show}/slots/{position}/randomize', [CardToolsController::class, 'randomize'])->whereNumber('position')->name('card.randomize');
+            Route::post('shows/{show}/preset', [CardToolsController::class, 'preset'])->name('card.preset');
+            Route::put('shows/{show}/promos/{position}', [CardToolsController::class, 'bookPromo'])->whereNumber('position')->name('card.promo.book');
+            Route::delete('shows/{show}/promos/{position}', [CardToolsController::class, 'clearPromo'])->whereNumber('position')->name('card.promo.clear');
             Route::get('reports', ReportsController::class)->name('reports');
             Route::get('titles', TitleHistoryController::class)->name('titles.history');
             Route::get('news', NewsController::class)->name('news');
