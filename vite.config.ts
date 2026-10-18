@@ -16,6 +16,15 @@ export default defineConfig({
                 bunny('Instrument Sans', {
                     weights: [400, 500, 600],
                 }),
+                bunny('Oswald', {
+                    weights: [500, 600, 700],
+                }),
+                bunny('Barlow', {
+                    weights: [400, 500, 600, 700],
+                }),
+                bunny('Barlow Condensed', {
+                    weights: [500, 600, 700],
+                }),
             ],
         }),
         inertia(),
@@ -50,6 +59,7 @@ export default defineConfig({
             'resources/js/components/ui/*',
             'resources/js/routes/**',
             'resources/js/wayfinder/**',
+            'resources/js/types/enums.ts',
         ],
         options: {
             denyWarnings: true,
@@ -71,6 +81,7 @@ export default defineConfig({
             'composer.json',
             'resources/js/components/ui/*',
             'resources/views/mail/*',
+            'resources/js/types/enums.ts',
         ],
         sortTailwindcss: {
             functions: ['clsx', 'cn', 'cva'],
