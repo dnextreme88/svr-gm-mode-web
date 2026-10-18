@@ -63,6 +63,7 @@ export default defineConfig({
         semi: true,
         singleAttributePerLine: false,
         htmlWhitespaceSensitivity: 'css',
+        proseWrap: 'never',
         ignorePatterns: [
             '.github/**',
             'AGENTS.md',
