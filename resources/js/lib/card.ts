@@ -1,3 +1,4 @@
+import type { Stipulation } from '@/types/enums';
 import type { FatigueConfig, MatchTypeOption, RosterEntry } from '@/types/gm';
 
 /** A slot being edited in the card builder. */
@@ -7,7 +8,8 @@ export type SlotDraft = {
     sides: Array<Array<number | null>>;
     managers: Record<number, number | null>;
     titleChampionshipId: number | null;
-    stipulation: string | null;
+    stipulation: Stipulation | null;
+    stipulationChampionshipId: number | null;
     fixed: boolean;
 };
 

@@ -118,7 +118,7 @@ class CardRandomizer
             throw new GameRuleException("Not enough available wrestlers to book {$type->name} (need {$need}, have {$candidates->count()}).");
         }
 
-        $title = $this->titles->plan($show, $type, $candidates, $titlesOnCard, $rng);
+        $title = $this->titles->plan($show, $brand, $type, $candidates, $titlesOnCard, $rng);
 
         if ($title !== null) {
             return new Proposal($position, new Booking($type, $title['sides'], [], $title['championship_id']), $title['sides']);

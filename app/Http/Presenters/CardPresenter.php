@@ -69,6 +69,7 @@ class CardPresenter
             'managers' => (object) $managers,
             'title_championship_id' => $slot->title_championship_id,
             'stipulation' => $slot->stipulation?->value,
+            'stipulation_championship_id' => $slot->stipulation_championship_id,
             'cost' => $slot->cost,
             'fixed_kind' => $slot->fixed_kind?->value,
             'owner_brand' => $slot->owner_brand?->value,

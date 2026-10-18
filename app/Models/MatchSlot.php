@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int|null $match_type_id
  * @property int|null $title_championship_id
  * @property Stipulation|null $stipulation
+ * @property int|null $stipulation_championship_id
  * @property int $cost
  * @property FixedSlotKind|null $fixed_kind
  * @property Brand|null $owner_brand
@@ -30,6 +31,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read Show $show
  * @property-read MatchType|null $matchType
  * @property-read Championship|null $titleChampionship
+ * @property-read Championship|null $stipulationChampionship
  * @property-read Collection<int, MatchParticipant> $participants
  * @property-read MatchResult|null $result
  */
@@ -58,6 +60,14 @@ class MatchSlot extends Model
     public function titleChampionship(): BelongsTo
     {
         return $this->belongsTo(Championship::class, 'title_championship_id');
+    }
+
+    /**
+     * @return BelongsTo<Championship, $this>
+     */
+    public function stipulationChampionship(): BelongsTo
+    {
+        return $this->belongsTo(Championship::class, 'stipulation_championship_id');
     }
 
     /**

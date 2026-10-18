@@ -29,6 +29,11 @@ function navItems(game: GameShell): NavItem[] {
         { label: 'Rosters', href: gm.rosters.index.url(id), match: '/rosters' },
         { label: 'Reports', href: gm.reports.url(id), match: '/reports' },
         {
+            label: 'Title History',
+            href: gm.titles.history.url(id),
+            match: '/titles',
+        },
+        {
             label: 'Free Agency',
             href: gm.freeAgency.url(id),
             match: '/free-agency',

@@ -50,6 +50,7 @@ export function toDraft(slot: CardSlot): SlotDraft {
         managers,
         titleChampionshipId: slot.title_championship_id,
         stipulation: slot.stipulation,
+        stipulationChampionshipId: slot.stipulation_championship_id,
         fixed: slot.fixed_kind !== null,
     };
 }
@@ -63,6 +64,7 @@ export function toPayload(draft: SlotDraft): BookingPayload {
         managers: draft.managers,
         title_championship_id: draft.titleChampionshipId,
         stipulation: draft.stipulation,
+        stipulation_championship_id: draft.stipulationChampionshipId,
     };
 }
 
@@ -155,6 +157,7 @@ export function CardBuilder({
                             managers: {},
                             titleChampionshipId: null,
                             stipulation: null,
+                            stipulationChampionshipId: null,
                         });
                         setDirty((current) => {
                             const next = new Set(current);
@@ -277,6 +280,8 @@ function SlotEditor({
                             sides: emptySides(next),
                             managers: {},
                             titleChampionshipId: null,
+                            stipulation: null,
+                            stipulationChampionshipId: null,
                         });
                     }}
                 >

@@ -10,6 +10,7 @@ use App\Models\SaveBrand;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Injuries\InjuryStatus;
+use App\Services\Titles\TitleBookingRules;
 use App\Services\Week\Steps\TrackDeficit;
 
 /**
@@ -18,7 +19,10 @@ use App\Services\Week\Steps\TrackDeficit;
  */
 class CardValidator
 {
-    public function __construct(private InjuryStatus $injuries) {}
+    public function __construct(
+        private InjuryStatus $injuries,
+        private TitleBookingRules $titleRules,
+    ) {}
 
     public function validate(Show $show, int $position, Booking $booking, ?Brand $bookingBrand = null): void
     {
@@ -120,5 +124,7 @@ class CardValidator
                 throw new GameRuleException("Divas aren't eligible for {$type->name}.");
             }
         }
+
+        $this->titleRules->validate($show, $position, $booking, $wrestlers, $brand);
     }
 }

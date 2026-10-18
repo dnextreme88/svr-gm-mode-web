@@ -6,6 +6,7 @@ use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
 use App\Enums\ReignEndReason;
 use App\Enums\TitleHolderType;
+use App\Enums\TitleShotStatus;
 use App\Enums\WonVia;
 use App\Models\Championship;
 use App\Models\Save;
@@ -13,6 +14,7 @@ use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Models\TagTeam;
 use App\Models\TitleReign;
+use App\Models\TitleShot;
 use App\Services\Calendar\CalendarService;
 use App\Services\News\NewsRecorder;
 use Illuminate\Support\Collection;
@@ -171,6 +173,12 @@ class TitleService
             'won_via' => null,
             'end_reason' => $reason,
         ]);
+
+        // §22 (to confirm): a title shot on a title that becomes vacant is voided.
+        TitleShot::where('save_id', $save->id)
+            ->where('championship_id', $championship->id)
+            ->where('status', TitleShotStatus::Pending)
+            ->update(['status' => TitleShotStatus::Voided, 'resolved_week' => $week]);
 
         $this->news->record($save, NewsEventType::TitleVacated, NewsTier::Headline, $championship->brand, [
             'title' => $championship->name,

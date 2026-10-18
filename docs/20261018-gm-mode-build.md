@@ -390,7 +390,7 @@ Spec rules that shape everything (from CLAUDE.md):
 9. **Multi-person W/L:** the winning side gets a win and every other side gets a loss. This feeds the streak and morale clocks.
 10. **Champions and the title-match demand:** a current champion is exempt from that complaint.
 11. **TitleShot "next card":** the next card that hasn't been booked yet after the result. In practice that's the following week's weekly show.
-12. **MITB cash-in:** an extra match outside the slot count, inserted right after a match the GM chooses (default: the champion's last match). Allowed until the week resolves.
+12. **MITB cash-in:** an extra 1-on-1 world title match outside the slot count, appended after the last match on the card (the surprise post-main-event cash-in). Allowed until the week resolves.
 13. **Tag teams:** none are seeded, since the spec lists none. The GM forms teams on the Rosters page, and awarding or winning tag gold with a pair creates one automatically.
 14. **Rivalries:**
     - Created by the Start a Rivalry promo, or after 2 meetings on opposite sides within 4 weeks.

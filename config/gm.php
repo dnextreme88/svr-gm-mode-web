@@ -58,6 +58,8 @@ return [
         'min_competitors' => 2,
         'max_competitors' => 6,
         'wrestlemania_brand_slots' => 3,
+        // ASSUMPTION: how often Randomize/Preset try to make a slot a title match (§24).
+        'randomize_title_chance' => 0.35,
     ],
 
     /*

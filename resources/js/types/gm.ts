@@ -113,6 +113,7 @@ export type CardSlot = {
     managers: Record<string, number>;
     title_championship_id: number | null;
     stipulation: import('./enums').Stipulation | null;
+    stipulation_championship_id: number | null;
     cost: number;
     fixed_kind: import('./enums').FixedSlotKind | null;
     owner_brand: Brand | null;
@@ -145,6 +146,7 @@ export type BookingPayload = {
     managers: Record<number, number | null>;
     title_championship_id?: number | null;
     stipulation?: string | null;
+    stipulation_championship_id?: number | null;
 };
 
 export type MatchOutcome = {
@@ -164,4 +166,38 @@ export type MatchOutcome = {
     stipulation_outcome: string | null;
     rating: number | null;
     fan_delta: number | null;
+};
+
+export type TitleOption = {
+    id: number;
+    name: string;
+    is_tag: boolean;
+    eligibility: import('./enums').ChampionshipEligibility;
+    holder_ids: number[];
+    holder_name: string | null;
+};
+
+export type TitleContext = {
+    championships: TitleOption[];
+    lockouts: Record<string, number[]>;
+    last_chance: Array<{
+        championship_id: number;
+        reign_id: number;
+        champion_ids: number[];
+        contender_ids: number[];
+    }>;
+    title_shots: Array<{
+        id: number;
+        championship_id: number;
+        championship: string;
+        contender_ids: number[];
+        contenders: string;
+        booked: boolean;
+    }>;
+    briefcase: {
+        id: number;
+        holder: string;
+        expires_week: number;
+        cashed_in_here: boolean;
+    } | null;
 };

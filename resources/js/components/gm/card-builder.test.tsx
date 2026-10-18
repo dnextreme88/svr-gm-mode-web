@@ -134,6 +134,7 @@ function emptySlot(position: number): CardSlot {
         managers: {},
         title_championship_id: null,
         stipulation: null,
+        stipulation_championship_id: null,
         cost: 0,
         fixed_kind: null,
         owner_brand: 'raw',
@@ -183,6 +184,7 @@ describe('CardBuilder', () => {
             managers: {},
             title_championship_id: null,
             stipulation: null,
+            stipulation_championship_id: null,
         });
     });
 

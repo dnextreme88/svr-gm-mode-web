@@ -12,6 +12,7 @@ use App\Http\Controllers\Gm\RosterController;
 use App\Http\Controllers\Gm\SaveController;
 use App\Http\Controllers\Gm\ScheduleController;
 use App\Http\Controllers\Gm\TitleAssignmentController;
+use App\Http\Controllers\Gm\TitleHistoryController;
 use App\Http\Controllers\Gm\WeekController;
 use App\Http\Middleware\ShareGameState;
 use Illuminate\Support\Facades\Route;
@@ -46,7 +47,9 @@ Route::middleware(['auth'])->prefix('gm')->name('gm.')->group(function () {
             Route::get('shows/{show}', [CardController::class, 'show'])->name('card.show');
             Route::put('shows/{show}/slots/{position}', [CardController::class, 'book'])->whereNumber('position')->name('card.book');
             Route::delete('shows/{show}/slots/{position}', [CardController::class, 'clear'])->whereNumber('position')->name('card.clear');
+            Route::post('shows/{show}/cash-in', [CardController::class, 'cashIn'])->name('card.cash-in');
             Route::get('reports', ReportsController::class)->name('reports');
+            Route::get('titles', TitleHistoryController::class)->name('titles.history');
 
             Route::get('email', [EmailController::class, 'index'])->name('email');
 

@@ -27,6 +27,7 @@ class WeekResolver
         Steps\InjuryReturns::class,
         Steps\TickContracts::class,
         Steps\ApplyPendingMoves::class,
+        Steps\TitleUpkeep::class,
         Steps\TrackDeficit::class,
         Steps\SendContractEmails::class,
         Steps\AdvanceWeek::class,
@@ -37,6 +38,7 @@ class WeekResolver
      */
     public const GUARDS = [
         Guards\DeficitChoiceGuard::class,
+        Guards\TitleShotGuard::class,
     ];
 
     /**

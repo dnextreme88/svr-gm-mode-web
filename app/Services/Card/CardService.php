@@ -48,6 +48,7 @@ class CardService
             'match_type_id' => $booking->matchType->id,
             'title_championship_id' => $booking->titleChampionshipId,
             'stipulation' => $booking->stipulation,
+            'stipulation_championship_id' => $booking->stipulationChampionshipId,
             'cost' => $booking->matchType->cost,
         ]);
 
@@ -69,7 +70,7 @@ class CardService
         }
 
         $slot->participants()->delete();
-        $slot->update(['match_type_id' => null, 'title_championship_id' => null, 'stipulation' => null, 'cost' => 0]);
+        $slot->update(['match_type_id' => null, 'title_championship_id' => null, 'stipulation' => null, 'stipulation_championship_id' => null, 'cost' => 0]);
 
         return $slot;
     }
