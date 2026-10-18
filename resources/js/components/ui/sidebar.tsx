@@ -604,7 +604,7 @@ function SidebarMenuSkeleton({
   // also ensures we have a stable reference to the style object
   const [skeletonStyle] = React.useState(() => (
       {
-        "--skeleton-width": `${Math.floor(Math.random() * 40) + 50}%` // Random width between 50 and 90%.
+        "--skeleton-width": "70%" // Fixed width: all randomness goes through the seeded RNG.
     } as React.CSSProperties
   ))
 
