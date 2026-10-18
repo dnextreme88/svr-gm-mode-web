@@ -15,6 +15,7 @@ use App\Models\PpvEvent;
 use App\Models\PromoType;
 use App\Models\Wrestler;
 use App\Models\WrestlerSpecialty;
+use App\Services\Calendar\CalendarService;
 use Database\Seeders\CatalogSeeder;
 
 beforeEach(function () {
@@ -151,17 +152,80 @@ describe('injury types (§6)', function () {
 });
 
 describe('PPVs (§13)', function () {
-    it('seeds 14 PPVs: 5 Raw, 5 SmackDown, 4 shared', function () {
-        expect(PpvEvent::count())->toBe(14)
-            ->and(PpvEvent::where('brand_scope', BrandScope::Raw)->count())->toBe(5)
-            ->and(PpvEvent::where('brand_scope', BrandScope::Smackdown)->count())->toBe(5)
+    it('seeds 15 PPVs: 6 Raw, 5 SmackDown, 4 shared', function () {
+        expect(PpvEvent::count())->toBe(15)
+            ->and(PpvEvent::where('brand_scope', BrandScope::Raw)->orderBy('season_week')->pluck('name')->all())
+            ->toBe(['Backlash', 'Vengeance', 'Unforgiven', 'Cyber Sunday', 'Tribute to the Troops', "New Year's Revolution"])
+            ->and(PpvEvent::where('brand_scope', BrandScope::Smackdown)->orderBy('season_week')->pluck('name')->all())
+            ->toBe(['Judgment Day', 'The Great American Bash', 'No Mercy', 'Armageddon', 'No Way Out'])
             ->and(PpvEvent::where('brand_scope', BrandScope::Shared)->orderBy('season_week')->pluck('name')->all())
             ->toBe(['SummerSlam', 'Survivor Series', 'Royal Rumble', 'WrestleMania']);
     });
 
     it('ends the season on WrestleMania and gives each PPV its own week', function () {
         expect(PpvEvent::where('key', 'wrestlemania')->value('season_week'))->toBe(52)
-            ->and(PpvEvent::distinct()->count('season_week'))->toBe(14);
+            ->and(PpvEvent::distinct()->count('season_week'))->toBe(15);
+    });
+
+    it('airs every PPV on its Sunday of the 2005 calendar, every season', function (string $key, string $date, string $month) {
+        $calendar = app(CalendarService::class);
+        $week = (int) PpvEvent::where('key', $key)->value('season_week');
+
+        foreach ([1, 2] as $season) {
+            $absolute = $calendar->absoluteWeek($season, $week);
+
+            expect($calendar->date($absolute)->format('M j'))->toBe($date)
+                ->and($calendar->date($absolute)->isSunday())->toBeTrue()
+                ->and($calendar->monthLabel($absolute))->toBe($month);
+        }
+
+        expect(PpvEvent::where('key', $key)->value('month'))->toBe($month);
+    })->with([
+        ['new_years_revolution', 'Jan 9', 'January'],
+        ['royal_rumble', 'Jan 30', 'January'],
+        ['no_way_out', 'Feb 20', 'February'],
+        ['wrestlemania', 'Mar 27', 'March'],
+        ['backlash', 'Apr 24', 'April'],
+        ['judgment_day', 'May 22', 'May'],
+        ['vengeance', 'Jun 26', 'June'],
+        ['great_american_bash', 'Jul 24', 'July'],
+        ['summerslam', 'Aug 21', 'August'],
+        ['unforgiven', 'Sep 18', 'September'],
+        ['no_mercy', 'Oct 9', 'October'],
+        ['cyber_sunday', 'Nov 6', 'November'],
+        ['survivor_series', 'Nov 27', 'November'],
+        ['armageddon', 'Dec 18', 'December'],
+        ['tribute_to_the_troops', 'Dec 25', 'December'],
+    ]);
+
+    it('airs Raw on Mondays and SmackDown on Fridays in the days before each Sunday', function () {
+        $calendar = app(CalendarService::class);
+
+        foreach (range(1, 104) as $week) {
+            $sunday = $calendar->date($week);
+            $raw = $calendar->showDate($week, Brand::Raw);
+            $smackdown = $calendar->showDate($week, Brand::Smackdown);
+
+            expect($sunday->isSunday())->toBeTrue()
+                ->and($raw->isMonday())->toBeTrue()
+                ->and($smackdown->isFriday())->toBeTrue()
+                ->and($sunday->diffInDays($raw, absolute: true))->toEqual(6)
+                ->and($sunday->diffInDays($smackdown, absolute: true))->toEqual(2);
+        }
+
+        // Week 1 opens with Raw the night after WrestleMania (Mar 27).
+        expect($calendar->showDate(1, Brand::Raw)->format('D M j'))->toBe('Mon Mar 28')
+            ->and(collect(range(1, 5))->map(fn ($w) => $calendar->showDate($w, Brand::Smackdown)->format('M j'))->all())
+            ->toBe(['Apr 1', 'Apr 8', 'Apr 15', 'Apr 22', 'Apr 29'])
+            ->and(collect(range(2, 5))->map(fn ($w) => $calendar->showDate($w, Brand::Raw)->format('M j'))->all())
+            ->toBe(['Apr 4', 'Apr 11', 'Apr 18', 'Apr 25']);
+    });
+
+    it('starts each season the Sunday after WrestleMania', function () {
+        $calendar = app(CalendarService::class);
+
+        expect($calendar->date(1)->format('M j'))->toBe('Apr 3')
+            ->and($calendar->date(53)->format('M j'))->toBe('Apr 3');
     });
 });
 
@@ -282,4 +346,13 @@ it('is safe to run the catalog seeder twice', function () {
     expect(Wrestler::count())->toBe(110)
         ->and(MatchType::count())->toBe(97)
         ->and(WrestlerSpecialty::count())->toBe(32);
+});
+
+it('groups the Schedule by the brand’s show night', function () {
+    $months = collect(app(CalendarService::class)->seasonGrid(1, Brand::Smackdown))
+        ->mapWithKeys(fn ($m) => [$m['month'] => collect($m['weeks'])->pluck('season_week')->all()]);
+
+    // Fri Apr 29 is week 5 (its Sunday is May 1) but still sits under April.
+    expect($months['April'])->toBe([1, 2, 3, 4, 5])
+        ->and($months['May'][0])->toBe(6);
 });

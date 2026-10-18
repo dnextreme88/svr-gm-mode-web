@@ -91,10 +91,33 @@ describe('title candidates', () => {
             ),
         ).toEqual([10, 12]);
         expect(
-            titleCandidates(draft([[2], [3]]), singles, context, roster).map(
+            titleCandidates(draft([[2], [4]]), singles, context, roster).map(
                 (t) => t.id,
             ),
         ).toEqual([12]);
+    });
+
+    it("never puts a men's title on the line with a Diva in the match", () => {
+        // 3 is a Diva: not the WWE challenger, and not a vacant IC contender.
+        expect(
+            titleCandidates(draft([[1], [3]]), singles, context, roster),
+        ).toEqual([]);
+        expect(
+            titleCandidates(draft([[2], [3]]), singles, context, roster),
+        ).toEqual([]);
+    });
+
+    it('offers the Cruiserweight title to a Cruiserweight challenger', () => {
+        const cruisers = new Map(roster).set(
+            5,
+            wrestler(5, { weight_class: 'light_heavyweight' }),
+        );
+
+        expect(
+            titleCandidates(draft([[4], [5]]), singles, context, cruisers).map(
+                (t) => t.id,
+            ),
+        ).toContain(11);
     });
 
     it('applies the Cruiserweight eligibility rule to challengers', () => {

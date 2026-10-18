@@ -38,8 +38,9 @@ class GamePresenter
             'season' => $this->calendar->seasonOf($week),
             'week' => $week,
             'season_week' => $this->calendar->seasonWeek($week),
-            'month' => $this->calendar->monthLabel($week),
-            'date' => $this->calendar->date($week)->format('M j'),
+            // The player's weekly show night (Raw Monday, SmackDown Friday).
+            'month' => $this->calendar->showDate($week, $save->player_brand)->format('F'),
+            'date' => $this->calendar->showDate($week, $save->player_brand)->format('D M j'),
             'budget' => $player->budget,
             'rival_budget' => $rival->budget,
             'roster_count' => $this->roster->rosterCount($save, $save->player_brand),

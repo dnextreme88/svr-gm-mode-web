@@ -2,13 +2,16 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { PageTitle } from '@/components/gm/panel';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
-import type { BrandScope, ShowStatus, ShowType } from '@/types/enums';
+import type { Brand, BrandScope, ShowStatus, ShowType } from '@/types/enums';
 import type { GamePageProps } from '@/types/gm';
 
 type WeekCell = {
     week: number;
     season_week: number;
+    /** The week's Sunday, when PPVs air. */
     date: string;
+    /** Each brand's weekly show night (Raw Monday, SmackDown Friday). */
+    show_dates: Record<Brand, string>;
     ppvs: Array<{ key: string; name: string; brand_scope: BrandScope }>;
 };
 
@@ -70,22 +73,25 @@ export default function Schedule() {
                                         <span className="gm-num w-10 text-ink-faint">
                                             W{cell.season_week}
                                         </span>
-                                        <span className="w-14 font-condensed text-xs text-ink-dim uppercase">
-                                            {cell.date}
+                                        <span className="w-20 font-condensed text-xs text-ink-dim uppercase">
+                                            {cell.show_dates[game.player_brand]}
                                         </span>
                                         <span className="flex-1">
-                                            {yourPpv ? (
-                                                <span className="font-condensed font-bold tracking-wide text-gold-hot uppercase">
+                                            <span className="text-ink-dim">
+                                                Weekly show
+                                            </span>
+                                            {yourPpv && (
+                                                <span className="block font-condensed font-bold tracking-wide text-gold-hot uppercase">
                                                     {yourPpv.name}
-                                                </span>
-                                            ) : (
-                                                <span className="text-ink-dim">
-                                                    Weekly show
+                                                    <span className="ml-1.5 text-[0.65rem] font-normal tracking-wider text-ink-dim">
+                                                        {cell.date}
+                                                    </span>
                                                 </span>
                                             )}
                                             {rivalPpv && (
-                                                <span className="ml-2 font-condensed text-[0.65rem] tracking-wider text-ink-faint uppercase">
-                                                    rival: {rivalPpv.name}
+                                                <span className="block font-condensed text-[0.65rem] tracking-wider text-ink-faint uppercase">
+                                                    rival: {rivalPpv.name} ·{' '}
+                                                    {cell.date}
                                                 </span>
                                             )}
                                         </span>

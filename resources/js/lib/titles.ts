@@ -31,7 +31,8 @@ export function allowsWrestler(
                 )
             );
         default:
-            return true;
+            // Open titles: anyone but Divas (house rule).
+            return wrestler.roster_type !== 'diva';
     }
 }
 

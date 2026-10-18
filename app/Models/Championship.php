@@ -31,7 +31,8 @@ class Championship extends Model
     public function allowsWrestler(Wrestler $wrestler): bool
     {
         return match ($this->eligibility) {
-            ChampionshipEligibility::Open => true,
+            // House rule: Divas can only hold the Women's Championship.
+            ChampionshipEligibility::Open => $wrestler->roster_type !== RosterType::Diva,
             ChampionshipEligibility::DivasOnly => $wrestler->roster_type === RosterType::Diva,
             ChampionshipEligibility::CruiserweightOrLightHeavyweight => $wrestler->roster_type !== RosterType::Diva
                 && in_array($wrestler->weight_class, [WeightClass::Cruiserweight, WeightClass::LightHeavyweight], true),

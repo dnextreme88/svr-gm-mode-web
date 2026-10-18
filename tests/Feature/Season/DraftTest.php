@@ -21,6 +21,7 @@ use App\Services\Contracts\ContractService;
 use App\Services\Draft\DraftService;
 use App\Services\Game\NewGameService;
 use App\Services\Titles\ChampionshipAssignment;
+use App\Services\Titles\TitleService;
 use Tests\Support\GameBuilder;
 
 /*
@@ -286,6 +287,49 @@ describe('Crowning champions one title at a time (house rule)', function () {
 
         $this->from(route('gm.titles.assign', $save))->post(route('gm.titles.assign.vacant', [$save, $wwe]))->assertSessionHasErrors('game');
         $this->post(route('gm.titles.assign.vacant', [$save, Championship::where('key', 'world_heavyweight')->first()]))->assertForbidden();
+    });
+
+    it("only offers Divas the Women's Championship, and refuses a Diva for a men's title", function () {
+        $save = crowningSave();
+        $trish = GameBuilder::wrestler($save, 'Trish Stratus');
+        $assignment = app(ChampionshipAssignment::class);
+        $offered = fn (string $key) => $assignment->eligible($save, Championship::where('key', $key)->firstOrFail())->pluck('id');
+
+        foreach (['wwe', 'intercontinental', 'world_tag_team'] as $key) {
+            expect($offered($key))->not->toContain($trish->id)->not->toBeEmpty();
+        }
+
+        expect($offered('womens')->all())->toBe([$trish->id]);
+
+        $this->get(route('gm.titles.assign', $save))->assertInertia(fn ($page) => $page
+            ->where('championships', fn ($titles) => collect($titles)->every(
+                fn ($t) => $t['key'] === 'womens' || collect($t['eligible'])->doesntContain('roster_type', 'diva'),
+            )));
+
+        $this->from(route('gm.titles.assign', $save))
+            ->post(route('gm.titles.assign.store', [$save, Championship::where('key', 'wwe')->first()]), ['save_wrestler_ids' => [$trish->id]])
+            ->assertSessionHasErrors('game');
+
+        expect(app(TitleService::class)->currentRow($save, Championship::where('key', 'wwe')->firstOrFail()))->toBeNull();
+    });
+
+    it('only offers the Cruiserweight Championship to Cruiserweights and Light Heavyweights', function () {
+        $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista', 'Undertaker', 'Rey Mysterio', 'Christian', 'Melina'], player: Brand::Smackdown);
+        $save->update(['stage' => SaveStage::AssigningTitles]);
+        $cruiser = Championship::where('key', 'cruiserweight')->firstOrFail();
+        $assignment = app(ChampionshipAssignment::class);
+
+        // Rey Mysterio is a Cruiserweight and Christian a Light Heavyweight; Batista,
+        // Undertaker and Melina (a Diva) aren't eligible.
+        expect($assignment->eligible($save, $cruiser)->map->name()->sort()->values()->all())->toBe(['Christian', 'Rey Mysterio']);
+
+        foreach (['Batista', 'Undertaker', 'Melina'] as $name) {
+            expect(fn () => $assignment->assign($save, $cruiser, [GameBuilder::wrestler($save, $name)->id]))->toThrow(GameRuleException::class);
+        }
+
+        $this->post(route('gm.titles.assign.store', [$save, $cruiser]), ['save_wrestler_ids' => [GameBuilder::wrestler($save, 'Christian')->id]])->assertRedirect();
+
+        expect(app(TitleService::class)->currentReign($save, $cruiser)?->holderName())->toBe('Christian');
     });
 
     it('has the rival GM crown a champion for every title it can fill, each a different wrestler', function () {

@@ -22,28 +22,37 @@ return [
     'initial_draft_max_picks' => 30,
 
     /*
-    | §13 Calendar. ASSUMPTION: a season is 52 weeks and starts the week
-    | after WrestleMania. Week 1 maps to the reference Sunday below, so
-    | month labels come from real 2005–06 dates the game mirrored.
+    | §13 Calendar. A season is 52 weeks of Sundays on the 2005 calendar: it
+    | starts the week after WrestleMania (Apr 3) and ends on WrestleMania
+    | (Mar 27). Jan–Mar use 2005's Sundays too, so every PPV lands on its
+    | listed date. Each PPV's season week is set below.
+    |
+    | A week ends on its Sunday: PPVs air that Sunday, and each brand's weekly
+    | show airs on its night earlier that week (Raw Monday, SmackDown Friday).
     */
     'calendar' => [
         'weeks_per_season' => 52,
-        'season_start_reference' => '2005-04-10',
+        'season_start_reference' => '2005-04-03',
+        'weekly_show_days' => [
+            'raw' => 'Monday',
+            'smackdown' => 'Friday',
+        ],
         'ppv_weeks' => [
-            'backlash' => 4,
-            'judgment_day' => 7,
-            'vengeance' => 12,
-            'great_american_bash' => 16,
-            'summerslam' => 20,
-            'unforgiven' => 24,
-            'no_mercy' => 27,
-            'taboo_tuesday' => 30,
-            'survivor_series' => 34,
-            'armageddon' => 37,
-            'new_years_revolution' => 40,
-            'royal_rumble' => 43,
-            'no_way_out' => 46,
-            'wrestlemania' => 52,
+            'backlash' => 4, // Apr 24
+            'judgment_day' => 8, // May 22
+            'vengeance' => 13, // Jun 26
+            'great_american_bash' => 17, // Jul 24
+            'summerslam' => 21, // Aug 21
+            'unforgiven' => 25, // Sep 18
+            'no_mercy' => 28, // Oct 9
+            'cyber_sunday' => 32, // Nov 6
+            'survivor_series' => 35, // Nov 27
+            'armageddon' => 38, // Dec 18
+            'tribute_to_the_troops' => 39, // Dec 25 (Raw only)
+            'new_years_revolution' => 41, // Jan 9
+            'royal_rumble' => 44, // Jan 30
+            'no_way_out' => 47, // Feb 20
+            'wrestlemania' => 52, // Mar 27
         ],
     ],
 

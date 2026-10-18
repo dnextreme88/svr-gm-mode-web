@@ -508,9 +508,10 @@ export const PpvKey = {
     Summerslam: 'summerslam',
     Unforgiven: 'unforgiven',
     NoMercy: 'no_mercy',
-    TabooTuesday: 'taboo_tuesday',
+    CyberSunday: 'cyber_sunday',
     SurvivorSeries: 'survivor_series',
     Armageddon: 'armageddon',
+    TributeToTheTroops: 'tribute_to_the_troops',
 } as const;
 export type PpvKey = (typeof PpvKey)[keyof typeof PpvKey];
 export const PpvKeyLabels: Record<PpvKey, string> = {
@@ -525,9 +526,10 @@ export const PpvKeyLabels: Record<PpvKey, string> = {
     'summerslam': 'SummerSlam',
     'unforgiven': 'Unforgiven',
     'no_mercy': 'No Mercy',
-    'taboo_tuesday': 'Taboo Tuesday',
+    'cyber_sunday': 'Cyber Sunday',
     'survivor_series': 'Survivor Series',
     'armageddon': 'Armageddon',
+    'tribute_to_the_troops': 'Tribute to the Troops',
 };
 
 export const PromoTypeKey = {

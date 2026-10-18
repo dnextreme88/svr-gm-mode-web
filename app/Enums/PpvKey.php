@@ -6,7 +6,7 @@ use App\Enums\Concerns\HasValues;
 use Illuminate\Support\Str;
 
 /**
- * The 14 PPVs (§13).
+ * The 15 PPVs (§13): 6 Raw, 5 SmackDown, 4 shared.
  */
 enum PpvKey: string
 {
@@ -23,9 +23,10 @@ enum PpvKey: string
     case Summerslam = 'summerslam';
     case Unforgiven = 'unforgiven';
     case NoMercy = 'no_mercy';
-    case TabooTuesday = 'taboo_tuesday';
+    case CyberSunday = 'cyber_sunday';
     case SurvivorSeries = 'survivor_series';
     case Armageddon = 'armageddon';
+    case TributeToTheTroops = 'tribute_to_the_troops';
 
     public function label(): string
     {
@@ -34,6 +35,7 @@ enum PpvKey: string
             self::Wrestlemania => 'WrestleMania',
             self::GreatAmericanBash => 'The Great American Bash',
             self::Summerslam => 'SummerSlam',
+            self::TributeToTheTroops => 'Tribute to the Troops',
             default => Str::of($this->name)->headline()->toString(),
         };
     }

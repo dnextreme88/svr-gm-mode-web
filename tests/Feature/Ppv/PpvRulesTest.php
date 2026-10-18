@@ -35,8 +35,9 @@ use Tests\Support\GameBuilder;
 | §13 PPV calendar and §23 WrestleMania card.
 */
 
-const RUMBLE_WEEK = 43;
-const SURVIVOR_WEEK = 34;
+// Season 1 PPV weeks, matching gm.calendar.ppv_weeks (§13).
+const RUMBLE_WEEK = 44;
+const SURVIVOR_WEEK = 35;
 const MANIA_WEEK = 52;
 
 /**

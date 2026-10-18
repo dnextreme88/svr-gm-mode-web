@@ -32,7 +32,7 @@ class ScheduleController extends Controller
             ])->values());
 
         return Inertia::render('gm/schedule', [
-            'months' => $calendar->seasonGrid($season),
+            'months' => $calendar->seasonGrid($season, $save->player_brand),
             'shows' => $shows,
         ]);
     }

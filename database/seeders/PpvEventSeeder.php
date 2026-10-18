@@ -19,17 +19,18 @@ class PpvEventSeeder extends Seeder
         'new_years_revolution' => [BrandScope::Raw, 'January'],
         'royal_rumble' => [BrandScope::Shared, 'January'],
         'no_way_out' => [BrandScope::Smackdown, 'February'],
-        'wrestlemania' => [BrandScope::Shared, 'April'],
-        'backlash' => [BrandScope::Raw, 'May'],
+        'wrestlemania' => [BrandScope::Shared, 'March'],
+        'backlash' => [BrandScope::Raw, 'April'],
         'judgment_day' => [BrandScope::Smackdown, 'May'],
         'vengeance' => [BrandScope::Raw, 'June'],
         'great_american_bash' => [BrandScope::Smackdown, 'July'],
         'summerslam' => [BrandScope::Shared, 'August'],
         'unforgiven' => [BrandScope::Raw, 'September'],
         'no_mercy' => [BrandScope::Smackdown, 'October'],
-        'taboo_tuesday' => [BrandScope::Raw, 'November'],
+        'cyber_sunday' => [BrandScope::Raw, 'November'],
         'survivor_series' => [BrandScope::Shared, 'November'],
         'armageddon' => [BrandScope::Smackdown, 'December'],
+        'tribute_to_the_troops' => [BrandScope::Raw, 'December'],
     ];
 
     public function run(): void
