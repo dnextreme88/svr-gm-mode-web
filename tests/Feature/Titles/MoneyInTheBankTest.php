@@ -61,7 +61,7 @@ it('spends the briefcase on a losing cash-in', function () {
 
 it('expires on schedule', function () {
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
-    $briefcase = MoneyInTheBank::create(['save_id' => $save->id, 'season' => 1, 'brand' => Brand::Raw, 'save_wrestler_id' => GameBuilder::wrestler($save, 'Edge')->id, 'won_week' => 1, 'expires_week' => 2, 'status' => MitbStatus::Held]);
+    $briefcase = MoneyInTheBank::create(['save_id' => $save->id, 'season' => 1, 'brand' => Brand::Raw, 'save_wrestler_id' => GameBuilder::wrestler($save, 'Edge')->id, 'won_week' => 1, 'expires_week' => 1, 'status' => MitbStatus::Held]);
 
     app(WeekResolver::class)->resolve($save->refresh());
 

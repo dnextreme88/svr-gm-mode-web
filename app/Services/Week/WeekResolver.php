@@ -32,6 +32,7 @@ class WeekResolver
         Steps\TrackDeficit::class,
         Steps\SendContractEmails::class,
         Steps\PpvBuzz::class,
+        Steps\WrestleManiaWrapUp::class,
         Steps\AdvanceWeek::class,
     ];
 
@@ -41,6 +42,7 @@ class WeekResolver
     public const GUARDS = [
         Guards\DeficitChoiceGuard::class,
         Guards\TitleShotGuard::class,
+        Guards\PpvEntrantsGuard::class,
     ];
 
     /**

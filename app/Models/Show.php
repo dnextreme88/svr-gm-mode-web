@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Brand;
+use App\Enums\PpvKey;
 use App\Enums\ShowStatus;
 use App\Enums\ShowType;
 use App\Models\Concerns\BelongsToGame;
@@ -78,9 +79,53 @@ class Show extends Model
         return $this->brand === null;
     }
 
+    public function isWrestleMania(): bool
+    {
+        return $this->ppvKey() === PpvKey::Wrestlemania;
+    }
+
+    /**
+     * The interbrand main-event card of the Royal Rumble or Survivor Series (§10).
+     */
+    public function isInterbrandMainEvent(): bool
+    {
+        return $this->isInterbrand() && in_array($this->ppvKey(), [PpvKey::RoyalRumble, PpvKey::SurvivorSeries], true);
+    }
+
+    /**
+     * Whether a brand's own card shares its PPV night with an interbrand main event.
+     */
+    public function hasInterbrandMainEvent(): bool
+    {
+        return ! $this->isInterbrand() && in_array($this->ppvKey(), [PpvKey::RoyalRumble, PpvKey::SurvivorSeries], true);
+    }
+
+    public function ppvKey(): ?PpvKey
+    {
+        if ($this->ppv_event_id === null) {
+            return null;
+        }
+
+        return $this->ppvEvent?->key;
+    }
+
+    /**
+     * 6 slots weekly, 5 on PPVs. A brand's Rumble / Survivor Series card gives
+     * one slot to the interbrand main event; WrestleMania is one 10-match card (§23).
+     */
     public function matchSlotCount(): int
     {
-        return (int) config($this->isPpv() ? 'gm.card.ppv_match_slots' : 'gm.card.weekly_match_slots');
+        if ($this->isWrestleMania()) {
+            return 10;
+        }
+
+        if ($this->isInterbrandMainEvent()) {
+            return 1;
+        }
+
+        $count = (int) config($this->isPpv() ? 'gm.card.ppv_match_slots' : 'gm.card.weekly_match_slots');
+
+        return $this->hasInterbrandMainEvent() ? $count - 1 : $count;
     }
 
     public function promoSlotCount(): int

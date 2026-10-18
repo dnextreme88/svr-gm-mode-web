@@ -147,6 +147,7 @@ class CardRandomizer
 
         foreach ($this->titles->obligations($show, $brand) as $obligation) {
             $empty = $slots->first(fn (MatchSlot $s): bool => ! $s->isFixed() && ! $s->isBooked()
+                && ($brand === null || $s->owner_brand === null || $s->owner_brand === $brand)
                 && ! in_array($s->position, array_map(fn (Proposal $p): int => $p->position, $proposals), true));
 
             if ($empty === null) {
@@ -161,7 +162,8 @@ class CardRandomizer
         $usedPositions = array_map(fn (Proposal $p): int => $p->position, $proposals);
 
         foreach ($slots as $slot) {
-            if ($slot->isFixed() || $slot->isBooked() || in_array($slot->position, $usedPositions, true)) {
+            if ($slot->isFixed() || $slot->isBooked() || in_array($slot->position, $usedPositions, true)
+                || ($brand !== null && $slot->owner_brand !== null && $slot->owner_brand !== $brand)) {
                 continue;
             }
 

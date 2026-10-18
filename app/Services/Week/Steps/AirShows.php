@@ -19,7 +19,7 @@ class AirShows implements WeekStep
         $shows = Show::where('save_id', $context->save->id)
             ->where('week_number', $context->week)
             ->get()
-            ->sortBy(fn (Show $s): string => ($s->isPpv() ? '1' : '0').($s->brand->value ?? 'z'))
+            ->sortBy(fn (Show $s): string => ($s->isInterbrand() ? '2' : ($s->isPpv() ? '1' : '0')).($s->brand->value ?? 'z'))
             ->values();
 
         foreach ($shows as $show) {

@@ -8,7 +8,6 @@ use App\Services\Matches\MatchResolver;
 use App\Services\Matches\ResolvedMatch;
 use App\Support\Rng\Rng;
 use Illuminate\Support\Collection;
-use RuntimeException;
 
 /**
  * A MatchResolver that returns scripted winners, so tests can assert exact
@@ -37,18 +36,26 @@ class FixedOutcomes extends MatchResolver
 
     public function resolve(MatchSlot $slot, Rng $rng, Collection $activeRivalries): ResolvedMatch
     {
-        $next = array_shift($this->queue) ?? throw new RuntimeException("No scripted result for match {$slot->position}.");
         $sides = $slot->sides();
         $winnerSide = null;
+        $next = null;
 
-        foreach ($slot->competitors() as $p) {
-            if ($p->saveWrestler->wrestler->name === $next['winner']) {
-                $winnerSide = $p->side;
+        // Use the first scripted winner who is in this match; matches nobody
+        // scripted (e.g. the AI's own card) resolve normally.
+        foreach ($this->queue as $i => $entry) {
+            foreach ($slot->competitors() as $p) {
+                if ($p->saveWrestler->wrestler->name === $entry['winner']) {
+                    $winnerSide = $p->side;
+                    $next = $entry;
+                    unset($this->queue[$i]);
+                    $this->queue = array_values($this->queue);
+                    break 2;
+                }
             }
         }
 
-        if ($winnerSide === null) {
-            throw new RuntimeException("{$next['winner']} isn't in match {$slot->position}.");
+        if ($next === null) {
+            return parent::resolve($slot, $rng, $activeRivalries);
         }
 
         $others = array_values(array_diff(array_keys($sides), [$winnerSide]));

@@ -171,13 +171,13 @@ class MitbService
         $warn = (int) config('gm.mitb.expiring_warning_weeks');
 
         foreach ($this->held($save) as $briefcase) {
-            if ($wrestleManiaResolved || $briefcase->expires_week <= $week + 1) {
+            if ($wrestleManiaResolved || $briefcase->expires_week <= $week) {
                 $briefcase->update(['status' => MitbStatus::Expired, 'resolved_week' => $week, 'resolution_note' => $wrestleManiaResolved ? 'wrestlemania' : 'expired']);
 
                 continue;
             }
 
-            if ($briefcase->expires_week - ($week + 1) === $warn) {
+            if ($briefcase->expires_week - $week === $warn) {
                 $this->news->record($save, NewsEventType::MitbExpiring, NewsTier::Ticker, $briefcase->brand, [
                     'wrestler' => $briefcase->holder->name(),
                 ], ['wrestler_ids' => [$briefcase->save_wrestler_id]], week: $week);

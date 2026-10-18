@@ -2,6 +2,7 @@
 
 namespace App\Http\Presenters;
 
+use App\Enums\Brand;
 use App\Enums\MatchMethod;
 use App\Enums\ParticipantRole;
 use App\Models\MatchParticipant;
@@ -36,7 +37,7 @@ class CardPresenter
     /**
      * @return array<string, mixed>
      */
-    public static function slot(MatchSlot $slot): array
+    public static function slot(MatchSlot $slot, ?Brand $playerBrand = null): array
     {
         $sides = [];
         $managers = [];
@@ -73,6 +74,8 @@ class CardPresenter
             'cost' => $slot->cost,
             'fixed_kind' => $slot->fixed_kind?->value,
             'owner_brand' => $slot->owner_brand?->value,
+            'locked' => $slot->fixed_kind !== null || ($playerBrand !== null && $slot->owner_brand !== null && $slot->owner_brand !== $playerBrand),
+            'names' => (object) $slot->participants->mapWithKeys(fn (MatchParticipant $p): array => [$p->save_wrestler_id => $p->saveWrestler->wrestler->name])->all(),
         ];
     }
 

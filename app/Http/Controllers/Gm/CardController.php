@@ -41,9 +41,14 @@ class CardController extends Controller
         private MitbService $mitb,
     ) {}
 
-    public function show(Save $save, Show $show): Response
+    public function show(Save $save, Show $show): Response|RedirectResponse
     {
         $this->assertOwnShow($save, $show);
+
+        if ($show->isInterbrandMainEvent()) {
+            return to_route('gm.ppv.entrants', [$save, $show]);
+        }
+
         $this->cards->ensureSlots($show);
         $week = $show->week_number;
         $brand = $show->brand ?? $save->player_brand;
@@ -65,7 +70,7 @@ class CardController extends Controller
 
         return Inertia::render('gm/card', [
             'show' => CardPresenter::show($show),
-            'slots' => MatchSlot::with('participants')->where('show_id', $show->id)->orderBy('position')->get()->map(fn (MatchSlot $s): array => CardPresenter::slot($s))->values(),
+            'slots' => MatchSlot::with('participants.saveWrestler.wrestler')->where('show_id', $show->id)->orderBy('position')->get()->map(fn (MatchSlot $s): array => CardPresenter::slot($s, $save->player_brand))->values(),
             'match_types' => $types,
             'roster' => $roster,
             'title_context' => $this->titleContext->forShow($save, $show, $brand),
@@ -96,7 +101,7 @@ class CardController extends Controller
     public function clear(Save $save, Show $show, int $position): RedirectResponse
     {
         $this->assertOwnShow($save, $show);
-        $this->cards->clear($show, $position);
+        $this->cards->clear($show, $position, $save->player_brand);
 
         return back();
     }

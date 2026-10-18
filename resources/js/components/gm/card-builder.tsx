@@ -51,7 +51,7 @@ export function toDraft(slot: CardSlot): SlotDraft {
         titleChampionshipId: slot.title_championship_id,
         stipulation: slot.stipulation,
         stipulationChampionshipId: slot.stipulation_championship_id,
-        fixed: slot.fixed_kind !== null,
+        fixed: slot.locked ?? slot.fixed_kind !== null,
     };
 }
 
@@ -104,7 +104,8 @@ export function CardBuilder({
     };
 
     const totalCost = drafts.reduce((sum, d) => {
-        const type = d.matchTypeId ? types.get(d.matchTypeId) : undefined;
+        const type =
+            d.matchTypeId && !d.fixed ? types.get(d.matchTypeId) : undefined;
 
         return sum + (type?.cost ?? 0);
     }, 0);
@@ -167,6 +168,9 @@ export function CardBuilder({
                         });
                     }}
                     tools={renderSlotTools?.(draft, update)}
+                    names={
+                        slots.find((s) => s.position === draft.position)?.names
+                    }
                 />
             ))}
         </div>
@@ -189,6 +193,7 @@ type SlotEditorProps = {
     onSave: () => void;
     onClear: () => void;
     tools?: React.ReactNode;
+    names?: Record<string, string>;
 };
 
 function SlotEditor({
@@ -207,6 +212,7 @@ function SlotEditor({
     onSave,
     onClear,
     tools,
+    names,
 }: SlotEditorProps) {
     const type = draft.matchTypeId ? types.get(draft.matchTypeId) : undefined;
     const label = `Match ${draft.position}`;
@@ -393,29 +399,38 @@ function SlotEditor({
                                                     'border-zone-minor/60 bg-zone-minor/[0.07]',
                                             )}
                                         >
-                                            <select
-                                                aria-label={`${label} side ${sideIndex + 1} wrestler ${index + 1}`}
-                                                className="gm-input w-full py-1 text-sm"
-                                                value={id ?? ''}
-                                                disabled={readOnly}
-                                                onChange={(e) =>
-                                                    setCompetitor(
+                                            {readOnly &&
+                                            id !== null &&
+                                            !rosterById.has(id) ? (
+                                                <div className="py-1 text-sm font-semibold">
+                                                    {names?.[id] ?? '?'}
+                                                </div>
+                                            ) : (
+                                                <select
+                                                    aria-label={`${label} side ${sideIndex + 1} wrestler ${index + 1}`}
+                                                    className="gm-input w-full py-1 text-sm"
+                                                    value={id ?? ''}
+                                                    disabled={readOnly}
+                                                    onChange={(e) =>
+                                                        setCompetitor(
+                                                            sideIndex,
+                                                            index,
+                                                            e.target.value
+                                                                ? Number(
+                                                                      e.target
+                                                                          .value,
+                                                                  )
+                                                                : null,
+                                                        )
+                                                    }
+                                                >
+                                                    <option value="">
+                                                        Pick a wrestler…
+                                                    </option>
+                                                    {eligible(
                                                         sideIndex,
                                                         index,
-                                                        e.target.value
-                                                            ? Number(
-                                                                  e.target
-                                                                      .value,
-                                                              )
-                                                            : null,
-                                                    )
-                                                }
-                                            >
-                                                <option value="">
-                                                    Pick a wrestler…
-                                                </option>
-                                                {eligible(sideIndex, index).map(
-                                                    (w) => (
+                                                    ).map((w) => (
                                                         <option
                                                             key={w.id}
                                                             value={w.id}
@@ -437,9 +452,9 @@ function SlotEditor({
                                                                 ? ' (minor injury)'
                                                                 : ''}
                                                         </option>
-                                                    ),
-                                                )}
-                                            </select>
+                                                    ))}
+                                                </select>
+                                            )}
                                             {wrestler && fatigue && (
                                                 <div className="mt-2 space-y-1.5">
                                                     <div className="flex flex-wrap items-center gap-1.5">

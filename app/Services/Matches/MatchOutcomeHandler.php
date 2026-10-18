@@ -16,6 +16,7 @@ use App\Models\MatchResult;
 use App\Models\MatchSlot;
 use App\Models\Save;
 use App\Models\SaveWrestler;
+use App\Models\Season;
 use App\Models\TagTeam;
 use App\Models\TitleReign;
 use App\Services\Contracts\ContractService;
@@ -76,6 +77,22 @@ class MatchOutcomeHandler
             $winner = SaveWrestler::with('wrestler')->findOrFail($resolved->winners[0]);
             $this->mitb->award($context->save, $winner, $context->week);
             $stipulationOutcome = "{$winner->name()} earns a {$this->mitb->worldTitle($winner->brand ?? $slot->owner_brand ?? $slot->show->brand ?? Brand::Raw)->name} shot";
+        }
+
+        if ($slot->fixed_kind === FixedSlotKind::RoyalRumble) {
+            $winner = SaveWrestler::with('wrestler')->findOrFail($resolved->winners[0]);
+            Season::where('save_id', $context->save->id)->where('number', $context->season)->update(['royal_rumble_winner_id' => $winner->id]);
+            $stipulationOutcome = "{$winner->name()} is going to the WrestleMania main event";
+
+            $this->news->record($context->save, NewsEventType::PpvResults, NewsTier::Headline, NewsBrand::Both, [
+                'ppv' => 'Royal Rumble',
+                'top_result' => "{$winner->name()}'s Royal Rumble win",
+            ], ['wrestler_ids' => [$winner->id]], priority: 90, week: $context->week);
+        }
+
+        if ($slot->fixed_kind === FixedSlotKind::SurvivorSeriesMainEvent) {
+            $brand = SaveWrestler::find($resolved->winners[0])?->brand;
+            $stipulationOutcome = "Team {$brand?->label()} survives";
         }
 
         if ($slot->fixed_kind === FixedSlotKind::MitbCashIn && $reignBefore !== null) {

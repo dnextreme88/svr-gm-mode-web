@@ -57,7 +57,8 @@ class SaveController extends Controller
         return match ($save->stage) {
             SaveStage::Drafting => to_route('gm.draft.show', $save),
             SaveStage::AssigningTitles => to_route('gm.titles.assign', $save),
-            SaveStage::Redrafting, SaveStage::InSeason => to_route('gm.schedule', $save),
+            SaveStage::Redrafting => to_route('gm.redraft.show', $save),
+            SaveStage::InSeason => to_route('gm.schedule', $save),
         };
     }
 

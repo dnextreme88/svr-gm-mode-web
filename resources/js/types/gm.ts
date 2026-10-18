@@ -117,6 +117,8 @@ export type CardSlot = {
     cost: number;
     fixed_kind: import('./enums').FixedSlotKind | null;
     owner_brand: Brand | null;
+    locked?: boolean;
+    names?: Record<string, string>;
 };
 
 export type MatchTypeOption = {

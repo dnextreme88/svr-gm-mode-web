@@ -41,6 +41,10 @@ class CardService
             throw new GameRuleException('That slot is fixed and can’t be rebooked.');
         }
 
+        if ($bookingBrand !== null && $slot->owner_brand !== null && $slot->owner_brand !== $bookingBrand) {
+            throw new GameRuleException("That slot belongs to {$slot->owner_brand->label()}.");
+        }
+
         $this->validator->validate($show, $position, $booking, $bookingBrand ?? $slot->owner_brand);
 
         $slot->participants()->delete();
@@ -57,7 +61,7 @@ class CardService
         return $slot->load(['participants', 'matchType']);
     }
 
-    public function clear(Show $show, int $position): MatchSlot
+    public function clear(Show $show, int $position, ?Brand $bookingBrand = null): MatchSlot
     {
         if ($show->status !== ShowStatus::Booking) {
             throw new GameRuleException("{$show->name} has already aired.");
@@ -67,6 +71,10 @@ class CardService
 
         if ($slot->isFixed()) {
             throw new GameRuleException('That slot is fixed and can’t be cleared.');
+        }
+
+        if ($bookingBrand !== null && $slot->owner_brand !== null && $slot->owner_brand !== $bookingBrand) {
+            throw new GameRuleException("That slot belongs to {$slot->owner_brand->label()}.");
         }
 
         $slot->participants()->delete();
