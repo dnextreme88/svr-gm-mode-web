@@ -39,6 +39,8 @@ $raw = [
     ['Shad', 'heavyweight', null],
     ['Robbie McAllister', 'heavyweight', null],
     ['Rory McAllister', 'heavyweight', null],
+    ['Bubba Ray Dudley', 'heavyweight', null],
+    ['D-Von Dudley', 'heavyweight', null],
 ];
 
 $smackdown = [
@@ -46,7 +48,7 @@ $smackdown = [
     ['Mr. Kennedy', 'light_heavyweight', 235],
     ['Joey Mercury', 'cruiserweight', 191],
     ['Johnny Nitro', 'light_heavyweight', 224],
-    ['Matt Hardy', 'heavyweight', 235],
+    ['Matt Hardy', 'light_heavyweight', 235],
     ['Booker T', 'heavyweight', 253],
     ['Charlie Haas', 'heavyweight', 249],
     ['Chris Benoit', 'heavyweight', 220],
@@ -73,6 +75,11 @@ $smackdown = [
     ['Brian Kendrick', 'cruiserweight', null],
     ['Deuce', 'light_heavyweight', null],
     ['Domino', 'light_heavyweight', null],
+    ['Mark Henry', 'super_heavyweight', null],
+    ['The Boogeyman', 'heavyweight', null],
+    ['Super Crazy', 'cruiserweight', null],
+    ['Nunzio', 'cruiserweight', null],
+    ['Psicosis', 'cruiserweight', null],
 ];
 
 $rawDivas = ['Trish Stratus', 'Lita', 'Ashley Massaro', 'Mickie James', 'Maria', 'Victoria'];
@@ -101,6 +108,11 @@ $legends = [
     ['Sgt. Slaughter', 'super_heavyweight', null],
     ['Terry Funk', 'heavyweight', null],
     ['Tommy Dreamer', 'heavyweight', null],
+    ['Bob Orton', 'heavyweight', null],
+    ['Hacksaw Jim Duggan', 'heavyweight', null],
+    ['Tatanka', 'heavyweight', null],
+    ['Animal', 'heavyweight', null],
+    ['Hawk', 'heavyweight', null],
 ];
 
 $rows = [];
@@ -143,7 +155,9 @@ return [
         'Chris Benoit' => ['submission'],
         'JBL' => ['first_blood'],
         'Eddie Guerrero' => ['first_blood'],
-        'Spike Dudley' => ['hardcore'],
+        'Spike Dudley' => ['table'],
+        'Bubba Ray Dudley' => ['table'],
+        'D-Von Dudley' => ['table'],
         'Undertaker' => ['hell_in_a_cell'],
         'Bret Hart' => ['submission', 'iron_man'],
         'John Cena' => ['submission'],

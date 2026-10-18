@@ -40,14 +40,28 @@ class TitleAssignmentController extends Controller
                 'is_tag' => $c->is_tag,
                 'eligibility' => $c->eligibility->value,
                 'holder' => $reign?->holderName(),
+                'decided' => $this->titles->currentRow($save, $c) !== null,
                 'eligible' => array_values($this->assignment->eligible($save, $c)->map(fn (SaveWrestler $w): array => WrestlerPresenter::row($w, $week))->all()),
             ];
         });
 
+        $initial = $save->stage === SaveStage::AssigningTitles;
+
         return Inertia::render('gm/titles/assign', [
             'championships' => $championships,
-            'initial' => $save->stage === SaveStage::AssigningTitles,
+            'initial' => $initial,
+            // After the draft the titles are decided one at a time, in tier order.
+            'current_id' => $initial ? $this->assignment->nextToCrown($save)?->id : null,
         ]);
+    }
+
+    public function vacant(Save $save, Championship $championship): RedirectResponse
+    {
+        abort_unless($championship->brand === $save->player_brand && $save->stage === SaveStage::AssigningTitles, 403);
+
+        $this->assignment->leaveVacant($save, $championship);
+
+        return back();
     }
 
     public function store(Request $request, Save $save, Championship $championship): RedirectResponse

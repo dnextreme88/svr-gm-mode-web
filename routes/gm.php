@@ -46,6 +46,7 @@ Route::prefix('gm')->name('gm.')->group(function () {
 
             Route::get('titles/assign', [TitleAssignmentController::class, 'show'])->name('titles.assign');
             Route::post('titles/assign/{championship}', [TitleAssignmentController::class, 'store'])->name('titles.assign.store')->withoutScopedBindings();
+            Route::post('titles/assign/{championship}/vacant', [TitleAssignmentController::class, 'vacant'])->name('titles.assign.vacant')->withoutScopedBindings();
             Route::post('titles/assign-complete', [TitleAssignmentController::class, 'complete'])->name('titles.assign.complete');
 
             Route::get('schedule', ScheduleController::class)->name('schedule');

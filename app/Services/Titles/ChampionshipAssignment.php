@@ -3,6 +3,7 @@
 namespace App\Services\Titles;
 
 use App\Enums\Brand;
+use App\Enums\ChampionshipEligibility;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
 use App\Enums\SaveStage;
@@ -32,20 +33,51 @@ class ChampionshipAssignment
     ) {}
 
     /**
-     * Wrestlers on the brand who can hold this title.
+     * Wrestlers on the brand who can be awarded this title. House rule: a
+     * title is only awarded to someone who doesn't already hold one.
      *
      * @return Collection<int, SaveWrestler>
      */
     public function eligible(Save $save, Championship $championship): Collection
     {
+        $champions = $this->titles->currentReigns($save)
+            ->flatMap(fn (TitleReign $reign): array => $reign->holderIds())
+            ->all();
+
         return SaveWrestler::with('wrestler')
             ->where('save_id', $save->id)
             ->where('brand', $championship->brand)
             ->get()
             ->filter(fn (SaveWrestler $w): bool => $championship->allowsWrestler($w->wrestler)
+                && ! in_array($w->id, $champions, true)
                 && ! $this->injuries->isSeriouslyInjured($w, $save->current_week))
             ->sortBy(fn (SaveWrestler $w): string => $w->wrestler->name)
             ->values();
+    }
+
+    /**
+     * After the draft, titles are decided one at a time in tier order: world,
+     * second tier, tag, then the brand's special title. Returns the next one
+     * still undecided for the player's brand, or null when all are decided.
+     */
+    public function nextToCrown(Save $save): ?Championship
+    {
+        return Championship::where('brand', $save->player_brand)
+            ->orderBy('sort_order')
+            ->get()
+            ->first(fn (Championship $c): bool => $this->titles->currentRow($save, $c) === null);
+    }
+
+    /**
+     * Decide to start a title vacant instead of awarding it.
+     */
+    public function leaveVacant(Save $save, Championship $championship): TitleReign
+    {
+        if ($this->titles->currentRow($save, $championship) !== null) {
+            throw new GameRuleException("{$championship->name} has already been decided.");
+        }
+
+        return $this->titles->leaveVacant($save, $championship, $save->current_week);
     }
 
     /**
@@ -99,7 +131,13 @@ class ChampionshipAssignment
     {
         $taken = [];
 
-        foreach (Championship::where('brand', $brand)->orderBy('sort_order')->get() as $championship) {
+        // Restricted titles (Women's, Cruiserweight) go first so their few
+        // eligible wrestlers aren't used up by the open titles.
+        $championships = Championship::where('brand', $brand)->orderBy('sort_order')->get()
+            ->sortBy(fn (Championship $c): int => $c->eligibility === ChampionshipEligibility::Open ? 1 : 0)
+            ->values();
+
+        foreach ($championships as $championship) {
             if ($this->titles->currentRow($save, $championship) !== null) {
                 continue;
             }

@@ -13,6 +13,7 @@ use App\Models\Championship;
 use App\Models\DraftPick;
 use App\Models\LedgerEntry;
 use App\Models\PendingRosterMove;
+use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\TitleReign;
 use App\Services\Ai\AiGm;
@@ -29,7 +30,7 @@ use Tests\Support\GameBuilder;
 it('creates a save with every wrestler in Free Agency and $15M per brand, granted once', function () {
     $save = GameBuilder::newSave();
 
-    expect(SaveWrestler::where('save_id', $save->id)->count())->toBe(98)
+    expect(SaveWrestler::where('save_id', $save->id)->count())->toBe(110)
         ->and(SaveWrestler::where('save_id', $save->id)->whereNotNull('brand')->count())->toBe(0)
         ->and($save->brand(Brand::Raw)->budget)->toBe(15_000_000)
         ->and($save->brand(Brand::Smackdown)->budget)->toBe(15_000_000)
@@ -92,7 +93,7 @@ it('caps each brand at 30 picks and sends everyone undrafted to Free Agency', fu
 
     expect(SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Raw)->count())->toBe(30)
         ->and(SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Smackdown)->count())->toBe(30)
-        ->and(SaveWrestler::where('save_id', $save->id)->whereNull('brand')->count())->toBe(38)
+        ->and(SaveWrestler::where('save_id', $save->id)->whereNull('brand')->count())->toBe(50)
         ->and(DraftPick::where('save_id', $save->id)->where('brand', Brand::Smackdown)->where('pick_type', DraftPickType::Random)->count())->toBe(30)
         ->and($save->stage)->toBe(SaveStage::AssigningTitles);
 });
@@ -231,5 +232,71 @@ describe('Rival GM draft focus (house rule)', function () {
 
         // 41% focus rolls + ~17% of the rest by chance ≈ 51%, against ~17% if it were plain random.
         expect($focus / 300)->toBeGreaterThan(0.4)->toBeLessThan(0.62);
+    });
+});
+
+describe('Crowning champions one title at a time (house rule)', function () {
+    function crowningSave(): Save
+    {
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'John Cena', 'Shawn Michaels', 'Trish Stratus'], smackdown: ['Batista', 'Rey Mysterio', 'Booker T', 'Christian', 'Kurt Angle']);
+        $save->update(['stage' => SaveStage::AssigningTitles]);
+
+        return $save->refresh();
+    }
+
+    function crownStep(Save $save): ?string
+    {
+        return app(ChampionshipAssignment::class)->nextToCrown($save->refresh())?->key->value;
+    }
+
+    it('goes world, second tier, tag, then special, whether each is awarded or left vacant', function () {
+        $save = crowningSave();
+        $this->get(route('gm.titles.assign', $save))->assertInertia(fn ($page) => $page->where('current_id', Championship::where('key', 'wwe')->value('id')));
+
+        expect(crownStep($save))->toBe('wwe');
+        $this->post(route('gm.titles.assign.store', [$save, Championship::where('key', 'wwe')->first()]), ['save_wrestler_ids' => [GameBuilder::wrestler($save, 'Edge')->id]]);
+
+        expect(crownStep($save))->toBe('intercontinental');
+        $this->post(route('gm.titles.assign.vacant', [$save, Championship::where('key', 'intercontinental')->first()]))->assertRedirect();
+
+        expect(crownStep($save))->toBe('world_tag_team');
+        $this->post(route('gm.titles.assign.store', [$save, Championship::where('key', 'world_tag_team')->first()]), ['save_wrestler_ids' => [GameBuilder::wrestler($save, 'Kane')->id, GameBuilder::wrestler($save, 'John Cena')->id]]);
+
+        expect(crownStep($save))->toBe('womens');
+        $this->post(route('gm.titles.assign.store', [$save, Championship::where('key', 'womens')->first()]), ['save_wrestler_ids' => [GameBuilder::wrestler($save, 'Trish Stratus')->id]]);
+
+        expect(crownStep($save))->toBeNull()
+            ->and(TitleReign::where('save_id', $save->id)->where('championship_id', Championship::where('key', 'intercontinental')->value('id'))->first()?->isVacant())->toBeTrue();
+    });
+
+    it('never gives one wrestler two titles', function () {
+        $save = crowningSave();
+        $edge = GameBuilder::wrestler($save, 'Edge');
+        $assignment = app(ChampionshipAssignment::class);
+        $assignment->assign($save, Championship::where('key', 'wwe')->firstOrFail(), [$edge->id]);
+
+        expect($assignment->eligible($save, Championship::where('key', 'intercontinental')->firstOrFail())->pluck('id'))->not->toContain($edge->id)
+            ->and(fn () => $assignment->assign($save, Championship::where('key', 'intercontinental')->firstOrFail(), [$edge->id]))->toThrow(GameRuleException::class);
+    });
+
+    it("won't leave a decided title vacant or touch the rival's titles", function () {
+        $save = crowningSave();
+        $wwe = Championship::where('key', 'wwe')->firstOrFail();
+        app(ChampionshipAssignment::class)->assign($save, $wwe, [GameBuilder::wrestler($save, 'Edge')->id]);
+
+        $this->from(route('gm.titles.assign', $save))->post(route('gm.titles.assign.vacant', [$save, $wwe]))->assertSessionHasErrors('game');
+        $this->post(route('gm.titles.assign.vacant', [$save, Championship::where('key', 'world_heavyweight')->first()]))->assertForbidden();
+    });
+
+    it('has the rival GM crown a champion for every title it can fill, each a different wrestler', function () {
+        $save = crowningSave();
+        app(ChampionshipAssignment::class)->autoAssign($save, Brand::Smackdown);
+
+        $reigns = TitleReign::where('save_id', $save->id)->where('brand', Brand::Smackdown)->get();
+        $holders = $reigns->flatMap(fn (TitleReign $r) => $r->holderIds());
+
+        expect($reigns->filter->isVacant()->count())->toBe(0)
+            ->and($reigns)->toHaveCount(4)
+            ->and($holders->unique()->count())->toBe($holders->count());
     });
 });
