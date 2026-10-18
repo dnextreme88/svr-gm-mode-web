@@ -48,7 +48,6 @@ const filters: Array<{ value: RosterType | 'all'; label: string }> = [
     { value: 'all', label: 'All' },
     { value: 'superstar', label: 'Superstars' },
     { value: 'diva', label: 'Divas' },
-    { value: 'legend', label: 'Legends' },
 ];
 
 const sleep = (ms: number) =>
@@ -332,6 +331,13 @@ export default function Draft() {
                         </div>
                     }
                 >
+                    <p
+                        className="border-b border-white/6 px-4 py-2 text-xs text-ink-faint"
+                        data-testid="legends-note"
+                    >
+                        Legends sit out the draft. Sign them from Free Agency
+                        once it's over.
+                    </p>
                     <div className="gm-scroll max-h-[65vh] overflow-y-auto">
                         <table className="gm-table">
                             <thead className="sticky top-0 z-10 bg-arena-2">

@@ -44,6 +44,7 @@ class DraftController extends Controller
             ->where('save_id', $save->id)
             ->whereNull('brand')
             ->get()
+            ->filter(fn (SaveWrestler $w): bool => $w->wrestler->isDraftable())
             ->sortBy(fn (SaveWrestler $w): string => $w->wrestler->name)
             ->map(fn (SaveWrestler $w): array => [
                 ...WrestlerPresenter::row($w, $week),

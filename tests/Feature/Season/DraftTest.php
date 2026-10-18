@@ -1,16 +1,22 @@
 <?php
 
 use App\Enums\Brand;
+use App\Enums\ContractLength;
 use App\Enums\DraftPickType;
 use App\Enums\LedgerCategory;
 use App\Enums\Morale;
+use App\Enums\RosterType;
 use App\Enums\SaveStage;
+use App\Enums\WeightClass;
 use App\Exceptions\GameRuleException;
 use App\Models\Championship;
 use App\Models\DraftPick;
 use App\Models\LedgerEntry;
+use App\Models\PendingRosterMove;
 use App\Models\SaveWrestler;
 use App\Models\TitleReign;
+use App\Services\Ai\AiGm;
+use App\Services\Contracts\ContractService;
 use App\Services\Draft\DraftService;
 use App\Services\Game\NewGameService;
 use App\Services\Titles\ChampionshipAssignment;
@@ -150,3 +156,80 @@ it('rejects ineligible title holders', function () {
 
     app(ChampionshipAssignment::class)->assign($save, Championship::where('key', 'cruiserweight')->firstOrFail(), [$batista->id]);
 })->throws(GameRuleException::class);
+
+describe('Legends in the initial draft (house rule)', function () {
+    it('keeps Legends out of the draft pool and refuses a Legend pick', function () {
+        $save = GameBuilder::newSave();
+        $first = Brand::from($save->draft_order[0]);
+        $legend = GameBuilder::wrestler($save, 'Hulk Hogan');
+
+        $this->get(route('gm.draft.show', $save))
+            ->assertInertia(fn ($page) => $page->where('pool', fn ($pool) => collect($pool)->doesntContain('roster_type', 'legend')));
+
+        expect(fn () => app(DraftService::class)->pick($save, $first, $legend))->toThrow(GameRuleException::class, 'Legend');
+    });
+
+    it('never has the rival GM draft a Legend', function () {
+        $save = GameBuilder::newSave();
+        $ai = app(AiGm::class);
+
+        $picks = collect(range(1, 60))->map(fn (int $n) => $ai->draftPick($save, Brand::Raw, $n));
+
+        expect($picks->filter(fn (?SaveWrestler $w) => $w?->wrestler->isLegend())->count())->toBe(0);
+    });
+
+    it('leaves Legends in Free Agency to sign once the draft is over', function () {
+        $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+        $hogan = GameBuilder::wrestler($save, 'Hulk Hogan');
+
+        expect($hogan->brand)->toBeNull();
+
+        app(ContractService::class)->signFreeAgent($save, $hogan, Brand::Raw, ContractLength::OneYear, $save->current_week);
+
+        expect(PendingRosterMove::where('save_wrestler_id', $hogan->id)->exists())->toBeTrue();
+    });
+});
+
+describe('Rival GM draft focus (house rule)', function () {
+    it('goes after Divas for Raw and Cruiserweights or Light Heavyweights for SmackDown on a focus roll', function () {
+        config(['gm.draft.ai_focus_from' => 1]);
+        $save = GameBuilder::newSave();
+        $ai = app(AiGm::class);
+
+        foreach (range(1, 20) as $n) {
+            expect($ai->draftPick($save, Brand::Raw, $n)?->wrestler->roster_type)->toBe(RosterType::Diva);
+
+            $sd = $ai->draftPick($save, Brand::Smackdown, $n);
+            expect($sd?->wrestler->weight_class)->toBeIn([WeightClass::Cruiserweight, WeightClass::LightHeavyweight])
+                ->and($sd?->wrestler->roster_type)->not->toBe(RosterType::Diva);
+        }
+    });
+
+    it('picks from the whole pool when the roll misses', function () {
+        config(['gm.draft.ai_focus_from' => 101]);
+        $save = GameBuilder::newSave();
+
+        $picks = collect(range(1, 40))->map(fn (int $n) => app(AiGm::class)->draftPick($save, Brand::Raw, $n));
+
+        expect($picks->filter(fn (?SaveWrestler $w) => $w?->wrestler->roster_type !== RosterType::Diva)->count())->toBeGreaterThan(20);
+    });
+
+    it('falls back to anyone when no focus wrestlers are left', function () {
+        config(['gm.draft.ai_focus_from' => 1]);
+        $save = GameBuilder::newSave();
+        SaveWrestler::where('save_id', $save->id)
+            ->whereHas('wrestler', fn ($q) => $q->where('roster_type', RosterType::Diva))
+            ->update(['brand' => Brand::Smackdown]);
+
+        expect(app(AiGm::class)->draftPick($save, Brand::Raw, 1))->not->toBeNull();
+    });
+
+    it('focuses on about the share of picks the roll range gives', function () {
+        $save = GameBuilder::newSave();
+        $ai = app(AiGm::class);
+        $focus = collect(range(1, 300))->filter(fn (int $n) => AiGm::isDraftFocus(Brand::Raw, $ai->draftPick($save, Brand::Raw, $n)))->count();
+
+        // 41% focus rolls + ~17% of the rest by chance ≈ 51%, against ~17% if it were plain random.
+        expect($focus / 300)->toBeGreaterThan(0.4)->toBeLessThan(0.62);
+    });
+});

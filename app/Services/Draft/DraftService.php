@@ -96,6 +96,11 @@ class DraftService
         }
 
         $wrestler->loadMissing('wrestler');
+
+        if (! $wrestler->wrestler->isDraftable()) {
+            throw new GameRuleException("{$wrestler->name()} is a Legend. Legends sign through Free Agency after the draft.");
+        }
+
         $quote = $this->pricing->quote($wrestler->wrestler, ContractLength::from((int) config('gm.contracts.draft_default_length')));
 
         if ($save->brand($brand)->budget < $quote['upfront']) {

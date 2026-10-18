@@ -5,6 +5,8 @@ namespace App\Services\Ai;
 use App\Enums\Brand;
 use App\Enums\ContractLength;
 use App\Enums\PromoTypeKey;
+use App\Enums\RosterType;
+use App\Enums\WeightClass;
 use App\Exceptions\GameRuleException;
 use App\Models\PromoSlot;
 use App\Models\PromoType;
@@ -80,7 +82,11 @@ class AiGm
     }
 
     /**
-     * Pick an affordable free agent for the initial draft, or null to stop.
+     * Pick an affordable, draftable free agent for the initial draft, or null
+     * to stop. House rule: a roll of 1..`ai_roll_max` at or above
+     * `ai_focus_from` makes the pick come from the brand's focus class when
+     * any are left (Raw: Divas, SmackDown: Cruiserweights and Light
+     * Heavyweights). Otherwise it's any wrestler at random.
      */
     public function draftPick(Save $save, Brand $brand, int $pickNumber): ?SaveWrestler
     {
@@ -91,13 +97,39 @@ class AiGm
             ->with('wrestler')
             ->orderBy('id')
             ->get()
-            ->filter(fn (SaveWrestler $w): bool => $this->pricing->quote($w->wrestler, $length)['upfront'] <= $budget)
+            ->filter(fn (SaveWrestler $w): bool => $w->wrestler->isDraftable()
+                && $this->pricing->quote($w->wrestler, $length)['upfront'] <= $budget)
             ->values();
 
         if ($pool->isEmpty()) {
             return null;
         }
 
-        return $save->rng("ai.draft.{$brand->value}.{$pickNumber}", 0)->pick($pool->all());
+        $rng = $save->rng("ai.draft.{$brand->value}.{$pickNumber}", 0);
+
+        if ($rng->int(1, (int) config('gm.draft.ai_roll_max')) >= (int) config('gm.draft.ai_focus_from')) {
+            $focus = $pool->filter(fn (SaveWrestler $w): bool => self::isDraftFocus($brand, $w))->values();
+
+            if ($focus->isNotEmpty()) {
+                return $rng->pick($focus->all());
+            }
+        }
+
+        return $rng->pick($pool->all());
+    }
+
+    /**
+     * The class each brand's AI chases in the draft: its colour-coded
+     * division (Raw: Divas, SmackDown: Cruiserweights and Light Heavyweights).
+     */
+    public static function isDraftFocus(Brand $brand, SaveWrestler $wrestler): bool
+    {
+        $w = $wrestler->wrestler;
+
+        return match ($brand) {
+            Brand::Raw => $w->roster_type === RosterType::Diva,
+            Brand::Smackdown => $w->roster_type !== RosterType::Diva
+                && in_array($w->weight_class, [WeightClass::Cruiserweight, WeightClass::LightHeavyweight], true),
+        };
     }
 }

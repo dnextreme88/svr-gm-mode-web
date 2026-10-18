@@ -207,6 +207,19 @@ return [
     ],
 
     /*
+    | §1 Initial draft (house rules). Legends can't be drafted; they can be
+    | signed from Free Agency afterwards. The rival GM rolls 1..roll_max on
+    | each pick; a roll of focus_from or higher makes it go after its
+    | brand's colour-coded class first (Raw: Divas, SmackDown:
+    | Cruiserweights and Light Heavyweights), when any are affordable.
+    */
+    'draft' => [
+        'legends_draftable' => false,
+        'ai_roll_max' => 100,
+        'ai_focus_from' => 60,
+    ],
+
+    /*
     | §8 Trades.
     */
     'trades' => [

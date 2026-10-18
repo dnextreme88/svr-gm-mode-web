@@ -52,6 +52,15 @@ class Wrestler extends Model
         return $this->roster_type === RosterType::Legend;
     }
 
+    /**
+     * House rule: Legends can't be taken in the initial draft. They're
+     * signed from Free Agency afterwards.
+     */
+    public function isDraftable(): bool
+    {
+        return ! $this->isLegend() || (bool) config('gm.draft.legends_draftable');
+    }
+
     protected function casts(): array
     {
         return [
