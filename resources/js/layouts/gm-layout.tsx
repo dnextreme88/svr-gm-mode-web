@@ -27,6 +27,7 @@ function navItems(game: GameShell): NavItem[] {
             badge: game.unread_emails,
         },
         { label: 'Rosters', href: gm.rosters.index.url(id), match: '/rosters' },
+        { label: 'Reports', href: gm.reports.url(id), match: '/reports' },
         {
             label: 'Free Agency',
             href: gm.freeAgency.url(id),

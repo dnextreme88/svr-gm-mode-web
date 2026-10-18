@@ -3,14 +3,17 @@
 namespace App\Http\Controllers\Gm;
 
 use App\Http\Controllers\Controller;
+use App\Http\Presenters\CardPresenter;
 use App\Models\Email;
+use App\Models\MatchSlot;
 use App\Models\Save;
 use App\Models\Show;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The match outcome screen after a week airs (§20).
+ * The match outcome screen after a week airs (§20): each result flashes in
+ * card order, weekly show first, then the PPV.
  */
 class ResultsController extends Controller
 {
@@ -23,11 +26,14 @@ class ResultsController extends Controller
             ->get()
             ->sortBy(fn (Show $s): int => $s->isPpv() ? 1 : 0)
             ->map(fn (Show $show): array => [
-                'id' => $show->id,
-                'name' => $show->name,
-                'show_type' => $show->show_type->value,
-                'brand' => $show->brand?->value,
-                'outcomes' => [],
+                ...CardPresenter::show($show),
+                'outcomes' => MatchSlot::with(['matchType', 'participants.saveWrestler.wrestler', 'result', 'titleChampionship'])
+                    ->where('show_id', $show->id)
+                    ->whereHas('result')
+                    ->orderBy('position')
+                    ->get()
+                    ->map(fn (MatchSlot $slot): array => CardPresenter::outcome($slot))
+                    ->values(),
             ])
             ->values();
 

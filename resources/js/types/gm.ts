@@ -92,3 +92,76 @@ export type ContractQuote = {
 export type GamePageProps = {
     game: GameShell;
 };
+
+export type CardShow = {
+    id: number;
+    name: string;
+    show_type: import('./enums').ShowType;
+    brand: Brand | null;
+    status: import('./enums').ShowStatus;
+    week_number: number;
+    ppv_event_id: number | null;
+    match_slot_count: number;
+    promo_slot_count: number;
+};
+
+export type CardSlot = {
+    id: number;
+    position: number;
+    match_type_id: number | null;
+    sides: Array<Array<number | null>>;
+    managers: Record<string, number>;
+    title_championship_id: number | null;
+    stipulation: import('./enums').Stipulation | null;
+    cost: number;
+    fixed_kind: import('./enums').FixedSlotKind | null;
+    owner_brand: Brand | null;
+};
+
+export type MatchTypeOption = {
+    id: number;
+    name: string;
+    family: MatchFamily;
+    variant: string;
+    sides: number[];
+    manager_sides: number[];
+    fatigue_cost_bars: number;
+    cost: number;
+    divas_only: boolean;
+    divas_allowed: boolean;
+    titles_allowed: boolean;
+    win_condition: string | null;
+    ppv_only: boolean;
+};
+
+export type RosterEntry = WrestlerRow & {
+    bookable: boolean;
+    blocked_reason: string | null;
+};
+
+export type BookingPayload = {
+    match_type_id: number;
+    sides: number[][];
+    managers: Record<number, number | null>;
+    title_championship_id?: number | null;
+    stipulation?: string | null;
+};
+
+export type MatchOutcome = {
+    position: number;
+    match_type: string | null;
+    winners: string[];
+    losers: string[];
+    managers: string[];
+    method: import('./enums').MatchMethod;
+    method_label: string;
+    finish_event: import('./enums').FinishEvent | null;
+    finish_label: string | null;
+    summary: string;
+    title: string | null;
+    title_banner: 'new_champion' | 'and_still' | null;
+    stipulation: import('./enums').Stipulation | null;
+    stipulation_outcome: string | null;
+    rating: number | null;
+    fan_delta: number | null;
+};

@@ -2,11 +2,13 @@
 
 use App\Enums\Brand;
 use App\Enums\SaveStage;
+use App\Models\MatchSlot;
 use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\User;
 use App\Services\Draft\DraftService;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Support\Card;
 use Tests\Support\GameBuilder;
 
 it('starts a new game and lands in the draft room', function () {
@@ -126,4 +128,52 @@ it('moves from title assignment into the season', function () {
         ->assertRedirect(route('gm.schedule', $save));
 
     expect($save->refresh()->stage)->toBe(SaveStage::InSeason);
+});
+
+it('books and clears a match through the card builder endpoints', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+    $show = Card::show($save);
+    $edge = GameBuilder::wrestler($save, 'Edge');
+    $kane = GameBuilder::wrestler($save, 'Kane');
+
+    $this->actingAs($save->user)
+        ->get(route('gm.card.show', [$save, $show]))
+        ->assertInertia(fn (Assert $page) => $page->component('gm/card')->has('slots', 6)->has('match_types'));
+
+    $this->actingAs($save->user)
+        ->put(route('gm.card.book', [$save, $show, 1]), [
+            'match_type_id' => Card::singles()->id,
+            'sides' => [[$edge->id], [$kane->id]],
+        ])
+        ->assertRedirect();
+
+    expect(MatchSlot::where('show_id', $show->id)->where('position', 1)->value('match_type_id'))->not->toBeNull();
+
+    $this->actingAs($save->user)->delete(route('gm.card.clear', [$save, $show, 1]))->assertRedirect();
+
+    expect(MatchSlot::where('show_id', $show->id)->where('position', 1)->value('match_type_id'))->toBeNull();
+});
+
+it('shows flashing outcomes and reports after the week airs', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+    Card::book($save, Card::show($save), 1, Card::singles(), [['Edge'], ['Kane']]);
+    $this->actingAs($save->user)->post(route('gm.advance', $save));
+
+    $this->actingAs($save->user)
+        ->get(route('gm.results', [$save, 1]))
+        ->assertInertia(fn (Assert $page) => $page->component('gm/results')->has('shows.0.outcomes', 1));
+
+    $this->actingAs($save->user)
+        ->get(route('gm.reports', $save))
+        ->assertInertia(fn (Assert $page) => $page->component('gm/reports')->has('shows'));
+});
+
+it('refuses to open the rival brand card', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+    $show = Card::show($save, Brand::Smackdown);
+
+    $this->actingAs($save->user)
+        ->from(route('gm.schedule', $save))
+        ->put(route('gm.card.book', [$save, $show, 1]), ['match_type_id' => 1, 'sides' => [[1], [2]]])
+        ->assertSessionHasErrors('game');
 });

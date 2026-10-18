@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\Gm\CardController;
 use App\Http\Controllers\Gm\ContractController;
 use App\Http\Controllers\Gm\DraftController;
 use App\Http\Controllers\Gm\EmailController;
 use App\Http\Controllers\Gm\FinancialsController;
 use App\Http\Controllers\Gm\FreeAgencyController;
+use App\Http\Controllers\Gm\ReportsController;
 use App\Http\Controllers\Gm\ResultsController;
 use App\Http\Controllers\Gm\RosterController;
 use App\Http\Controllers\Gm\SaveController;
@@ -40,6 +42,11 @@ Route::middleware(['auth'])->prefix('gm')->name('gm.')->group(function () {
             Route::get('schedule', ScheduleController::class)->name('schedule');
             Route::post('advance', [WeekController::class, 'advance'])->name('advance');
             Route::get('results/{week}', ResultsController::class)->whereNumber('week')->name('results');
+
+            Route::get('shows/{show}', [CardController::class, 'show'])->name('card.show');
+            Route::put('shows/{show}/slots/{position}', [CardController::class, 'book'])->whereNumber('position')->name('card.book');
+            Route::delete('shows/{show}/slots/{position}', [CardController::class, 'clear'])->whereNumber('position')->name('card.clear');
+            Route::get('reports', ReportsController::class)->name('reports');
 
             Route::get('email', [EmailController::class, 'index'])->name('email');
 

@@ -4,8 +4,12 @@ namespace App\Services\Ai;
 
 use App\Enums\Brand;
 use App\Enums\ContractLength;
+use App\Exceptions\GameRuleException;
 use App\Models\Save;
 use App\Models\SaveWrestler;
+use App\Models\Show;
+use App\Services\Card\CardRandomizer;
+use App\Services\Card\CardService;
 use App\Services\Contracts\ContractPricing;
 use App\Services\Roster\RosterService;
 
@@ -19,7 +23,37 @@ class AiGm
     public function __construct(
         private RosterService $roster,
         private ContractPricing $pricing,
+        private CardRandomizer $randomizer,
+        private CardService $cards,
     ) {}
+
+    /**
+     * Fill the AI brand's empty slots using the Preset rules (§24).
+     */
+    public function bookShow(Show $show, ?Brand $brand = null): void
+    {
+        $brand ??= $show->brand;
+
+        if ($brand === null) {
+            return;
+        }
+
+        $this->cards->ensureSlots($show);
+
+        try {
+            $preset = $this->randomizer->preset($show, $show->game->rng("ai.card.{$show->streamKey()}", $show->week_number), $brand);
+        } catch (GameRuleException) {
+            return;
+        }
+
+        foreach ($preset['proposals'] as $proposal) {
+            try {
+                $this->cards->book($show, $proposal->position, $proposal->booking, $brand);
+            } catch (GameRuleException) {
+                continue;
+            }
+        }
+    }
 
     /**
      * Pick an affordable free agent for the initial draft, or null to stop.

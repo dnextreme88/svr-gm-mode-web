@@ -23,6 +23,8 @@ class WeekResolver
     public const STEPS = [
         Steps\PrepareShows::class,
         Steps\AirShows::class,
+        Steps\RecoverFatigue::class,
+        Steps\InjuryReturns::class,
         Steps\TickContracts::class,
         Steps\ApplyPendingMoves::class,
         Steps\TrackDeficit::class,

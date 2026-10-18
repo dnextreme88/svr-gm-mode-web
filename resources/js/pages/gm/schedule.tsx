@@ -1,6 +1,7 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { PageTitle } from '@/components/gm/panel';
 import { cn } from '@/lib/utils';
+import gm from '@/routes/gm';
 import type { BrandScope, ShowStatus, ShowType } from '@/types/enums';
 import type { GamePageProps } from '@/types/gm';
 
@@ -88,11 +89,24 @@ export default function Schedule() {
                                                 </span>
                                             )}
                                         </span>
-                                        {isCurrent && (
-                                            <span className="font-condensed text-[0.65rem] font-bold tracking-widest text-brand-hot uppercase">
-                                                This week
-                                            </span>
-                                        )}
+                                        {isCurrent &&
+                                            (shows[cell.week] ?? []).map(
+                                                (show) => (
+                                                    <Link
+                                                        key={show.id}
+                                                        href={gm.card.show.url({
+                                                            save: game.id,
+                                                            show: show.id,
+                                                        })}
+                                                        className="gm-btn gm-btn-sm"
+                                                    >
+                                                        {show.show_type ===
+                                                        'ppv'
+                                                            ? 'Book PPV'
+                                                            : 'Book show'}
+                                                    </Link>
+                                                ),
+                                            )}
                                         {aired && !isCurrent && (
                                             <span className="text-[0.65rem] text-ink-faint">
                                                 ✓
