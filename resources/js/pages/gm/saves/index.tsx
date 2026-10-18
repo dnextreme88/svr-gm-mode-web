@@ -1,4 +1,5 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Trash2 } from 'lucide-react';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { EmptyState, Panel } from '@/components/gm/panel';
 import { formatCompactMoney } from '@/lib/gm';
@@ -19,26 +20,93 @@ type SaveSlot = {
     updated_at: string | null;
 };
 
-const brandPitch: Record<Brand, { tagline: string; perks: string[] }> = {
+type Perk = { text: string; tone?: 'diva' | 'cruiser' };
+
+/*
+ * Line 1: the brand's open championships. Line 2: its colour-coded title,
+ * in the same colour the roster uses (Divas red, Cruiserweights blue).
+ * Line 3: the match exclusive to one of its own PPVs.
+ */
+const brandPitch: Record<Brand, { tagline: string; perks: Perk[] }> = {
     raw: {
         tagline: 'Monday nights. Red ropes. No mercy.',
         perks: [
-            "Controls the Women's Championship",
-            'Elimination Chamber at New Year’s Revolution',
-            'WWE, Intercontinental & World Tag Team titles',
+            { text: 'WWE, Intercontinental & World Tag Team titles' },
+            { text: "Women's Championship", tone: 'diva' },
+            { text: "Elimination Chamber at New Year's Revolution" },
         ],
     },
     smackdown: {
         tagline: 'Friday nights. Blue steel. Fast and loose.',
         perks: [
-            'Controls the Cruiserweight Championship',
-            'World Heavyweight & United States titles',
-            'WWE Tag Team Championship',
+            { text: 'World Heavyweight, United States & WWE Tag Team titles' },
+            { text: 'Cruiserweight Championship', tone: 'cruiser' },
+            { text: 'Buried Alive at No Mercy' },
         ],
     },
 };
 
-export default function Saves({ saves }: { saves: SaveSlot[] }) {
+function confirmDelete(save: SaveSlot, message: string) {
+    if (confirm(message)) {
+        router.delete(gm.saves.destroy.url(save.id), { preserveScroll: true });
+    }
+}
+
+/**
+ * The career in progress that was never saved. Starting a new game
+ * discards it.
+ */
+function UnsavedCareer({ save }: { save: SaveSlot }) {
+    return (
+        <div
+            data-brand-tint={save.player_brand}
+            data-testid="unsaved-career"
+            className="mb-8 flex flex-wrap items-center gap-4 border border-dashed border-white/15 bg-black/30 px-4 py-3"
+        >
+            <BrandBug brand={save.player_brand} size="sm" />
+            <div className="min-w-0 flex-1">
+                <div className="gm-label">Unsaved career in progress</div>
+                <div className="truncate font-semibold">
+                    {save.name}
+                    <span className="ml-2 font-condensed text-xs tracking-wider text-ink-dim uppercase">
+                        {SaveStageLabels[save.stage]} · Season {save.season},
+                        week {save.season_week}
+                    </span>
+                </div>
+                <p className="text-xs text-ink-faint">
+                    Save it from the top bar to keep it. Starting a new game
+                    discards it.
+                </p>
+            </div>
+            <Link
+                href={gm.saves.show.url(save.id)}
+                className="gm-btn gm-btn-sm"
+            >
+                Resume
+            </Link>
+            <button
+                type="button"
+                className="gm-btn gm-btn-sm gm-btn-ghost"
+                onClick={() =>
+                    confirmDelete(
+                        save,
+                        `Discard "${save.name}"? It was never saved.`,
+                    )
+                }
+            >
+                Discard
+            </button>
+        </div>
+    );
+}
+
+export default function Saves({
+    saves,
+    unsaved,
+}: {
+    saves: SaveSlot[];
+    unsaved: SaveSlot | null;
+}) {
     const form = useForm<{ name: string; brand: Brand }>({
         name: 'My GM Career',
         brand: 'raw',
@@ -60,6 +128,8 @@ export default function Saves({ saves }: { saves: SaveSlot[] }) {
                     ends at WrestleMania.
                 </p>
             </div>
+
+            {unsaved && <UnsavedCareer save={unsaved} />}
 
             <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
                 <Panel title="New game">
@@ -116,13 +186,24 @@ export default function Saves({ saves }: { saves: SaveSlot[] }) {
                                                         brand
                                                     ].perks.map((perk) => (
                                                         <li
-                                                            key={perk}
+                                                            key={perk.text}
                                                             className="flex gap-2"
                                                         >
                                                             <span className="text-brand-hot">
                                                                 ▸
                                                             </span>
-                                                            {perk}
+                                                            <span
+                                                                className={cn(
+                                                                    perk.tone ===
+                                                                        'diva' &&
+                                                                        'gm-name-diva font-semibold',
+                                                                    perk.tone ===
+                                                                        'cruiser' &&
+                                                                        'gm-name-cruiser font-semibold',
+                                                                )}
+                                                            >
+                                                                {perk.text}
+                                                            </span>
                                                         </li>
                                                     ))}
                                                 </ul>
@@ -183,10 +264,11 @@ export default function Saves({ saves }: { saves: SaveSlot[] }) {
                                 <li
                                     key={save.id}
                                     data-brand-tint={save.player_brand}
+                                    className="flex items-center transition-colors hover:bg-white/[0.03]"
                                 >
                                     <Link
                                         href={gm.saves.show.url(save.id)}
-                                        className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-white/[0.03]"
+                                        className="flex min-w-0 flex-1 items-center gap-4 py-3 pl-4"
                                     >
                                         <BrandBug
                                             brand={save.player_brand}
@@ -217,6 +299,20 @@ export default function Saves({ saves }: { saves: SaveSlot[] }) {
                                             </span>
                                         )}
                                     </Link>
+                                    <button
+                                        type="button"
+                                        className="mx-3 p-2 text-ink-faint transition-colors hover:text-zone-serious focus-visible:text-zone-serious"
+                                        aria-label={`Delete ${save.name}`}
+                                        title="Delete this career"
+                                        onClick={() =>
+                                            confirmDelete(
+                                                save,
+                                                `Delete "${save.name}"? This can't be undone.`,
+                                            )
+                                        }
+                                    >
+                                        <Trash2 className="size-4" />
+                                    </button>
                                 </li>
                             ))}
                         </ul>

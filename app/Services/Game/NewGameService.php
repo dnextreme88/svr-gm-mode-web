@@ -9,36 +9,30 @@ use App\Models\Save;
 use App\Models\SaveBrand;
 use App\Models\SaveWrestler;
 use App\Models\Season;
-use App\Models\User;
 use App\Models\Wrestler;
-use App\Services\Draft\DraftService;
 use App\Services\Finance\LedgerService;
 use App\Support\Rng\RngFactory;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Creates a new save (§1): brand pick, $15M starting budget, every wrestler
- * in the Free Agency pool, and a randomized draft order.
+ * in the Free Agency pool, and a randomized draft order. The AI makes its
+ * draft picks from the draft room, one at a time.
  */
 class NewGameService
 {
     public function __construct(
         private RngFactory $rngFactory,
         private LedgerService $ledger,
-        private DraftService $draft,
     ) {}
 
-    /**
-     * @param  bool  $startDraft  let the AI make its opening picks right away
-     */
-    public function create(User $user, string $name, Brand $playerBrand, ?string $seed = null, bool $startDraft = true): Save
+    public function create(string $name, Brand $playerBrand, ?string $seed = null): Save
     {
-        return DB::transaction(function () use ($user, $name, $playerBrand, $seed, $startDraft): Save {
+        return DB::transaction(function () use ($name, $playerBrand, $seed): Save {
             $seed ??= $this->rngFactory->newSeed();
             $order = $this->rngFactory->make($seed, 0, 'draft.order')->shuffle(Brand::values());
 
             $save = Save::create([
-                'user_id' => $user->id,
                 'name' => $name,
                 'player_brand' => $playerBrand,
                 'rng_seed' => $seed,
@@ -78,10 +72,6 @@ class NewGameService
             // §1: the $15M is granted once, at the initial draft of a new game.
             foreach (Brand::cases() as $brand) {
                 $this->ledger->post($save, $brand, LedgerCategory::StartingBudget, $budget, 'Starting budget', 1);
-            }
-
-            if ($startDraft) {
-                $this->draft->runAi($save);
             }
 
             return $save->refresh();

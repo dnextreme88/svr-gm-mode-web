@@ -199,7 +199,6 @@ it('renders the Title History screen', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
     GameBuilder::giveTitle($save, 'wwe', ['Edge']);
 
-    $this->actingAs($save->user)
-        ->get(route('gm.titles.history', $save))
+    $this->get(route('gm.titles.history', $save))
         ->assertInertia(fn ($page) => $page->component('gm/titles/history')->has('titles', 8)->has('hall')->has('records'));
 });

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { InjuryChip, MoraleBadge, TitleBelt } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { PageTitle, Panel } from '@/components/gm/panel';
+import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { TradeStatus } from '@/types/enums';
@@ -221,7 +222,7 @@ function RosterPicker({
                                     className="accent-[var(--color-brand)]"
                                 />
                                 <span className="flex-1 font-medium">
-                                    {w.name}
+                                    <WrestlerName wrestler={w} />
                                     {w.titles.map((t) => (
                                         <span key={t} className="ml-2">
                                             <TitleBelt name={t} />

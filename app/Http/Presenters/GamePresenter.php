@@ -31,6 +31,7 @@ class GamePresenter
         return [
             'id' => $save->id,
             'name' => $save->name,
+            'saved' => $save->saved_at !== null,
             'player_brand' => $save->player_brand->value,
             'rival_brand' => $save->rivalBrand()->value,
             'stage' => $save->stage->value,

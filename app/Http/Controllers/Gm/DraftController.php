@@ -14,6 +14,7 @@ use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Services\Contracts\ContractPricing;
 use App\Services\Draft\DraftService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -56,13 +57,7 @@ class DraftController extends Controller
             ->where('phase', DraftPhase::Initial)
             ->orderBy('pick_number')
             ->get()
-            ->map(fn (DraftPick $p): array => [
-                'pick_number' => $p->pick_number,
-                'brand' => $p->brand->value,
-                'name' => $p->saveWrestler?->wrestler->name,
-                'roster_type' => $p->saveWrestler?->wrestler->roster_type->value,
-                'pick_type' => $p->pick_type->value,
-            ]);
+            ->map(fn (DraftPick $p): array => $this->pickRow($p));
 
         return Inertia::render('gm/draft', [
             'pool' => $pool,
@@ -83,9 +78,10 @@ class DraftController extends Controller
         $data = $request->validate(['save_wrestler_id' => ['required', 'integer']]);
         $wrestler = SaveWrestler::where('save_id', $save->id)->whereKey($data['save_wrestler_id'])->firstOrFail();
 
+        // The AI answers one pick at a time through aiStep, so the draft room can animate it.
         DB::transaction(function () use ($save, $wrestler): void {
             $this->draft->pick($save, $save->player_brand, $wrestler);
-            $this->draft->runAi($save);
+            $this->draft->finalize($save);
         });
 
         return to_route('gm.saves.show', $save);
@@ -99,9 +95,50 @@ class DraftController extends Controller
 
         DB::transaction(function () use ($save): void {
             $this->draft->finish($save, $save->player_brand);
-            $this->draft->runAi($save);
+            $this->draft->finalize($save);
         });
 
         return to_route('gm.saves.show', $save);
+    }
+
+    /**
+     * One AI pick, returned as JSON for the draft room animation.
+     */
+    public function aiStep(Save $save): JsonResponse
+    {
+        if ($save->stage !== SaveStage::Drafting) {
+            return response()->json(['pick' => null, 'ai_turn' => false, 'next_brand' => null, 'draft_over' => true]);
+        }
+
+        $result = DB::transaction(fn (): array => $this->draft->aiStep($save));
+        $save->refresh();
+        $pick = $result['pick']?->load('saveWrestler.wrestler');
+
+        return response()->json([
+            'pick' => $pick === null ? null : $this->pickRow($pick),
+            'ai_turn' => $result['ai_turn'],
+            'next_brand' => $this->draft->nextBrand($save)?->value,
+            'draft_over' => $save->stage !== SaveStage::Drafting,
+            'budgets' => [
+                'raw' => $save->brand(Brand::Raw)->budget,
+                'smackdown' => $save->brand(Brand::Smackdown)->budget,
+            ],
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function pickRow(DraftPick $p): array
+    {
+        return [
+            'pick_number' => $p->pick_number,
+            'brand' => $p->brand->value,
+            'save_wrestler_id' => $p->save_wrestler_id,
+            'name' => $p->saveWrestler?->wrestler->name,
+            'roster_type' => $p->saveWrestler?->wrestler->roster_type->value,
+            'weight_class' => $p->saveWrestler?->wrestler->weight_class->value,
+            'pick_type' => $p->pick_type->value,
+        ];
     }
 }

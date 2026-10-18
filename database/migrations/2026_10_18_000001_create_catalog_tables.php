@@ -19,7 +19,6 @@ return new class extends Migration
             $table->string('weight_class', 30);
             $table->unsignedSmallInteger('billed_weight_lb')->nullable();
             $table->string('placeholder_brand', 20)->nullable();
-            $table->boolean('is_default_manager')->default(false);
             $table->unsignedTinyInteger('overall')->nullable();
             $table->string('hometown')->nullable();
             $table->timestamps();

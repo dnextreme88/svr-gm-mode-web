@@ -135,18 +135,54 @@ class DraftService
      */
     public function runAi(Save $save): void
     {
-        while (($brand = $this->nextBrand($save)) !== null && ! $save->isHuman($brand)) {
-            $wrestler = $this->ai->draftPick($save, $brand, $this->picksMade($save, $brand) + 1);
+        while ($this->aiStep($save)['ai_turn']) {
+            // Keep picking until it's the human's turn or the draft ends.
+        }
+    }
 
-            if ($wrestler === null) {
-                $this->finish($save, $brand);
+    /**
+     * Make a single AI pick if it's the AI's turn, so the draft room can
+     * animate each pick as it happens. Ends the draft when nobody can pick.
+     *
+     * @return array{pick: DraftPick|null, ai_turn: bool}
+     */
+    public function aiStep(Save $save): array
+    {
+        $brand = $this->nextBrand($save);
 
-                continue;
-            }
+        if ($brand === null) {
+            $this->finalize($save);
 
-            $this->pick($save, $brand, $wrestler, DraftPickType::Random);
+            return ['pick' => null, 'ai_turn' => false];
         }
 
+        if ($save->isHuman($brand)) {
+            return ['pick' => null, 'ai_turn' => false];
+        }
+
+        $wrestler = $this->ai->draftPick($save, $brand, $this->picksMade($save, $brand) + 1);
+        $pick = null;
+
+        if ($wrestler === null) {
+            $this->finish($save, $brand);
+        } else {
+            $pick = $this->pick($save, $brand, $wrestler, DraftPickType::Random);
+        }
+
+        $next = $this->nextBrand($save);
+
+        if ($next === null) {
+            $this->finalize($save);
+        }
+
+        return ['pick' => $pick, 'ai_turn' => $next !== null && ! $save->isHuman($next)];
+    }
+
+    /**
+     * Once neither brand can pick, move on to championship assignment.
+     */
+    public function finalize(Save $save): void
+    {
         if ($this->nextBrand($save) === null && $save->stage === SaveStage::Drafting) {
             $save->update(['stage' => SaveStage::AssigningTitles]);
             $this->assignment->autoAssign($save, $save->rivalBrand());

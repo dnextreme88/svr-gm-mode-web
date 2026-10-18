@@ -3,6 +3,7 @@
 namespace App\Services\Matches;
 
 use App\Enums\LedgerCategory;
+use App\Enums\MatchFamily;
 use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
@@ -105,8 +106,21 @@ class ShowResolver
             $this->applyRecord($wrestlers[$p->save_wrestler_id], $won, $type->fatigueCost(), $slot, $resolved, $wrestlers);
         }
 
+        $buriedAlive = $type->family === MatchFamily::BuriedAlive;
+
         foreach ($slot->competitors() as $p) {
+            // House rule: whoever is buried alive can't be injured by it.
+            if ($buriedAlive && in_array($p->save_wrestler_id, $resolved->losers, true)) {
+                continue;
+            }
+
             $this->injuries->rollForMatch($wrestlers[$p->save_wrestler_id]->refresh(), $goingIn[$p->save_wrestler_id], $type, $week, $rng, $slot->id);
+        }
+
+        if ($buriedAlive) {
+            foreach ($resolved->losers as $loserId) {
+                $this->bury($wrestlers[$loserId]->refresh(), $week);
+            }
         }
 
         $this->outcomes->apply($slot, $result, $resolved, $context);
@@ -131,6 +145,18 @@ class ShowResolver
         if ($slot->cost > 0 && $brand !== null) {
             $this->ledger->post($context->save, $brand, LedgerCategory::MatchCost, -$slot->cost, "{$type->name} ({$show->name})", $week, $slot);
         }
+    }
+
+    /**
+     * House rule: the Buried Alive loser sits out for a month. The contract
+     * pauses for those weeks (see `SaveWrestler::isBuried()`).
+     */
+    private function bury(SaveWrestler $wrestler, int $week): void
+    {
+        $wrestler->update([
+            'buried_week' => $week,
+            'unbookable_until_week' => max($wrestler->unbookable_until_week ?? 0, $week + 1 + (int) config('gm.buried_alive.sit_out_weeks')),
+        ]);
     }
 
     /**

@@ -78,7 +78,8 @@ return [
     ['battle_royal', '6-Man Over the Top Rope', $six, [], ['win_condition' => 'Over the top rope']],
 
     // House rule: bookable on any PPV card.
-    ['buried_alive', 'Single', $one, [], ['ppv_only' => true, 'win_condition' => 'Buried alive']],
+    // House rule: No Mercy exclusive (SmackDown). The loser is buried: out for a month.
+    ['buried_alive', 'Single', $one, [], ['ppv_exclusive' => 'no_mercy', 'brand_restriction' => 'smackdown', 'win_condition' => 'Buried alive']],
 
     ['elimination_chamber', 'Normal 6-Man Chamber', $six, [], ['ppv_exclusive' => 'new_years_revolution', 'brand_restriction' => 'raw', 'is_elimination' => true]],
     ['elimination_chamber', 'Tornado 6-Man Tag Chamber', $ttTag, [], ['ppv_exclusive' => 'new_years_revolution', 'brand_restriction' => 'raw', 'is_elimination' => true]],

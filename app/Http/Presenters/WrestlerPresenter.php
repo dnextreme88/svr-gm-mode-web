@@ -34,7 +34,6 @@ class WrestlerPresenter
             'slug' => $w->wrestler->slug,
             'roster_type' => $w->wrestler->roster_type->value,
             'weight_class' => $w->wrestler->weight_class->value,
-            'is_default_manager' => $w->wrestler->is_default_manager,
             'brand' => $w->brand?->value,
             'morale' => $w->morale->value,
             'fatigue' => $w->fatigue,

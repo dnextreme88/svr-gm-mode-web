@@ -170,7 +170,7 @@ it('renders the Propose Trade, Rivalry and News screens', function (string $rout
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
     app(WeekResolver::class)->resolve($save);
 
-    $this->actingAs($save->user)->get(route($route, $save))->assertInertia(fn ($page) => $page->component($component));
+    $this->get(route($route, $save))->assertInertia(fn ($page) => $page->component($component));
 })->with([
     ['gm.trade.show', 'gm/trade'],
     ['gm.rivalries', 'gm/rivalries'],

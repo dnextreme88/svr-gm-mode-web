@@ -551,9 +551,6 @@ function SlotEditor({
                                                 }
                                             >
                                                 Manager: {w.name}
-                                                {w.is_default_manager
-                                                    ? ' ★'
-                                                    : ''}
                                             </option>
                                         ))}
                                     </select>

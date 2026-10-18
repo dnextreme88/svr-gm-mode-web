@@ -107,9 +107,8 @@ it('allows PPV-exclusive types only on their PPV and PPV-only types only on PPVs
     $backlash = Card::show($save, Brand::Raw, ShowType::Ppv, 4);
     $buried = Card::type('buried_alive', 'Single');
 
-    expect(fn () => Card::book($save, $weekly, 1, $buried, [['Edge'], ['Kane']]))->toThrow(GameRuleException::class, 'PPV');
-
-    Card::book($save, $backlash, 1, $buried, [['Edge'], ['Kane']]);
+    expect(fn () => Card::book($save, $weekly, 1, $buried, [['Edge'], ['Kane']]))->toThrow(GameRuleException::class)
+        ->and(fn () => Card::book($save, $backlash, 1, $buried, [['Edge'], ['Kane']]))->toThrow(GameRuleException::class, 'exclusive');
 
     $rumble = Card::type('royal_rumble', '30-Man');
     expect(fn () => Card::book($save, $backlash, 2, Card::type('elimination_chamber', 'Normal 6-Man Chamber'), [['Edge'], ['Kane'], ['Edge'], ['Kane'], ['Edge'], ['Kane']]))

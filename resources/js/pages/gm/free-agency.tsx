@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { InjuryChip, SpecialtyBadge } from '@/components/gm/badges';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { formatMoney } from '@/lib/gm';
+import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { RosterType } from '@/types/enums';
@@ -92,7 +93,9 @@ export default function FreeAgency() {
                                                     })}
                                                     className="font-semibold hover:text-brand-hot"
                                                 >
-                                                    {w.name}
+                                                    <WrestlerName
+                                                        wrestler={w}
+                                                    />
                                                 </Link>
                                             </td>
                                             <td className="text-ink-dim">

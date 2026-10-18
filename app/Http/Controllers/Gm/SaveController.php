@@ -19,27 +19,36 @@ use Inertia\Response;
  */
 class SaveController extends Controller
 {
-    public function index(Request $request, CalendarService $calendar): Response
+    /**
+     * Only careers the player has saved are listed. The latest unsaved one
+     * (if any) is offered separately so it can be resumed or discarded.
+     */
+    public function index(CalendarService $calendar): Response
     {
-        $saves = Save::with('brands')
-            ->where('user_id', $request->user()?->id)
-            ->latest('updated_at')
-            ->get()
-            ->map(fn (Save $save): array => [
-                'id' => $save->id,
-                'name' => $save->name,
-                'player_brand' => $save->player_brand->value,
-                'stage' => $save->stage->value,
-                'season' => $calendar->seasonOf($save->current_week),
-                'season_week' => $calendar->seasonWeek($save->current_week),
-                'month' => $calendar->monthLabel($save->current_week),
-                'budget' => $save->brands->firstWhere('brand', $save->player_brand)?->budget,
-                'updated_at' => $save->updated_at?->toIso8601String(),
-            ]);
+        $present = fn (Save $save): array => [
+            'id' => $save->id,
+            'name' => $save->name,
+            'player_brand' => $save->player_brand->value,
+            'stage' => $save->stage->value,
+            'season' => $calendar->seasonOf($save->current_week),
+            'season_week' => $calendar->seasonWeek($save->current_week),
+            'month' => $calendar->monthLabel($save->current_week),
+            'budget' => $save->brands->firstWhere('brand', $save->player_brand)?->budget,
+            'updated_at' => $save->updated_at?->toIso8601String(),
+        ];
 
-        return Inertia::render('gm/saves/index', ['saves' => $saves]);
+        $saves = Save::with('brands')->whereNotNull('saved_at')->latest('updated_at')->get()->map($present);
+        $unsaved = Save::with('brands')->whereNull('saved_at')->latest('id')->first();
+
+        return Inertia::render('gm/saves/index', [
+            'saves' => $saves,
+            'unsaved' => $unsaved === null ? null : $present($unsaved),
+        ]);
     }
 
+    /**
+     * Starting a new game throws away any career that was never saved.
+     */
     public function store(Request $request, NewGameService $newGame): RedirectResponse
     {
         $data = $request->validate([
@@ -47,9 +56,24 @@ class SaveController extends Controller
             'brand' => ['required', Rule::enum(Brand::class)],
         ]);
 
-        $save = $newGame->create($request->user(), $data['name'], Brand::from($data['brand']));
+        Save::whereNull('saved_at')->get()->each->delete();
+
+        $save = $newGame->create($data['name'], Brand::from($data['brand']));
 
         return to_route('gm.draft.show', $save);
+    }
+
+    /**
+     * Save the career so it's listed under Saved careers. Progress is kept
+     * as it happens from then on; saving again just refreshes the timestamp.
+     */
+    public function persist(Save $save): RedirectResponse
+    {
+        $save->update(['saved_at' => now()]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Saved \"{$save->name}\"."]);
+
+        return back();
     }
 
     public function show(Save $save): RedirectResponse

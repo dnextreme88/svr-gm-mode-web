@@ -17,7 +17,6 @@ return new class extends Migration
     {
         Schema::create('saves', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('name');
             $table->string('player_brand', 20);
             $table->string('rng_seed', 64);
@@ -25,6 +24,8 @@ return new class extends Migration
             $table->unsignedSmallInteger('current_season')->default(1);
             $table->unsignedInteger('current_week')->default(1);
             $table->json('draft_order');
+            // Null until the player saves the career; unsaved careers aren't listed.
+            $table->timestamp('saved_at')->nullable();
             $table->timestamps();
         });
 
@@ -55,6 +56,7 @@ return new class extends Migration
             $table->unsignedInteger('weeks_unused')->default(0);
             $table->unsignedInteger('weeks_since_title_match')->default(0);
             $table->unsignedInteger('unbookable_until_week')->nullable();
+            $table->unsignedInteger('buried_week')->nullable();
             $table->unsignedInteger('unsignable_until_week')->nullable();
             $table->unsignedInteger('joined_brand_week')->nullable();
             $table->unsignedInteger('debuted_week')->nullable();

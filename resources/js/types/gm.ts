@@ -20,6 +20,7 @@ export type FatigueConfig = {
 export type GameShell = {
     id: number;
     name: string;
+    saved: boolean;
     player_brand: Brand;
     rival_brand: Brand;
     stage: SaveStage;
@@ -63,7 +64,6 @@ export type WrestlerRow = {
     slug: string;
     roster_type: RosterType;
     weight_class: WeightClass;
-    is_default_manager: boolean;
     brand: Brand | null;
     morale: Morale;
     fatigue: number;

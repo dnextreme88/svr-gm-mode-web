@@ -2,11 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'welcome')->name('home');
+// GM Mode runs without accounts for now; the home page is the save list.
+Route::redirect('/', '/gm')->name('home');
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
-});
-
-require __DIR__.'/settings.php';
 require __DIR__.'/gm.php';

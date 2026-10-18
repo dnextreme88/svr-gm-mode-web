@@ -1,4 +1,5 @@
 import { Link, router, usePage } from '@inertiajs/react';
+import { Check, Save } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { BrandBug } from '@/components/gm/brand-bug';
@@ -85,6 +86,47 @@ function AirWeekButton({ game }: { game: GameShell }) {
     );
 }
 
+/**
+ * A career only shows under Saved careers once it's saved. After that,
+ * progress is kept as it happens.
+ */
+function SaveCareerButton({ game }: { game: GameShell }) {
+    const [saving, setSaving] = useState(false);
+
+    if (game.saved) {
+        return (
+            <span
+                className="flex items-center gap-1.5 font-condensed text-xs tracking-[0.2em] text-zone-safe uppercase"
+                title="Progress is saved automatically from here on"
+                data-testid="career-saved"
+            >
+                <Check className="size-3.5" />
+                Saved
+            </span>
+        );
+    }
+
+    return (
+        <button
+            type="button"
+            className="gm-btn gm-btn-sm gm-btn-ghost"
+            disabled={saving}
+            title="Keep this career under Saved careers"
+            onClick={() => {
+                setSaving(true);
+                router.post(
+                    gm.saves.persist.url(game.id),
+                    {},
+                    { preserveScroll: true, onFinish: () => setSaving(false) },
+                );
+            }}
+        >
+            <Save className="size-3.5" />
+            {saving ? 'Saving…' : 'Save career'}
+        </button>
+    );
+}
+
 function Header({ game }: { game: GameShell }) {
     return (
         <header className="relative z-10 border-b border-white/8 bg-arena/80 backdrop-blur">
@@ -147,6 +189,7 @@ function Header({ game }: { game: GameShell }) {
                             {formatCompactMoney(game.budget)}
                         </div>
                     </div>
+                    <SaveCareerButton game={game} />
                     <AirWeekButton game={game} />
                 </div>
             </div>

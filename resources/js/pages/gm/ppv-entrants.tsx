@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { InjuryChip, MoraleBadge } from '@/components/gm/badges';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { PageTitle, Panel } from '@/components/gm/panel';
+import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { GamePageProps, WrestlerRow } from '@/types/gm';
@@ -122,7 +123,7 @@ export default function PpvEntrants() {
                                             aria-label={w.name}
                                         />
                                         <span className="flex-1 font-medium">
-                                            {w.name}
+                                            <WrestlerName wrestler={w} />
                                         </span>
                                         <FatigueMeter
                                             fatigue={w.fatigue}

@@ -9,6 +9,7 @@ import { BrandBug } from '@/components/gm/brand-bug';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { formatMoney } from '@/lib/gm';
+import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { Brand } from '@/types/enums';
@@ -95,7 +96,7 @@ export default function Rosters() {
                                                 })}
                                                 className="font-semibold hover:text-brand-hot"
                                             >
-                                                {w.name}
+                                                <WrestlerName wrestler={w} />
                                             </Link>
                                             <div className="mt-0.5 flex flex-wrap gap-1">
                                                 {w.roster_type !==

@@ -20,7 +20,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property WeightClass $weight_class
  * @property int|null $billed_weight_lb
  * @property Brand|null $placeholder_brand
- * @property bool $is_default_manager
  * @property int|null $overall
  * @property string|null $hometown
  */
@@ -59,7 +58,6 @@ class Wrestler extends Model
             'roster_type' => RosterType::class,
             'weight_class' => WeightClass::class,
             'placeholder_brand' => Brand::class,
-            'is_default_manager' => 'boolean',
         ];
     }
 }

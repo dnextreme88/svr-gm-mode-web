@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int $weeks_unused
  * @property int $weeks_since_title_match
  * @property int|null $unbookable_until_week
+ * @property int|null $buried_week
  * @property int|null $unsignable_until_week
  * @property int|null $joined_brand_week
  * @property int|null $debuted_week
@@ -109,6 +110,15 @@ class SaveWrestler extends Model
     public function isSittingOut(int $week): bool
     {
         return $this->unbookable_until_week !== null && $week < $this->unbookable_until_week;
+    }
+
+    /**
+     * Out of action after losing a Buried Alive match: the weeks after the
+     * burial, while still sitting out. The contract is paused for these weeks.
+     */
+    public function isBuried(int $week): bool
+    {
+        return $this->buried_week !== null && $week > $this->buried_week && $this->isSittingOut($week);
     }
 
     protected function casts(): array

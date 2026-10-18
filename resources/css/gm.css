@@ -327,6 +327,48 @@
     .gm-scroll::-webkit-scrollbar-thumb {
         background: rgb(255 255 255 / 0.12);
     }
+
+    /*
+     * SvR 2006 colour coding: Cruiserweights and Light Heavyweights in blue,
+     * Divas in red. Highlighted draft rows use a light brand tint with dark
+     * text, so the coded names switch to deep shades there.
+     */
+    .gm-name-cruiser {
+        color: #74b4ff;
+    }
+
+    .gm-name-diva {
+        color: #ff7d8c;
+    }
+
+    .gm-row-highlight {
+        transition:
+            background-color 250ms,
+            color 250ms;
+    }
+
+    .gm-row-highlight[data-highlight='raw'] {
+        background-color: #ffcdd3 !important;
+        color: #14070a;
+    }
+
+    .gm-row-highlight[data-highlight='smackdown'] {
+        background-color: #cfe0ff !important;
+        color: #060c1a;
+    }
+
+    .gm-row-highlight[data-highlight] .gm-name-cruiser {
+        color: #0b3a94 !important;
+    }
+
+    .gm-row-highlight[data-highlight] .gm-name-diva {
+        color: #9b0016 !important;
+    }
+
+    .gm-row-highlight[data-highlight] .text-ink-dim,
+    .gm-row-highlight[data-highlight] .text-ink-faint {
+        color: #2a3142 !important;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

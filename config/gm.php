@@ -58,7 +58,7 @@ return [
         'min_competitors' => 2,
         'max_competitors' => 6,
         'wrestlemania_brand_slots' => 3,
-        // ASSUMPTION: how often Randomize/Preset try to make a slot a title match (ง24).
+        // ASSUMPTION: how often Randomize/Preset try to make a slot a title match (ยง24).
         'randomize_title_chance' => 0.35,
     ],
 
@@ -194,6 +194,16 @@ return [
             'upset' => 0.25,
         ],
         'blocked_sit_out_weeks' => 2,
+    ],
+
+    /*
+    | Buried Alive (house rule, No Mercy exclusive). The loser can't be booked
+    | for a month, takes no injury from the match, and their contract pauses
+    | (no weeks come off it, no upkeep) while they're buried.
+    */
+    'buried_alive' => [
+        'sit_out_weeks' => 4,
+        'pause_upkeep' => true,
     ],
 
     /*

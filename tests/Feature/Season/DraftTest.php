@@ -11,7 +11,6 @@ use App\Models\DraftPick;
 use App\Models\LedgerEntry;
 use App\Models\SaveWrestler;
 use App\Models\TitleReign;
-use App\Models\User;
 use App\Services\Draft\DraftService;
 use App\Services\Game\NewGameService;
 use App\Services\Titles\ChampionshipAssignment;
@@ -104,14 +103,19 @@ it('starts draftees Happy on a contract paid from the budget', function () {
         ->and($save->brand($brand)->budget)->toBe(15_000_000 - 100_000);
 });
 
-it('makes the AI pick automatically when a new game starts with its turn', function () {
+it('leaves the AI opening pick to the draft room, one step at a time', function () {
     GameBuilder::seedCatalog();
 
     foreach (range(1, 6) as $i) {
-        $save = app(NewGameService::class)->create(User::factory()->create(), 'X', Brand::Raw, "auto-{$i}");
+        $save = app(NewGameService::class)->create('X', Brand::Raw, "auto-{$i}");
 
         if ($save->draft_order[0] === 'smackdown') {
-            expect(DraftPick::where('save_id', $save->id)->count())->toBe(1)
+            expect(DraftPick::where('save_id', $save->id)->count())->toBe(0);
+
+            $step = app(DraftService::class)->aiStep($save);
+
+            expect($step['pick']?->brand)->toBe(Brand::Smackdown)
+                ->and($step['ai_turn'])->toBeFalse()
                 ->and(app(DraftService::class)->nextBrand($save))->toBe(Brand::Raw);
 
             return;

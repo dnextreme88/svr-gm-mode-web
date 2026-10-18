@@ -5,6 +5,7 @@ use App\Enums\BrandScope;
 use App\Enums\ChampionshipEligibility;
 use App\Enums\InjurySeverity;
 use App\Enums\MatchFamily;
+use App\Enums\PpvKey;
 use App\Enums\RosterType;
 use App\Enums\WeightClass;
 use App\Models\Championship;
@@ -47,8 +48,11 @@ describe('roster (§9)', function () {
             ->and(Wrestler::where('name', 'Mankind')->exists())->toBeFalse();
     });
 
-    it('marks only Jimmy Hart as a default manager', function () {
-        expect(Wrestler::where('is_default_manager', true)->pluck('name')->all())->toBe(['Jimmy Hart']);
+    it('uses plain names without nicknames', function () {
+        expect(Wrestler::where('name', 'like', '%"%')->count())->toBe(0)
+            ->and(Wrestler::where('name', 'Roddy Piper')->exists())->toBeTrue()
+            ->and(Wrestler::where('name', 'Jerry Lawler')->exists())->toBeTrue()
+            ->and(Wrestler::where('name', 'Stevie Richards')->exists())->toBeTrue();
     });
 
     it('has unique names', function () {
@@ -59,7 +63,7 @@ describe('roster (§9)', function () {
 describe('weight classes (§12)', function () {
     it('applies the Light Heavyweight rebalance', function (string $name) {
         expect(wrestler($name)->weight_class)->toBe(WeightClass::LightHeavyweight);
-    })->with(['Carlito', 'Chris Jericho', 'Rob Van Dam', 'Shawn Michaels', 'Mr. Kennedy', 'Johnny Nitro', 'Christian', 'Eddie Guerrero', 'Steven Richards']);
+    })->with(['Carlito', 'Chris Jericho', 'Rob Van Dam', 'Shawn Michaels', 'Mr. Kennedy', 'Johnny Nitro', 'Christian', 'Eddie Guerrero', 'Stevie Richards']);
 
     it('classes the added wrestlers as specified', function (string $name, WeightClass $class) {
         expect(wrestler($name)->weight_class)->toBe($class);
@@ -92,15 +96,19 @@ describe('weight classes (§12)', function () {
 });
 
 describe('specialties (§21)', function () {
-    it('seeds 24 specialties across 19 wrestlers', function () {
-        expect(WrestlerSpecialty::count())->toBe(24)
-            ->and(WrestlerSpecialty::distinct()->count('wrestler_id'))->toBe(19);
+    it('seeds 30 specialties across 24 wrestlers', function () {
+        expect(WrestlerSpecialty::count())->toBe(30)
+            ->and(WrestlerSpecialty::distinct()->count('wrestler_id'))->toBe(24);
     });
 
     it('gives the listed wrestlers their specialties', function () {
         expect(wrestler('Shawn Michaels')->specialtyFamilies())->toEqualCanonicalizing([MatchFamily::Ladder, MatchFamily::IronMan])
             ->and(wrestler('Edge')->specialtyFamilies())->toEqualCanonicalizing([MatchFamily::Tlc, MatchFamily::Ladder])
             ->and(wrestler('Undertaker')->specialtyFamilies())->toBe([MatchFamily::HellInACell])
+            ->and(wrestler('Bret Hart')->specialtyFamilies())->toEqualCanonicalizing([MatchFamily::Submission, MatchFamily::IronMan])
+            ->and(wrestler('Kurt Angle')->specialtyFamilies())->toBe([MatchFamily::Submission])
+            ->and(collect(['Stevie Richards', 'Sabu', 'Terry Funk', 'Tommy Dreamer'])->map(fn ($n) => wrestler($n)->specialtyFamilies())->all())
+            ->toBe(array_fill(0, 4, [MatchFamily::Hardcore]))
             ->and(wrestler('Batista')->specialtyFamilies())->toBe([]);
     });
 });
@@ -165,6 +173,7 @@ describe('match types (§10)', function () {
 
         expect($exclusive)->toBe([
             'Royal Rumble — 30-Man' => 'royal_rumble',
+            'Buried Alive — Single' => 'no_mercy',
             'Elimination Chamber — Normal 6-Man Chamber' => 'new_years_revolution',
             'Elimination Chamber — Tornado 6-Man Tag Chamber' => 'new_years_revolution',
             'Ladder — Money in the Bank' => 'wrestlemania',
@@ -172,10 +181,14 @@ describe('match types (§10)', function () {
         ]);
     });
 
-    it('makes Buried Alive PPV-only without a single exclusive PPV', function () {
-        $buried = MatchType::where('family', MatchFamily::BuriedAlive)->firstOrFail();
+    it("makes Buried Alive SmackDown's No Mercy exclusive, as Elimination Chamber is Raw's", function () {
+        $buried = MatchType::with('ppvExclusive')->where('family', MatchFamily::BuriedAlive)->firstOrFail();
+        $chamber = MatchType::where('family', MatchFamily::EliminationChamber)->firstOrFail();
 
-        expect($buried->ppv_only)->toBeTrue()->and($buried->ppv_exclusive_id)->toBeNull();
+        expect($buried->ppv_only)->toBeTrue()
+            ->and($buried->ppvExclusive?->key)->toBe(PpvKey::NoMercy)
+            ->and($buried->brand_restriction)->toBe(Brand::Smackdown)
+            ->and($chamber->brand_restriction)->toBe(Brand::Raw);
     });
 
     it('sets up Money in the Bank as a 6-man ladder variant with no titles or Divas', function () {
@@ -254,5 +267,5 @@ it('is safe to run the catalog seeder twice', function () {
 
     expect(Wrestler::count())->toBe(98)
         ->and(MatchType::count())->toBe(97)
-        ->and(WrestlerSpecialty::count())->toBe(24);
+        ->and(WrestlerSpecialty::count())->toBe(30);
 });

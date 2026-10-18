@@ -328,10 +328,10 @@ describe('re-draft', function () {
 
     it('renders the re-draft and PPV entrant screens', function () {
         $save = redraftSave();
-        $this->actingAs($save->user)->get(route('gm.redraft.show', $save))->assertInertia(fn ($page) => $page->component('gm/redraft')->where('you_won', true));
+        $this->get(route('gm.redraft.show', $save))->assertInertia(fn ($page) => $page->component('gm/redraft')->where('you_won', true));
 
         $rumble = ppvSave(RUMBLE_WEEK);
-        $this->actingAs($rumble->user)->get(route('gm.ppv.entrants', [$rumble, interbrandShow($rumble, RUMBLE_WEEK)]))
+        $this->get(route('gm.ppv.entrants', [$rumble, interbrandShow($rumble, RUMBLE_WEEK)]))
             ->assertInertia(fn ($page) => $page->component('gm/ppv-entrants')->where('mode', 'rumble')->where('needed', 15));
     });
 });

@@ -11,7 +11,6 @@ use App\Models\Save;
 use App\Models\SaveBrand;
 use App\Models\SaveWrestler;
 use App\Models\TitleReign;
-use App\Models\User;
 use App\Models\Wrestler;
 use App\Services\Contracts\ContractService;
 use App\Services\Game\NewGameService;
@@ -40,7 +39,7 @@ class GameBuilder
     {
         self::seedCatalog();
 
-        return app(NewGameService::class)->create(User::factory()->create(), 'Test Save', $player, $seed, startDraft: false);
+        return app(NewGameService::class)->create('Test Save', $player, $seed);
     }
 
     /**

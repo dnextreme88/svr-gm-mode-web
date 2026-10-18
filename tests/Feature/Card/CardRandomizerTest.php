@@ -99,8 +99,7 @@ it('fails with a 422 and the expected message when the pool has 0 or 1 wrestlers
     $save = GameBuilder::inSeason(raw: $raw, smackdown: ['Batista']);
     $show = Card::show($save);
 
-    $this->actingAs($save->user)
-        ->postJson(route('gm.card.randomize', [$save, $show, 1]))
+    $this->postJson(route('gm.card.randomize', [$save, $show, 1]))
         ->assertStatus(422)
         ->assertJson(['message' => "Not enough available wrestlers to book this match (need 2, have {$have})."]);
 
@@ -197,8 +196,10 @@ it('respects match-type constraints: competitor count, Divas-only types and PPV-
     expect(array_diff(proposedIds($fyf), $divas))->toBe([]);
 
     $eligible = randomizer()->eligibleTypes(Card::show($save, Brand::Raw, ShowType::Ppv, 4), Brand::Raw);
-    expect($eligible->contains(fn ($t) => $t->family->value === 'buried_alive'))->toBeTrue()
+    $noMercy = randomizer()->eligibleTypes(Card::show($save, Brand::Smackdown, ShowType::Ppv, (int) config('gm.calendar.ppv_weeks.no_mercy')), Brand::Smackdown);
+    expect($eligible->contains(fn ($t) => $t->family->value === 'buried_alive'))->toBeFalse()
         ->and($eligible->contains(fn ($t) => $t->family->value === 'elimination_chamber'))->toBeFalse()
+        ->and($noMercy->contains(fn ($t) => $t->family->value === 'buried_alive'))->toBeTrue()
         ->and(randomizer()->eligibleTypes($weekly, Brand::Raw)->contains(fn ($t) => $t->ppv_only))->toBeFalse();
 });
 
@@ -270,8 +271,7 @@ describe('Preset', function () {
     it('returns the proposal, unfilled slots and cost warning through the endpoint', function () {
         $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito'], smackdown: ['Batista']);
 
-        $this->actingAs($save->user)
-            ->postJson(route('gm.card.preset', [$save, Card::show($save)]))
+        $this->postJson(route('gm.card.preset', [$save, Card::show($save)]))
             ->assertOk()
             ->assertJsonStructure(['proposals' => [['position', 'match_type_id', 'sides', 'side_names']], 'unfilled_slots', 'total_cost', 'deficit_warning']);
     });
@@ -292,9 +292,9 @@ it('confirms a Randomize proposal through the normal booking endpoint', function
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
     $show = Card::show($save);
 
-    $proposal = $this->actingAs($save->user)->postJson(route('gm.card.randomize', [$save, $show, 1]), ['match_type_id' => Card::singles()->id])->json('proposal');
+    $proposal = $this->postJson(route('gm.card.randomize', [$save, $show, 1]), ['match_type_id' => Card::singles()->id])->json('proposal');
 
-    $this->actingAs($save->user)->put(route('gm.card.book', [$save, $show, 1]), [
+    $this->put(route('gm.card.book', [$save, $show, 1]), [
         'match_type_id' => $proposal['match_type_id'],
         'sides' => $proposal['sides'],
     ])->assertRedirect();
@@ -306,7 +306,7 @@ it('answers a JSON confirm with 204 instead of a redirect', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
     $show = Card::show($save);
 
-    $this->actingAs($save->user)->putJson(route('gm.card.book', [$save, $show, 1]), [
+    $this->putJson(route('gm.card.book', [$save, $show, 1]), [
         'match_type_id' => Card::singles()->id,
         'sides' => [[GameBuilder::wrestler($save, 'Edge')->id], [GameBuilder::wrestler($save, 'Kane')->id]],
     ])->assertNoContent();

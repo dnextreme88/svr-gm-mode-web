@@ -23,23 +23,26 @@ use App\Http\Middleware\ShareGameState;
 use Illuminate\Support\Facades\Route;
 
 /*
-| GM Mode routes. Every route under a save requires the user to own it.
+| GM Mode routes. There are no user accounts for now, so saves are open to
+| whoever runs the app.
 */
 
-Route::middleware(['auth'])->prefix('gm')->name('gm.')->group(function () {
+Route::prefix('gm')->name('gm.')->group(function () {
     Route::get('/', [SaveController::class, 'index'])->name('saves.index');
     Route::post('saves', [SaveController::class, 'store'])->name('saves.store');
 
     Route::prefix('saves/{save}')
-        ->middleware(['can:view,save', ShareGameState::class])
+        ->middleware([ShareGameState::class])
         ->scopeBindings()
         ->group(function () {
             Route::get('/', [SaveController::class, 'show'])->name('saves.show');
             Route::delete('/', [SaveController::class, 'destroy'])->name('saves.destroy');
+            Route::post('persist', [SaveController::class, 'persist'])->name('saves.persist');
 
             Route::get('draft', [DraftController::class, 'show'])->name('draft.show');
             Route::post('draft/pick', [DraftController::class, 'pick'])->name('draft.pick');
             Route::post('draft/finish', [DraftController::class, 'finish'])->name('draft.finish');
+            Route::post('draft/ai-step', [DraftController::class, 'aiStep'])->name('draft.ai-step');
 
             Route::get('titles/assign', [TitleAssignmentController::class, 'show'])->name('titles.assign');
             Route::post('titles/assign/{championship}', [TitleAssignmentController::class, 'store'])->name('titles.assign.store')->withoutScopedBindings();

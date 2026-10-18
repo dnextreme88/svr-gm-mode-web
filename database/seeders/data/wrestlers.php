@@ -64,7 +64,7 @@ $smackdown = [
     ['Rey Mysterio', 'cruiserweight', 175],
     ['Scotty 2 Hotty', 'light_heavyweight', 209],
     ['Spike Dudley', 'cruiserweight', 150],
-    ['Steven Richards', 'light_heavyweight', 220],
+    ['Stevie Richards', 'light_heavyweight', 220],
     ['Sylvain Grenier', 'heavyweight', 250],
     ['Undertaker', 'super_heavyweight', 309],
     ['William Regal', 'heavyweight', 240],
@@ -90,10 +90,10 @@ $legends = [
     ['The Rock', 'heavyweight', 275],
     ['Jake Roberts', 'heavyweight', 253],
     ['Dusty Rhodes', 'heavyweight', null],
-    ['Jerry "The King" Lawler', 'heavyweight', null],
+    ['Jerry Lawler', 'heavyweight', null],
     ['Jim Neidhart', 'heavyweight', null],
     ['Mr. Perfect', 'heavyweight', null],
-    ['"Rowdy" Roddy Piper', 'heavyweight', null],
+    ['Roddy Piper', 'heavyweight', null],
     ['Shane McMahon', 'heavyweight', null],
     ['Tazz', 'heavyweight', null],
     ['Rick Rude', 'heavyweight', null],
@@ -127,7 +127,6 @@ foreach ($legends as [$name, $class, $weight]) {
 
 return [
     'wrestlers' => $rows,
-    'default_managers' => ['Jimmy Hart'],
     'specialties' => [
         'Edge' => ['tlc', 'ladder'],
         'Christian' => ['tlc', 'ladder'],
@@ -146,7 +145,12 @@ return [
         'Eddie Guerrero' => ['first_blood'],
         'Spike Dudley' => ['hardcore'],
         'Undertaker' => ['hell_in_a_cell'],
-        'Bret Hart' => ['submission'],
+        'Bret Hart' => ['submission', 'iron_man'],
         'John Cena' => ['submission'],
+        'Kurt Angle' => ['submission'],
+        'Stevie Richards' => ['hardcore'],
+        'Sabu' => ['hardcore'],
+        'Terry Funk' => ['hardcore'],
+        'Tommy Dreamer' => ['hardcore'],
     ],
 ];

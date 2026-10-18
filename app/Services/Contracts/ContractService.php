@@ -177,7 +177,8 @@ class ContractService
 
     /**
      * The weekly tick (§2): every active contract loses one week and its brand
-     * pays upkeep. Contracts that hit 0 expire. Guarded by `last_ticked_week`
+     * pays upkeep, except while the wrestler is buried alive (house rule).
+     * Contracts that hit 0 expire. Guarded by `last_ticked_week`
      * so a retried resolution can't double-decrement.
      *
      * @return array<string, array{expired: list<SaveWrestler>, vacated: array<int, list<string>>}> keyed by brand
@@ -196,10 +197,17 @@ class ContractService
             ->get();
 
         foreach ($contracts as $contract) {
+            // House rule: a contract pauses while its wrestler is buried alive.
+            $paused = $contract->saveWrestler->isBuried($week);
+
             $contract->update([
-                'weeks_remaining' => max(0, $contract->weeks_remaining - 1),
+                'weeks_remaining' => $paused ? $contract->weeks_remaining : max(0, $contract->weeks_remaining - 1),
                 'last_ticked_week' => $week,
             ]);
+
+            if ($paused && config('gm.buried_alive.pause_upkeep')) {
+                continue;
+            }
 
             $upkeep[$contract->brand->value] = ($upkeep[$contract->brand->value] ?? ['total' => 0, 'count' => 0]);
             $upkeep[$contract->brand->value]['total'] += $contract->weekly_cost;

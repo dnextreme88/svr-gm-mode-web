@@ -8,14 +8,13 @@ use App\Support\Rng\Rng;
 use App\Support\Rng\RngFactory;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * A GM Mode save (§1, §17). Holds the seeded RNG for every roll.
  *
  * @property int $id
- * @property int $user_id
  * @property string $name
  * @property Brand $player_brand
  * @property string $rng_seed
@@ -23,19 +22,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $current_season
  * @property int $current_week
  * @property list<string> $draft_order
- * @property-read User $user
+ * @property Carbon|null $saved_at
  */
 #[Unguarded]
 class Save extends Model
 {
-    /**
-     * @return BelongsTo<User, $this>
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
-
     /**
      * @return HasMany<SaveBrand, $this>
      */
@@ -160,6 +151,7 @@ class Save extends Model
             'player_brand' => Brand::class,
             'stage' => SaveStage::class,
             'draft_order' => 'array',
+            'saved_at' => 'datetime',
         ];
     }
 }

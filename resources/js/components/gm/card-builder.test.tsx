@@ -85,7 +85,6 @@ function wrestler(
         slug: name.toLowerCase(),
         roster_type: 'superstar',
         weight_class: 'heavyweight',
-        is_default_manager: false,
         brand: 'raw',
         morale: 'happy',
         fatigue: 0,
