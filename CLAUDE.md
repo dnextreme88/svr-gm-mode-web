@@ -28,7 +28,7 @@ Web-based simulation of a custom SmackDown vs Raw 2006 GM Mode, with house rules
 ## Git Conventions
 
 - **Git**: feature branches follow `type/YYYYMMDD-description` (e.g. `enhancements/20260519-blog`, `chore/20260404-...`, `feature/...`). Commit subjects are lowercase and imperative (`add`, `fix`, `refactor`, `update`), and the first line must stay within 100 characters (it is the only part shown in summaries). PRs merge to `main`.
-- **Pull requests**: always assign the repo owner [dnextreme88](https://github.com/dnextreme88) to every PR you create (e.g. `gh pr create --assignee dnextreme88`), so they don't have to self-assign afterward.
+- **Pull requests**: always assign the repo owner [dnextreme88](https://github.com/dnextreme88) as both assignee and reviewer on every PR you create (e.g. `gh pr create --assignee dnextreme88 --reviewer dnextreme88`), so they don't have to do it manually afterward.
 - **Formatting** is enforced by Pint's custom ruleset in [pint.json](pint.json) (Laravel preset + tweaks like `concat_space: false` and blank line before control statements). Run `vendor/bin/pint` before committing.
 - **Plans**: implementation/upgrade plans live in [docs](docs), one Markdown file per plan named `{YYYYMMDD}-kebab-case-topic.md` where the date is when the plan was executed (see the existing and renamed files there for the format). Add a matching entry to [docs/README.md](docs/README.md) — link the dated filename and bold the executed date.
 - **Executing a plan**: before starting the work in a plan, pull the latest `main`, then create a new branch off it with a meaningful name per the `type/YYYYMMDD-description` convention above. Do all plan work on that branch, never directly on `main`.

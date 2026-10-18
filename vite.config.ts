@@ -63,8 +63,11 @@ export default defineConfig({
         semi: true,
         singleAttributePerLine: false,
         htmlWhitespaceSensitivity: 'css',
+        proseWrap: 'never',
         ignorePatterns: [
             '.github/**',
+            'AGENTS.md',
+            'CLAUDE.md',
             'composer.json',
             'resources/js/components/ui/*',
             'resources/views/mail/*',
