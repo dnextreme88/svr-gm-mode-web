@@ -56,6 +56,6 @@ Web-based simulation of a custom SmackDown vs Raw 2006 GM Mode, with house rules
 
 ## TODOS
 
-The 2026-10-19 UI pass (docs page, money/typography, draft room, schedule, rosters, titles, email) is done; see [docs/20261019-ui-todos.md](docs/20261019-ui-todos.md).
+The 2026-10-19 docs page, match rules and UI polish work is done; see [docs/20261019-docs-page-match-rules-and-ui-polish.md](docs/20261019-docs-page-match-rules-and-ui-polish.md).
 
 - **Slobber Knocker (pending design):** a 1 vs N match where one wrestler faces an endless line of opponents until they lose. For now it's seeded as a 1-on-1 `No Limit` variant and can't have titles on the line. The user has ideas for how it should really work, so ask before changing its booking or sim rules.
