@@ -1,7 +1,11 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { MoraleBadge } from '@/components/gm/badges';
+import { useMemo } from 'react';
+import { MoraleBadge, UnreadPill } from '@/components/gm/badges';
+import { MentionText } from '@/components/gm/mention-text';
 import { EmptyState, PageTitle } from '@/components/gm/panel';
 import { formatMoney } from '@/lib/gm';
+import type { MentionMatcher, NamedWrestler } from '@/lib/mentions';
+import { buildMentionMatcher } from '@/lib/mentions';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { EmailTemplate, Morale } from '@/types/enums';
@@ -25,17 +29,33 @@ type EmailDetail = Omit<EmailSummary, 'read'> & {
 type Props = GamePageProps & {
     emails: EmailSummary[];
     selected: EmailDetail | null;
+    wrestlers: NamedWrestler[];
 };
 
 export default function Inbox() {
-    const { game, emails, selected } = usePage<Props>().props;
+    const { game, emails, selected, wrestlers } = usePage<Props>().props;
+    const matcher = useMemo(() => buildMentionMatcher(wrestlers), [wrestlers]);
 
     return (
         <>
             <Head title="Email" />
             <PageTitle
                 kicker={game.player_brand === 'raw' ? 'From JR' : 'From Tazz'}
-                title="Email"
+                title={
+                    <span className="flex items-center gap-3">
+                        Email
+                        {game.unread_emails > 0 && (
+                            <span
+                                className="text-base"
+                                data-testid="unread-count"
+                            >
+                                <UnreadPill>
+                                    {game.unread_emails} unread
+                                </UnreadPill>
+                            </span>
+                        )}
+                    </span>
+                }
             />
 
             {emails.length === 0 ? (
@@ -53,7 +73,7 @@ export default function Inbox() {
                                     className={cn(
                                         'block px-4 py-3 transition-colors hover:bg-white/[0.04]',
                                         selected?.id === email.id &&
-                                            'bg-brand/12 shadow-[inset_3px_0_0_var(--color-brand)]',
+                                            'bg-brand/12 shadow-[inset_3px_0_0_var(--gm-brand)]',
                                     )}
                                 >
                                     <div className="flex items-center justify-between gap-2">
@@ -64,8 +84,13 @@ export default function Inbox() {
                                                 ]
                                             }
                                         </span>
-                                        <span className="gm-num text-xs text-ink-faint">
-                                            W{email.week_number}
+                                        <span className="flex items-center gap-2">
+                                            {!email.read && (
+                                                <UnreadPill>Unread</UnreadPill>
+                                            )}
+                                            <span className="gm-num text-xs text-ink-faint">
+                                                W{email.week_number}
+                                            </span>
                                         </span>
                                     </div>
                                     <div
@@ -76,10 +101,10 @@ export default function Inbox() {
                                                 : 'font-semibold text-ink',
                                         )}
                                     >
-                                        {!email.read && (
-                                            <span className="mr-2 inline-block size-2 rounded-full bg-brand-hot" />
-                                        )}
-                                        {email.subject}
+                                        <MentionText
+                                            text={email.subject}
+                                            matcher={matcher}
+                                        />
                                     </div>
                                 </Link>
                             </li>
@@ -93,15 +118,25 @@ export default function Inbox() {
                                 {selected.week_number}
                             </div>
                             <h2 className="gm-heading mt-2 text-3xl">
-                                {selected.subject}
+                                <MentionText
+                                    text={selected.subject}
+                                    matcher={matcher}
+                                />
                             </h2>
                             {selected.body && (
                                 <p className="mt-4 text-ink-dim">
-                                    {selected.body}
+                                    <MentionText
+                                        text={selected.body}
+                                        matcher={matcher}
+                                    />
                                 </p>
                             )}
                             <div className="mt-6">
-                                <EmailBody saveId={game.id} email={selected} />
+                                <EmailBody
+                                    saveId={game.id}
+                                    email={selected}
+                                    matcher={matcher}
+                                />
                             </div>
                         </article>
                     )}
@@ -122,7 +157,15 @@ type ExpiringRow = {
     expires_this_week: boolean;
 };
 
-function EmailBody({ saveId, email }: { saveId: number; email: EmailDetail }) {
+function EmailBody({
+    saveId,
+    email,
+    matcher,
+}: {
+    saveId: number;
+    email: EmailDetail;
+    matcher: MentionMatcher;
+}) {
     if (email.template === 'expiring_contracts') {
         const rows = email.payload.rows as ExpiringRow[];
 
@@ -155,7 +198,10 @@ function EmailBody({ saveId, email }: { saveId: number; email: EmailDetail }) {
                                     })}
                                     className="hover:underline"
                                 >
-                                    {row.name}
+                                    <MentionText
+                                        text={row.name}
+                                        matcher={matcher}
+                                    />
                                 </Link>
                             </td>
                             <td className="gm-num">
@@ -237,7 +283,9 @@ function EmailBody({ saveId, email }: { saveId: number; email: EmailDetail }) {
                         key={row.save_wrestler_id}
                         className="flex items-center justify-between border-l-2 border-brand bg-white/[0.03] px-3 py-2"
                     >
-                        <span className="font-semibold">{row.name}</span>
+                        <span className="font-semibold">
+                            <MentionText text={row.name} matcher={matcher} />
+                        </span>
                         <span className="text-sm text-ink-dim">
                             Now in Free Agency
                             {row.vacated.length > 0 &&

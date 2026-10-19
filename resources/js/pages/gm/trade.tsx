@@ -219,7 +219,7 @@ function RosterPicker({
                                     checked={checked}
                                     disabled={disabled}
                                     onChange={() => onToggle(w.id)}
-                                    className="accent-[var(--color-brand)]"
+                                    className="accent-[var(--gm-brand)]"
                                 />
                                 <span className="flex-1 font-medium">
                                     <WrestlerName wrestler={w} />

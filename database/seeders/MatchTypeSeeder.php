@@ -30,6 +30,9 @@ class MatchTypeSeeder extends Seeder
 
             $ppvKey = $extras['ppv_exclusive'] ?? null;
             $count = (int) array_sum($sides);
+            $rules = (array) config('gm.match_rules');
+            $noTitles = in_array($family, $rules['no_titles_families'], true)
+                || in_array($sides, $rules['no_titles_sides'], true);
 
             MatchType::updateOrCreate(
                 ['family' => $family, 'variant' => $variant],
@@ -39,13 +42,17 @@ class MatchTypeSeeder extends Seeder
                     'manager_sides' => $managerSides,
                     'min_competitors' => $count,
                     'max_competitors' => $count,
-                    'fatigue_cost_bars' => $defaults['bars'],
+                    'fatigue_cost_bars' => $extras['bars'] ?? ($count === 6 ? $rules['six_competitor_bars'][$family] ?? null : null) ?? $defaults['bars'],
                     'cost' => $defaults['cost'],
                     'dq_enabled' => $extras['dq'] ?? $defaults['dq'],
-                    'countout_enabled' => $extras['countout'] ?? $defaults['countout'],
+                    'countout_enabled' => $extras['countout'] ?? ($defaults['countout'] && ! in_array($family, $rules['no_rope_break_families'], true)),
+                    'rope_breaks' => $extras['rope_breaks'] ?? ! in_array($family, $rules['no_rope_break_families'], true),
+                    'ring_out' => $extras['ring_out'] ?? ! in_array($family, $rules['no_ring_out_families'], true),
+                    'captain_fall' => $extras['captain_fall'] ?? false,
+                    'timed' => $extras['timed'] ?? false,
                     'divas_only' => $extras['divas_only'] ?? false,
                     'divas_allowed' => $extras['divas_allowed'] ?? true,
-                    'titles_allowed' => $extras['titles_allowed'] ?? true,
+                    'titles_allowed' => $extras['titles_allowed'] ?? ! $noTitles,
                     'is_elimination' => $extras['is_elimination'] ?? false,
                     'ppv_only' => ($extras['ppv_only'] ?? false) || $ppvKey !== null,
                     'ppv_exclusive_id' => $ppvKey === null ? null : PpvEvent::where('key', $ppvKey)->value('id'),

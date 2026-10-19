@@ -135,6 +135,8 @@ export type MatchTypeOption = {
     titles_allowed: boolean;
     win_condition: string | null;
     ppv_only: boolean;
+    /** The first wrestler on each side is that side's captain. */
+    captain_fall: boolean;
 };
 
 export type RosterEntry = WrestlerRow & {

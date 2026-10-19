@@ -15,9 +15,6 @@ enum MatchFamily: string
     case Single = 'single';
     case TagTeam = 'tag_team';
     case SixManTag = 'six_man_tag';
-    case EliminationTag = 'elimination_tag';
-    case TripleThreat = 'triple_threat';
-    case FatalFourWay = 'fatal_four_way';
     case Handicap = 'handicap';
     case RoyalRumble = 'royal_rumble';
     case ThreeStagesOfHell = 'three_stages_of_hell';
@@ -43,8 +40,8 @@ enum MatchFamily: string
     public function label(): string
     {
         return match ($this) {
+            self::Single => 'Normal Matches',
             self::Tlc => 'TLC',
-            self::FatalFourWay => 'Fatal 4-Way',
             self::SixManTag => '6-Man Tag',
             self::SurvivorSeriesElimination => 'Traditional Survivor Series Elimination',
             default => Str::of($this->name)->headline()->toString(),

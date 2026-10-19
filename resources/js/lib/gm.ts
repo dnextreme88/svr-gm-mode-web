@@ -1,4 +1,10 @@
-import type { Brand, InjuryZone } from '@/types/enums';
+import type {
+    Brand,
+    InjuryZone,
+    MatchFamily,
+    RosterType,
+    WeightClass,
+} from '@/types/enums';
 import type { FatigueConfig } from '@/types/gm';
 
 const money = new Intl.NumberFormat('en-US', {
@@ -13,22 +19,6 @@ export function formatMoney(amount: number): string {
 
 export function formatSignedMoney(amount: number): string {
     return `${amount > 0 ? '+' : amount < 0 ? '−' : ''}${money.format(Math.abs(amount))}`;
-}
-
-/** Compact money for tight chyrons, e.g. $14.2M or $150K. */
-export function formatCompactMoney(amount: number): string {
-    const sign = amount < 0 ? '−' : '';
-    const abs = Math.abs(amount);
-
-    if (abs >= 1_000_000) {
-        return `${sign}$${(abs / 1_000_000).toFixed(abs >= 10_000_000 ? 1 : 2)}M`;
-    }
-
-    if (abs >= 1_000) {
-        return `${sign}$${Math.round(abs / 1_000)}K`;
-    }
-
-    return `${sign}$${abs}`;
 }
 
 export function brandName(brand: Brand): string {
@@ -70,4 +60,82 @@ export const zoneLabel: Record<InjuryZone, string> = {
 
 export function pluralize(count: number, word: string): string {
     return `${count} ${word}${count === 1 ? '' : 's'}`;
+}
+
+export function prefersReducedMotion(): boolean {
+    return (
+        typeof window !== 'undefined' &&
+        window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+    );
+}
+
+/**
+ * Per-browser UI preferences (e.g. Skip animation). Storage can be missing
+ * or blocked, so every access is guarded and falls back to the default.
+ */
+export function readPreference<T extends string>(
+    key: string,
+    fallback: T,
+    allowed: readonly T[],
+): T {
+    try {
+        const value = window.localStorage.getItem(key);
+
+        return value !== null && (allowed as readonly string[]).includes(value)
+            ? (value as T)
+            : fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+export function writePreference(key: string, value: string): void {
+    try {
+        window.localStorage.setItem(key, value);
+    } catch {
+        // Storage unavailable: the preference just won't persist.
+    }
+}
+
+/** Cruiserweights and Light Heavyweights (the blue names). */
+export function isCruiser(weightClass: WeightClass | null): boolean {
+    return (
+        weightClass === 'cruiserweight' || weightClass === 'light_heavyweight'
+    );
+}
+
+export type PoolFilter = {
+    type: RosterType | 'all';
+    cruisers: boolean;
+    specialists: boolean;
+    search: string;
+};
+
+export const emptyPoolFilter: PoolFilter = {
+    type: 'all',
+    cruisers: false,
+    specialists: false,
+    search: '',
+};
+
+type Filterable = {
+    name: string;
+    roster_type: RosterType;
+    weight_class: WeightClass;
+    specialties: MatchFamily[];
+};
+
+export function filterPool<T extends Filterable>(
+    rows: T[],
+    filter: PoolFilter,
+): T[] {
+    const search = filter.search.trim().toLowerCase();
+
+    return rows.filter(
+        (w) =>
+            (filter.type === 'all' || w.roster_type === filter.type) &&
+            (!filter.cruisers || isCruiser(w.weight_class)) &&
+            (!filter.specialists || w.specialties.length > 0) &&
+            w.name.toLowerCase().includes(search),
+    );
 }

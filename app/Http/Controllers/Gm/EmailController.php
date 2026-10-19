@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Gm;
 use App\Http\Controllers\Controller;
 use App\Models\Email;
 use App\Models\Save;
+use App\Models\SaveWrestler;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -48,6 +49,15 @@ class EmailController extends Controller
                 'payload' => $selected->payload,
                 'week_number' => $selected->week_number,
             ],
+            // Every name in the save, so the inbox can colour mentions by brand.
+            'wrestlers' => SaveWrestler::with('wrestler')
+                ->where('save_id', $save->id)
+                ->get()
+                ->map(fn (SaveWrestler $w): array => [
+                    'name' => $w->name(),
+                    'brand' => $w->brand?->value,
+                ])
+                ->values(),
         ]);
     }
 }

@@ -23,17 +23,44 @@ type ShowSummary = {
 };
 
 type Props = GamePageProps & {
+    season: number;
+    seasons: number[];
     months: Array<{ month: string; weeks: WeekCell[] }>;
     shows: Record<string, ShowSummary[]>;
 };
 
 export default function Schedule() {
-    const { game, months, shows } = usePage<Props>().props;
+    const { game, season, seasons, months, shows } = usePage<Props>().props;
 
     return (
         <>
             <Head title="Schedule" />
-            <PageTitle kicker={`Season ${game.season}`} title="Schedule" />
+            <PageTitle kicker={`Season ${season}`} title="Schedule">
+                {seasons.length > 1 && (
+                    <nav
+                        aria-label="Seasons"
+                        className="flex flex-wrap items-center gap-1"
+                    >
+                        <span className="gm-label mr-1">Season</span>
+                        {seasons.map((n) => (
+                            <Link
+                                key={n}
+                                href={gm.schedule.url(game.id, {
+                                    query:
+                                        n === game.season ? {} : { season: n },
+                                })}
+                                aria-current={n === season ? 'page' : undefined}
+                                className={cn(
+                                    'gm-btn gm-btn-sm',
+                                    n !== season && 'gm-btn-ghost',
+                                )}
+                            >
+                                {n}
+                            </Link>
+                        ))}
+                    </nav>
+                )}
+            </PageTitle>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {months.map(({ month, weeks }) => (
@@ -66,8 +93,9 @@ export default function Schedule() {
                                         className={cn(
                                             'flex items-center gap-3 px-4 py-2 text-sm',
                                             isCurrent &&
-                                                'bg-brand/15 shadow-[inset_3px_0_0_var(--color-brand)]',
-                                            isPast && 'opacity-55',
+                                                'bg-brand/15 shadow-[inset_3px_0_0_var(--gm-brand)]',
+                                            isPast && !aired && 'opacity-55',
+                                            isPast && aired && 'text-ink-dim',
                                         )}
                                     >
                                         <span className="gm-num w-10 text-ink-faint">
@@ -83,13 +111,13 @@ export default function Schedule() {
                                             {yourPpv && (
                                                 <span className="block font-condensed font-bold tracking-wide text-gold-hot uppercase">
                                                     {yourPpv.name}
-                                                    <span className="ml-1.5 text-[0.65rem] font-normal tracking-wider text-ink-dim">
+                                                    <span className="ml-1.5 text-xs font-normal tracking-wider text-ink-dim">
                                                         {cell.date}
                                                     </span>
                                                 </span>
                                             )}
                                             {rivalPpv && (
-                                                <span className="block font-condensed text-[0.65rem] tracking-wider text-ink-faint uppercase">
+                                                <span className="block font-condensed text-xs tracking-wider text-ink-faint uppercase">
                                                     rival: {rivalPpv.name} ·{' '}
                                                     {cell.date}
                                                 </span>
@@ -114,9 +142,16 @@ export default function Schedule() {
                                                 ),
                                             )}
                                         {aired && !isCurrent && (
-                                            <span className="text-[0.65rem] text-ink-faint">
-                                                ✓
-                                            </span>
+                                            <Link
+                                                href={gm.results.url({
+                                                    save: game.id,
+                                                    week: cell.week,
+                                                })}
+                                                className="font-condensed text-xs font-semibold tracking-wider text-ink-dim uppercase underline-offset-4 hover:text-ink hover:underline"
+                                                aria-label={`Results for week ${cell.season_week}`}
+                                            >
+                                                ✓ Results
+                                            </Link>
                                         )}
                                     </li>
                                 );

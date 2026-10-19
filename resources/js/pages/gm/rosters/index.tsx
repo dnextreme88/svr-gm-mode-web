@@ -1,4 +1,5 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
 import {
     InjuryChip,
     MoraleBadge,
@@ -8,6 +9,7 @@ import {
 import { BrandBug } from '@/components/gm/brand-bug';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
+import { StreakMeter } from '@/components/gm/streak-meter';
 import { formatMoney } from '@/lib/gm';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
@@ -25,6 +27,14 @@ type Props = GamePageProps & {
 export default function Rosters() {
     const { game, brand, wrestlers, pending } = usePage<Props>().props;
     const own = brand === game.player_brand;
+    const [search, setSearch] = useState('');
+    const visible = useMemo(() => {
+        const q = search.trim().toLowerCase();
+
+        return wrestlers.filter((w) => w.name.toLowerCase().includes(q));
+    }, [wrestlers, search]);
+    const open = (id: number) =>
+        router.visit(gm.rosters.show.url({ save: game.id, saveWrestler: id }));
 
     return (
         <>
@@ -69,39 +79,69 @@ export default function Rosters() {
             {wrestlers.length === 0 ? (
                 <EmptyState>Nobody on this roster.</EmptyState>
             ) : (
-                <Panel bodyClassName="p-0">
+                <Panel
+                    bodyClassName="p-0"
+                    title={`${visible.length} of ${wrestlers.length}`}
+                    actions={
+                        <input
+                            type="search"
+                            className="gm-input w-56 py-1 text-sm"
+                            placeholder="Search superstars…"
+                            aria-label="Search superstars"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    }
+                >
                     <div className="gm-scroll overflow-x-auto">
                         <table className="gm-table">
                             <thead>
                                 <tr>
                                     <th>Wrestler</th>
-                                    <th>Class</th>
+                                    <th>Weight Class</th>
                                     <th>Fatigue</th>
                                     <th>Injury</th>
                                     <th>Morale</th>
-                                    <th>Record</th>
+                                    <th>Record (W-L)</th>
+                                    <th>Streak</th>
                                     <th>Contract</th>
                                     <th>Popularity</th>
                                     <th>Specialties</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {wrestlers.map((w) => (
-                                    <tr key={w.id}>
+                                {visible.length === 0 && (
+                                    <tr>
+                                        <td
+                                            colSpan={10}
+                                            className="text-center text-ink-faint"
+                                        >
+                                            No one matches “{search}”.
+                                        </td>
+                                    </tr>
+                                )}
+                                {visible.map((w) => (
+                                    <tr
+                                        key={w.id}
+                                        tabIndex={0}
+                                        aria-label={`Open ${w.name}`}
+                                        data-testid="roster-row"
+                                        className="group cursor-pointer transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.06] focus-visible:outline-none"
+                                        onClick={() => open(w.id)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                open(w.id);
+                                            }
+                                        }}
+                                    >
                                         <td>
-                                            <Link
-                                                href={gm.rosters.show.url({
-                                                    save: game.id,
-                                                    saveWrestler: w.id,
-                                                })}
-                                                className="font-semibold hover:text-brand-hot"
-                                            >
+                                            <span className="font-semibold group-hover:text-brand-hot">
                                                 <WrestlerName wrestler={w} />
-                                            </Link>
+                                            </span>
                                             <div className="mt-0.5 flex flex-wrap gap-1">
                                                 {w.roster_type !==
                                                     'superstar' && (
-                                                    <span className="font-condensed text-[0.62rem] tracking-widest text-ink-faint uppercase">
+                                                    <span className="font-condensed text-xs tracking-widest text-ink-faint uppercase">
                                                         {
                                                             RosterTypeLabels[
                                                                 w.roster_type
@@ -116,7 +156,7 @@ export default function Rosters() {
                                                     />
                                                 ))}
                                                 {w.sitting_out && (
-                                                    <span className="font-condensed text-[0.62rem] font-bold tracking-widest text-zone-minor uppercase">
+                                                    <span className="font-condensed text-xs font-bold tracking-widest text-zone-minor uppercase">
                                                         Sitting out
                                                     </span>
                                                 )}
@@ -140,16 +180,13 @@ export default function Rosters() {
                                         </td>
                                         <td className="gm-num whitespace-nowrap">
                                             {w.wins}–{w.losses}
-                                            {w.win_streak >= 3 && (
-                                                <span className="ml-1.5 text-xs text-zone-safe">
-                                                    W{w.win_streak}
-                                                </span>
-                                            )}
-                                            {w.loss_streak >= 3 && (
-                                                <span className="ml-1.5 text-xs text-zone-serious">
-                                                    L{w.loss_streak}
-                                                </span>
-                                            )}
+                                        </td>
+                                        <td>
+                                            <StreakMeter
+                                                wins={w.win_streak}
+                                                losses={w.loss_streak}
+                                                size="sm"
+                                            />
                                         </td>
                                         <td className="whitespace-nowrap">
                                             {w.contract ? (

@@ -1,4 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 import {
     InjuryChip,
@@ -8,6 +9,7 @@ import {
 } from '@/components/gm/badges';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { EmptyState, PageTitle, Panel, Stat } from '@/components/gm/panel';
+import { StreakMeter } from '@/components/gm/streak-meter';
 import { formatMoney } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
@@ -35,6 +37,7 @@ type Props = GamePageProps & {
     }>;
     title_history: Array<{
         championship: string;
+        championship_key: string;
         reign_number: number | null;
         won_week: number;
         lost_week: number | null;
@@ -58,6 +61,22 @@ type Props = GamePageProps & {
     is_pending: boolean;
 };
 
+/** A labelled cell in the Status grid. */
+function StatusField({
+    label,
+    children,
+}: {
+    label: string;
+    children: ReactNode;
+}) {
+    return (
+        <div>
+            <div className="gm-label mb-2">{label}</div>
+            {children}
+        </div>
+    );
+}
+
 export default function WrestlerDetail() {
     const {
         game,
@@ -79,7 +98,7 @@ export default function WrestlerDetail() {
         <>
             <Head title={wrestler.name} />
             <PageTitle
-                kicker={`${RosterTypeLabels[wrestler.roster_type]} · ${WeightClassLabels[wrestler.weight_class]}`}
+                kicker={RosterTypeLabels[wrestler.roster_type]}
                 title={wrestler.name}
             >
                 <Link
@@ -92,64 +111,61 @@ export default function WrestlerDetail() {
                 </Link>
             </PageTitle>
 
-            <div className="mb-6 flex flex-wrap gap-2">
-                {wrestler.titles.map((t) => (
-                    <TitleBelt key={t} name={t} />
-                ))}
-                {wrestler.specialties.map((s) => (
-                    <SpecialtyBadge key={s} family={s} />
-                ))}
-            </div>
+            {wrestler.titles.length > 0 && (
+                <div className="mb-6 flex flex-wrap gap-2">
+                    {wrestler.titles.map((t) => (
+                        <TitleBelt key={t} name={t} />
+                    ))}
+                </div>
+            )}
 
             <div className="grid gap-6 lg:grid-cols-3">
                 <Panel title="Status" className="lg:col-span-2">
-                    <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                        <StatusField label="Morale">
+                            <MoraleBadge morale={wrestler.morale} />
+                        </StatusField>
                         <Stat
-                            label="Record"
+                            label="Record (W-L)"
                             value={`${wrestler.wins}–${wrestler.losses}`}
                         />
-                        <Stat
-                            label="Streak"
-                            value={
-                                wrestler.win_streak > 0
-                                    ? `W${wrestler.win_streak}`
-                                    : wrestler.loss_streak > 0
-                                      ? `L${wrestler.loss_streak}`
-                                      : '—'
-                            }
-                            tone={
-                                wrestler.win_streak > 0
-                                    ? 'good'
-                                    : wrestler.loss_streak > 0
-                                      ? 'bad'
-                                      : undefined
-                            }
-                        />
-                        <div>
-                            <div className="gm-label">Morale</div>
-                            <div className="mt-1.5">
-                                <MoraleBadge morale={wrestler.morale} />
-                            </div>
-                        </div>
-                        <Stat
-                            label="Popularity"
-                            value={wrestler.popularity ?? '—'}
-                        />
-                    </div>
-                    <div className="mt-6 grid gap-6 md:grid-cols-2">
-                        <div>
-                            <div className="gm-label mb-2">Fatigue</div>
+                        <StatusField label="Streak">
+                            <StreakMeter
+                                wins={wrestler.win_streak}
+                                losses={wrestler.loss_streak}
+                            />
+                        </StatusField>
+                        <StatusField label="Weight class">
+                            <span className="gm-num text-lg">
+                                {WeightClassLabels[wrestler.weight_class]}
+                            </span>
+                        </StatusField>
+                        <StatusField label="Injury">
+                            <InjuryChip injury={wrestler.injury} />
+                        </StatusField>
+                        <StatusField label="Fatigue">
                             <FatigueMeter
                                 fatigue={wrestler.fatigue}
                                 config={game.fatigue_config}
                                 size="md"
                                 showLabel
                             />
-                        </div>
-                        <div>
-                            <div className="gm-label mb-2">Injury</div>
-                            <InjuryChip injury={wrestler.injury} />
-                        </div>
+                        </StatusField>
+                        <StatusField label="Specialties">
+                            {wrestler.specialties.length > 0 ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                    {wrestler.specialties.map((s) => (
+                                        <SpecialtyBadge key={s} family={s} />
+                                    ))}
+                                </div>
+                            ) : (
+                                <span className="text-ink-faint">—</span>
+                            )}
+                        </StatusField>
+                        <Stat
+                            label="Popularity"
+                            value={wrestler.popularity ?? '—'}
+                        />
                     </div>
                     {complaints.length > 0 && (
                         <div className="mt-6">
@@ -324,7 +340,19 @@ export default function WrestlerDetail() {
                                 {title_history.map((r, i) => (
                                     <tr key={i}>
                                         <td className="font-semibold">
-                                            {r.championship}
+                                            <Link
+                                                href={gm.titles.history.url(
+                                                    game.id,
+                                                    {
+                                                        query: {
+                                                            title: r.championship_key,
+                                                        },
+                                                    },
+                                                )}
+                                                className="underline-offset-4 hover:text-brand-hot hover:underline"
+                                            >
+                                                {r.championship}
+                                            </Link>
                                             {r.holders !== wrestler.name && (
                                                 <div className="text-xs text-ink-faint">
                                                     {r.holders}

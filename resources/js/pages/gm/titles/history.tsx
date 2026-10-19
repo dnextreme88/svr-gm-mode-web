@@ -1,5 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { cn } from '@/lib/utils';
@@ -66,8 +66,16 @@ type Props = GamePageProps & {
 };
 
 export default function TitleHistory() {
-    const { game, titles, hall, records, briefcases } = usePage<Props>().props;
-    const [selected, setSelected] = useState<number>(titles[0]?.id ?? 0);
+    const page = usePage<Props>();
+    const { game, titles, hall, records, briefcases } = page.props;
+    // `?title={key}` opens that title's lineage (linked from wrestler pages).
+    const [selected, setSelected] = useState<number>(() => {
+        const key = new URLSearchParams(page.url.split('?')[1] ?? '').get(
+            'title',
+        );
+
+        return (titles.find((t) => t.key === key) ?? titles[0])?.id ?? 0;
+    });
     const title = titles.find((t) => t.id === selected) ?? titles[0];
     const ownVacant = titles.some(
         (t) => t.vacant && t.brand === game.player_brand,
@@ -89,7 +97,7 @@ export default function TitleHistory() {
 
             <section aria-labelledby="hall-heading" className="mb-8">
                 <h2 id="hall-heading" className="gm-label mb-3">
-                    Hall of Champions
+                    Current Champions
                 </h2>
                 <div className="grid gap-4 md:grid-cols-2">
                     {(['raw', 'smackdown'] as const).map((brand) => (
@@ -105,7 +113,7 @@ export default function TitleHistory() {
                                         key={h.name}
                                         className="border-l-2 border-gold/60 bg-white/[0.03] px-3 py-2"
                                     >
-                                        <div className="font-condensed text-[0.68rem] tracking-[0.14em] text-gold uppercase">
+                                        <div className="font-condensed text-xs tracking-[0.14em] text-gold uppercase">
                                             {h.name.replace(
                                                 ' Championship',
                                                 '',
@@ -143,23 +151,46 @@ export default function TitleHistory() {
             </section>
 
             <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-                <nav aria-label="Championships" className="gm-panel p-1">
-                    {titles.map((t) => (
-                        <button
-                            key={t.id}
-                            type="button"
-                            onClick={() => setSelected(t.id)}
-                            aria-pressed={t.id === title?.id}
-                            data-brand-tint={t.brand}
-                            className={cn(
-                                'block w-full px-3 py-2 text-left text-sm transition-colors',
-                                t.id === title?.id
-                                    ? 'bg-brand/15 text-ink shadow-[inset_3px_0_0_var(--color-brand)]'
-                                    : 'text-ink-dim hover:text-ink',
+                <nav
+                    aria-label="Championships"
+                    className="gm-panel self-start p-1"
+                >
+                    {(['raw', 'smackdown'] as const).map((brand, i) => (
+                        <Fragment key={brand}>
+                            {i > 0 && (
+                                <hr
+                                    className="my-2 border-white/15"
+                                    data-testid="brand-divider"
+                                />
                             )}
-                        >
-                            {t.name}
-                        </button>
+                            <div
+                                role="group"
+                                aria-label={`${brand === 'raw' ? 'Raw' : 'SmackDown!'} titles`}
+                                data-brand-tint={brand}
+                            >
+                                <div className="px-3 pt-2 pb-1.5">
+                                    <BrandBug brand={brand} size="sm" />
+                                </div>
+                                {titles
+                                    .filter((t) => t.brand === brand)
+                                    .map((t) => (
+                                        <button
+                                            key={t.id}
+                                            type="button"
+                                            onClick={() => setSelected(t.id)}
+                                            aria-pressed={t.id === title?.id}
+                                            className={cn(
+                                                'block w-full px-3 py-2 text-left text-sm transition-colors',
+                                                t.id === title?.id
+                                                    ? 'bg-brand/15 text-ink shadow-[inset_3px_0_0_var(--gm-brand)]'
+                                                    : 'text-ink-dim hover:text-ink',
+                                            )}
+                                        >
+                                            {t.name}
+                                        </button>
+                                    ))}
+                            </div>
+                        </Fragment>
                     ))}
                 </nav>
 

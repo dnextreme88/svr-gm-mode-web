@@ -2,6 +2,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { InjuryChip, MoraleBadge } from '@/components/gm/badges';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
+import { AirWeekButton } from '@/components/gm/air-week-button';
 import { PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
@@ -87,6 +88,7 @@ export default function PpvEntrants() {
                 >
                     Schedule
                 </Link>
+                {show.status === 'booking' && <AirWeekButton game={game} />}
             </PageTitle>
             <p className="-mt-3 mb-6 max-w-2xl text-sm text-ink-dim">
                 {rumble

@@ -26,6 +26,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $cost
  * @property bool $dq_enabled
  * @property bool $countout_enabled
+ * @property bool $rope_breaks
+ * @property bool $ring_out
+ * @property bool $captain_fall
+ * @property bool $timed
  * @property bool $divas_only
  * @property bool $divas_allowed
  * @property bool $titles_allowed
@@ -102,6 +106,10 @@ class MatchType extends Model
             'manager_sides' => 'array',
             'dq_enabled' => 'boolean',
             'countout_enabled' => 'boolean',
+            'rope_breaks' => 'boolean',
+            'ring_out' => 'boolean',
+            'captain_fall' => 'boolean',
+            'timed' => 'boolean',
             'divas_only' => 'boolean',
             'divas_allowed' => 'boolean',
             'titles_allowed' => 'boolean',

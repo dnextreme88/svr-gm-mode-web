@@ -30,3 +30,29 @@ it('frontend code never calls Math.random', function () {
 
     expect($offenders)->toBe([]);
 });
+
+it('frontend code keeps font sizes at or above 12px (0.75rem)', function () {
+    $offenders = [];
+    $root = dirname(__DIR__, 2).'/resources';
+    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
+
+    foreach ($iterator as $file) {
+        if (! preg_match('/\.(tsx?|jsx?|css)$/', $file->getFilename())) {
+            continue;
+        }
+
+        $source = (string) file_get_contents($file->getPathname());
+        preg_match_all('/text-\[(\d*\.?\d+)(px|rem)\]|font-size:\s*(\d*\.?\d+)(px|rem)/', $source, $matches, PREG_SET_ORDER);
+
+        foreach ($matches as $match) {
+            $value = (float) ($match[1] !== '' ? $match[1] : $match[3]);
+            $unit = $match[2] !== '' ? $match[2] : $match[4];
+
+            if (($unit === 'rem' ? $value * 16 : $value) < 12) {
+                $offenders[] = $file->getFilename().': '.$match[0];
+            }
+        }
+    }
+
+    expect($offenders)->toBe([]);
+});

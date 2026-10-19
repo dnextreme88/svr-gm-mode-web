@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { SpecialtyBadge } from '@/components/gm/badges';
+import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import {
     bookingCounts,
@@ -324,9 +325,7 @@ function SlotEditor({
                         </span>
                         <span>
                             Fatigue{' '}
-                            <span className="text-zone-minor">
-                                {'▮'.repeat(type.fatigue_cost_bars)}
-                            </span>
+                            <FatigueCost bars={type.fatigue_cost_bars} />
                         </span>
                     </span>
                 )}
@@ -399,6 +398,15 @@ function SlotEditor({
                                                     'border-zone-minor/60 bg-zone-minor/[0.07]',
                                             )}
                                         >
+                                            {type.captain_fall &&
+                                                index === 0 && (
+                                                    <div
+                                                        className="gm-label mb-1 text-gold"
+                                                        data-testid={`captain-${draft.position}-${sideIndex}`}
+                                                    >
+                                                        Captain
+                                                    </div>
+                                                )}
                                             {readOnly &&
                                             id !== null &&
                                             !rosterById.has(id) ? (
@@ -473,7 +481,7 @@ function SlotEditor({
                                                             ))}
                                                         {multi && (
                                                             <span
-                                                                className="bg-zone-minor px-1.5 py-px font-condensed text-[0.62rem] font-bold tracking-widest text-arena uppercase"
+                                                                className="bg-zone-minor px-1.5 py-px font-condensed text-xs font-bold tracking-widest text-arena uppercase"
                                                                 title="Booked in more than one match: each one adds fatigue and injury risk"
                                                             >
                                                                 ×
@@ -498,7 +506,7 @@ function SlotEditor({
                                                         goingInZone && (
                                                             <p
                                                                 className={cn(
-                                                                    'font-condensed text-[0.7rem] tracking-wide uppercase',
+                                                                    'font-condensed text-xs tracking-wide uppercase',
                                                                     goingInZone ===
                                                                         'serious_risk'
                                                                         ? 'text-zone-serious'

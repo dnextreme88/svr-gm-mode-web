@@ -44,6 +44,7 @@ function type(overrides: Partial<MatchTypeOption>): MatchTypeOption {
         titles_allowed: true,
         win_condition: null,
         ppv_only: false,
+        captain_fall: false,
         ...overrides,
     };
 }
@@ -71,6 +72,15 @@ const matchTypes = [
         family: 'fulfill_your_fantasy',
         variant: 'Single',
         divas_only: true,
+    }),
+    type({
+        id: 5,
+        name: '6-Man Tag — Captain Fall Tornado 6-Man Tag Elimination',
+        family: 'six_man_tag',
+        variant: 'Captain Fall Tornado 6-Man Tag Elimination',
+        sides: [3, 3],
+        titles_allowed: false,
+        captain_fall: true,
     }),
 ];
 
@@ -214,7 +224,20 @@ describe('CardBuilder', () => {
 
         const info = screen.getByTestId('type-info-1');
         expect(info).toHaveTextContent('$15,000');
-        expect(info).toHaveTextContent('▮▮▮');
+        expect(info.querySelectorAll('[data-state="filled"]')).toHaveLength(3);
+    });
+
+    it('labels the first wrestler on each side as Captain in a Captain Fall match', async () => {
+        const { user } = setup();
+
+        await user.selectOptions(
+            screen.getByLabelText('Match type for match 1'),
+            '5',
+        );
+
+        expect(screen.getByTestId('captain-1-0')).toHaveTextContent('Captain');
+        expect(screen.getByTestId('captain-1-1')).toHaveTextContent('Captain');
+        expect(screen.getAllByText('Captain')).toHaveLength(2);
     });
 
     it('disables seriously injured wrestlers', async () => {
