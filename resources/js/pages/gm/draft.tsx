@@ -2,9 +2,20 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SpecialtyBadge } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
+import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { PageTitle, Panel, Stat } from '@/components/gm/panel';
+import { PoolFilters } from '@/components/gm/pool-filters';
 import { WrestlerName } from '@/components/gm/wrestler-name';
-import { brandName, formatCompactMoney, formatMoney } from '@/lib/gm';
+import type { PoolFilter } from '@/lib/gm';
+import {
+    brandName,
+    emptyPoolFilter,
+    filterPool,
+    formatMoney,
+    prefersReducedMotion,
+    readPreference,
+    writePreference,
+} from '@/lib/gm';
 import { requestJson } from '@/lib/http';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
@@ -34,6 +45,7 @@ type Props = GamePageProps & {
     picks_made: Record<Brand, number>;
     draft_order: Brand[];
     contract_length: number;
+    player_done: boolean;
 };
 
 type AiStep = {
@@ -44,21 +56,14 @@ type AiStep = {
     budgets?: Record<Brand, number>;
 };
 
-const filters: Array<{ value: RosterType | 'all'; label: string }> = [
-    { value: 'all', label: 'All' },
-    { value: 'superstar', label: 'Superstars' },
-    { value: 'diva', label: 'Divas' },
-];
+const poolTypes = ['all', 'superstar', 'diva'] as const;
+
+const SKIP_ANIMATION_KEY = 'gm.draft.skip-animation';
+const BOARD_VIEW_KEY = 'gm.draft.board-view';
+type BoardView = 'all' | 'by-show';
 
 const sleep = (ms: number) =>
     new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-function prefersReducedMotion(): boolean {
-    return (
-        typeof window !== 'undefined' &&
-        window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
-    );
-}
 
 export default function Draft() {
     const props = usePage<Props>().props;
@@ -70,8 +75,15 @@ export default function Draft() {
     const [nextBrand, setNextBrand] = useState(props.next_brand);
     const [picksMade, setPicksMade] = useState(props.picks_made);
     const [budgets, setBudgets] = useState<Record<Brand, number> | null>(null);
-    const [filter, setFilter] = useState<RosterType | 'all'>('all');
-    const [search, setSearch] = useState('');
+    const [poolFilter, setPoolFilter] = useState<PoolFilter>(emptyPoolFilter);
+    const [skipAnimation, setSkipAnimation] = useState(
+        () => readPreference(SKIP_ANIMATION_KEY, 'off', ['on', 'off']) === 'on',
+    );
+    const [boardView, setBoardView] = useState<BoardView>(() =>
+        readPreference<BoardView>(BOARD_VIEW_KEY, 'all', ['all', 'by-show']),
+    );
+    const [confirmStop, setConfirmStop] = useState(false);
+    const [skippingDraft, setSkippingDraft] = useState(false);
     const [busy, setBusy] = useState(false);
     const [animating, setAnimating] = useState(false);
     const [highlight, setHighlight] = useState<{
@@ -80,7 +92,10 @@ export default function Draft() {
     } | null>(null);
     const [flashPick, setFlashPick] = useState<number | null>(null);
     const running = useRef(false);
-    const skip = useRef(false);
+    // Read before every AI pick, so toggling mid-draft takes effect at once.
+    const skip = useRef(skipAnimation);
+    // Set by "Skip rest of draft": the loop stops after the pick in flight.
+    const abort = useRef(false);
     const rows = useRef(new Map<number, HTMLTableRowElement>());
 
     // Pick up server state after each Inertia visit (unless an animation is mid-flight).
@@ -95,6 +110,13 @@ export default function Draft() {
         setPicksMade(props.picks_made);
         setBudgets(null);
     }, [props.pool, props.picks, props.next_brand, props.picks_made]);
+
+    useEffect(() => {
+        skip.current = skipAnimation;
+        writePreference(SKIP_ANIMATION_KEY, skipAnimation ? 'on' : 'off');
+    }, [skipAnimation]);
+
+    useEffect(() => writePreference(BOARD_VIEW_KEY, boardView), [boardView]);
 
     const yourTurn = nextBrand === game.player_brand;
     const aiTurn = nextBrand !== null && nextBrand !== game.player_brand;
@@ -133,10 +155,8 @@ export default function Draft() {
         }
 
         running.current = true;
-        skip.current = false;
         setAnimating(true);
-        setFilter('all');
-        setSearch('');
+        setPoolFilter(emptyPoolFilter);
 
         let draftOver = false;
 
@@ -162,7 +182,7 @@ export default function Draft() {
                 setNextBrand(step.next_brand);
                 draftOver = step.draft_over;
 
-                if (!step.ai_turn || draftOver) {
+                if (!step.ai_turn || draftOver || abort.current) {
                     break;
                 }
             }
@@ -174,6 +194,8 @@ export default function Draft() {
 
         if (draftOver) {
             router.visit(gm.saves.show.url(game.id));
+        } else if (abort.current) {
+            router.post(gm.draft.aiFinish.url(game.id));
         } else {
             router.reload();
         }
@@ -187,14 +209,19 @@ export default function Draft() {
     }, [aiTurn, runAi]);
 
     const visible = useMemo(
-        () =>
-            pool.filter(
-                (w) =>
-                    (filter === 'all' || w.roster_type === filter) &&
-                    w.name.toLowerCase().includes(search.toLowerCase()),
-            ),
-        [pool, filter, search],
+        () => filterPool(pool, poolFilter),
+        [pool, poolFilter],
     );
+
+    const skipRestOfDraft = () => {
+        setSkippingDraft(true);
+
+        if (running.current) {
+            abort.current = true;
+        } else {
+            router.post(gm.draft.aiFinish.url(game.id));
+        }
+    };
 
     const yourPicks = picks.filter((p) => p.brand === game.player_brand);
     const rivalPicks = picks.filter((p) => p.brand === game.rival_brand);
@@ -212,39 +239,59 @@ export default function Draft() {
         <>
             <Head title="Initial Draft" />
             <PageTitle kicker="Initial draft" title="Build your roster">
-                {animating && (
+                <button
+                    type="button"
+                    aria-pressed={skipAnimation}
+                    className={cn(
+                        'gm-btn gm-btn-sm',
+                        !skipAnimation && 'gm-btn-ghost',
+                    )}
+                    onClick={() => setSkipAnimation((on) => !on)}
+                >
+                    Skip animation: {skipAnimation ? 'On' : 'Off'}
+                </button>
+                {props.player_done ? (
+                    aiTurn && (
+                        <button
+                            type="button"
+                            className="gm-btn gm-btn-sm"
+                            disabled={skippingDraft}
+                            onClick={skipRestOfDraft}
+                        >
+                            {skippingDraft
+                                ? 'Finishing draft…'
+                                : 'Skip rest of draft'}
+                        </button>
+                    )
+                ) : (
                     <button
                         type="button"
                         className="gm-btn gm-btn-ghost gm-btn-sm"
-                        onClick={() => (skip.current = true)}
+                        disabled={busy || animating || !yourTurn}
+                        onClick={() => setConfirmStop(true)}
                     >
-                        Skip animation
+                        Stop drafting
                     </button>
                 )}
-                <button
-                    type="button"
-                    className="gm-btn gm-btn-ghost gm-btn-sm"
-                    disabled={busy || animating || !yourTurn}
-                    onClick={() => {
-                        if (
-                            confirm(
-                                'Stop drafting? You can fill the remaining spots through Free Agency.',
-                            )
-                        ) {
-                            router.post(gm.draft.finish.url(game.id));
-                        }
-                    }}
-                >
-                    Stop drafting
-                </button>
             </PageTitle>
+
+            <ConfirmDialog
+                open={confirmStop}
+                title="Stop drafting?"
+                message="Stop drafting? You can fill the remaining spots through Free Agency."
+                confirmLabel="Yes, stop"
+                onCancel={() => setConfirmStop(false)}
+                onConfirm={() => {
+                    setConfirmStop(false);
+                    router.post(gm.draft.finish.url(game.id));
+                }}
+            />
 
             <div className="mb-6 grid gap-4 md:grid-cols-4">
                 <div data-brand-tint={nextBrand ?? undefined}>
                     <Panel
                         className={cn(
-                            aiTurn &&
-                                'shadow-[0_0_40px_-14px_var(--color-brand)]',
+                            aiTurn && 'shadow-[0_0_40px_-14px_var(--gm-brand)]',
                         )}
                     >
                         <div className="gm-label">On the clock</div>
@@ -285,10 +332,7 @@ export default function Draft() {
                     />
                 </Panel>
                 <Panel>
-                    <Stat
-                        label="Budget"
-                        value={formatCompactMoney(yourBudget)}
-                    />
+                    <Stat label="Budget" value={formatMoney(yourBudget)} />
                 </Panel>
                 <Panel>
                     <Stat
@@ -303,41 +347,14 @@ export default function Draft() {
                     title={`Free agent pool · ${pool.length}`}
                     bodyClassName="p-0"
                     actions={
-                        <div className="flex flex-wrap items-center gap-2">
-                            {filters.map((f) => (
-                                <button
-                                    key={f.value}
-                                    type="button"
-                                    disabled={animating}
-                                    onClick={() => setFilter(f.value)}
-                                    className={cn(
-                                        'px-2 py-1 font-condensed text-xs font-semibold tracking-wider uppercase',
-                                        filter === f.value
-                                            ? 'bg-brand text-white'
-                                            : 'text-ink-dim hover:text-ink',
-                                    )}
-                                >
-                                    {f.label}
-                                </button>
-                            ))}
-                            <input
-                                className="gm-input w-40 py-1 text-sm"
-                                placeholder="Search…"
-                                aria-label="Search wrestlers"
-                                value={search}
-                                disabled={animating}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-                        </div>
+                        <PoolFilters
+                            value={poolFilter}
+                            onChange={setPoolFilter}
+                            types={poolTypes}
+                            disabled={animating}
+                        />
                     }
                 >
-                    <p
-                        className="border-b border-white/6 px-4 py-2 text-xs text-ink-faint"
-                        data-testid="legends-note"
-                    >
-                        Legends sit out the draft. Sign them from Free Agency
-                        once it's over.
-                    </p>
                     <div className="gm-scroll max-h-[65vh] overflow-y-auto">
                         <table className="gm-table">
                             <thead className="sticky top-0 z-10 bg-arena-2">
@@ -416,22 +433,113 @@ export default function Draft() {
                     </div>
                 </Panel>
 
-                <div className="space-y-6">
-                    <DraftBoard
-                        title="Your roster"
-                        brand={game.player_brand}
-                        picks={yourPicks}
-                        flashPick={flashPick}
-                    />
-                    <DraftBoard
-                        title="Rival roster"
-                        brand={game.rival_brand}
-                        picks={rivalPicks}
-                        flashPick={flashPick}
-                    />
+                <div className="space-y-3">
+                    <div
+                        className="flex items-center justify-between gap-3"
+                        role="group"
+                        aria-label="Draft picks view"
+                    >
+                        <h2 className="gm-heading text-2xl">Draft Picks</h2>
+                        <div className="flex gap-1">
+                            {(
+                                [
+                                    ['all', 'All picks'],
+                                    ['by-show', 'By show'],
+                                ] as const
+                            ).map(([view, label]) => (
+                                <button
+                                    key={view}
+                                    type="button"
+                                    aria-pressed={boardView === view}
+                                    onClick={() => setBoardView(view)}
+                                    className={cn(
+                                        'px-2 py-1 font-condensed text-xs font-semibold tracking-wider uppercase',
+                                        boardView === view
+                                            ? 'bg-brand text-white'
+                                            : 'text-ink-dim hover:text-ink',
+                                    )}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    {boardView === 'all' ? (
+                        <AllPicks picks={picks} flashPick={flashPick} />
+                    ) : (
+                        <div className="space-y-6">
+                            <DraftBoard
+                                title="Your roster"
+                                brand={game.player_brand}
+                                picks={yourPicks}
+                                flashPick={flashPick}
+                            />
+                            <DraftBoard
+                                title="Rival roster"
+                                brand={game.rival_brand}
+                                picks={rivalPicks}
+                                flashPick={flashPick}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
         </>
+    );
+}
+
+/** Every pick in draft order, newest at the bottom, with the drafting brand. */
+function AllPicks({
+    picks,
+    flashPick,
+}: {
+    picks: Pick[];
+    flashPick: number | null;
+}) {
+    const list = useRef<HTMLOListElement>(null);
+
+    useEffect(() => {
+        list.current?.scrollTo?.({ top: list.current.scrollHeight });
+    }, [picks.length]);
+
+    return (
+        <Panel bodyClassName="p-0">
+            <ol
+                ref={list}
+                className="gm-scroll max-h-[65vh] divide-y divide-white/5 overflow-y-auto"
+                aria-label="Draft picks"
+            >
+                {picks.length === 0 && (
+                    <li className="px-4 py-3 text-sm text-ink-faint">
+                        No picks yet.
+                    </li>
+                )}
+                {picks.map((p) => (
+                    <li
+                        key={p.pick_number}
+                        data-highlight={
+                            p.pick_number === flashPick ? p.brand : undefined
+                        }
+                        className={cn(
+                            'gm-row-highlight flex items-center gap-3 px-4 py-2 text-sm',
+                            p.pick_number === flashPick && 'animate-gm-rise',
+                        )}
+                    >
+                        <span className="gm-num w-8 text-ink-faint">
+                            {p.pick_number}.
+                        </span>
+                        <span className="min-w-0 flex-1 truncate font-medium">
+                            <WrestlerName wrestler={p} />
+                        </span>
+                        <BrandBug
+                            brand={p.brand}
+                            size="sm"
+                            className="ml-4 shrink-0"
+                        />
+                    </li>
+                ))}
+            </ol>
+        </Panel>
     );
 }
 
@@ -479,7 +587,7 @@ function DraftBoard({
                                 <WrestlerName wrestler={p} />
                             </span>
                             {p.roster_type && p.roster_type !== 'superstar' && (
-                                <span className="font-condensed text-[0.65rem] tracking-widest text-ink-dim uppercase">
+                                <span className="font-condensed text-xs tracking-widest text-ink-dim uppercase">
                                     {RosterTypeLabels[p.roster_type]}
                                 </span>
                             )}

@@ -11,8 +11,9 @@ type Props = {
     showLabel?: boolean;
 };
 
+// Safe-zone fatigue is orange (house style) rather than the spec's green.
 const zoneText = {
-    safe: 'text-zone-safe',
+    safe: 'text-gm-orange',
     minor_risk: 'text-zone-minor',
     serious_risk: 'text-zone-serious',
 } as const;
@@ -28,7 +29,7 @@ function segmentColor(index: number, config: FatigueConfig): string {
         return 'bg-zone-minor';
     }
 
-    return 'bg-zone-safe';
+    return 'bg-gm-orange';
 }
 
 /**
@@ -108,7 +109,7 @@ export function FatigueMeter({
                     {projected !== undefined && projected !== fatigue
                         ? `${capFatigue(projected, config)}%`
                         : `${fatigue}%`}
-                    <span className="ml-1 text-[0.65rem] tracking-wider uppercase opacity-80">
+                    <span className="ml-1 text-xs tracking-wider uppercase opacity-80">
                         {zoneLabel[zone]}
                     </span>
                 </span>

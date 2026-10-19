@@ -2,9 +2,10 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { Check, Save } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
+import { UnreadPill } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { useFlashToast } from '@/hooks/use-flash-toast';
-import { formatCompactMoney } from '@/lib/gm';
+import { formatMoney } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { GameShell } from '@/types/gm';
@@ -51,39 +52,8 @@ function navItems(game: GameShell): NavItem[] {
             match: '/financials',
         },
         { label: 'News', href: gm.news.url(id), match: '/news' },
+        { label: 'Docs', href: gm.saves.docs.url(id), match: '/docs' },
     ];
-}
-
-function AirWeekButton({ game }: { game: GameShell }) {
-    const [airing, setAiring] = useState(false);
-
-    if (game.stage !== 'in_season') {
-        return null;
-    }
-
-    return (
-        <button
-            type="button"
-            className="gm-btn"
-            disabled={airing || game.deficit.blocked}
-            title={
-                game.deficit.blocked
-                    ? 'Choose a deficit recovery plan on Financials first'
-                    : 'Air this week and resolve every match'
-            }
-            onClick={() => {
-                setAiring(true);
-                router.post(
-                    gm.advance.url(game.id),
-                    {},
-                    { onFinish: () => setAiring(false) },
-                );
-            }}
-        >
-            <span className="size-2 animate-gm-pulse rounded-full bg-white" />
-            {airing ? 'On air…' : `Air week ${game.season_week}`}
-        </button>
-    );
 }
 
 /**
@@ -186,11 +156,10 @@ function Header({ game }: { game: GameShell }) {
                                     : 'text-ink',
                             )}
                         >
-                            {formatCompactMoney(game.budget)}
+                            {formatMoney(game.budget)}
                         </div>
                     </div>
                     <SaveCareerButton game={game} />
-                    <AirWeekButton game={game} />
                 </div>
             </div>
         </header>
@@ -225,12 +194,12 @@ function Nav({ game, url }: { game: GameShell; url: string }) {
                         >
                             {item.label}
                             {item.badge ? (
-                                <span className="ml-1.5 inline-flex min-w-5 items-center justify-center bg-brand px-1 text-[0.65rem] text-white">
-                                    {item.badge}
+                                <span className="ml-1.5">
+                                    <UnreadPill>{item.badge}</UnreadPill>
                                 </span>
                             ) : null}
                             {active && (
-                                <span className="absolute inset-x-2 bottom-0 h-[3px] -skew-x-12 bg-brand shadow-[0_0_12px_var(--color-brand)]" />
+                                <span className="absolute inset-x-2 bottom-0 h-[3px] -skew-x-12 bg-brand shadow-[0_0_12px_var(--gm-brand)]" />
                             )}
                         </Link>
                     );

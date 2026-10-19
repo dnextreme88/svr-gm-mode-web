@@ -3,6 +3,7 @@
 use App\Http\Controllers\Gm\CardController;
 use App\Http\Controllers\Gm\CardToolsController;
 use App\Http\Controllers\Gm\ContractController;
+use App\Http\Controllers\Gm\DocsController;
 use App\Http\Controllers\Gm\DraftController;
 use App\Http\Controllers\Gm\EmailController;
 use App\Http\Controllers\Gm\FinancialsController;
@@ -30,6 +31,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('gm')->name('gm.')->group(function () {
     Route::get('/', [SaveController::class, 'index'])->name('saves.index');
     Route::post('saves', [SaveController::class, 'store'])->name('saves.store');
+    Route::get('docs', DocsController::class)->name('docs');
 
     Route::prefix('saves/{save}')
         ->middleware([ShareGameState::class])
@@ -43,6 +45,7 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::post('draft/pick', [DraftController::class, 'pick'])->name('draft.pick');
             Route::post('draft/finish', [DraftController::class, 'finish'])->name('draft.finish');
             Route::post('draft/ai-step', [DraftController::class, 'aiStep'])->name('draft.ai-step');
+            Route::post('draft/ai-finish', [DraftController::class, 'aiFinish'])->name('draft.ai-finish');
 
             Route::get('titles/assign', [TitleAssignmentController::class, 'show'])->name('titles.assign');
             Route::post('titles/assign/{championship}', [TitleAssignmentController::class, 'store'])->name('titles.assign.store')->withoutScopedBindings();
@@ -74,6 +77,7 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::post('trade', [TradeController::class, 'store'])->name('trade.store');
 
             Route::get('email', [EmailController::class, 'index'])->name('email');
+            Route::get('docs', DocsController::class)->name('saves.docs');
 
             Route::get('rosters', [RosterController::class, 'index'])->name('rosters.index');
             Route::get('rosters/{saveWrestler}', [RosterController::class, 'show'])->name('rosters.show');

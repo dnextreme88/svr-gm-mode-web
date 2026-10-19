@@ -61,6 +61,7 @@ class RosterController extends Controller
             ->filter(fn (TitleReign $r): bool => in_array($saveWrestler->id, $r->holderIds(), true))
             ->map(fn (TitleReign $r): array => [
                 'championship' => $r->championship->name,
+                'championship_key' => $r->championship->key->value,
                 'brand' => $r->brand->value,
                 'reign_number' => $r->reign_number,
                 'won_week' => $r->won_week,

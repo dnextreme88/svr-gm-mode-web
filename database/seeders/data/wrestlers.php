@@ -140,6 +140,7 @@ foreach ($legends as [$name, $class, $weight]) {
 return [
     'wrestlers' => $rows,
     'specialties' => [
+        'The Great Khali' => ['steel_cage'],
         'Edge' => ['tlc', 'ladder'],
         'Christian' => ['tlc', 'ladder'],
         'Mick Foley' => ['hardcore'],

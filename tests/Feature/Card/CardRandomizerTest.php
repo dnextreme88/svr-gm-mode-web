@@ -109,7 +109,7 @@ it('fails with a 422 and the expected message when the pool has 0 or 1 wrestlers
 it('fails when the pool is smaller than a chosen match type needs', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito', 'Big Show'], smackdown: ['Batista']);
 
-    randomizer()->proposeSlot(Card::show($save), 1, Card::type('hell_in_a_cell', 'Armageddon HIAC (6-Man)'), new SeededRng('six'));
+    randomizer()->proposeSlot(Card::show($save), 1, Card::type('hell_in_a_cell', 'Armageddon Hell in a Cell'), new SeededRng('six'));
 })->throws(GameRuleException::class, 'need 6, have 4');
 
 it('only puts a title on the line when that title is absent from the card', function () {

@@ -234,9 +234,6 @@ export const MatchFamily = {
     Single: 'single',
     TagTeam: 'tag_team',
     SixManTag: 'six_man_tag',
-    EliminationTag: 'elimination_tag',
-    TripleThreat: 'triple_threat',
-    FatalFourWay: 'fatal_four_way',
     Handicap: 'handicap',
     RoyalRumble: 'royal_rumble',
     ThreeStagesOfHell: 'three_stages_of_hell',
@@ -261,12 +258,9 @@ export const MatchFamily = {
 } as const;
 export type MatchFamily = (typeof MatchFamily)[keyof typeof MatchFamily];
 export const MatchFamilyLabels: Record<MatchFamily, string> = {
-    'single': 'Single',
+    'single': 'Normal Matches',
     'tag_team': 'Tag Team',
     'six_man_tag': '6-Man Tag',
-    'elimination_tag': 'Elimination Tag',
-    'triple_threat': 'Triple Threat',
-    'fatal_four_way': 'Fatal 4-Way',
     'handicap': 'Handicap',
     'royal_rumble': 'Royal Rumble',
     'three_stages_of_hell': 'Three Stages Of Hell',

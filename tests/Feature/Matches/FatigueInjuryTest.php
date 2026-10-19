@@ -56,7 +56,8 @@ it('adds both costs when a wrestler is double-booked on one card', function () {
 
     airWeek($save);
 
-    expect(GameBuilder::wrestler($save, 'Edge')->fatigue)->toBe(30);
+    // Singles (1 bar) + Hardcore (3 bars).
+    expect(GameBuilder::wrestler($save, 'Edge')->fatigue)->toBe(40);
 });
 
 it('gives a guaranteed serious injury to a wrestler going in at 100% in a match that adds fatigue', function () {

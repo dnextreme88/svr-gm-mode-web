@@ -2,11 +2,11 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import { InjuryChip, SpecialtyBadge } from '@/components/gm/badges';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
-import { formatMoney } from '@/lib/gm';
+import { PoolFilters } from '@/components/gm/pool-filters';
 import { WrestlerName } from '@/components/gm/wrestler-name';
-import { cn } from '@/lib/utils';
+import type { PoolFilter } from '@/lib/gm';
+import { emptyPoolFilter, filterPool, formatMoney } from '@/lib/gm';
 import gm from '@/routes/gm';
-import type { RosterType } from '@/types/enums';
 import { RosterTypeLabels, WeightClassLabels } from '@/types/enums';
 import type { ContractQuote, GamePageProps, WrestlerRow } from '@/types/gm';
 
@@ -20,14 +20,11 @@ type Props = GamePageProps & {
 export default function FreeAgency() {
     const { game, available, locked, lengths, has_room } =
         usePage<Props>().props;
-    const [filter, setFilter] = useState<RosterType | 'all'>('all');
+    const [filter, setFilter] = useState<PoolFilter>(emptyPoolFilter);
     const [lengthById, setLengthById] = useState<Record<number, number>>({});
 
     const visible = useMemo(
-        () =>
-            available.filter(
-                (w) => filter === 'all' || w.roster_type === filter,
-            ),
+        () => filterPool(available, filter),
         [available, filter],
     );
 
@@ -35,19 +32,11 @@ export default function FreeAgency() {
         <>
             <Head title="Free Agency" />
             <PageTitle kicker="Signings start next week" title="Free Agency">
-                {(['all', 'superstar', 'diva', 'legend'] as const).map((f) => (
-                    <button
-                        key={f}
-                        type="button"
-                        onClick={() => setFilter(f)}
-                        className={cn(
-                            'gm-btn gm-btn-sm',
-                            filter !== f && 'gm-btn-ghost',
-                        )}
-                    >
-                        {f === 'all' ? 'All' : RosterTypeLabels[f]}
-                    </button>
-                ))}
+                <PoolFilters
+                    value={filter}
+                    onChange={setFilter}
+                    types={['all', 'superstar', 'diva', 'legend']}
+                />
             </PageTitle>
 
             {!has_room && (

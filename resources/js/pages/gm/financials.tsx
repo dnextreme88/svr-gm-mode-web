@@ -1,6 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { EmptyState, PageTitle, Panel, Stat } from '@/components/gm/panel';
-import { formatCompactMoney, formatSignedMoney } from '@/lib/gm';
+import { formatMoney, formatSignedMoney } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { GamePageProps } from '@/types/gm';
@@ -98,7 +98,7 @@ export default function Financials() {
                 <Panel>
                     <Stat
                         label="Balance"
-                        value={formatCompactMoney(game.budget)}
+                        value={formatMoney(game.budget)}
                         tone={game.budget < 0 ? 'bad' : undefined}
                     />
                 </Panel>
@@ -207,7 +207,7 @@ export default function Financials() {
                                                 : 'text-zone-serious',
                                         )}
                                     >
-                                        {formatCompactMoney(row.net)}
+                                        {formatMoney(row.net)}
                                     </span>
                                 </Link>
                             </li>

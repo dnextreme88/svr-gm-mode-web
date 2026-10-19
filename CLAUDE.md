@@ -6,6 +6,7 @@ Web-based simulation of a custom SmackDown vs Raw 2006 GM Mode, with house rules
 - Full spec: `docs/20261017-spec.md`. Read the relevant section before working on a feature; quote the section number in plans.
 - Anything marked *(to confirm)* or *(assumption)* in the spec: implement it as written, keep the value in config, and list it in the PR description.
 - Deferred systems (Popularity, Match Rating, Power 25): stub only. Don't invent formulas.
+- The in-game documentation page (`/gm/docs`: `DocsController` + `resources/js/pages/gm/docs.tsx`) is the player-facing source of truth for game rules. Keep it current. When a change touches anything it documents or should document (match types, fatigue, injuries, specialties, stipulations, or a new rule or system), ask the user whether to update the docs page before finishing. Don't update it silently, and don't skip the question.
 
 ## Stack
 - Backend: Laravel + MySQL. All game logic lives here as service classes (week resolution, match sim, fatigue/injury, morale, contracts, titles, finances).
@@ -22,6 +23,9 @@ Web-based simulation of a custom SmackDown vs Raw 2006 GM Mode, with house rules
 - No login or user accounts for now: saves are global, `/` redirects to `/gm`, and there is no `users` table, Fortify or settings area. Don't reintroduce auth unless asked.
 - A career is listed under Saved careers only after the player hits **Save career** (`saves.saved_at`). After that, progress is kept as it happens. Starting a new game deletes any never-saved career.
 - Roster names are plain ring names with no nicknames (`Roddy Piper`, not `"Rowdy" Roddy Piper`). There are no managers-by-default; Jimmy Hart is a regular wrestler.
+- On `/gm/docs`, a match's **rules** (DQ, Elimination, Ring out, Rope breaks, Timed, Titles) and **win conditions** (Pinfall, Submission, Count-out, Captain fall, and the type's own condition) are separate: the Match rules and Win conditions cards sit side by side, and each match row shows only the badges that apply, sorted alphabetically. When you add a rule or win condition, add its description to the matching card in `resources/js/pages/gm/docs.tsx`.
+- Match-type house rules (rope breaks, ring outs, no-title types, six-competitor fatigue) live in `config('gm.match_rules')`; per-variant overrides go in `database/seeders/data/match_types.php`. Catalog data changes go in the seeders only; apply them with `php artisan migrate:fresh --seed` (it wipes saves, which is fine for now). Don't write data-only migrations; migrations are for schema changes.
+- Fatigue and win/loss streaks are always drawn as bars, never as bare text or percentages: `<FatigueMeter>` (`components/gm/fatigue-meter.tsx`) and `<StreakMeter>` (`components/gm/streak-meter.tsx`), as on `/gm/saves/{#}/rosters/{#}`. This includes fatigue *costs* such as a match type's fatigue on `/gm/docs`.
 - Name colour coding (SvR 2006 style): Cruiserweights and Light Heavyweights render blue, Divas red. Use `<WrestlerName>` from `resources/js/components/gm/wrestler-name.tsx` anywhere a wrestler name is listed.
 - Custom styles live in `resources/css/gm.css` inside `@layer components`. Tailwind utilities (e.g. `text-ink-dim`) beat that layer regardless of specificity, so an override of a utility there needs `!important`.
 
@@ -49,3 +53,9 @@ Web-based simulation of a custom SmackDown vs Raw 2006 GM Mode, with house rules
 - **Plans**: implementation/upgrade plans live in [docs](docs), one Markdown file per plan named `{YYYYMMDD}-kebab-case-topic.md` where the date is when the plan was executed (see the existing and renamed files there for the format). Add a matching entry to [docs/README.md](docs/README.md) — link the dated filename and bold the executed date.
 - **Executing a plan**: before starting the work in a plan, pull the latest `main`, then create a new branch off it with a meaningful name per the `type/YYYYMMDD-description` convention above. Do all plan work on that branch, never directly on `main`.
 - **Tests** use Pest — all tests in this suite are written with Pest. [tests/Pest.php](tests/Pest.php) applies `RefreshDatabase` to every `Feature` test (in-memory sqlite); `Unit` tests stay DB-free. Build game state with the helpers in `tests/Support`: `GameBuilder` (`newSave`, `inSeason`, `wrestler`, `giveTitle`), `Card` (`show`, `book`, `type`, `singles`) and `FixedOutcomes` (scripted winners, matched by who is in the match). Arch tests ban `rand()`-family calls in `app/` and `Math.random` in `resources/js`. When you change a file, run the relevant tests (`vendor/bin/pest`); if no test covers the change, write one before finishing.
+
+## TODOS
+
+The 2026-10-19 UI pass (docs page, money/typography, draft room, schedule, rosters, titles, email) is done; see [docs/20261019-ui-todos.md](docs/20261019-ui-todos.md).
+
+- **Slobber Knocker (pending design):** a 1 vs N match where one wrestler faces an endless line of opponents until they lose. For now it's seeded as a 1-on-1 `No Limit` variant and can't have titles on the line. The user has ideas for how it should really work, so ask before changing its booking or sim rules.

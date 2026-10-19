@@ -90,7 +90,7 @@ describe('Champion vs. Contender', function () {
         GameBuilder::giveTitle($save, 'wwe', ['Batista']);
 
         expect(fn () => app(CardService::class)->book(weekly($save), 1, new Booking(
-            Card::type('triple_threat', 'Normal Triple Threat'),
+            Card::type('single', 'Normal Triple Threat'),
             [[GameBuilder::wrestler($save, 'Batista')->id], [GameBuilder::wrestler($save, 'Undertaker')->id], [GameBuilder::wrestler($save, 'Kane')->id]],
             [], null, Stipulation::ChampionVsContender, titleId('wwe'),
         )))->toThrow(GameRuleException::class, '1 vs 1');
@@ -148,7 +148,7 @@ describe('Loser Leaves Show', function () {
     it('only allows 1v1 and 2v2 matches', function () {
         $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito'], smackdown: ['Batista']);
 
-        Card::book($save, weekly($save), 1, Card::type('triple_threat', 'Normal Triple Threat'), [['Edge'], ['Kane'], ['Carlito']], [], null, Stipulation::LoserLeavesShow);
+        Card::book($save, weekly($save), 1, Card::type('single', 'Normal Triple Threat'), [['Edge'], ['Kane'], ['Carlito']], [], null, Stipulation::LoserLeavesShow);
     })->throws(GameRuleException::class, '1v1 or 2v2');
 
     it('releases the loser with a refund, vacates titles, voids the briefcase and locks re-signing for 4 weeks', function () {
@@ -214,7 +214,7 @@ describe('Last Chance', function () {
         $reign = GameBuilder::giveTitle($save, 'wwe', ['Batista']);
 
         defend($save, [['Batista'], ['Undertaker']], 'Batista', Card::type('tlc', 'Single'));
-        defend($save, [['Batista'], ['Undertaker'], ['Edge']], 'Batista', Card::type('triple_threat', 'Normal Triple Threat'));
+        defend($save, [['Batista'], ['Undertaker'], ['Edge']], 'Batista', Card::type('single', 'Normal Triple Threat'));
 
         expect(app(LastChanceService::class)->isAvailable($reign->refresh(), [GameBuilder::wrestler($save, 'Undertaker')->id]))->toBeFalse()
             ->and(fn () => Card::book($save->refresh(), weekly($save), 1, Card::singles(), [['Batista'], ['Undertaker']], [], titleId('wwe'), Stipulation::LastChance))

@@ -109,9 +109,9 @@ describe('weight classes (§12)', function () {
 });
 
 describe('specialties (§21)', function () {
-    it('seeds 32 specialties across 26 wrestlers', function () {
-        expect(WrestlerSpecialty::count())->toBe(32)
-            ->and(WrestlerSpecialty::distinct()->count('wrestler_id'))->toBe(26);
+    it('seeds 33 specialties across 27 wrestlers', function () {
+        expect(WrestlerSpecialty::count())->toBe(33)
+            ->and(WrestlerSpecialty::distinct()->count('wrestler_id'))->toBe(27);
     });
 
     it('gives the listed wrestlers their specialties', function () {
@@ -253,7 +253,7 @@ describe('match types (§10)', function () {
             'Royal Rumble — 30-Man' => 'royal_rumble',
             'Buried Alive — Single' => 'no_mercy',
             'Elimination Chamber — Normal 6-Man Chamber' => 'new_years_revolution',
-            'Elimination Chamber — Tornado 6-Man Tag Chamber' => 'new_years_revolution',
+            'Elimination Chamber — Triple Threat Tornado Tag Chamber' => 'new_years_revolution',
             'Ladder — Money in the Bank' => 'wrestlemania',
             'Traditional Survivor Series Elimination — Traditional 3 vs 3' => 'survivor_series',
         ]);
@@ -286,7 +286,7 @@ describe('match types (§10)', function () {
 
     it('disables DQ and count-out on no-DQ families', function () {
         expect(MatchType::whereIn('family', [MatchFamily::Hardcore, MatchFamily::Tlc, MatchFamily::Ladder])->where('dq_enabled', true)->count())->toBe(0)
-            ->and(MatchType::where('family', MatchFamily::Single)->where('dq_enabled', false)->count())->toBe(0);
+            ->and(MatchType::where('family', MatchFamily::Single)->where('dq_enabled', false)->pluck('variant')->sort()->values()->all())->toBe(['Normal Fatal 4-Way', 'Normal Triple Threat']);
     });
 
     it('gives every type a fatigue cost in whole bars and a price within $0–$50,000', function () {
@@ -345,7 +345,7 @@ it('is safe to run the catalog seeder twice', function () {
 
     expect(Wrestler::count())->toBe(110)
         ->and(MatchType::count())->toBe(97)
-        ->and(WrestlerSpecialty::count())->toBe(32);
+        ->and(WrestlerSpecialty::count())->toBe(33);
 });
 
 it('groups the Schedule by the brand’s show night', function () {

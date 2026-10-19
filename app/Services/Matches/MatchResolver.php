@@ -16,6 +16,10 @@ use InvalidArgumentException;
 /**
  * Placeholder outcome model (§20, §21): equal base weight per side, plus a
  * specialty bonus; roll the winner, then roll a finish event.
+ *
+ * Match rules (house rules): without ring outs the fight can't leave the ring,
+ * so there are no count-outs or run-ins; rope breaks make clean submissions
+ * rarer; in a Captain Fall match the losing side's captain takes the fall.
  */
 class MatchResolver
 {
@@ -44,6 +48,11 @@ class MatchResolver
         $names = $this->names($slot);
         $winnerName = $this->sideName($sides[$winnerSide], $names);
         $loserName = $this->sideName($sides[$loserSide], $names);
+
+        // The captain is the first wrestler booked on the side.
+        if ($slot->matchType->captain_fall) {
+            $loserName = "{$names[$sides[$loserSide][0]]}, the captain,";
+        }
 
         $finish = null;
         $interferer = null;
@@ -127,7 +136,7 @@ class MatchResolver
         $inMatch = $slot->participantIds();
         $interferers = [];
 
-        foreach ($activeRivalries as $rivalry) {
+        foreach ($type->ring_out ? $activeRivalries : [] as $rivalry) {
             foreach ($loserIds as $loserId) {
                 if ($rivalry->involves($loserId)) {
                     $other = $rivalry->otherThan($loserId);
@@ -145,7 +154,7 @@ class MatchResolver
 
         $allowed[FinishEvent::ForeignObject->value] = [];
 
-        if ($type->countout_enabled) {
+        if ($type->countout_enabled && $type->ring_out) {
             $allowed[FinishEvent::Countout->value] = [];
         }
 
@@ -176,7 +185,13 @@ class MatchResolver
             return [MatchMethod::MatchSpecific, "{$winner} wins by {$this->lower($condition)}."];
         }
 
-        if ($rng->chance((float) config('gm.outcomes.submission_chance'))) {
+        $submissionChance = (float) config('gm.outcomes.submission_chance');
+
+        if ($slot->matchType?->rope_breaks) {
+            $submissionChance *= (float) config('gm.outcomes.rope_break_submission_factor');
+        }
+
+        if ($rng->chance($submissionChance)) {
             return [MatchMethod::Submission, "{$winner} makes {$loser} tap out."];
         }
 

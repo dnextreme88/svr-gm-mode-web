@@ -143,43 +143,61 @@ return [
         // of a pinfall/submission (only where the type has one).
         'match_specific_chance' => 0.85,
         'submission_chance' => 0.25,
+        // ASSUMPTION: with rope breaks on, a wrestler can reach the ropes to
+        // escape a hold, so clean submission finishes happen less often.
+        'rope_break_submission_factor' => 0.6,
     ],
 
     /*
     | Match type defaults by family (seeded into match_types).
-    | ASSUMPTION: the spec gives no fatigue costs, prices or DQ flags.
+    | Fatigue bars are house rules (2026-10-19, max 5 per match); variants
+    | that differ from their family override `bars` in the data file.
+    | ASSUMPTION: the spec gives no prices or DQ flags.
     | Prices stay inside the §4 $1,000–$50,000 range for gimmick matches.
     */
     'match_type_defaults' => [
         'single' => ['bars' => 1, 'cost' => 0, 'dq' => true, 'countout' => true],
         'tag_team' => ['bars' => 1, 'cost' => 0, 'dq' => true, 'countout' => true],
-        'six_man_tag' => ['bars' => 1, 'cost' => 0, 'dq' => true, 'countout' => true],
-        'elimination_tag' => ['bars' => 2, 'cost' => 0, 'dq' => true, 'countout' => true],
-        'triple_threat' => ['bars' => 1, 'cost' => 0, 'dq' => true, 'countout' => true],
-        'fatal_four_way' => ['bars' => 1, 'cost' => 0, 'dq' => true, 'countout' => true],
+        'six_man_tag' => ['bars' => 2, 'cost' => 0, 'dq' => true, 'countout' => true],
         'handicap' => ['bars' => 1, 'cost' => 0, 'dq' => true, 'countout' => true],
-        'royal_rumble' => ['bars' => 2, 'cost' => 25_000, 'dq' => false, 'countout' => false],
-        'three_stages_of_hell' => ['bars' => 3, 'cost' => 25_000, 'dq' => true, 'countout' => true],
-        'backstage_brawl' => ['bars' => 2, 'cost' => 5_000, 'dq' => false, 'countout' => false],
-        'battle_royal' => ['bars' => 1, 'cost' => 0, 'dq' => false, 'countout' => false],
-        'buried_alive' => ['bars' => 3, 'cost' => 25_000, 'dq' => false, 'countout' => false],
-        'elimination_chamber' => ['bars' => 3, 'cost' => 50_000, 'dq' => false, 'countout' => false],
-        'first_blood' => ['bars' => 2, 'cost' => 5_000, 'dq' => false, 'countout' => false],
+        'royal_rumble' => ['bars' => 5, 'cost' => 25_000, 'dq' => false, 'countout' => false],
+        'three_stages_of_hell' => ['bars' => 5, 'cost' => 25_000, 'dq' => true, 'countout' => true],
+        'backstage_brawl' => ['bars' => 4, 'cost' => 5_000, 'dq' => false, 'countout' => false],
+        'battle_royal' => ['bars' => 4, 'cost' => 0, 'dq' => false, 'countout' => false],
+        'buried_alive' => ['bars' => 5, 'cost' => 25_000, 'dq' => false, 'countout' => false],
+        'elimination_chamber' => ['bars' => 5, 'cost' => 50_000, 'dq' => false, 'countout' => false],
+        'first_blood' => ['bars' => 3, 'cost' => 5_000, 'dq' => false, 'countout' => false],
         'fulfill_your_fantasy' => ['bars' => 1, 'cost' => 2_000, 'dq' => true, 'countout' => true],
-        'hardcore' => ['bars' => 2, 'cost' => 5_000, 'dq' => false, 'countout' => false],
-        'hell_in_a_cell' => ['bars' => 3, 'cost' => 25_000, 'dq' => false, 'countout' => false],
-        'iron_man' => ['bars' => 3, 'cost' => 10_000, 'dq' => true, 'countout' => false],
+        'hardcore' => ['bars' => 3, 'cost' => 5_000, 'dq' => false, 'countout' => false],
+        'hell_in_a_cell' => ['bars' => 5, 'cost' => 25_000, 'dq' => false, 'countout' => false],
+        'iron_man' => ['bars' => 5, 'cost' => 10_000, 'dq' => true, 'countout' => false],
         'ladder' => ['bars' => 3, 'cost' => 15_000, 'dq' => false, 'countout' => false],
-        'last_man_standing' => ['bars' => 3, 'cost' => 10_000, 'dq' => false, 'countout' => false],
-        'slobber_knocker' => ['bars' => 2, 'cost' => 5_000, 'dq' => false, 'countout' => false],
+        'last_man_standing' => ['bars' => 4, 'cost' => 10_000, 'dq' => false, 'countout' => false],
+        'slobber_knocker' => ['bars' => 4, 'cost' => 5_000, 'dq' => false, 'countout' => false],
         'special_referee' => ['bars' => 2, 'cost' => 5_000, 'dq' => true, 'countout' => true],
-        'steel_cage' => ['bars' => 2, 'cost' => 10_000, 'dq' => false, 'countout' => false],
+        'steel_cage' => ['bars' => 4, 'cost' => 10_000, 'dq' => false, 'countout' => false],
         'submission' => ['bars' => 2, 'cost' => 1_000, 'dq' => true, 'countout' => false],
-        'table' => ['bars' => 2, 'cost' => 5_000, 'dq' => false, 'countout' => false],
+        'table' => ['bars' => 3, 'cost' => 5_000, 'dq' => false, 'countout' => false],
         'tlc' => ['bars' => 3, 'cost' => 20_000, 'dq' => false, 'countout' => false],
-        'survivor_series_elimination' => ['bars' => 2, 'cost' => 0, 'dq' => true, 'countout' => true],
+        'survivor_series_elimination' => ['bars' => 3, 'cost' => 0, 'dq' => true, 'countout' => true],
     ],
-    'mitb_match' => ['bars' => 3, 'cost' => 50_000],
+    'mitb_match' => ['bars' => 4, 'cost' => 50_000],
+
+    /*
+    | House rules on which match types allow what (seeded into match_types).
+    | - Rope breaks and count-outs: off in these families.
+    | - Ring outs (the fight can leave the ring): off in these families.
+    | - Titles can't be defended in these families, or with these side shapes
+    |   (3 vs 3: six active competitors; managers don't count).
+    */
+    'match_rules' => [
+        'no_rope_break_families' => ['hardcore', 'tlc', 'table', 'ladder', 'battle_royal', 'royal_rumble', 'hell_in_a_cell'],
+        'no_ring_out_families' => ['steel_cage', 'battle_royal', 'royal_rumble', 'elimination_chamber'],
+        'no_titles_families' => ['handicap', 'slobber_knocker'],
+        'no_titles_sides' => [[3, 3]],
+        // Six-competitor variants of these families cost more fatigue.
+        'six_competitor_bars' => ['hardcore' => 4, 'ladder' => 4, 'tlc' => 4, 'table' => 4],
+    ],
 
     /*
     | §15 Morale thresholds per complaint: [content, unsatisfied, upset].

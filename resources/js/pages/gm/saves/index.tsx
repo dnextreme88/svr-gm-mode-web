@@ -1,8 +1,11 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Trash2 } from 'lucide-react';
+import { BookOpen, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { BrandBug } from '@/components/gm/brand-bug';
+import { FirstPickReel } from '@/components/gm/first-pick-reel';
 import { EmptyState, Panel } from '@/components/gm/panel';
-import { formatCompactMoney } from '@/lib/gm';
+import { formatMoney } from '@/lib/gm';
+import { HttpError, requestJson } from '@/lib/http';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { Brand, SaveStage } from '@/types/enums';
@@ -100,17 +103,56 @@ function UnsavedCareer({ save }: { save: SaveSlot }) {
     );
 }
 
+function draftRules(startingBudget: number): string[] {
+    return [
+        'Initial draft pick is chosen at random',
+        `Each show starts with a ${formatMoney(startingBudget)} budget`,
+        'You are not required to draft and fill up 30 slots',
+        'Legends cannot be drafted on the initial draft',
+        'Recommended roster size: 15-30',
+    ];
+}
+
+type Started = { draft_url: string; first_brand: Brand };
+
 export default function Saves({
     saves,
     unsaved,
+    starting_budget,
 }: {
     saves: SaveSlot[];
     unsaved: SaveSlot | null;
+    starting_budget: number;
 }) {
     const form = useForm<{ name: string; brand: Brand }>({
-        name: 'My GM Career',
+        name: `My GM Career ${saves.length + 1}`,
         brand: 'raw',
     });
+    // The reel opens as soon as Start is pressed; the result lands when the
+    // server has created the career and drawn the order.
+    const [reel, setReel] = useState<{ result: Started | null } | null>(null);
+
+    const start = async () => {
+        form.clearErrors();
+        setReel({ result: null });
+
+        try {
+            const started = await requestJson<Started>(
+                'POST',
+                gm.saves.store.url(),
+                form.data,
+            );
+            setReel({ result: started });
+        } catch (error) {
+            setReel(null);
+            form.setError(
+                'name',
+                error instanceof HttpError
+                    ? error.message
+                    : 'Could not start the game.',
+            );
+        }
+    };
 
     return (
         <>
@@ -129,6 +171,15 @@ export default function Saves({
                 </p>
             </div>
 
+            {reel && (
+                <FirstPickReel
+                    result={reel.result?.first_brand ?? null}
+                    onDone={() =>
+                        reel.result && router.visit(reel.result.draft_url)
+                    }
+                />
+            )}
+
             {unsaved && <UnsavedCareer save={unsaved} />}
 
             <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
@@ -136,7 +187,7 @@ export default function Saves({
                     <form
                         onSubmit={(e) => {
                             e.preventDefault();
-                            form.post(gm.saves.store.url());
+                            void start();
                         }}
                         className="space-y-6"
                     >
@@ -157,7 +208,7 @@ export default function Saves({
                                                 className={cn(
                                                     'group relative block cursor-pointer overflow-hidden border p-5 transition-all',
                                                     selected
-                                                        ? 'border-brand bg-brand/10 shadow-[0_0_40px_-12px_var(--color-brand)]'
+                                                        ? 'border-brand bg-brand/10 shadow-[0_0_40px_-12px_var(--gm-brand)]'
                                                         : 'border-white/10 bg-black/30 hover:border-white/25',
                                                 )}
                                             >
@@ -214,6 +265,26 @@ export default function Saves({
                             </div>
                         </fieldset>
 
+                        <section
+                            aria-labelledby="draft-rules"
+                            className="border-l-2 border-brand bg-white/[0.03] px-4 py-3"
+                            data-brand-tint={form.data.brand}
+                        >
+                            <h3 id="draft-rules" className="gm-label mb-2">
+                                Draft Rules:
+                            </h3>
+                            <ul className="space-y-1 text-sm text-ink">
+                                {draftRules(starting_budget).map((rule) => (
+                                    <li key={rule} className="flex gap-2">
+                                        <span className="text-brand-hot">
+                                            ▸
+                                        </span>
+                                        {rule}
+                                    </li>
+                                ))}
+                            </ul>
+                        </section>
+
                         <div className="grid gap-2">
                             <label htmlFor="save-name" className="gm-label">
                                 Save name
@@ -238,14 +309,17 @@ export default function Saves({
                             className="flex items-center justify-between gap-4"
                             data-brand-tint={form.data.brand}
                         >
-                            <p className="text-sm text-ink-dim">
-                                $15,000,000 budget · 30-wrestler cap · up to 30
-                                draft picks
-                            </p>
+                            <Link
+                                href={gm.docs.url()}
+                                className="flex items-center gap-1.5 text-sm text-ink-dim hover:text-ink"
+                            >
+                                <BookOpen className="size-4" />
+                                Documentation
+                            </Link>
                             <button
                                 type="submit"
                                 className="gm-btn"
-                                disabled={form.processing}
+                                disabled={reel !== null}
                             >
                                 Start the draft
                             </button>
@@ -293,9 +367,7 @@ export default function Saves({
                                                         'text-zone-serious',
                                                 )}
                                             >
-                                                {formatCompactMoney(
-                                                    save.budget,
-                                                )}
+                                                {formatMoney(save.budget)}
                                             </span>
                                         )}
                                     </Link>

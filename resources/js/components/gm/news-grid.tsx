@@ -215,7 +215,7 @@ function NewsCardView({
                 <div className="flex items-center justify-between gap-2">
                     <span
                         className={cn(
-                            'gm-chyron px-2 py-0.5 font-condensed text-[0.65rem] font-bold tracking-[0.18em] uppercase',
+                            'gm-chyron px-2 py-0.5 font-condensed text-xs font-bold tracking-[0.18em] uppercase',
                             slot === 'neutral'
                                 ? 'bg-gold text-arena'
                                 : 'bg-brand text-white',

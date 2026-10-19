@@ -71,6 +71,7 @@ class DraftController extends Controller
             ],
             'draft_order' => $save->draft_order,
             'contract_length' => $length->value,
+            'player_done' => ! $this->draft->canStillPick($save, $save->player_brand),
         ]);
     }
 
@@ -125,6 +126,19 @@ class DraftController extends Controller
                 'smackdown' => $save->brand(Brand::Smackdown)->budget,
             ],
         ]);
+    }
+
+    /**
+     * Skip the rest of the draft: the rival makes all its remaining picks
+     * at once, without the animation.
+     */
+    public function aiFinish(Save $save): RedirectResponse
+    {
+        if ($save->stage === SaveStage::Drafting) {
+            DB::transaction(fn () => $this->draft->runAi($save));
+        }
+
+        return to_route('gm.saves.show', $save);
     }
 
     /**

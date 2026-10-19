@@ -98,6 +98,7 @@ class CardPresenter
             'titles_allowed' => $type->titles_allowed,
             'win_condition' => $type->win_condition,
             'ppv_only' => $type->ppv_only,
+            'captain_fall' => $type->captain_fall,
         ];
     }
 

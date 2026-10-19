@@ -92,7 +92,7 @@ it('produces the same results for the same seed', function () {
         $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito', 'Kurt Angle'], smackdown: ['Batista'], seed: 'replay');
         $show = Card::show($save);
         Card::book($save, $show, 1, Card::singles(), [['Edge'], ['Kane']]);
-        Card::book($save, $show, 2, Card::type('triple_threat', 'Normal Triple Threat'), [['Carlito'], ['Kurt Angle'], ['Edge']]);
+        Card::book($save, $show, 2, Card::type('single', 'Normal Triple Threat'), [['Carlito'], ['Kurt Angle'], ['Edge']]);
         app(WeekResolver::class)->resolve($save->refresh());
 
         return MatchResult::whereIn('match_slot_id', $show->matchSlots()->pluck('id'))->orderBy('match_slot_id')

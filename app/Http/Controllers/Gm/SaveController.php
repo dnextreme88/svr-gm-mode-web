@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Save;
 use App\Services\Calendar\CalendarService;
 use App\Services\Game\NewGameService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -43,13 +44,16 @@ class SaveController extends Controller
         return Inertia::render('gm/saves/index', [
             'saves' => $saves,
             'unsaved' => $unsaved === null ? null : $present($unsaved),
+            'starting_budget' => (int) config('gm.starting_budget'),
         ]);
     }
 
     /**
      * Starting a new game throws away any career that was never saved.
+     * JSON callers get the first pick back, so the new-game screen can
+     * reveal it before heading to the draft.
      */
-    public function store(Request $request, NewGameService $newGame): RedirectResponse
+    public function store(Request $request, NewGameService $newGame): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:60'],
@@ -59,6 +63,13 @@ class SaveController extends Controller
         Save::whereNull('saved_at')->get()->each->delete();
 
         $save = $newGame->create($data['name'], Brand::from($data['brand']));
+
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+            return response()->json([
+                'draft_url' => route('gm.draft.show', $save),
+                'first_brand' => $save->draft_order[0],
+            ], 201);
+        }
 
         return to_route('gm.draft.show', $save);
     }

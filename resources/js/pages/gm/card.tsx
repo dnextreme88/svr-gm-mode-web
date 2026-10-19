@@ -1,5 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
+import { AirWeekButton } from '@/components/gm/air-week-button';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { CardBuilder } from '@/components/gm/card-builder';
 import { PageTitle } from '@/components/gm/panel';
@@ -62,6 +63,7 @@ export default function CardPage() {
     const pendingShots = title_context.title_shots.filter((s) => !s.booked);
     const briefcase = title_context.briefcase;
     const booking = show.status === 'booking';
+    const airsThisWeek = booking && show.week_number === game.week;
     const ids = { save: game.id, show: show.id };
 
     // Confirming a proposal goes through the normal booking endpoint (§24).
@@ -139,6 +141,7 @@ export default function CardPage() {
                 >
                     Schedule
                 </Link>
+                {airsThisWeek && <AirWeekButton game={game} />}
             </PageTitle>
 
             {pendingShots.length > 0 && (
