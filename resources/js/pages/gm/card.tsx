@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
-import { AirWeekButton } from '@/components/gm/air-week-button';
+import { BookingAction, BookingSteps } from '@/components/gm/booking-steps';
+import type { BookingOrder } from '@/components/gm/booking-steps';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { CardBuilder } from '@/components/gm/card-builder';
 import { DiceIcon } from '@/components/gm/dice-icon';
@@ -36,6 +37,7 @@ type Props = GamePageProps & {
     promo_slots: PromoSlotView[];
     promo_types: PromoTypeOption[];
     promo_eligibility: Record<string, PromoEligibilityView>;
+    booking_order: BookingOrder;
 };
 
 export default function CardPage() {
@@ -49,6 +51,7 @@ export default function CardPage() {
         promo_slots,
         promo_types,
         promo_eligibility,
+        booking_order,
     } = usePage<Props>().props;
     const types = useMemo(
         () => new Map(match_types.map((t) => [t.id, t])),
@@ -91,8 +94,9 @@ export default function CardPage() {
     );
     const pendingShots = title_context.title_shots.filter((s) => !s.booked);
     const briefcase = title_context.briefcase;
-    const booking = show.status === 'booking';
-    const airsThisWeek = booking && show.week_number === game.week;
+    // Cards are booked in date order (Sunday PPV first), and a confirmed
+    // card is read-only until it's unlocked.
+    const booking = show.status === 'booking' && booking_order.editable;
     const ids = { save: game.id, show: show.id };
 
     // Confirming a proposal goes through the normal booking endpoint (§24).
@@ -171,8 +175,15 @@ export default function CardPage() {
                 >
                     Schedule
                 </Link>
-                {airsThisWeek && <AirWeekButton game={game} />}
+                <BookingAction
+                    game={game}
+                    showId={show.id}
+                    showName={show.name}
+                    order={booking_order}
+                />
             </PageTitle>
+
+            <BookingSteps game={game} order={booking_order} />
 
             {pendingShots.length > 0 && (
                 <div
@@ -198,6 +209,7 @@ export default function CardPage() {
                 slots={slots}
                 matchTypes={match_types}
                 roster={roster}
+                lockedByOrder={!booking_order.editable}
                 fatigueConfig={game.fatigue_config}
                 onSave={(position, payload) =>
                     router.put(

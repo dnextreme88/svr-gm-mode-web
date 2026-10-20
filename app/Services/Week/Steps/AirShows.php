@@ -26,7 +26,9 @@ class AirShows implements WeekStep
         $shows = Show::where('save_id', $context->save->id)
             ->where('week_number', $context->week)
             ->get()
-            ->sortBy(fn (Show $s): string => ($s->isInterbrand() ? '2' : ($s->isPpv() ? '1' : '0')).($s->brand->value ?? 'z'))
+            // Weeks start on Sunday: the PPV cards air first, the interbrand
+            // main event closes the PPV night, then the weekly shows.
+            ->sortBy(fn (Show $s): string => ($s->isInterbrand() ? '1' : ($s->isPpv() ? '0' : '2')).($s->brand->value ?? 'z'))
             ->values();
 
         foreach ($shows as $show) {

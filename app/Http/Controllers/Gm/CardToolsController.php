@@ -14,6 +14,7 @@ use App\Models\Show;
 use App\Services\Card\CardRandomizer;
 use App\Services\Card\Proposal;
 use App\Services\Promos\PromoService;
+use App\Services\Week\BookingOrder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,6 +29,7 @@ class CardToolsController extends Controller
     public function __construct(
         private CardRandomizer $randomizer,
         private PromoService $promos,
+        private BookingOrder $order,
     ) {}
 
     public function randomize(Request $request, Save $save, Show $show, int $position): JsonResponse
@@ -68,6 +70,7 @@ class CardToolsController extends Controller
     public function bookPromo(Request $request, Save $save, Show $show, int $position): RedirectResponse
     {
         $this->assertOwnShow($save, $show);
+        $this->order->assertEditable($save, $show);
         $data = $request->validate([
             'promo_type_id' => ['required', 'integer', 'exists:promo_types,id'],
             'target_wrestler_id' => ['nullable', 'integer'],
@@ -92,6 +95,7 @@ class CardToolsController extends Controller
     public function clearPromo(Save $save, Show $show, int $position): RedirectResponse
     {
         $this->assertOwnShow($save, $show);
+        $this->order->assertEditable($save, $show);
         $this->promos->clear($show, $position);
 
         return back();

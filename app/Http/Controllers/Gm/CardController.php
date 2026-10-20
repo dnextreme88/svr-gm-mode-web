@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Gm;
 use App\Enums\Stipulation;
 use App\Exceptions\GameRuleException;
 use App\Http\Controllers\Controller;
+use App\Http\Presenters\BookingOrderPresenter;
 use App\Http\Presenters\CardPresenter;
 use App\Http\Presenters\TitleContextPresenter;
 use App\Http\Presenters\WrestlerPresenter;
@@ -22,6 +23,7 @@ use App\Services\Promos\PromoEligibility;
 use App\Services\Roster\RosterService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleService;
+use App\Services\Week\BookingOrder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -44,6 +46,7 @@ class CardController extends Controller
         private TitleContextPresenter $titleContext,
         private MitbService $mitb,
         private PromoEligibility $promoEligibility,
+        private BookingOrder $order,
     ) {}
 
     public function show(Save $save, Show $show): Response|RedirectResponse
@@ -75,6 +78,7 @@ class CardController extends Controller
 
         return Inertia::render('gm/card', [
             'show' => CardPresenter::show($show),
+            'booking_order' => BookingOrderPresenter::for($save, $show, $this->order),
             'slots' => MatchSlot::with('participants.saveWrestler.wrestler')->where('show_id', $show->id)->orderBy('position')->get()->map(fn (MatchSlot $s): array => CardPresenter::slot($s, $save->player_brand))->values(),
             'match_types' => $types,
             'roster' => $roster,
@@ -114,6 +118,7 @@ class CardController extends Controller
     public function book(Request $request, Save $save, Show $show, int $position): RedirectResponse|HttpResponse
     {
         $this->assertOwnShow($save, $show);
+        $this->order->assertEditable($save, $show);
 
         $data = $request->validate([
             'match_type_id' => ['required', 'integer', 'exists:match_types,id'],
@@ -141,6 +146,7 @@ class CardController extends Controller
     public function clear(Save $save, Show $show, int $position): RedirectResponse
     {
         $this->assertOwnShow($save, $show);
+        $this->order->assertEditable($save, $show);
         $this->cards->clear($show, $position, $save->player_brand);
 
         return back();
@@ -149,6 +155,7 @@ class CardController extends Controller
     public function cashIn(Save $save, Show $show): RedirectResponse
     {
         $this->assertOwnShow($save, $show);
+        $this->order->assertEditable($save, $show);
         $briefcase = $this->mitb->held($save)->first(fn ($b): bool => $b->brand === $save->player_brand)
             ?? throw new GameRuleException('You have no Money in the Bank briefcase to cash in.');
 
@@ -156,6 +163,28 @@ class CardController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$briefcase->holder->name()} is cashing in!"]);
 
         return back();
+    }
+
+    /**
+     * Finish this card and open the week's next one (booking order).
+     */
+    public function confirm(Save $save, Show $show): RedirectResponse
+    {
+        $this->assertOwnShow($save, $show);
+        $next = $this->order->confirm($save, $show);
+
+        return to_route('gm.card.show', [$save, $next]);
+    }
+
+    /**
+     * Reopen a confirmed card (and every card after it) while the week hasn't aired.
+     */
+    public function unlock(Save $save, Show $show): RedirectResponse
+    {
+        $this->assertOwnShow($save, $show);
+        $this->order->unlock($save, $show);
+
+        return to_route('gm.card.show', [$save, $show]);
     }
 
     private function assertOwnShow(Save $save, Show $show): void

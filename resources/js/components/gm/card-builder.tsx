@@ -48,6 +48,8 @@ export type CardBuilderProps = {
     renderActions?: SlotTools;
     /** Saved promos that tire wrestlers before a given match (§5). */
     promoFatigue?: PromoFatigue[];
+    /** Read-only because the week's booking order hasn't reached this card, or it's confirmed. */
+    lockedByOrder?: boolean;
 };
 
 export function toDraft(slot: CardSlot): SlotDraft {
@@ -148,6 +150,7 @@ export function CardBuilder({
     renderTitle,
     renderActions,
     promoFatigue = [],
+    lockedByOrder = false,
 }: CardBuilderProps) {
     const [drafts, setDrafts] = useState<SlotDraft[]>(() => slots.map(toDraft));
     const [dirty, setDirty] = useState<Set<number>>(new Set());
@@ -162,7 +165,7 @@ export function CardBuilder({
         [roster],
     );
     const counts = bookingCounts(drafts);
-    const readOnly = show.status !== 'booking';
+    const readOnly = show.status !== 'booking' || lockedByOrder;
     const complete = (d: SlotDraft) =>
         isComplete(d, d.matchTypeId ? types.get(d.matchTypeId) : undefined);
 

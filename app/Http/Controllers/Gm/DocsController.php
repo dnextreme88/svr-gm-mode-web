@@ -7,16 +7,18 @@ use App\Enums\Stipulation;
 use App\Http\Controllers\Controller;
 use App\Models\InjuryType;
 use App\Models\MatchType;
+use App\Models\PpvEvent;
 use App\Models\PromoType;
 use App\Models\Save;
 use App\Models\Wrestler;
+use App\Services\Calendar\CalendarService;
 use App\Services\News\NewsCatalog;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
  * Reference pages built from the catalog: match types (§10), fatigue and
- * injuries (§6), specialties (§21), stipulations (§22), promos, news and email. Nothing here is
+ * injuries (§6), specialties (§21), stipulations (§22), promos, news and email, and the season calendar. Nothing here is
  * per-save: it's served both inside a career (with the GM header and nav)
  * and from the save list, without one.
  */
@@ -25,7 +27,7 @@ class DocsController extends Controller
     /**
      * `$save` is only bound on the in-career route, so the GM header is shared.
      */
-    public function __invoke(NewsCatalog $catalog, ?Save $save = null): Response
+    public function __invoke(NewsCatalog $catalog, CalendarService $calendar, ?Save $save = null): Response
     {
         $matchTypes = MatchType::with('ppvExclusive')
             ->orderBy('sort_order')
@@ -126,6 +128,19 @@ class DocsController extends Controller
                 'events' => $catalog->entries(),
             ],
             'emails' => $this->emails(),
+            'calendar' => [
+                'weekly_show_days' => (array) config('gm.calendar.weekly_show_days'),
+                'weeks_per_season' => $calendar->weeksPerSeason(),
+                'season_start' => $calendar->date(1)->format('D M j, Y'),
+                'season_end' => $calendar->date($calendar->weeksPerSeason())->format('D M j, Y'),
+                'ppvs' => PpvEvent::orderBy('season_week')->get()->map(fn (PpvEvent $ppv): array => [
+                    'key' => $ppv->key->value,
+                    'name' => $ppv->name,
+                    'season_week' => $ppv->season_week,
+                    'date' => $calendar->date($ppv->season_week)->format('D M j, Y'),
+                    'brand_scope' => $ppv->brand_scope->value,
+                ])->values(),
+            ],
         ]);
     }
 

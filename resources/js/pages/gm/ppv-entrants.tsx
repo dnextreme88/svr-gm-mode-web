@@ -2,7 +2,8 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { InjuryChip, MoraleBadge } from '@/components/gm/badges';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
-import { AirWeekButton } from '@/components/gm/air-week-button';
+import { BookingAction, BookingSteps } from '@/components/gm/booking-steps';
+import type { BookingOrder } from '@/components/gm/booking-steps';
 import { PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
@@ -16,16 +17,17 @@ type Props = GamePageProps & {
     pool: WrestlerRow[];
     selected: number[];
     rival: string[];
+    booking_order: BookingOrder;
 };
 
 /**
  * Pick your 15 Royal Rumble entrants or your Survivor Series team of 3 (§10).
  */
 export default function PpvEntrants() {
-    const { game, show, mode, needed, pool, selected, rival } =
+    const { game, show, mode, needed, pool, selected, rival, booking_order } =
         usePage<Props>().props;
     const [picked, setPicked] = useState<number[]>(selected);
-    const readOnly = show.status !== 'booking';
+    const readOnly = show.status !== 'booking' || !booking_order.editable;
     const rumble = mode === 'rumble';
 
     const toggle = (id: number) =>
@@ -88,8 +90,14 @@ export default function PpvEntrants() {
                 >
                     Schedule
                 </Link>
-                {show.status === 'booking' && <AirWeekButton game={game} />}
+                <BookingAction
+                    game={game}
+                    showId={show.id}
+                    showName={show.name}
+                    order={booking_order}
+                />
             </PageTitle>
+            <BookingSteps game={game} order={booking_order} />
             <p className="-mt-3 mb-6 max-w-2xl text-sm text-ink-dim">
                 {rumble
                     ? 'Fifteen from each brand. No titles are on the line; the winner’s brand gets the WrestleMania main event.'

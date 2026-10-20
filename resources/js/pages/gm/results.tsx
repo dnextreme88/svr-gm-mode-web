@@ -6,7 +6,9 @@ import type { FatigueStep } from '@/components/gm/fatigue-progress';
 import { OutcomeCard } from '@/components/gm/outcome-card';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { cn } from '@/lib/utils';
+import { brandName } from '@/lib/gm';
 import gm from '@/routes/gm';
+import type { Brand } from '@/types/enums';
 import type { CardShow, GamePageProps, MatchOutcome } from '@/types/gm';
 
 type ShowResult = CardShow & {
@@ -16,6 +18,12 @@ type ShowResult = CardShow & {
 
 type Props = GamePageProps & {
     week_number: number;
+    season_week?: number;
+    /** Whose shows these are; the Schedule calendar can open the rival's. */
+    brand?: Brand;
+    /** The show clicked on the calendar: its first result opens. */
+    focus_show_id?: number | null;
+    from_schedule?: boolean;
     shows: ShowResult[];
     new_emails: number;
 };
@@ -32,7 +40,17 @@ type ReelItem = {
  * the card, and the show's fatigue progression underneath.
  */
 export default function Results() {
-    const { game, week_number, shows, new_emails } = usePage<Props>().props;
+    const {
+        game,
+        week_number,
+        season_week,
+        brand,
+        focus_show_id,
+        from_schedule,
+        shows,
+        new_emails,
+    } = usePage<Props>().props;
+    const rival = brand !== undefined && brand !== game.player_brand;
     const reel = useMemo<ReelItem[]>(
         () =>
             shows.flatMap((show) =>
@@ -46,7 +64,11 @@ export default function Results() {
             ),
         [shows],
     );
-    const [open, setOpen] = useState<number | null>(null);
+    const [open, setOpen] = useState<number | null>(() => {
+        const index = reel.findIndex((r) => r.show.id === focus_show_id);
+
+        return index === -1 ? null : index;
+    });
     const [direction, setDirection] = useState<'left' | 'right'>('right');
     const current = open === null ? undefined : reel[open];
 
@@ -84,10 +106,19 @@ export default function Results() {
     return (
         <>
             <Head title={`Week ${week_number} results`} />
-            <PageTitle kicker={`Week ${week_number}`} title="That’s a wrap">
-                <Link href={gm.news.url(game.id)} className="gm-btn">
-                    Continue
-                </Link>
+            <PageTitle
+                kicker={`Week ${season_week ?? week_number}${rival && brand ? ` · ${brandName(brand)}` : ''}`}
+                title={rival ? 'Rival results' : 'That’s a wrap'}
+            >
+                {from_schedule ? (
+                    <Link href={gm.schedule.url(game.id)} className="gm-btn">
+                        Back to schedule
+                    </Link>
+                ) : (
+                    <Link href={gm.news.url(game.id)} className="gm-btn">
+                        Continue
+                    </Link>
+                )}
             </PageTitle>
 
             {reel.length === 0 && (
@@ -210,7 +241,7 @@ export default function Results() {
                             </Panel>
                         ))}
 
-                        {new_emails > 0 && (
+                        {new_emails > 0 && !from_schedule && (
                             <p className="text-sm text-ink-dim">
                                 {new_emails} new email(s).{' '}
                                 <Link

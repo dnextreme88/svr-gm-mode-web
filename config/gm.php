@@ -27,8 +27,9 @@ return [
     | (Mar 27). Jan–Mar use 2005's Sundays too, so every PPV lands on its
     | listed date. Each PPV's season week is set below.
     |
-    | A week ends on its Sunday: PPVs air that Sunday, and each brand's weekly
-    | show airs on its night earlier that week (Raw Monday, SmackDown Friday).
+    | A week starts on its Sunday: PPVs air that Sunday, then each brand's
+    | weekly show airs on its night later that week (Raw Monday, SmackDown
+    | Friday). Every season runs April 2005 to March 2006.
     */
     'calendar' => [
         'weeks_per_season' => 52,
@@ -49,10 +50,10 @@ return [
             'survivor_series' => 35, // Nov 27
             'armageddon' => 38, // Dec 18
             'tribute_to_the_troops' => 39, // Dec 25 (Raw only)
-            'new_years_revolution' => 41, // Jan 9
-            'royal_rumble' => 44, // Jan 30
-            'no_way_out' => 47, // Feb 20
-            'wrestlemania' => 52, // Mar 27
+            'new_years_revolution' => 41, // Jan 8, 2006
+            'royal_rumble' => 44, // Jan 29, 2006
+            'no_way_out' => 47, // Feb 19, 2006
+            'wrestlemania' => 52, // Mar 26, 2006
         ],
     ],
 

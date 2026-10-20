@@ -45,29 +45,27 @@ class CalendarService
     }
 
     /**
-     * The calendar date a week airs. Every season runs on 2005's Sundays:
-     * weeks that would spill into the next year (Jan–Mar) fold back 52 weeks
-     * onto 2005, so the PPVs land on their listed dates (§13). Only the month
-     * and day are shown in-game, and every season repeats the same dates.
+     * The Sunday a week starts on, when its PPVs air. Every season runs on
+     * the same continuous calendar, April 2005 to March 2006 (§13): week 1
+     * is Sunday Apr 3, 2005 and WrestleMania's week 52 is Sunday Mar 26, 2006.
      */
     public function date(int $week): CarbonImmutable
     {
         $start = CarbonImmutable::parse((string) config('gm.calendar.season_start_reference'));
-        $date = $start->addWeeks($this->seasonWeek($week) - 1);
 
-        return $date->year > $start->year ? $date->subWeeks(52) : $date;
+        return $start->addWeeks($this->seasonWeek($week) - 1);
     }
 
     /**
-     * The night a brand's weekly show airs: its configured weekday before the
-     * week's Sunday (Raw Monday, SmackDown Friday). PPVs air on the Sunday
-     * itself, which is `date()`.
+     * The night a brand's weekly show airs: its configured weekday after the
+     * week's Sunday (Raw Monday, SmackDown Friday). Weeks start on Sunday,
+     * so a week's PPV always airs before its weekly shows.
      */
     public function showDate(int $week, Brand $brand): CarbonImmutable
     {
         $day = (string) config("gm.calendar.weekly_show_days.{$brand->value}");
 
-        return $this->date($week)->previous($day);
+        return $this->date($week)->next($day);
     }
 
     public function monthLabel(int $week): string
@@ -124,45 +122,67 @@ class CalendarService
     }
 
     /**
-     * Weeks of a season grouped by month, for the Schedule screen. Pass a
-     * brand to group by that brand's weekly show night instead of the Sunday.
+     * The season as calendar months, April 2005 to March 2006, for the
+     * Schedule screen. Each month is a Sunday-first grid of whole weeks
+     * (with the neighbouring months' days filling the first and last rows),
+     * and every show night carries what airs on it.
      *
-     * @return list<array{month: string, weeks: list<array{week: int, season_week: int, date: string, show_dates: array<string, string>, ppvs: list<array{key: string, name: string, brand_scope: string}>}>}>
+     * @return list<array{key: string, label: string, rows: list<list<array{date: string, day: int, in_month: bool, airs: list<array{week: int, season_week: int, kind: string, brand: string|null, ppv: array{key: string, name: string, brand_scope: string}|null}>}>>}>
      */
-    public function seasonGrid(int $season, ?Brand $brand = null): array
+    public function seasonMonths(int $season): array
     {
-        $months = [];
-        $current = null;
-        $weeks = [];
+        $airs = [];
 
         for ($sw = 1; $sw <= $this->weeksPerSeason(); $sw++) {
             $week = $this->absoluteWeek($season, $sw);
-            $month = ($brand === null ? $this->date($week) : $this->showDate($week, $brand))->format('F');
 
-            if ($current !== null && $current !== $month) {
-                $months[] = ['month' => $current, 'weeks' => $weeks];
-                $weeks = [];
+            foreach ($this->ppvsForWeek($week) as $ppv) {
+                $airs[$this->date($week)->toDateString()][] = [
+                    'week' => $week,
+                    'season_week' => $sw,
+                    'kind' => 'ppv',
+                    'brand' => $ppv->isShared() ? null : $ppv->brand_scope->value,
+                    'ppv' => ['key' => $ppv->key->value, 'name' => $ppv->name, 'brand_scope' => $ppv->brand_scope->value],
+                ];
             }
 
-            $current = $month;
-            $weeks[] = [
-                'week' => $week,
-                'season_week' => $sw,
-                'date' => $this->date($week)->format('D M j'),
-                'show_dates' => [
-                    Brand::Raw->value => $this->showDate($week, Brand::Raw)->format('D M j'),
-                    Brand::Smackdown->value => $this->showDate($week, Brand::Smackdown)->format('D M j'),
-                ],
-                'ppvs' => array_values($this->ppvsForWeek($week)->map(fn (PpvEvent $ppv): array => [
-                    'key' => $ppv->key->value,
-                    'name' => $ppv->name,
-                    'brand_scope' => $ppv->brand_scope->value,
-                ])->all()),
-            ];
+            foreach (Brand::cases() as $brand) {
+                $airs[$this->showDate($week, $brand)->toDateString()][] = [
+                    'week' => $week,
+                    'season_week' => $sw,
+                    'kind' => 'weekly',
+                    'brand' => $brand->value,
+                    'ppv' => null,
+                ];
+            }
         }
 
-        if ($current !== null) {
-            $months[] = ['month' => $current, 'weeks' => $weeks];
+        $first = $this->date($this->absoluteWeek($season, 1))->startOfMonth();
+        $months = [];
+
+        for ($m = 0; $m < 12; $m++) {
+            $month = $first->addMonthsNoOverflow($m);
+            $day = $month->startOfWeek(CarbonImmutable::SUNDAY);
+            $last = $month->endOfMonth()->endOfWeek(CarbonImmutable::SATURDAY);
+            $rows = [];
+
+            while ($day <= $last) {
+                $row = [];
+
+                for ($i = 0; $i < 7; $i++) {
+                    $row[] = [
+                        'date' => $day->toDateString(),
+                        'day' => $day->day,
+                        'in_month' => $day->month === $month->month,
+                        'airs' => $day->month === $month->month ? ($airs[$day->toDateString()] ?? []) : [],
+                    ];
+                    $day = $day->addDay();
+                }
+
+                $rows[] = $row;
+            }
+
+            $months[] = ['key' => $month->format('Y-m'), 'label' => $month->format('F Y'), 'rows' => $rows];
         }
 
         return $months;

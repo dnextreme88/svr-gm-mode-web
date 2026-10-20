@@ -7,6 +7,7 @@ use App\Enums\PpvKey;
 use App\Enums\ShowStatus;
 use App\Enums\ShowType;
 use App\Models\Concerns\BelongsToGame;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $ppv_event_id
  * @property string $name
  * @property ShowStatus $status
+ * @property CarbonImmutable|null $confirmed_at the player finished booking this card
  * @property-read PpvEvent|null $ppvEvent
  */
 #[Unguarded]
@@ -139,6 +141,7 @@ class Show extends Model
             'brand' => Brand::class,
             'show_type' => ShowType::class,
             'status' => ShowStatus::class,
+            'confirmed_at' => 'immutable_datetime',
         ];
     }
 }

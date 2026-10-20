@@ -157,6 +157,28 @@ const props = {
             },
         ],
     },
+    calendar: {
+        weekly_show_days: { raw: 'Monday', smackdown: 'Friday' },
+        weeks_per_season: 52,
+        season_start: 'Sun Apr 3, 2005',
+        season_end: 'Sun Mar 26, 2006',
+        ppvs: [
+            {
+                key: 'backlash',
+                name: 'Backlash',
+                season_week: 4,
+                date: 'Sun Apr 24, 2005',
+                brand_scope: 'raw',
+            },
+            {
+                key: 'summerslam',
+                name: 'SummerSlam',
+                season_week: 21,
+                date: 'Sun Aug 21, 2005',
+                brand_scope: 'shared',
+            },
+        ],
+    },
     emails: [
         {
             email: 'PPV reminder',
@@ -310,6 +332,32 @@ describe('Docs page', () => {
         expect(emails).toHaveLength(2);
         expect(emails[0]).toHaveTextContent('PPV reminder');
         expect(emails[0]).toHaveTextContent('Vince McMahon');
+    });
+
+    it('explains Sunday-start weeks, booking order, simulation and lists the PPVs', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Schedule' }));
+
+        expect(
+            screen.getByText(/Raw on Monday and SmackDown! on Friday/),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', { name: 'Booking a week' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', { name: 'Simulate to a date' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(/The rival’s shows can’t be/),
+        ).toBeInTheDocument();
+        expect(screen.getByTestId('ppv-backlash')).toHaveTextContent(
+            'Sun Apr 24, 2005',
+        );
+        expect(screen.getByTestId('ppv-summerslam')).toHaveTextContent(
+            'Raw & SmackDown!',
+        );
     });
 
     it('draws Inactive Superstar’s recovery as green bars', async () => {
