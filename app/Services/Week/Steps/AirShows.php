@@ -2,6 +2,7 @@
 
 namespace App\Services\Week\Steps;
 
+use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Matches\ShowResolver;
 use App\Services\Week\WeekContext;
@@ -16,6 +17,12 @@ class AirShows implements WeekStep
 
     public function handle(WeekContext $context): void
     {
+        // Fatigue going into the week, for the results screen's fatigue log.
+        $context->data['fatigue_start'] = SaveWrestler::where('save_id', $context->save->id)
+            ->pluck('fatigue', 'id')
+            ->map(fn ($fatigue): int => (int) $fatigue)
+            ->all();
+
         $shows = Show::where('save_id', $context->save->id)
             ->where('week_number', $context->week)
             ->get()

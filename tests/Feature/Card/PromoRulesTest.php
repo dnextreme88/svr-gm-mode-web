@@ -65,15 +65,20 @@ function wweId(): int
 }
 
 describe('availability', function () {
-    it('greys out Inactive Superstar until someone is seriously injured, then targets only them', function () {
-        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
-        expect(rulesFor($save, PromoTypeKey::InactiveSuperstar)['available'])->toBeFalse();
-
-        seriouslyInjure($save, 'Kane');
+    it('offers Inactive Superstar only for wrestlers not booked on the card', function () {
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito'], smackdown: ['Batista']);
+        Card::book($save, Card::show($save), 1, Card::singles(), [['Edge'], ['Kane']]);
 
         expect(rulesFor($save, PromoTypeKey::InactiveSuperstar))
             ->available->toBeTrue()
-            ->wrestler_ids->toBe([idOf($save, 'Kane')]);
+            ->wrestler_ids->toBe([idOf($save, 'Carlito')]);
+    });
+
+    it('greys out Inactive Superstar when everyone is booked', function () {
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+        Card::book($save, Card::show($save), 1, Card::singles(), [['Edge'], ['Kane']]);
+
+        expect(rulesFor($save, PromoTypeKey::InactiveSuperstar)['available'])->toBeFalse();
     });
 
     it('offers Comeback Reminder only for wrestlers out more than 3 weeks', function (int $week, bool $available) {
@@ -149,12 +154,18 @@ describe('booking', function () {
 
         expect(fn () => promo($save, $key, $args))->toThrow(GameRuleException::class, $message);
     })->with([
-        'inactive on a healthy wrestler' => [PromoTypeKey::InactiveSuperstar, ['a' => 'Edge'], 'can’t take part'],
         'interference with a Diva' => [PromoTypeKey::InterferencePromotion, ['a' => 'Lita'], 'can’t take part'],
         'bikini with a non-Diva' => [PromoTypeKey::DivaBikiniContest, ['a' => 'Lita', 'b' => 'Edge'], 'can’t take part'],
         'interview with an injured wrestler' => [PromoTypeKey::InterviewSpace, ['a' => 'Kane'], 'can’t take part'],
         'title hype with no title match' => [PromoTypeKey::TitleMatchHype, ['championship' => 1], 'Title Match Hype'],
     ]);
+
+    it('rejects Inactive Superstar on a wrestler booked on the card', function () {
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito'], smackdown: ['Batista']);
+        Card::book($save, Card::show($save), 1, Card::singles(), [['Edge'], ['Kane']]);
+
+        promo($save, PromoTypeKey::InactiveSuperstar, ['a' => 'Edge']);
+    })->throws(GameRuleException::class, 'can’t take part');
 
     it('airs before the main event by default and only before a real match slot', function () {
         $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);

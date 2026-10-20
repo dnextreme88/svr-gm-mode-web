@@ -50,6 +50,8 @@ type Promo = {
     variable_amount: boolean;
     success_rate: number;
     fatigue_bars: number;
+    /** Extra end-of-week recovery for the target (Inactive Superstar). */
+    recovery_bars: number;
     targets_rival: boolean;
     requirement: string | null;
     effect: string;
@@ -447,8 +449,10 @@ function Injuries({ injuries, fatigue }: Pick<Props, 'injuries' | 'fatigue'>) {
                     <li>
                         Fatigue runs from 0% to {fatigue.max}%, shown as bars of{' '}
                         {fatigue.bar_size}%. Each match type adds its fatigue
-                        cost; resting a week recovers{' '}
-                        {fatigue.rest_recovery_bars} bars.
+                        cost. At the end of every week, everyone recovers{' '}
+                        {fatigue.rest_recovery_bars} bars, whether they wrestled
+                        or not, and never drops below 0%. A successful Inactive
+                        Superstar promo adds 2 more for its target.
                     </li>
                     <li>
                         <ZoneMeter config={meterConfig} at={fatigue.safe_max} />
@@ -651,7 +655,12 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                                     {Math.round(p.success_rate * 100)}%
                                 </td>
                                 <td>
-                                    {p.fatigue_bars > 0 ? (
+                                    {p.recovery_bars > 0 ? (
+                                        <FatigueCost
+                                            bars={p.recovery_bars}
+                                            recovers
+                                        />
+                                    ) : p.fatigue_bars > 0 ? (
                                         <FatigueCost bars={p.fatigue_bars} />
                                     ) : (
                                         <span className="text-ink-faint">

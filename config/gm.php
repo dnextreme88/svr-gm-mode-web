@@ -107,7 +107,8 @@ return [
         'max' => 100,
         'safe_max' => 70,
         'serious_at' => 100,
-        // ASSUMPTION: rest recovery is TBD in the spec.
+        // House rule (2026-10-20): every wrestler recovers this many bars at
+        // the end of each week, booked or not, like SvR 2006.
         'rest_recovery_bars' => 2,
         // §4 to confirm: managing adds no fatigue.
         'manager_fatigue_bars' => 0,
@@ -337,6 +338,10 @@ return [
         'fatigue_bars' => [
             'interference_promotion' => 2,
             'start_rivalry' => 2,
+        ],
+        // Extra end-of-week recovery a successful promo gives its target.
+        'recovery_bars' => [
+            'inactive_superstar' => 2,
         ],
         // ASSUMPTION: Injury Return works on a serious injury that healed this recently.
         'injury_return_window_weeks' => 2,

@@ -225,6 +225,12 @@ class PromoService
 
         $this->tire($show, $type, $slot, $rng);
 
+        // An Inactive Superstar promo only works on someone who isn't booked on the card.
+        if ($type->key === PromoTypeKey::InactiveSuperstar && $slot->target_wrestler_id !== null && $this->bookedOn($show, $slot->target_wrestler_id)) {
+            $succeeded = false;
+            $note = 'Booked on the card';
+        }
+
         // ASSUMPTION: a hype for a title match that's no longer on the card fizzles.
         if ($type->needs_championship && ! $this->titleMatchOnCard($show, $slot->target_championship_id)) {
             $succeeded = false;
@@ -238,6 +244,7 @@ class PromoService
                 PromoTypeKey::StartRivalry => $this->startRivalry($show, $slot),
                 PromoTypeKey::ContinueRivalry => $this->continueRivalry($show, $slot),
                 PromoTypeKey::NewSuperstar => $this->debut($show, $brand, $slot),
+                PromoTypeKey::InactiveSuperstar => 'Rested: recovers '.(int) config('gm.promos.recovery_bars.inactive_superstar').' extra fatigue bars',
                 default => 'Success (popularity and rating effects are deferred)',
             };
         }
@@ -288,6 +295,13 @@ class PromoService
             $wrestler->update(['fatigue' => FatigueZones::cap($goingIn + $type->fatigue_bars * (int) config('gm.fatigue.bar_size'))]);
             $this->injuries->rollForPromo($wrestler->refresh(), $goingIn, $type->fatigue_bars, $show->week_number, $rng);
         }
+    }
+
+    private function bookedOn(Show $show, int $wrestlerId): bool
+    {
+        return MatchSlot::where('show_id', $show->id)
+            ->whereHas('participants', fn ($q) => $q->where('save_wrestler_id', $wrestlerId))
+            ->exists();
     }
 
     private function titleMatchOnCard(Show $show, ?int $championshipId): bool

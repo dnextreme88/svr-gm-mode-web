@@ -101,6 +101,7 @@ class CardController extends Controller
                 'needs_diva_pair' => $t->needs_diva_pair,
                 'needs_championship' => $t->needs_championship,
                 'fatigue_bars' => $t->fatigue_bars,
+                'recovery_bars' => (int) config('gm.promos.recovery_bars.'.$t->key->value, 0),
                 'targets_rival' => $t->targets_rival,
                 'variable_amount' => $t->variable_amount,
                 'effect' => $t->effect,

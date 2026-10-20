@@ -3,10 +3,76 @@
 Web-based simulation of a custom SmackDown vs Raw 2006 GM Mode, with house rules.
 
 ## Source of truth
-- Full spec: `docs/20261017-spec.md`. Read the relevant section before working on a feature; quote the section number in plans.
-- Anything marked *(to confirm)* or *(assumption)* in the spec: implement it as written, keep the value in config, and list it in the PR description.
+- **This file is the source of truth for the game's rules** (see Game rules below). When a change adds or alters a rule, update this file, the dated plan in `docs/`, and `/gm/docs`.
+- `docs/20261017-spec.md` is the frozen build-phase spec. **Never edit it.** Read it only for historical detail (seed tables, original wording); its section numbers (§N) are still used in code comments. Where it disagrees with this file, this file wins.
+- Anything marked *(assumption)* below or in config: keep the value in config and list it in the PR description.
 - Deferred systems (Popularity, Match Rating, Power 25): stub only. Don't invent formulas.
 - The in-game documentation page (`/gm/docs`: `DocsController` + `resources/js/pages/gm/docs.tsx`) is the player-facing source of truth for game rules. Keep it current. When a change touches anything it documents or should document (match types, match rules, fatigue, injuries, specialties, stipulations, promos, or a new rule or system), ask the user whether to update the docs page before finishing. Don't update it silently, and don't skip the question.
+
+## Game rules
+
+A web take on SmackDown vs Raw 2006 GM Mode with house rules. The original 2006 game had no momentum bar, weekly grading or angle system.
+
+### Setup and season
+- The player runs **Raw** or **SmackDown** against an AI rival GM. Budget **$15M**, granted once at the first draft; it carries over between seasons. Roster cap **30** (Superstars, Divas and Legends all count).
+- **Initial draft:** up to 30 picks each, random first pick, alternating. Legends can't be drafted (they wait in Free Agency). The rival GM rolls 1–100 each pick: 60+ picks from its division (Raw: Divas; SmackDown: Cruiserweights and Light Heavyweights), else anyone affordable.
+- After the draft, titles are awarded in tier order (world, second tier, tag, special); the player can leave one vacant. At award time a wrestler can hold only one title. The rival always crowns someone.
+- A season is 52 weeks on the 2005 calendar (week 1 = Apr 3), ending at WrestleMania (Mar 27). Raw airs Monday, SmackDown Friday, PPVs Sunday. 15 PPVs: 6 Raw, 5 SmackDown, 4 shared (Royal Rumble, WrestleMania, SummerSlam, Survivor Series). PPV weeks book both the weekly show and the PPV. Every season reuses the 2005 calendar.
+- **WrestleMania re-draft:** up to 10 random picks each from the rival's non-champions; the interbrand series winner swaps one for a manual pick and protects one of its own. The 30 cap still applies.
+
+### Contracts and money
+- Lengths 5 / 12 / 24 / 36 / 52 weeks; shorter costs less up front and more per week. Every contract ticks down 1 per week (injured or unused too) and charges weekly upkeep. At 0 the wrestler goes to Free Agency, titles vacate, briefcases void. Renegotiating resets the clock.
+- An Expiring Contracts digest email lists everyone with 4 or fewer weeks left; a Contract Expired email follows.
+- Free Agency signings and roster moves take effect the following week. Trades are up to 5-for-5, uneven allowed; champions and seriously injured wrestlers can't be traded; neither roster may end over 30.
+- A long deficit forces a choice: money promos, free match types only, or releases.
+
+### Card building
+- Weekly shows: **6 match slots and 2 promo slots**. PPVs: 5 match slots, no promos. Each slot: match type, then 2–6 competitors, then an optional stipulation.
+- No per-card limit on bookings; double-booked wrestlers are flagged and take both fatigue costs. Seriously injured wrestlers and wrestlers sitting out (blocked defection, Buried Alive) can't be booked as anything.
+- **Managers:** anyone on the roster can manage a w/Manager match they aren't competing in. Managing adds no fatigue but counts as being used. Jimmy Hart is a regular wrestler.
+- **Special Referee** matches need a referee from the roster who isn't competing or managing and isn't seriously injured. The referee takes no fatigue, injury or record.
+- **Titles:** a title can be on the line only if its champion(s) are in the match, and **each title only once per card**. Divas can only hold or challenge for the Women's title; the Cruiserweight title is for Cruiserweight and Light Heavyweight men.
+- **Randomize** (one slot) and **Preset** (empty slots) only propose bookings; confirming goes through normal validation. They draw from bookable wrestlers not already on the card, never add stipulations or managers, and book a pending title shot first.
+
+### Match types
+- Families and variants are seeded from `database/seeders/data/match_types.php`. Normal Matches merges singles, Triple Threat and Fatal 4-Way.
+- **Rules per type** (`config('gm.match_rules')`): no rope breaks or count-outs in Hardcore, TLC, Table, Ladder, Battle Royal, Royal Rumble and Hell in a Cell; no ring outs in Steel Cage, Battle Royal, Royal Rumble and Elimination Chamber; no DQ or count-out in Normal Triple Threat / Fatal 4-Way; no titles in 3 vs 3 matches, Captain Fall, Handicap and Slobber Knocker. Captain Fall is won by beating the other team's captain (first wrestler on the side).
+- **Fatigue cost** per type is 1–5 bars; **prices** run $0–$55,000 (family defaults in `config('gm.match_type_defaults')`, per-variant overrides in the data file).
+- **PPV exclusives:** Elimination Chamber (New Year's Revolution, Raw), Buried Alive (No Mercy, SmackDown; the loser sits out 4 weeks, their contract pauses, and they can't be injured by it), 30-man Royal Rumble (15 per brand, no titles; the winner's brand gets the WrestleMania main event), Traditional 3 vs 3 Survivor Series Elimination (always that PPV's Raw vs SmackDown main event), Money in the Bank (WrestleMania, 6-man ladder, no Divas or titles; the briefcase is a world title shot, cashable on any card within 52 weeks or until next WrestleMania, voided if the holder leaves the brand).
+- **WrestleMania** is one 10-match interbrand card: 3 Raw slots, 3 SmackDown slots, the main event (Royal Rumble winner vs their brand's world champion), and a 3-match random interbrand series (1v1, 2v2, Money in the Bank) whose winner gets the re-draft perks.
+
+### Promos
+- Each promo rolls its success rate with the seeded RNG; the cost is paid either way. Interference and Slander are fixed at 50% and always make the neutral news headline. Slander backfires if used more than once in 4 weeks.
+- `PromoEligibility` decides who can run each promo; unavailable promos are greyed out and booking rejects them. Highlights: Inactive Superstar targets someone **not booked on the card**; Interference needs a healthy non-Diva; Start a Rivalry needs two healthy wrestlers not already in a rivalry; Diva Bikini Contest needs two healthy Divas; Title Match Hype needs a saved title match on the card; Comeback Reminder needs someone seriously injured for more than 3 weeks.
+- Each promo airs **before a chosen match** (default: before the main event). Interference and Start a Rivalry add **2 fatigue bars** there (success or fail) and roll injuries like a match.
+- A Title Match Hype whose title match is gone fizzles; an Inactive Superstar whose target ends up booked fizzles. Popularity and rating effects are stubs.
+
+### Fatigue and injuries
+- Fatigue is 0–100%, drawn as 10 bars. Fatigue going into a match decides the risk: 0–70% safe, 80–90% rolls for a minor injury, 100% means a guaranteed serious injury in any match that adds fatigue.
+- **Weekly recovery (house rule):** at the end of every week **everyone recovers 2 bars** (`gm.fatigue.rest_recovery_bars`), booked or not. A successful Inactive Superstar promo gives its target **2 more** (`gm.promos.recovery_bars`). Fatigue never drops below 0. Only wrestlers in matches or fatiguing promos gain fatigue; recovery applies to everyone. Examples: A starts at 30%, wrestles a 50% match (80%), ends the week at 60% and starts the next show there. B starts at 40%, isn't booked (still 40%), ends at 20%. An unbooked wrestler at 30% with a successful Inactive Superstar ends at 0%.
+- Injuries: minor 1–4 weeks (can still compete; may escalate to serious each time they do), serious 5–52 weeks (can't be booked). Labels and durations are seeded.
+- A champion's serious injury vacates the title immediately.
+
+### Outcomes
+- Matches resolve in card order with promos in between. Outcomes are placeholders: equal base weights, plus a specialty bonus (specialists cancel out), then a finish event (Referee Attacked, Rival Interference, Foreign Object, Count-Out, Cheap Roll-Up) or a clean finish. Titles change hands only on a decisive win (not DQ or count-out).
+- The results screen lists every result; each opens its full outcome card with arrows to step through, plus each wrestler's fatigue going in → after the show → after recovery.
+
+### Stipulations (max one per match)
+- **Champion vs Contender:** 1v1 or 2v2, no title on the line; a contender win earns a title match on the next show or PPV, and the card can't air until it's booked.
+- **Loser Leaves Show:** 1v1 or 2v2 only; the loser goes to Free Agency, their contract is refunded, titles vacate, and nobody can sign them for 4 weeks.
+- **Last Chance:** only after the same participants have met twice in the current reign with the champion winning both; a loss locks the contender out of title matches against that champion until the title changes hands.
+- A contender's DQ or count-out win counts as a champion win for every stipulation.
+
+### Morale, defection and titles
+- Morale is Happy / Content / Unsatisfied / Upset: the worst of four complaints (losing streak 3/5/7; contract demand at win streaks 10/15/18; no title match for 4/8/12 weeks; unused for 2/4/8 weeks). Injury and sit-out weeks don't count. Each new level emails the GM.
+- Unsatisfied and Upset wrestlers may try to defect. They transfer if the rival has room (titles vacate, briefcase voids), otherwise they sit out 2 weeks.
+- Every title keeps a full lineage across seasons, including vacancies and the reason (defected, injured, Loser Leaves, released, contract expired), plus records.
+
+### News and email
+- News is a weekly carousel: 3 headlines (Raw, SmackDown, neutral), 4 stories, and a ticker, from the event catalog. Email carries private GM notices (hints, contracts, injuries, morale, defections).
+
+### Deferred
+- Popularity, Match Rating and the Power 25 ranking: structure only, no formulas. Controller (XInput) support is planned but not built.
 
 ## Stack
 - Backend: Laravel + MySQL. All game logic lives here as service classes (week resolution, match sim, fatigue/injury, morale, contracts, titles, finances).
@@ -60,6 +126,6 @@ Web-based simulation of a custom SmackDown vs Raw 2006 GM Mode, with house rules
 
 ## TODOS
 
-The 2026-10-19 docs page, match rules and UI polish work is done; see [docs/20261019-docs-page-match-rules-and-ui-polish.md](docs/20261019-docs-page-match-rules-and-ui-polish.md). The 2026-10-20 card booking UI, Special Referee and promo rework is done; see [docs/20261020-card-booking-ui-special-referee-and-promos.md](docs/20261020-card-booking-ui-special-referee-and-promos.md).
+The 2026-10-19 docs page, match rules and UI polish work is done; see [docs/20261019-docs-page-match-rules-and-ui-polish.md](docs/20261019-docs-page-match-rules-and-ui-polish.md). The 2026-10-20 card booking UI, Special Referee and promo rework is done; see [docs/20261020-card-booking-ui-special-referee-and-promos.md](docs/20261020-card-booking-ui-special-referee-and-promos.md). So is the 2026-10-20 results screen and weekly recovery change; see [docs/20261020-results-screen-and-weekly-recovery.md](docs/20261020-results-screen-and-weekly-recovery.md).
 
 - **Slobber Knocker (pending design):** a 1 vs N match where one wrestler faces an endless line of opponents until they lose. For now it's seeded as a 1-on-1 `No Limit` variant and can't have titles on the line. The user has ideas for how it should really work, so ask before changing its booking or sim rules.

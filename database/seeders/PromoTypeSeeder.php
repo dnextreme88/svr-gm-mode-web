@@ -32,8 +32,8 @@ class PromoTypeSeeder extends Seeder
             'pair' => true,
         ],
         'inactive_superstar' => [
-            'effect' => 'Slows popularity decay for a wrestler who is out of action.',
-            'requirement' => 'A seriously injured wrestler.',
+            'effect' => 'Rests a wrestler who isn’t being used: they recover 2 extra fatigue bars at the end of the week, and their popularity decays more slowly.',
+            'requirement' => 'A wrestler who isn’t booked anywhere on this card.',
             'wrestler' => true,
         ],
         'injury_return' => [

@@ -19,6 +19,7 @@ export type PromoTypeOption = {
     needs_diva_pair?: boolean;
     needs_championship?: boolean;
     fatigue_bars?: number;
+    recovery_bars?: number;
     targets_rival: boolean;
     variable_amount: boolean;
     effect: string;
@@ -212,6 +213,13 @@ function PromoEditor({
                                         {Math.round(t.success_rate * 100)}%
                                     </span>
                                 </span>
+                                {(t.recovery_bars ?? 0) > 0 && (
+                                    <FatigueCost
+                                        bars={t.recovery_bars ?? 0}
+                                        max={t.recovery_bars}
+                                        recovers
+                                    />
+                                )}
                                 {(t.fatigue_bars ?? 0) > 0 && (
                                     <FatigueCost
                                         bars={t.fatigue_bars ?? 0}

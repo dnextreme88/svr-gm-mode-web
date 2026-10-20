@@ -109,6 +109,7 @@ class DocsController extends Controller
                     'variable_amount' => $t->variable_amount,
                     'success_rate' => $t->successRate(),
                     'fatigue_bars' => $t->fatigue_bars,
+                    'recovery_bars' => (int) config('gm.promos.recovery_bars.'.$t->key->value, 0),
                     'targets_rival' => $t->targets_rival,
                     'requirement' => $t->requirement,
                     'effect' => $t->effect,

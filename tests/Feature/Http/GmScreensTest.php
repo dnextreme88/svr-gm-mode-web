@@ -199,6 +199,24 @@ it('shows flashing outcomes and reports after the week airs', function () {
         ->assertInertia(fn (Assert $page) => $page->component('gm/reports')->has('shows'));
 });
 
+it('sends each show’s fatigue progression with the results', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito'], smackdown: ['Batista']);
+    GameBuilder::wrestler($save, 'Edge')->update(['fatigue' => 20]);
+    Card::book($save, Card::show($save), 1, Card::singles(), [['Edge'], ['Kane']]);
+    $this->post(route('gm.advance', $save));
+
+    $this->get(route('gm.results', [$save, 1]))
+        ->assertInertia(fn (Assert $page) => $page->component('gm/results')
+            // Only wrestlers on the show, in card order; Carlito sat out.
+            ->has('shows.0.fatigue', 2)
+            ->where('shows.0.fatigue.0.name', 'Edge')
+            ->where('shows.0.fatigue.0.start', 20)
+            ->where('shows.0.fatigue.0.after_shows', 30)
+            ->where('shows.0.fatigue.0.end', 10)
+            ->where('shows.0.fatigue.0.recovered_bars', 2)
+            ->where('shows.0.fatigue.0.rested', false));
+});
+
 it('refuses to open the rival brand card', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
     $show = Card::show($save, Brand::Smackdown);

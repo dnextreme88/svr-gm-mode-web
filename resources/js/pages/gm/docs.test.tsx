@@ -98,6 +98,7 @@ const props = {
                 variable_amount: false,
                 success_rate: 1,
                 fatigue_bars: 0,
+                recovery_bars: 0,
                 targets_rival: false,
                 requirement: 'Nothing.',
                 effect: 'Guaranteed flat payout next week.',
@@ -109,10 +110,24 @@ const props = {
                 variable_amount: false,
                 success_rate: 0.5,
                 fatigue_bars: 2,
+                recovery_bars: 0,
                 targets_rival: true,
                 requirement:
                     'A non-Diva superstar who isn’t seriously injured.',
                 effect: 'Sabotages the rival show.',
+            },
+            {
+                key: 'inactive_superstar',
+                name: 'Inactive Superstar',
+                amount: -2000,
+                variable_amount: false,
+                success_rate: 0.9,
+                fatigue_bars: 0,
+                recovery_bars: 2,
+                targets_rival: false,
+                requirement:
+                    'A wrestler who isn’t booked anywhere on this card.',
+                effect: 'Rests a wrestler who isn’t being used.',
             },
         ],
     },
@@ -224,5 +239,24 @@ describe('Docs page', () => {
         expect(screen.getByTestId('promo-advertising')).toHaveTextContent(
             '+$150,000',
         );
+    });
+
+    it('draws Inactive Superstar’s recovery as green bars', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Promos' }));
+
+        const bars = within(
+            screen.getByTestId('promo-inactive_superstar'),
+        ).getByRole('img', { name: 'Recovers 2 fatigue bars' });
+        const filled = bars.querySelectorAll('[data-state="filled"]');
+        expect(filled).toHaveLength(2);
+        expect(filled[0].className).toContain('bg-zone-safe');
+        expect(
+            within(
+                screen.getByTestId('promo-interference_promotion'),
+            ).getByRole('img', { name: 'Adds 2 fatigue bars' }),
+        ).toBeInTheDocument();
     });
 });
