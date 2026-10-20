@@ -10,7 +10,16 @@ export type SlotDraft = {
     titleChampionshipId: number | null;
     stipulation: Stipulation | null;
     stipulationChampionshipId: number | null;
+    /** The special referee, for Special Referee matches (§10). */
+    refereeId: number | null;
     fixed: boolean;
+};
+
+/** Fatigue a booked promo adds before a match slot (§5). */
+export type PromoFatigue = {
+    wrestlerId: number;
+    beforePosition: number;
+    bars: number;
 };
 
 export function emptySides(
@@ -30,10 +39,14 @@ export function participantIds(draft: SlotDraft): number[] {
         (id): id is number => id !== null && id !== undefined,
     );
 
-    return [...competitorIds(draft), ...managers];
+    return [
+        ...competitorIds(draft),
+        ...managers,
+        ...(draft.refereeId != null ? [draft.refereeId] : []),
+    ];
 }
 
-/** How many matches each wrestler appears in on this card (competitor or manager). */
+/** How many matches each wrestler appears in on this card (competitor, manager or referee). */
 export function bookingCounts(drafts: SlotDraft[]): Map<number, number> {
     const counts = new Map<number, number>();
 
@@ -48,7 +61,8 @@ export function bookingCounts(drafts: SlotDraft[]): Map<number, number> {
 
 /**
  * Fatigue going into and coming out of a slot, in card order (§4, §6).
- * Managing adds no fatigue.
+ * Managing and refereeing add no fatigue; booked promos placed before a
+ * match add theirs there (§5).
  */
 export function projectedFatigue(
     wrestlerId: number,
@@ -57,6 +71,7 @@ export function projectedFatigue(
     types: Map<number, MatchTypeOption>,
     roster: Map<number, RosterEntry>,
     config: FatigueConfig,
+    promos: PromoFatigue[] = [],
 ): { goingIn: number; after: number } {
     let fatigue = roster.get(wrestlerId)?.fatigue ?? 0;
     let goingIn = fatigue;
@@ -66,16 +81,28 @@ export function projectedFatigue(
             break;
         }
 
+        for (const promo of promos) {
+            if (
+                promo.wrestlerId === wrestlerId &&
+                promo.beforePosition === draft.position
+            ) {
+                fatigue = Math.min(
+                    config.max,
+                    fatigue + promo.bars * config.bar_size,
+                );
+            }
+        }
+
+        if (draft.position === upToPosition) {
+            goingIn = fatigue;
+        }
+
         const type = draft.matchTypeId
             ? types.get(draft.matchTypeId)
             : undefined;
 
         if (!type || !competitorIds(draft).includes(wrestlerId)) {
             continue;
-        }
-
-        if (draft.position === upToPosition) {
-            goingIn = fatigue;
         }
 
         fatigue = Math.min(
@@ -87,11 +114,15 @@ export function projectedFatigue(
     return { goingIn, after: fatigue };
 }
 
-/** Whether a draft has every competitor position filled. */
-export function isComplete(draft: SlotDraft): boolean {
+/**
+ * Whether a draft has every competitor position filled (and its special
+ * referee, when the match type needs one).
+ */
+export function isComplete(draft: SlotDraft, type?: MatchTypeOption): boolean {
     return (
         draft.matchTypeId !== null &&
         draft.sides.length > 0 &&
-        draft.sides.every((side) => side.every((id) => id !== null))
+        draft.sides.every((side) => side.every((id) => id !== null)) &&
+        (!type?.special_referee || draft.refereeId != null)
     );
 }

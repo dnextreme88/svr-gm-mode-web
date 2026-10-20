@@ -136,7 +136,7 @@ it('charges special match costs to Financials when the show airs', function () {
 
     app(WeekResolver::class)->resolve($save->refresh());
 
-    expect($save->brand(Brand::Raw)->budget)->toBe($budget - 15_000 - 16_000);
+    expect($save->brand(Brand::Raw)->budget)->toBe($budget - 12_000 - 16_000);
 });
 
 it('has the AI book its own card before the week airs', function () {

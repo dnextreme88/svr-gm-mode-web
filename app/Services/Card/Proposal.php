@@ -19,7 +19,7 @@ final readonly class Proposal
 
     /**
      * @param  array<int, string>  $names  save-wrestler id => name
-     * @return array{position: int, match_type_id: int, match_type: string, cost: int, sides: list<list<int>>, side_names: list<list<string>>, title_championship_id: int|null, managers: array<int, int>}
+     * @return array{position: int, match_type_id: int, match_type: string, cost: int, sides: list<list<int>>, side_names: list<list<string>>, title_championship_id: int|null, managers: array<int, int>, referee_id: int|null, referee_name: string|null}
      */
     public function toArray(array $names = []): array
     {
@@ -32,6 +32,8 @@ final readonly class Proposal
             'side_names' => array_map(fn (array $side): array => array_map(fn (int $id): string => $names[$id] ?? (string) $id, $side), $this->sides),
             'title_championship_id' => $this->booking->titleChampionshipId,
             'managers' => [],
+            'referee_id' => $this->booking->refereeId,
+            'referee_name' => $this->booking->refereeId === null ? null : ($names[$this->booking->refereeId] ?? null),
         ];
     }
 }

@@ -107,7 +107,8 @@ return [
         'max' => 100,
         'safe_max' => 70,
         'serious_at' => 100,
-        // ASSUMPTION: rest recovery is TBD in the spec.
+        // House rule (2026-10-20): every wrestler recovers this many bars at
+        // the end of each week, booked or not, like SvR 2006.
         'rest_recovery_bars' => 2,
         // §4 to confirm: managing adds no fatigue.
         'manager_fatigue_bars' => 0,
@@ -152,33 +153,34 @@ return [
     | Match type defaults by family (seeded into match_types).
     | Fatigue bars are house rules (2026-10-19, max 5 per match); variants
     | that differ from their family override `bars` in the data file.
-    | ASSUMPTION: the spec gives no prices or DQ flags.
-    | Prices stay inside the §4 $1,000–$50,000 range for gimmick matches.
+    | ASSUMPTION: the spec gives no DQ flags.
+    | Prices are house rules (2026-10-20); variants that cost something
+    | different override `cost` in the data file.
     */
     'match_type_defaults' => [
         'single' => ['bars' => 1, 'cost' => 0, 'dq' => true, 'countout' => true],
         'tag_team' => ['bars' => 1, 'cost' => 0, 'dq' => true, 'countout' => true],
         'six_man_tag' => ['bars' => 2, 'cost' => 0, 'dq' => true, 'countout' => true],
-        'handicap' => ['bars' => 1, 'cost' => 0, 'dq' => true, 'countout' => true],
+        'handicap' => ['bars' => 1, 'cost' => 1_000, 'dq' => true, 'countout' => true],
         'royal_rumble' => ['bars' => 5, 'cost' => 25_000, 'dq' => false, 'countout' => false],
         'three_stages_of_hell' => ['bars' => 5, 'cost' => 25_000, 'dq' => true, 'countout' => true],
-        'backstage_brawl' => ['bars' => 4, 'cost' => 5_000, 'dq' => false, 'countout' => false],
-        'battle_royal' => ['bars' => 4, 'cost' => 0, 'dq' => false, 'countout' => false],
+        'backstage_brawl' => ['bars' => 4, 'cost' => 16_000, 'dq' => false, 'countout' => false],
+        'battle_royal' => ['bars' => 4, 'cost' => 25_000, 'dq' => false, 'countout' => false],
         'buried_alive' => ['bars' => 5, 'cost' => 25_000, 'dq' => false, 'countout' => false],
         'elimination_chamber' => ['bars' => 5, 'cost' => 50_000, 'dq' => false, 'countout' => false],
-        'first_blood' => ['bars' => 3, 'cost' => 5_000, 'dq' => false, 'countout' => false],
-        'fulfill_your_fantasy' => ['bars' => 1, 'cost' => 2_000, 'dq' => true, 'countout' => true],
-        'hardcore' => ['bars' => 3, 'cost' => 5_000, 'dq' => false, 'countout' => false],
-        'hell_in_a_cell' => ['bars' => 5, 'cost' => 25_000, 'dq' => false, 'countout' => false],
-        'iron_man' => ['bars' => 5, 'cost' => 10_000, 'dq' => true, 'countout' => false],
-        'ladder' => ['bars' => 3, 'cost' => 15_000, 'dq' => false, 'countout' => false],
-        'last_man_standing' => ['bars' => 4, 'cost' => 10_000, 'dq' => false, 'countout' => false],
+        'first_blood' => ['bars' => 3, 'cost' => 1_000, 'dq' => false, 'countout' => false],
+        'fulfill_your_fantasy' => ['bars' => 1, 'cost' => 22_000, 'dq' => true, 'countout' => true],
+        'hardcore' => ['bars' => 3, 'cost' => 19_000, 'dq' => false, 'countout' => false],
+        'hell_in_a_cell' => ['bars' => 5, 'cost' => 45_000, 'dq' => false, 'countout' => false],
+        'iron_man' => ['bars' => 5, 'cost' => 37_000, 'dq' => true, 'countout' => false],
+        'ladder' => ['bars' => 3, 'cost' => 12_000, 'dq' => false, 'countout' => false],
+        'last_man_standing' => ['bars' => 4, 'cost' => 40_000, 'dq' => false, 'countout' => false],
         'slobber_knocker' => ['bars' => 4, 'cost' => 5_000, 'dq' => false, 'countout' => false],
-        'special_referee' => ['bars' => 2, 'cost' => 5_000, 'dq' => true, 'countout' => true],
-        'steel_cage' => ['bars' => 4, 'cost' => 10_000, 'dq' => false, 'countout' => false],
+        'special_referee' => ['bars' => 2, 'cost' => 0, 'dq' => true, 'countout' => true],
+        'steel_cage' => ['bars' => 4, 'cost' => 25_000, 'dq' => false, 'countout' => false],
         'submission' => ['bars' => 2, 'cost' => 1_000, 'dq' => true, 'countout' => false],
         'table' => ['bars' => 3, 'cost' => 5_000, 'dq' => false, 'countout' => false],
-        'tlc' => ['bars' => 3, 'cost' => 20_000, 'dq' => false, 'countout' => false],
+        'tlc' => ['bars' => 3, 'cost' => 8_000, 'dq' => false, 'countout' => false],
         'survivor_series_elimination' => ['bars' => 3, 'cost' => 0, 'dq' => true, 'countout' => true],
     ],
     'mitb_match' => ['bars' => 4, 'cost' => 50_000],
@@ -308,6 +310,11 @@ return [
             'ppv_hype' => 0.80,
             'interference_promotion' => 0.50,
             'slander_promotion' => 0.50,
+            // ASSUMPTION: the four SvR 2006 promos added 2026-10-20.
+            'title_match_hype' => 0.80,
+            'comeback_reminder' => 0.90,
+            'interview_space' => 0.90,
+            'diva_bikini_contest' => 0.85,
         ],
         'amounts' => [
             'new_superstar' => -50_000,
@@ -321,7 +328,25 @@ return [
             'ppv_hype' => -10_000,
             'interference_promotion' => -50_000,
             'slander_promotion' => -50_000,
+            'title_match_hype' => -10_000,
+            'comeback_reminder' => -2_000,
+            'interview_space' => -2_000,
+            'diva_bikini_contest' => -10_000,
         ],
+        // House rule: these promos tire their wrestlers (and can injure them),
+        // rolled at the point in the show where the promo airs.
+        'fatigue_bars' => [
+            'interference_promotion' => 2,
+            'start_rivalry' => 2,
+        ],
+        // Extra end-of-week recovery a successful promo gives its target.
+        'recovery_bars' => [
+            'inactive_superstar' => 2,
+        ],
+        // ASSUMPTION: Injury Return works on a serious injury that healed this recently.
+        'injury_return_window_weeks' => 2,
+        // Comeback Reminder: the wrestler has been out more than this many weeks.
+        'comeback_reminder_min_weeks_out' => 3,
         // ASSUMPTION: "freshly signed/traded-in" window for New Superstar.
         'new_superstar_window_weeks' => 2,
         'slander_overuse_window_weeks' => 4,

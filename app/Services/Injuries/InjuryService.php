@@ -37,6 +37,20 @@ class InjuryService
      */
     public function rollForMatch(SaveWrestler $wrestler, int $fatigueGoingIn, MatchType $type, int $week, Rng $rng, ?int $slotId = null): ?Injury
     {
+        return $this->rollFor($wrestler, $fatigueGoingIn, $type->fatigue_cost_bars, $week, $rng, $slotId);
+    }
+
+    /**
+     * Promos that tire their wrestlers (Interference, Start a Rivalry) roll
+     * injuries exactly like a match that adds the same fatigue (§5, §6).
+     */
+    public function rollForPromo(SaveWrestler $wrestler, int $fatigueGoingIn, int $fatigueBars, int $week, Rng $rng): ?Injury
+    {
+        return $this->rollFor($wrestler, $fatigueGoingIn, $fatigueBars, $week, $rng);
+    }
+
+    private function rollFor(SaveWrestler $wrestler, int $fatigueGoingIn, int $fatigueBars, int $week, Rng $rng, ?int $slotId = null): ?Injury
+    {
         $existing = $this->status->active($wrestler, $week);
 
         if ($existing?->severity === InjurySeverity::Minor && $rng->chance((float) config('gm.injuries.escalation_chance'))) {
@@ -49,7 +63,7 @@ class InjuryService
 
         $zone = FatigueZones::zoneFor($fatigueGoingIn);
 
-        if ($zone === InjuryZone::SeriousRisk && $type->fatigue_cost_bars > 0) {
+        if ($zone === InjuryZone::SeriousRisk && $fatigueBars > 0) {
             return $this->injure($wrestler, InjurySeverity::Serious, $week, $rng, $slotId);
         }
 

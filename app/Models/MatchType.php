@@ -75,6 +75,14 @@ class MatchType extends Model
         return $this->manager_sides !== [];
     }
 
+    /**
+     * Special Referee matches need a non-competing referee from the roster (§10).
+     */
+    public function hasSpecialReferee(): bool
+    {
+        return $this->family === MatchFamily::SpecialReferee;
+    }
+
     public function isOneOnOne(): bool
     {
         return $this->sides === [1, 1];

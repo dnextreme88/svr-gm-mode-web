@@ -18,6 +18,7 @@ use App\Services\Card\Booking;
 use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
 use App\Services\Injuries\InjuryStatus;
+use App\Services\Promos\PromoEligibility;
 use App\Services\Roster\RosterService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleService;
@@ -42,6 +43,7 @@ class CardController extends Controller
         private TitleService $titles,
         private TitleContextPresenter $titleContext,
         private MitbService $mitb,
+        private PromoEligibility $promoEligibility,
     ) {}
 
     public function show(Save $save, Show $show): Response|RedirectResponse
@@ -80,8 +82,10 @@ class CardController extends Controller
             'promo_slots' => PromoSlot::with('promoType')->where('show_id', $show->id)->orderBy('position')->get()->map(fn (PromoSlot $p): array => [
                 'position' => $p->position,
                 'promo_type_id' => $p->promo_type_id,
+                'before_position' => $p->before_position,
                 'target_wrestler_id' => $p->target_wrestler_id,
                 'target_wrestler_b_id' => $p->target_wrestler_b_id,
+                'target_championship_id' => $p->target_championship_id,
                 'succeeded' => $p->succeeded,
                 'backfired' => $p->backfired,
                 'outcome_note' => $p->outcome_note,
@@ -94,10 +98,16 @@ class CardController extends Controller
                 'success_rate' => $t->successRate(),
                 'needs_wrestler' => $t->needs_wrestler,
                 'needs_rival_pair' => $t->needs_rival_pair,
+                'needs_diva_pair' => $t->needs_diva_pair,
+                'needs_championship' => $t->needs_championship,
+                'fatigue_bars' => $t->fatigue_bars,
+                'recovery_bars' => (int) config('gm.promos.recovery_bars.'.$t->key->value, 0),
                 'targets_rival' => $t->targets_rival,
                 'variable_amount' => $t->variable_amount,
                 'effect' => $t->effect,
+                'requirement' => $t->requirement,
             ])->values(),
+            'promo_eligibility' => $show->promoSlotCount() > 0 ? $this->promoEligibility->forShow($show, $brand) : (object) [],
         ]);
     }
 
@@ -115,6 +125,7 @@ class CardController extends Controller
             'title_championship_id' => ['nullable', 'integer', 'exists:championships,id'],
             'stipulation' => ['nullable', Rule::enum(Stipulation::class)],
             'stipulation_championship_id' => ['nullable', 'integer', 'exists:championships,id'],
+            'referee_id' => ['nullable', 'integer'],
         ]);
 
         DB::transaction(fn () => $this->cards->book($show, $position, Booking::fromArray($data), $save->player_brand));

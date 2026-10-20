@@ -111,6 +111,7 @@ export type CardSlot = {
     match_type_id: number | null;
     sides: Array<Array<number | null>>;
     managers: Record<string, number>;
+    referee_id?: number | null;
     title_championship_id: number | null;
     stipulation: import('./enums').Stipulation | null;
     stipulation_championship_id: number | null;
@@ -137,6 +138,8 @@ export type MatchTypeOption = {
     ppv_only: boolean;
     /** The first wrestler on each side is that side's captain. */
     captain_fall: boolean;
+    /** Needs a non-competing special referee from the roster (§10). */
+    special_referee?: boolean;
 };
 
 export type RosterEntry = WrestlerRow & {
@@ -151,6 +154,7 @@ export type BookingPayload = {
     title_championship_id?: number | null;
     stipulation?: string | null;
     stipulation_championship_id?: number | null;
+    referee_id?: number | null;
 };
 
 export type MatchOutcome = {
@@ -159,6 +163,7 @@ export type MatchOutcome = {
     winners: string[];
     losers: string[];
     managers: string[];
+    referee?: string | null;
     method: import('./enums').MatchMethod;
     method_label: string;
     finish_event: import('./enums').FinishEvent | null;

@@ -5,6 +5,8 @@ type PanelProps = {
     title?: ReactNode;
     actions?: ReactNode;
     className?: string;
+    /** Extra classes for the title, e.g. a larger size. */
+    titleClassName?: string;
     bodyClassName?: string;
     children: ReactNode;
 };
@@ -13,6 +15,7 @@ export function Panel({
     title,
     actions,
     className,
+    titleClassName,
     bodyClassName,
     children,
 }: PanelProps) {
@@ -20,7 +23,11 @@ export function Panel({
         <section className={cn('gm-panel', className)}>
             {(title || actions) && (
                 <header className="flex items-center justify-between gap-4 border-b border-white/6 px-4 py-2.5">
-                    {title && <h2 className="gm-label text-ink">{title}</h2>}
+                    {title && (
+                        <h2 className={cn('gm-label text-ink', titleClassName)}>
+                            {title}
+                        </h2>
+                    )}
                     {actions}
                 </header>
             )}
@@ -41,7 +48,7 @@ export function PageTitle({ kicker, title, children }: PageTitleProps) {
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <div className="animate-gm-wipe">
                 {kicker && (
-                    <div className="gm-chyron mb-1 inline-block bg-brand px-3 py-0.5 font-condensed text-xs font-bold tracking-[0.2em] text-white uppercase">
+                    <div className="gm-chyron mb-1 inline-block bg-brand px-3 py-0.5 font-condensed font-bold tracking-[0.2em] text-white uppercase">
                         {kicker}
                     </div>
                 )}

@@ -7,6 +7,7 @@ use App\Enums\Stipulation;
 use App\Http\Controllers\Controller;
 use App\Models\InjuryType;
 use App\Models\MatchType;
+use App\Models\PromoType;
 use App\Models\Save;
 use App\Models\Wrestler;
 use Inertia\Inertia;
@@ -54,6 +55,7 @@ class DocsController extends Controller
                     'ppv_exclusive' => $type->ppvExclusive?->name,
                     'brand' => $type->brand_restriction?->value,
                     'gm_bookable' => $type->gm_bookable,
+                    'special_referee' => $type->hasSpecialReferee(),
                     'win_condition' => $type->win_condition,
                 ])->values(),
             ])
@@ -98,6 +100,21 @@ class DocsController extends Controller
                 'escalation_chance' => (float) config('gm.injuries.escalation_chance'),
             ],
             'specialists' => $specialists,
+            'promos' => [
+                'slots' => (int) config('gm.card.weekly_promo_slots'),
+                'types' => PromoType::orderBy('name')->get()->map(fn (PromoType $t): array => [
+                    'key' => $t->key->value,
+                    'name' => $t->name,
+                    'amount' => $t->base_amount,
+                    'variable_amount' => $t->variable_amount,
+                    'success_rate' => $t->successRate(),
+                    'fatigue_bars' => $t->fatigue_bars,
+                    'recovery_bars' => (int) config('gm.promos.recovery_bars.'.$t->key->value, 0),
+                    'targets_rival' => $t->targets_rival,
+                    'requirement' => $t->requirement,
+                    'effect' => $t->effect,
+                ])->values(),
+            ],
             'stipulations' => array_map(fn (Stipulation $s): array => [
                 'value' => $s->value,
                 'label' => $s->label(),

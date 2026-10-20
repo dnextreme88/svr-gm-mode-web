@@ -39,7 +39,22 @@ type Variant = {
     ppv_exclusive: string | null;
     brand: Brand | null;
     gm_bookable: boolean;
+    special_referee: boolean;
     win_condition: string | null;
+};
+
+type Promo = {
+    key: string;
+    name: string;
+    amount: number;
+    variable_amount: boolean;
+    success_rate: number;
+    fatigue_bars: number;
+    /** Extra end-of-week recovery for the target (Inactive Superstar). */
+    recovery_bars: number;
+    targets_rival: boolean;
+    requirement: string | null;
+    effect: string;
 };
 
 type Injury = {
@@ -73,6 +88,7 @@ type Props = {
         specialties: MatchFamily[];
     }>;
     stipulations: Array<{ value: Stipulation; label: string }>;
+    promos: { slots: number; types: Promo[] };
 };
 
 const tabs = [
@@ -80,6 +96,7 @@ const tabs = [
     { key: 'injuries', label: 'Fatigue & injuries' },
     { key: 'specialties', label: 'Specialties' },
     { key: 'stipulations', label: 'Stipulations' },
+    { key: 'promos', label: 'Promos' },
 ] as const;
 
 type TabKey = (typeof tabs)[number]['key'];
@@ -126,6 +143,7 @@ function variantBadges(v: Variant): string[] {
         [v.titles_allowed, 'Titles'],
         [v.elimination, 'Elimination'],
         [v.timed, 'Timed'],
+        [v.special_referee, 'Special referee'],
         [v.divas_only, 'Divas only'],
         [!v.divas_only && !v.divas_allowed, 'No Divas'],
         [v.ppv_only && v.ppv_exclusive === null, 'PPV only'],
@@ -164,6 +182,10 @@ const matchRules: Array<{ rule: string; detail: string }> = [
     {
         rule: 'Timed',
         detail: 'The match ends once a set amount of time has passed.',
+    },
+    {
+        rule: 'Special referee',
+        detail: 'A wrestler from your roster referees the match. They can’t compete in or manage it, can’t be seriously injured, and take no fatigue.',
     },
 ];
 
@@ -427,8 +449,10 @@ function Injuries({ injuries, fatigue }: Pick<Props, 'injuries' | 'fatigue'>) {
                     <li>
                         Fatigue runs from 0% to {fatigue.max}%, shown as bars of{' '}
                         {fatigue.bar_size}%. Each match type adds its fatigue
-                        cost; resting a week recovers{' '}
-                        {fatigue.rest_recovery_bars} bars.
+                        cost. At the end of every week, everyone recovers{' '}
+                        {fatigue.rest_recovery_bars} bars, whether they wrestled
+                        or not, and never drops below 0%. A successful Inactive
+                        Superstar promo adds 2 more for its target.
                     </li>
                     <li>
                         <ZoneMeter config={meterConfig} at={fatigue.safe_max} />
@@ -536,6 +560,123 @@ function Stipulations({ stipulations }: Pick<Props, 'stipulations'>) {
                     </Panel>
                 ))}
             </div>
+        </div>
+    );
+}
+
+function promoAmount(p: Promo): string {
+    if (p.variable_amount) {
+        return '+ variable';
+    }
+
+    if (p.amount === 0) {
+        return '$0';
+    }
+
+    return `${p.amount > 0 ? '+' : '−'}${formatMoney(Math.abs(p.amount))}`;
+}
+
+function Promos({ promos }: Pick<Props, 'promos'>) {
+    return (
+        <div className="space-y-6">
+            <div className="grid items-start gap-6 md:grid-cols-2">
+                <Panel title="How promos work">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            Weekly shows have {promos.slots} promo slots. PPVs
+                            have none.
+                        </li>
+                        <li>
+                            Each promo rolls against its success probability.
+                            The cost is paid whether it works or not.
+                        </li>
+                        <li>
+                            Promos nobody on your roster can do are greyed out
+                            on the card screen.
+                        </li>
+                        <li>
+                            Interference and Slander always make the neutral
+                            news headline, success or fail.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel title="When promos air">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            Each promo airs before a match you pick: Before
+                            match 1 through Before main event. The default is
+                            Before main event.
+                        </li>
+                        <li>
+                            Promos with a fatigue cost tire their wrestlers
+                            right there, so that fatigue counts going into their
+                            later matches.
+                        </li>
+                        <li>
+                            Promo fatigue rolls injuries like a match: 80–90%
+                            going in rolls for a minor injury, and 100% means a
+                            serious one.
+                        </li>
+                        <li>
+                            A Title Match Hype whose title match is gone by air
+                            time fizzles. Its cost is still paid.
+                        </li>
+                    </ul>
+                </Panel>
+            </div>
+            <Panel title="Promo list" bodyClassName="p-0 overflow-x-auto">
+                <table className="gm-table text-sm">
+                    <thead>
+                        <tr>
+                            <th>Promo</th>
+                            <th>Cost / profit</th>
+                            <th>Success probability</th>
+                            <th>Fatigue</th>
+                            <th>Needs</th>
+                            <th>Effect</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {promos.types.map((p) => (
+                            <tr key={p.key} data-testid={`promo-${p.key}`}>
+                                <td className="font-semibold whitespace-nowrap">
+                                    {p.name}
+                                </td>
+                                <td
+                                    className={cn(
+                                        'gm-num whitespace-nowrap',
+                                        (p.amount > 0 || p.variable_amount) &&
+                                            'text-zone-safe',
+                                    )}
+                                >
+                                    {promoAmount(p)}
+                                </td>
+                                <td className="gm-num">
+                                    {Math.round(p.success_rate * 100)}%
+                                </td>
+                                <td>
+                                    {p.recovery_bars > 0 ? (
+                                        <FatigueCost
+                                            bars={p.recovery_bars}
+                                            recovers
+                                        />
+                                    ) : p.fatigue_bars > 0 ? (
+                                        <FatigueCost bars={p.fatigue_bars} />
+                                    ) : (
+                                        <span className="text-ink-faint">
+                                            None
+                                        </span>
+                                    )}
+                                </td>
+                                <td className="text-ink-dim">
+                                    {p.requirement}
+                                </td>
+                                <td className="text-ink-dim">{p.effect}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </Panel>
         </div>
     );
 }
@@ -653,6 +794,7 @@ export default function Docs() {
                 {tab === 'stipulations' && (
                     <Stipulations stipulations={props.stipulations} />
                 )}
+                {tab === 'promos' && <Promos promos={props.promos} />}
             </div>
         </>
     );

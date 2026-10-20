@@ -23,6 +23,10 @@ enum PromoTypeKey: string
     case PpvHype = 'ppv_hype';
     case InterferencePromotion = 'interference_promotion';
     case SlanderPromotion = 'slander_promotion';
+    case TitleMatchHype = 'title_match_hype';
+    case ComebackReminder = 'comeback_reminder';
+    case InterviewSpace = 'interview_space';
+    case DivaBikiniContest = 'diva_bikini_contest';
 
     public function label(): string
     {

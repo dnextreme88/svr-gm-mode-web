@@ -21,6 +21,7 @@ export function ConfirmDialog({
     cancelLabel = 'Cancel',
     onConfirm,
     onCancel,
+    danger = false,
 }: {
     open: boolean;
     title: string;
@@ -29,6 +30,8 @@ export function ConfirmDialog({
     cancelLabel?: string;
     onConfirm: () => void;
     onCancel: () => void;
+    /** Style the confirm button red, for destructive actions. */
+    danger?: boolean;
 }) {
     const brand = usePage<{ game?: GameShell }>().props.game?.player_brand;
 
@@ -54,7 +57,11 @@ export function ConfirmDialog({
                     </button>
                     <button
                         type="button"
-                        className="gm-btn gm-btn-sm"
+                        className={
+                            danger
+                                ? 'gm-btn gm-btn-danger gm-btn-sm'
+                                : 'gm-btn gm-btn-sm'
+                        }
                         onClick={onConfirm}
                         autoFocus
                     >

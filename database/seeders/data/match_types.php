@@ -3,11 +3,12 @@
 /*
 | Full match type list (§10). Each row: [family, variant, sides, manager_sides, extras].
 | Fatigue cost, price and DQ/count-out flags come from config('gm.match_type_defaults')
-| unless overridden in extras. Rope breaks, ring outs and the no-titles rules come
+| unless overridden in extras (`bars`, `cost`, `dq`, ...). Rope breaks, ring outs and the no-titles rules come
 | from config('gm.match_rules').
 |
-| ASSUMPTIONS (§10 says these may not be bookable in GM Mode): 3 Stages of Hell,
-| Special Referee and the 10–25-man Royal Rumbles are seeded but not GM-bookable.
+| ASSUMPTIONS (§10 says these may not be bookable in GM Mode): 3 Stages of Hell and
+| the 10–25-man Royal Rumbles are seeded but not GM-bookable. Special Referee is
+| bookable with a non-competing referee picked from the roster.
 */
 
 $one = [1, 1];
@@ -28,8 +29,8 @@ return [
     ['single', 'No Manager', $one, []],
     ['single', 'No Manager vs. w/Manager', $one, $noMgrVsMgr],
     ['single', 'w/Manager vs. w/Manager', $one, $mgrVsMgr],
-    ['single', 'Normal Triple Threat', $tt, [], ['dq' => false, 'countout' => false]],
-    ['single', 'Normal Fatal 4-Way', $f4w, [], ['dq' => false, 'countout' => false]],
+    ['single', 'Normal Triple Threat', $tt, [], ['cost' => 1_000, 'dq' => false, 'countout' => false]],
+    ['single', 'Normal Fatal 4-Way', $f4w, [], ['cost' => 1_000, 'dq' => false, 'countout' => false]],
 
     // Tag Team (2 on 2)
     ['tag_team', 'Normal Tag', $tag, []],
@@ -37,18 +38,18 @@ return [
     ['tag_team', 'Tag vs Tag w/Manager', $tag, $noMgrVsMgr],
     ['tag_team', 'Tag w/Manager vs Tag w/Manager', $tag, $mgrVsMgr],
     // House rule: the old Elimination Tag category is split by team size.
-    ['tag_team', 'Normal Tag Elimination', $tag, [], ['is_elimination' => true, 'bars' => 2]],
-    ['tag_team', 'Tornado Tag Elimination', $tag, [], ['is_elimination' => true, 'bars' => 2]],
-    ['tag_team', 'Table Tornado Tag Elimination', $tag, [], ['is_elimination' => true, 'bars' => 3, 'dq' => false, 'countout' => false, 'rope_breaks' => false, 'win_condition' => 'Put through a table']],
+    ['tag_team', 'Normal Tag Elimination', $tag, [], ['cost' => 2_000, 'is_elimination' => true, 'bars' => 2]],
+    ['tag_team', 'Tornado Tag Elimination', $tag, [], ['cost' => 2_000, 'is_elimination' => true, 'bars' => 2]],
+    ['tag_team', 'Table Tornado Tag Elimination', $tag, [], ['cost' => 4_000, 'is_elimination' => true, 'bars' => 3, 'dq' => false, 'countout' => false, 'rope_breaks' => false, 'win_condition' => 'Put through a table']],
 
     // 6-Man Tag. House rule: no titles in any 3 vs 3 match.
     ['six_man_tag', 'Normal', $sixTag, []],
     ['six_man_tag', 'Tornado', $sixTag, []],
-    ['six_man_tag', 'Normal 6-Man Tag Elimination', $sixTag, [], ['is_elimination' => true, 'bars' => 2]],
-    ['six_man_tag', 'Tornado 6-Man Tag Elimination', $sixTag, [], ['is_elimination' => true, 'bars' => 2]],
-    ['six_man_tag', 'Table Tornado 6-Man Tag Elimination', $sixTag, [], ['is_elimination' => true, 'bars' => 3, 'dq' => false, 'countout' => false, 'rope_breaks' => false, 'win_condition' => 'Put through a table']],
+    ['six_man_tag', 'Normal 6-Man Tag Elimination', $sixTag, [], ['cost' => 2_000, 'is_elimination' => true, 'bars' => 2]],
+    ['six_man_tag', 'Tornado 6-Man Tag Elimination', $sixTag, [], ['cost' => 2_000, 'is_elimination' => true, 'bars' => 2]],
+    ['six_man_tag', 'Table Tornado 6-Man Tag Elimination', $sixTag, [], ['cost' => 4_000, 'is_elimination' => true, 'bars' => 3, 'dq' => false, 'countout' => false, 'rope_breaks' => false, 'win_condition' => 'Put through a table']],
     // House rule: the side whose captain (first wrestler) is pinned, submitted or counted out loses.
-    ['six_man_tag', 'Captain Fall Tornado 6-Man Tag Elimination', $sixTag, [], ['is_elimination' => true, 'bars' => 3, 'captain_fall' => true]],
+    ['six_man_tag', 'Captain Fall Tornado 6-Man Tag Elimination', $sixTag, [], ['cost' => 4_000, 'is_elimination' => true, 'bars' => 3, 'captain_fall' => true]],
 
     // Handicap
     ['handicap', 'One on Two (Tornado)', [1, 2], []],
@@ -68,8 +69,8 @@ return [
     ['three_stages_of_hell', 'Single', $one, [], ['gm_bookable' => false]],
 
     ['backstage_brawl', 'Backstage Brawl', $one, []],
-    ['backstage_brawl', 'Bar Brawl', $one, []],
-    ['backstage_brawl', 'Parking Lot Brawl', $one, []],
+    ['backstage_brawl', 'Bar Brawl', $one, [], ['cost' => 31_000]],
+    ['backstage_brawl', 'Parking Lot Brawl', $one, [], ['cost' => 28_000]],
 
     ['battle_royal', '4-Man', $f4w, []],
     ['battle_royal', '5-Man', [1, 1, 1, 1, 1], []],
@@ -93,8 +94,8 @@ return [
     ['hardcore', 'Single No Manager vs. w/Manager', $one, $noMgrVsMgr],
     ['hardcore', 'Single w/Manager vs. w/Manager', $one, $mgrVsMgr],
     ['hardcore', 'Tornado Tag', $tag, []],
-    ['hardcore', 'Tornado 6-Man Tag', $sixTag, []],
-    ['hardcore', 'Triple Threat Tornado Tag', $ttTag, []],
+    ['hardcore', 'Tornado 6-Man Tag', $sixTag, [], ['cost' => 25_000]],
+    ['hardcore', 'Triple Threat Tornado Tag', $ttTag, [], ['cost' => 25_000]],
     ['hardcore', 'Triple Threat', $tt, []],
     ['hardcore', 'Fatal 4-Way', $f4w, []],
 
@@ -102,7 +103,7 @@ return [
     ['hell_in_a_cell', 'Tornado Tag', $tag, []],
     ['hell_in_a_cell', 'Triple Threat', $tt, []],
     ['hell_in_a_cell', 'Fatal 4-Way', $f4w, []],
-    ['hell_in_a_cell', 'Armageddon Hell in a Cell', $six, []],
+    ['hell_in_a_cell', 'Armageddon Hell in a Cell', $six, [], ['cost' => 55_000]],
 
     ['iron_man', 'Single', $one, [], ['win_condition' => 'Most falls', 'timed' => true]],
     ['iron_man', 'Single No Manager vs. w/Manager', $one, $noMgrVsMgr, ['win_condition' => 'Most falls', 'timed' => true]],
@@ -112,7 +113,7 @@ return [
     ['ladder', 'Single No Manager vs. w/Manager', $one, $noMgrVsMgr, ['win_condition' => 'Ladder retrieval']],
     ['ladder', 'Single w/Manager vs. w/Manager', $one, $mgrVsMgr, ['win_condition' => 'Ladder retrieval']],
     ['ladder', 'Tornado Tag', $tag, [], ['win_condition' => 'Ladder retrieval']],
-    ['ladder', 'Triple Threat Tornado Tag', $ttTag, [], ['win_condition' => 'Ladder retrieval']],
+    ['ladder', 'Triple Threat Tornado Tag', $ttTag, [], ['cost' => 16_000, 'win_condition' => 'Ladder retrieval']],
     ['ladder', 'Triple Threat', $tt, [], ['win_condition' => 'Ladder retrieval']],
     ['ladder', 'Fatal 4-Way', $f4w, [], ['win_condition' => 'Ladder retrieval']],
     // House rule: WrestleMania only, 6-man, no titles, no Divas (§10).
@@ -126,11 +127,11 @@ return [
     // Pending design (CLAUDE.md TODOS): really a 1 vs N gauntlet. No titles.
     ['slobber_knocker', 'No Limit', $one, [], ['win_condition' => 'Most opponents beaten']],
 
-    ['special_referee', 'Single', $one, [], ['gm_bookable' => false]],
-    ['special_referee', 'Tag Match', $tag, [], ['gm_bookable' => false]],
-    ['special_referee', 'Iron Man', $one, [], ['gm_bookable' => false, 'bars' => 5, 'timed' => true]],
-    ['special_referee', 'Hell in a Cell', $one, [], ['gm_bookable' => false, 'bars' => 5, 'dq' => false, 'countout' => false, 'rope_breaks' => false]],
-    ['special_referee', 'Last Man Standing', $one, [], ['gm_bookable' => false, 'bars' => 5, 'dq' => false, 'countout' => false]],
+    ['special_referee', 'Single', $one, []],
+    ['special_referee', 'Tag Match', $tag, []],
+    ['special_referee', 'Iron Man', $one, [], ['cost' => 37_000, 'bars' => 5, 'timed' => true]],
+    ['special_referee', 'Hell in a Cell', $one, [], ['cost' => 45_000, 'bars' => 5, 'dq' => false, 'countout' => false, 'rope_breaks' => false]],
+    ['special_referee', 'Last Man Standing', $one, [], ['cost' => 40_000, 'bars' => 5, 'dq' => false, 'countout' => false]],
 
     ['steel_cage', 'Single', $one, [], ['win_condition' => 'Cage escape']],
     ['steel_cage', 'Tornado Tag', $tag, [], ['win_condition' => 'Cage escape']],
@@ -141,21 +142,21 @@ return [
     ['steel_cage', 'Fatal 4-Way Pin & Give Up', $f4w, []],
 
     ['submission', 'Single', $one, [], ['win_condition' => 'Submission']],
-    ['submission', 'Ultimate Submission', $one, [], ['win_condition' => 'Submission', 'timed' => true]],
+    ['submission', 'Ultimate Submission', $one, [], ['cost' => 2_000, 'win_condition' => 'Submission', 'timed' => true]],
 
     ['table', 'Single', $one, [], ['win_condition' => 'Put through a table']],
     ['table', 'Tornado Tag', $tag, [], ['win_condition' => 'Put through a table']],
     ['table', 'Triple Threat', $tt, [], ['win_condition' => 'Put through a table']],
     ['table', 'Fatal 4-Way', $f4w, [], ['win_condition' => 'Put through a table']],
-    ['table', 'Tornado 6-Man Tag', $sixTag, [], ['win_condition' => 'Put through a table']],
-    ['table', 'Triple Threat Tornado Tag', $ttTag, [], ['win_condition' => 'Put through a table']],
+    ['table', 'Tornado 6-Man Tag', $sixTag, [], ['cost' => 8_000, 'win_condition' => 'Put through a table']],
+    ['table', 'Triple Threat Tornado Tag', $ttTag, [], ['cost' => 8_000, 'win_condition' => 'Put through a table']],
 
     ['tlc', 'Single', $one, [], ['win_condition' => 'Ladder retrieval']],
     ['tlc', 'Tornado Tag', $tag, [], ['win_condition' => 'Ladder retrieval']],
     ['tlc', 'Triple Threat', $tt, [], ['win_condition' => 'Ladder retrieval']],
     ['tlc', 'Fatal 4-Way', $f4w, [], ['win_condition' => 'Ladder retrieval']],
     // House rule: not in the 2006 game.
-    ['tlc', 'Triple Threat Tornado Tag', $ttTag, [], ['win_condition' => 'Ladder retrieval']],
+    ['tlc', 'Triple Threat Tornado Tag', $ttTag, [], ['cost' => 12_000, 'win_condition' => 'Ladder retrieval']],
 
     // House rule: Survivor Series exclusive, always its main event, no titles.
     ['survivor_series_elimination', 'Traditional 3 vs 3', $sixTag, [], ['ppv_exclusive' => 'survivor_series', 'is_elimination' => true, 'titles_allowed' => false]],

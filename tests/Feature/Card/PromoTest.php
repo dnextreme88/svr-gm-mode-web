@@ -119,7 +119,7 @@ it('backfires Slander automatically if used more than once in 4 weeks, and alway
 it('reports Interference results as a neutral headline whether it succeeds or fails', function () {
     config(['gm.promos.success_rates.interference_promotion' => 0.0]);
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
-    bookPromo($save, PromoTypeKey::InterferencePromotion);
+    bookPromo($save, PromoTypeKey::InterferencePromotion, 1, 'Edge');
 
     airPromos($save);
 

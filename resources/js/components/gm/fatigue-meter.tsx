@@ -81,7 +81,7 @@ export function FatigueMeter({
                             }
                             className={cn(
                                 size === 'sm' ? 'w-1.5' : 'w-2.5',
-                                '-skew-x-12',
+                                '-skew-x-12 transition-colors duration-500',
                                 isFilled && segmentColor(i, config),
                                 isProjected &&
                                     cn(segmentColor(i, config), 'opacity-45'),
@@ -101,10 +101,7 @@ export function FatigueMeter({
             </div>
             {showLabel && (
                 <span
-                    className={cn(
-                        'gm-num text-xs whitespace-nowrap',
-                        zoneText[zone],
-                    )}
+                    className={cn('gm-num whitespace-nowrap', zoneText[zone])}
                 >
                     {projected !== undefined && projected !== fatigue
                         ? `${capFatigue(projected, config)}%`

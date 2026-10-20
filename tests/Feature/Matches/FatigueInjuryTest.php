@@ -3,6 +3,7 @@
 use App\Enums\InjurySeverity;
 use App\Enums\InjuryZone;
 use App\Enums\ReignEndReason;
+use App\Models\FatigueLog;
 use App\Models\Injury;
 use App\Models\InjuryType;
 use App\Models\TitleReign;
@@ -25,6 +26,12 @@ function airWeek($save): void
     app(WeekResolver::class)->resolve($save->refresh());
 }
 
+/** Fatigue right after the shows aired, before end-of-week recovery. */
+function afterShows($save, string $name): int
+{
+    return FatigueLog::where('save_wrestler_id', GameBuilder::wrestler($save, $name)->id)->sole()->after_shows;
+}
+
 it('maps fatigue to the three injury zones', function (int $fatigue, InjuryZone $zone) {
     expect(FatigueZones::zoneFor($fatigue))->toBe($zone);
 })->with([
@@ -44,8 +51,10 @@ it('adds the match fatigue cost in bars and caps at 100%', function () {
 
     airWeek($save);
 
-    expect(GameBuilder::wrestler($save, 'Edge')->fatigue)->toBe(100)
-        ->and(GameBuilder::wrestler($save, 'Kane')->fatigue)->toBe(30);
+    expect(afterShows($save, 'Edge'))->toBe(100)
+        ->and(afterShows($save, 'Kane'))->toBe(30)
+        // Then everyone recovers 2 bars at the end of the week.
+        ->and(GameBuilder::wrestler($save, 'Edge')->fatigue)->toBe(80);
 });
 
 it('adds both costs when a wrestler is double-booked on one card', function () {
@@ -57,7 +66,7 @@ it('adds both costs when a wrestler is double-booked on one card', function () {
     airWeek($save);
 
     // Singles (1 bar) + Hardcore (3 bars).
-    expect(GameBuilder::wrestler($save, 'Edge')->fatigue)->toBe(40);
+    expect(afterShows($save, 'Edge'))->toBe(40);
 });
 
 it('gives a guaranteed serious injury to a wrestler going in at 100% in a match that adds fatigue', function () {
@@ -147,7 +156,7 @@ it('never escalates a laceration', function () {
     expect(app(InjuryService::class)->escalate($injury->load('type'), 1, $save->rng('esc')))->toBeNull();
 });
 
-it('lets wrestlers rest and recover fatigue in weeks they are not booked', function () {
+it('lets wrestlers recover fatigue at the end of the week', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
     GameBuilder::wrestler($save, 'Edge')->update(['fatigue' => 60]);
 

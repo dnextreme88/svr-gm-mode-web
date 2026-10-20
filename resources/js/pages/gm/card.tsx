@@ -3,16 +3,19 @@ import { useMemo } from 'react';
 import { AirWeekButton } from '@/components/gm/air-week-button';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { CardBuilder } from '@/components/gm/card-builder';
+import { DiceIcon } from '@/components/gm/dice-icon';
 import { PageTitle } from '@/components/gm/panel';
 import { PromoSlots } from '@/components/gm/promo-slots';
 import type {
+    PromoEligibilityView,
     PromoSlotView,
     PromoTypeOption,
 } from '@/components/gm/promo-slots';
 import { ProposalLauncher } from '@/components/gm/proposal-launcher';
 import type { ProposalResult } from '@/components/gm/proposal-launcher';
 import type { ProposalView } from '@/components/gm/proposal-modal';
-import { TitleTools } from '@/components/gm/title-tools';
+import { StipulationPicker, TitleCycler } from '@/components/gm/title-tools';
+import type { PromoFatigue } from '@/lib/card';
 import { requestJson } from '@/lib/http';
 import gm from '@/routes/gm';
 import type {
@@ -32,6 +35,7 @@ type Props = GamePageProps & {
     title_context: TitleContext;
     promo_slots: PromoSlotView[];
     promo_types: PromoTypeOption[];
+    promo_eligibility: Record<string, PromoEligibilityView>;
 };
 
 export default function CardPage() {
@@ -44,6 +48,7 @@ export default function CardPage() {
         title_context,
         promo_slots,
         promo_types,
+        promo_eligibility,
     } = usePage<Props>().props;
     const types = useMemo(
         () => new Map(match_types.map((t) => [t.id, t])),
@@ -59,6 +64,30 @@ export default function CardPage() {
                 title_context.championships.map((c) => [c.id, c.name]),
             ),
         [title_context],
+    );
+    // Saved promos that tire their wrestlers before a match (§5).
+    const promoFatigue = useMemo<PromoFatigue[]>(
+        () =>
+            promo_slots.flatMap((slot) => {
+                const type = promo_types.find(
+                    (t) => t.id === slot.promo_type_id,
+                );
+                const bars = type?.fatigue_bars ?? 0;
+
+                if (bars === 0) {
+                    return [];
+                }
+
+                return [slot.target_wrestler_id, slot.target_wrestler_b_id]
+                    .filter((id): id is number => id !== null)
+                    .map((wrestlerId) => ({
+                        wrestlerId,
+                        beforePosition:
+                            slot.before_position ?? show.match_slot_count,
+                        bars,
+                    }));
+            }),
+        [promo_slots, promo_types, show.match_slot_count],
     );
     const pendingShots = title_context.title_shots.filter((s) => !s.booked);
     const briefcase = title_context.briefcase;
@@ -77,6 +106,7 @@ export default function CardPage() {
                     sides: p.sides,
                     managers: {},
                     title_championship_id: p.title_championship_id,
+                    referee_id: p.referee_id ?? null,
                 },
             );
         }
@@ -181,24 +211,32 @@ export default function CardPage() {
                         preserveScroll: true,
                     })
                 }
-                renderSlotTools={(draft, update) => (
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <TitleTools
-                            draft={draft}
-                            type={
-                                draft.matchTypeId
-                                    ? types.get(draft.matchTypeId)
-                                    : undefined
-                            }
-                            context={title_context}
-                            roster={rosterById}
-                            readOnly={!booking || draft.fixed}
-                            onChange={update}
-                        />
+                promoFatigue={promoFatigue}
+                renderTitle={(draft, update, drafts) => (
+                    <TitleCycler
+                        takenTitleIds={drafts
+                            .filter((d) => d.position !== draft.position)
+                            .map((d) => d.titleChampionshipId)
+                            .filter((id): id is number => id !== null)}
+                        draft={draft}
+                        type={
+                            draft.matchTypeId
+                                ? types.get(draft.matchTypeId)
+                                : undefined
+                        }
+                        context={title_context}
+                        roster={rosterById}
+                        readOnly={!booking || draft.fixed}
+                        onChange={update}
+                    />
+                )}
+                renderActions={(draft, update) => (
+                    <>
                         {booking && !draft.fixed && (
                             <ProposalLauncher
                                 label="Randomize"
                                 mode="randomize"
+                                icon={<DiceIcon />}
                                 titleNames={titleNames}
                                 fetchProposal={async (roll) => {
                                     const { proposal } = await requestJson<{
@@ -225,7 +263,19 @@ export default function CardPage() {
                                 onConfirm={saveProposals}
                             />
                         )}
-                    </div>
+                        <StipulationPicker
+                            draft={draft}
+                            type={
+                                draft.matchTypeId
+                                    ? types.get(draft.matchTypeId)
+                                    : undefined
+                            }
+                            context={title_context}
+                            roster={rosterById}
+                            readOnly={!booking || draft.fixed}
+                            onChange={update}
+                        />
+                    </>
                 )}
             />
 
@@ -235,7 +285,10 @@ export default function CardPage() {
                     <PromoSlots
                         slots={promo_slots}
                         types={promo_types}
+                        eligibility={promo_eligibility}
                         roster={roster}
+                        matchSlotCount={show.match_slot_count}
+                        titleNames={titleNames}
                         readOnly={!booking}
                         onSave={(position, payload) =>
                             router.put(

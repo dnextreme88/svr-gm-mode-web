@@ -41,6 +41,7 @@ class CardPresenter
     {
         $sides = [];
         $managers = [];
+        $referee = null;
 
         if ($slot->matchType !== null) {
             foreach ($slot->matchType->sides as $index => $size) {
@@ -57,6 +58,12 @@ class CardPresenter
                 continue;
             }
 
+            if ($p->role === ParticipantRole::Referee) {
+                $referee = $p->save_wrestler_id;
+
+                continue;
+            }
+
             $i = $filled[$p->side] ?? 0;
             $sides[$p->side][$i] = $p->save_wrestler_id;
             $filled[$p->side] = $i + 1;
@@ -68,6 +75,7 @@ class CardPresenter
             'match_type_id' => $slot->match_type_id,
             'sides' => array_values($sides),
             'managers' => (object) $managers,
+            'referee_id' => $referee,
             'title_championship_id' => $slot->title_championship_id,
             'stipulation' => $slot->stipulation?->value,
             'stipulation_championship_id' => $slot->stipulation_championship_id,
@@ -99,6 +107,7 @@ class CardPresenter
             'win_condition' => $type->win_condition,
             'ppv_only' => $type->ppv_only,
             'captain_fall' => $type->captain_fall,
+            'special_referee' => $type->hasSpecialReferee(),
         ];
     }
 
@@ -114,12 +123,14 @@ class CardPresenter
         $winners = [];
         $losers = [];
         $managers = [];
+        $referee = null;
 
         foreach ($slot->participants as $p) {
             $name = $p->saveWrestler->wrestler->name;
 
             match (true) {
                 $p->role === ParticipantRole::Manager => $managers[] = $name,
+                $p->role === ParticipantRole::Referee => $referee = $name,
                 $p->side === $result->winner_side => $winners[] = $name,
                 default => $losers[$p->side][] = $name,
             };
@@ -131,6 +142,7 @@ class CardPresenter
             'winners' => $winners,
             'losers' => array_values(array_map(fn (array $side): string => implode(' & ', $side), $losers)),
             'managers' => $managers,
+            'referee' => $referee,
             'method' => $result->method->value,
             'method_label' => $result->method === MatchMethod::MatchSpecific && $slot->matchType?->win_condition !== null ? $slot->matchType->win_condition : $result->method->label(),
             'finish_event' => $result->finish_event?->value,

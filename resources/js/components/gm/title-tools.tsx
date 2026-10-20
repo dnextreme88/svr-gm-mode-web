@@ -11,25 +11,26 @@ type Props = {
     roster: Map<number, RosterEntry>;
     readOnly: boolean;
     onChange: (next: SlotDraft) => void;
+    /** Titles already picked in the card's other matches. */
+    takenTitleIds?: number[];
 };
 
 /**
- * Cycle the title on the line left/right, like the original card screen,
- * and pick an optional stipulation (§4, §22).
+ * Cycle the title on the line left/right, like the original card screen (§4).
  */
-export function TitleTools({
+export function TitleCycler({
     draft,
     type,
     context,
     roster,
     readOnly,
     onChange,
+    takenTitleIds = [],
 }: Props) {
     const titles = useMemo(
-        () => titleCandidates(draft, type, context, roster),
-        [draft, type, context, roster],
+        () => titleCandidates(draft, type, context, roster, takenTitleIds),
+        [draft, type, context, roster, takenTitleIds],
     );
-    const stipulations = stipulationOptions(draft, type, context, roster);
     const cycle = [null, ...titles.map((t) => t.id)];
     const index = Math.max(0, cycle.indexOf(draft.titleChampionshipId));
     const current = titles.find((t) => t.id === draft.titleChampionshipId);
@@ -54,74 +55,122 @@ export function TitleTools({
     }
 
     return (
-        <div className="flex flex-wrap items-center gap-4 text-sm">
+        <div
+            className="flex items-center gap-1 text-sm"
+            role="group"
+            aria-label={`Title on the line for match ${draft.position}`}
+        >
+            <button
+                type="button"
+                className="px-2 py-1 text-ink-dim hover:text-ink disabled:opacity-30"
+                onClick={() => step(-1)}
+                disabled={readOnly || titles.length === 0}
+                aria-label="Previous title"
+            >
+                ◀
+            </button>
+            <span
+                data-testid={`title-${draft.position}`}
+                className={cn(
+                    'text-md mt-1 min-w-[300px] px-3 py-1 text-center font-condensed font-bold tracking-[0.14em] uppercase',
+                    current
+                        ? 'bg-gradient-to-b from-gold-hot to-gold text-arena'
+                        : 'bg-white/5 text-ink-dim',
+                )}
+            >
+                {current
+                    ? `◆ ${current.name}`
+                    : titles.length > 0
+                      ? 'No title on the line'
+                      : 'No title eligible'}
+            </span>
+            <button
+                type="button"
+                className="px-2 py-1 text-ink-dim hover:text-ink disabled:opacity-30"
+                onClick={() => step(1)}
+                disabled={readOnly || titles.length === 0}
+                aria-label="Next title"
+            >
+                ▶
+            </button>
+        </div>
+    );
+}
+
+/**
+ * Cycle an optional stipulation left/right, styled like the title cycler (§22).
+ */
+export function StipulationPicker({
+    draft,
+    type,
+    context,
+    roster,
+    readOnly,
+    onChange,
+}: Props) {
+    if (!type) {
+        return null;
+    }
+
+    const stipulations = stipulationOptions(draft, type, context, roster);
+    const cycle = [null, ...stipulations];
+    const index = Math.max(
+        0,
+        cycle.findIndex((s) => (s?.value ?? null) === draft.stipulation),
+    );
+    const current = cycle[index];
+
+    const step = (delta: number) => {
+        const next = cycle[(index + delta + cycle.length) % cycle.length];
+        onChange({
+            ...draft,
+            stipulation: next?.value ?? null,
+            stipulationChampionshipId: next?.championshipId ?? null,
+        });
+    };
+
+    return (
+        <div className="flex items-center gap-2 text-sm">
+            <span className="gm-label">Stipulation</span>
             <div
                 className="flex items-center gap-1"
                 role="group"
-                aria-label={`Title on the line for match ${draft.position}`}
+                aria-label={`Stipulation for match ${draft.position}`}
             >
                 <button
                     type="button"
                     className="px-2 py-1 text-ink-dim hover:text-ink disabled:opacity-30"
                     onClick={() => step(-1)}
-                    disabled={readOnly || titles.length === 0}
-                    aria-label="Previous title"
+                    disabled={readOnly || stipulations.length === 0}
+                    aria-label="Previous stipulation"
                 >
                     ◀
                 </button>
                 <span
-                    data-testid={`title-${draft.position}`}
+                    data-testid={`stipulation-${draft.position}`}
                     className={cn(
-                        'min-w-56 px-3 py-1 text-center font-condensed text-xs font-bold tracking-[0.14em] uppercase',
+                        'min-w-[250px] px-3 py-1 text-center font-condensed text-xs font-bold tracking-[0.14em] uppercase',
                         current
                             ? 'bg-gradient-to-b from-gold-hot to-gold text-arena'
                             : 'bg-white/5 text-ink-dim',
                     )}
                 >
                     {current
-                        ? `◆ ${current.name}`
-                        : titles.length > 0
-                          ? 'No title on the line'
-                          : 'No title eligible'}
+                        ? `◆ ${current.label}`
+                        : stipulations.length > 0
+                          ? 'No stipulation'
+                          : 'No stipulation eligible'}
                 </span>
                 <button
                     type="button"
                     className="px-2 py-1 text-ink-dim hover:text-ink disabled:opacity-30"
                     onClick={() => step(1)}
-                    disabled={readOnly || titles.length === 0}
-                    aria-label="Next title"
+                    disabled={readOnly || stipulations.length === 0}
+                    aria-label="Next stipulation"
                 >
                     ▶
                 </button>
             </div>
-
-            <label className="flex items-center gap-2">
-                <span className="gm-label">Stipulation</span>
-                <select
-                    aria-label={`Stipulation for match ${draft.position}`}
-                    className="gm-input py-1 text-xs"
-                    disabled={readOnly}
-                    value={draft.stipulation ?? ''}
-                    onChange={(e) => {
-                        const option = stipulations.find(
-                            (s) => s.value === e.target.value,
-                        );
-                        onChange({
-                            ...draft,
-                            stipulation: option?.value ?? null,
-                            stipulationChampionshipId:
-                                option?.championshipId ?? null,
-                        });
-                    }}
-                >
-                    <option value="">None</option>
-                    {stipulations.map((s) => (
-                        <option key={s.value} value={s.value}>
-                            {s.label}
-                        </option>
-                    ))}
-                </select>
-            </label>
         </div>
     );
 }

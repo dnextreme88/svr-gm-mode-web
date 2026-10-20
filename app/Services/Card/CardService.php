@@ -107,6 +107,15 @@ class CardService
                 'role' => ParticipantRole::Manager,
             ]);
         }
+
+        if ($booking->refereeId !== null) {
+            MatchParticipant::create([
+                'match_slot_id' => $slot->id,
+                'save_wrestler_id' => $booking->refereeId,
+                'side' => 0,
+                'role' => ParticipantRole::Referee,
+            ]);
+        }
     }
 
     public function slot(Show $show, int $position): MatchSlot
