@@ -69,17 +69,24 @@ it('is Happy with no complaints and otherwise takes the worst complaint level', 
         ->and($edge->morale)->toBe(Morale::Upset);
 });
 
-it('sends an email for each new complaint level', function () {
+it('has the superstar email the GM only once they are Unsatisfied or Upset', function () {
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
     GameBuilder::wrestler($save, 'Edge')->update(['weeks_unused' => 1]);
 
+    // Week 2 unused: Content, no email.
     runWeek($save);
+    expect(Email::where('template', EmailTemplate::MoraleComplaint)->count())->toBe(0);
+
+    // Week 4 unused: Unsatisfied, Edge writes in.
     runWeek($save);
     runWeek($save);
 
-    $subjects = Email::where('template', EmailTemplate::MoraleComplaint)->where('brand', 'raw')->pluck('subject')->all();
+    $emails = Email::where('template', EmailTemplate::MoraleComplaint)->where('brand', 'raw')->get();
 
-    expect($subjects)->toContain('Edge wants to be on the card')
+    expect($emails)->toHaveCount(1)
+        ->and($emails[0]->sender)->toBe('Edge')
+        ->and($emails[0]->subject)->toBe('Put me on the card')
+        ->and($emails[0]->body)->toContain("I haven't been used in 4 weeks")
         ->and(MoraleComplaint::where('type', MoraleComplaintType::Inactivity)->where('save_wrestler_id', GameBuilder::wrestler($save, 'Edge')->id)->sole()->level)->toBe(ComplaintLevel::Unsatisfied);
 });
 

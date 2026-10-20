@@ -3,6 +3,7 @@
 use App\Enums\Brand;
 use App\Enums\DraftPhase;
 use App\Enums\DraftPickType;
+use App\Enums\EmailTemplate;
 use App\Enums\FixedSlotKind;
 use App\Enums\InjurySeverity;
 use App\Enums\LedgerCategory;
@@ -12,6 +13,7 @@ use App\Enums\SaveStage;
 use App\Exceptions\GameRuleException;
 use App\Models\Championship;
 use App\Models\DraftPick;
+use App\Models\Email;
 use App\Models\InterbrandSeries;
 use App\Models\LedgerEntry;
 use App\Models\MatchSlot;
@@ -245,6 +247,18 @@ describe('WrestleMania', function () {
             ->and($old->refresh()->status)->toBe(MitbStatus::Expired)
             ->and(fn () => resolveWeek($save))->toThrow(GameRuleException::class);
     });
+
+    it('has Vince email both brands about the re-draft after WrestleMania', function () {
+        $save = maniaSave();
+
+        resolveWeek($save);
+
+        $emails = Email::where('save_id', $save->id)->where('template', EmailTemplate::DraftReminder)->get();
+
+        expect($emails)->toHaveCount(2)
+            ->and($emails->pluck('sender')->unique()->all())->toBe(['Vince McMahon'])
+            ->and($emails[0]->body)->toContain('up to 10 random picks');
+    });
 });
 
 describe('re-draft', function () {
@@ -258,6 +272,19 @@ describe('re-draft', function () {
 
         return $save->refresh();
     }
+
+    it('welcomes the player to the new season once the re-draft is done', function () {
+        $save = redraftSave();
+
+        app(ReDraftService::class)->run($save);
+
+        $welcome = Email::where('save_id', $save->id)->where('template', EmailTemplate::Welcome)->sole();
+
+        expect($welcome->brand)->toBe(Brand::Raw)
+            ->and($welcome->sender)->toBe('JR')
+            ->and($welcome->subject)->toBe('Season 2 starts now')
+            ->and($welcome->body)->toContain('check your email');
+    });
 
     it('makes up to 10 random picks per brand from the rival’s non-champions, keeping contracts', function () {
         $save = redraftSave();

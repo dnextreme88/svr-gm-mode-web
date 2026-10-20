@@ -18,6 +18,7 @@ use App\Models\Show;
 use App\Services\Fatigue\FatigueZones;
 use App\Services\Finance\LedgerService;
 use App\Services\Injuries\InjuryService;
+use App\Services\Mail\EmailService;
 use App\Services\News\NewsRecorder;
 use App\Services\Rivalries\RivalryService;
 use App\Support\Rng\Rng;
@@ -39,6 +40,7 @@ class PromoService
         private NewsRecorder $news,
         private PromoEligibility $eligibility,
         private InjuryService $injuries,
+        private EmailService $emails,
     ) {}
 
     public function book(Show $show, int $position, PromoType $type, ?int $targetId = null, ?int $targetBId = null, ?int $championshipId = null, ?int $beforePosition = null): PromoSlot
@@ -225,15 +227,19 @@ class PromoService
 
         $this->tire($show, $type, $slot, $rng);
 
+        $fizzled = false;
+
         // An Inactive Superstar promo only works on someone who isn't booked on the card.
         if ($type->key === PromoTypeKey::InactiveSuperstar && $slot->target_wrestler_id !== null && $this->bookedOn($show, $slot->target_wrestler_id)) {
             $succeeded = false;
+            $fizzled = true;
             $note = 'Booked on the card';
         }
 
         // ASSUMPTION: a hype for a title match that's no longer on the card fizzles.
         if ($type->needs_championship && ! $this->titleMatchOnCard($show, $slot->target_championship_id)) {
             $succeeded = false;
+            $fizzled = true;
             $note = 'No title match on the card';
         }
 
@@ -263,6 +269,18 @@ class PromoService
                 'rival_brand' => $rival->label(),
                 'outcome' => $backfired ? 'backfires' : ($succeeded ? 'succeeds' : 'fails'),
             ], [], priority: 75, week: $week);
+
+            $this->emails->slanderResult($save, $brand, $succeeded, $week);
+        }
+
+        // Every other promo is a story for its own brand; New Superstar
+        // already makes its own Debut story.
+        if (! in_array($type->key, [PromoTypeKey::SlanderPromotion, PromoTypeKey::InterferencePromotion, PromoTypeKey::NewSuperstar], true)) {
+            $this->news->record($save, NewsEventType::PromoResult, NewsTier::Story, $brand, [
+                'brand' => $brand->label(),
+                'promo' => $type->name,
+                'outcome' => $fizzled ? 'fizzles' : ($succeeded ? 'succeeds' : 'fails'),
+            ], ['wrestler_ids' => $slot->targetIds()], priority: (int) config('gm.news.promo_result_priority'), week: $week);
         }
 
         if ($type->key === PromoTypeKey::InterferencePromotion) {

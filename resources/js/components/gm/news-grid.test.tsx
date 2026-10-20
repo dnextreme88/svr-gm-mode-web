@@ -17,6 +17,7 @@ function card(
         slot,
         priority: 10,
         text,
+        summary: `Why: ${text}`,
         payload: { title: 'WWE Championship' },
         promoted: false,
     };
@@ -123,19 +124,72 @@ describe('NewsGrid', () => {
         expect(screen.getByTestId('news-week')).toHaveTextContent('Week 4');
     });
 
-    it('expands a card to show the full details', async () => {
-        const user = userEvent.setup();
+    it('orders the headlines Raw, WWE, SmackDown!', () => {
+        render(<NewsGrid pages={[page(3)]} />);
+
+        const headlines = within(
+            screen.getByRole('group', { name: 'Headlines' }),
+        ).getAllByTestId('headline-card');
+
+        expect(headlines.map((h) => h.textContent)).toEqual([
+            expect.stringContaining('Raw headline 3'),
+            expect.stringContaining('Neutral headline 3'),
+            expect.stringContaining('SmackDown headline 3'),
+        ]);
+    });
+
+    it('shows a summary under each headline instead of the raw payload', () => {
         render(<NewsGrid pages={[page(3)]} />);
 
         const button = screen.getByRole('button', { name: /Raw headline 3/ });
+
+        expect(
+            within(button).getByText('Why: Raw headline 3'),
+        ).toBeInTheDocument();
+        expect(
+            within(button).queryByText('WWE Championship'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('expands a story card to show its full summary', async () => {
+        const user = userEvent.setup();
+        render(<NewsGrid pages={[page(3)]} />);
+
+        const button = screen.getByRole('button', { name: /Raw story A 3/ });
+        const summary = within(button).getByTestId('news-summary');
         expect(button).toHaveAttribute('aria-expanded', 'false');
+        expect(summary).toHaveClass('line-clamp-2');
 
         await user.click(button);
 
         expect(button).toHaveAttribute('aria-expanded', 'true');
+        expect(summary).not.toHaveClass('line-clamp-2');
+    });
+
+    it('keeps the fallback cards on a quiet week', () => {
+        render(
+            <NewsGrid
+                pages={[
+                    page(2, {
+                        headlines: {
+                            raw: null,
+                            smackdown: null,
+                            neutral: null,
+                        },
+                        stories: { raw: [], smackdown: [] },
+                        ticker: [],
+                    }),
+                ]}
+            />,
+        );
+
         expect(
-            within(button).getByText('WWE Championship'),
+            screen.getByText('Raw: no headline this week'),
         ).toBeInTheDocument();
+        expect(
+            screen.getByText('WWE: no headline this week'),
+        ).toBeInTheDocument();
+        expect(screen.getAllByText('Raw: no story this week')).toHaveLength(2);
     });
 
     it('shows an empty state with no news', () => {

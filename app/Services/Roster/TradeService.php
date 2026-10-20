@@ -3,7 +3,6 @@
 namespace App\Services\Roster;
 
 use App\Enums\Brand;
-use App\Enums\EmailTemplate;
 use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
@@ -143,13 +142,16 @@ class TradeService
         $tradeCount = Trade::where('save_id', $save->id)->count();
         $accepts = $save->rng("ai.trade.{$tradeCount}", $week)->chance((float) config('gm.trades.ai_accept_chance'));
 
+        $trade->load('items.saveWrestler.wrestler');
+
         if (! $accepts) {
             $trade->update(['status' => TradeStatus::Rejected]);
+            $this->emails->tradeAnswer($save, $proposer, false, $this->namesFor($trade, 'out'), $this->namesFor($trade, 'in'), $week);
 
             return $trade;
         }
 
-        $this->execute($trade->load('items.saveWrestler.wrestler'));
+        $this->execute($trade);
 
         return $trade;
     }
@@ -181,12 +183,16 @@ class TradeService
             'wrestlers_in' => $names('in'),
         ], ['wrestler_ids' => $trade->items->pluck('save_wrestler_id')->all()], priority: 85, week: $week);
 
-        foreach ([$proposer, $rival] as $brand) {
-            $this->emails->send($save, $brand, EmailTemplate::Trade, 'Trade completed', [
-                'out' => $names('out'),
-                'in' => $names('in'),
-            ], "{$proposer->label()} sends {$names('out')} for {$names('in')}.", $week);
-        }
+        // The rival GM answers the offer.
+        $this->emails->tradeAnswer($save, $proposer, true, $this->namesFor($trade, 'out'), $this->namesFor($trade, 'in'), $week);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function namesFor(Trade $trade, string $direction): array
+    {
+        return array_values($trade->items->where('direction', $direction)->map(fn (TradeItem $i): string => $i->saveWrestler->name())->all());
     }
 
     /**

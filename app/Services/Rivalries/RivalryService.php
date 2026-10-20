@@ -118,7 +118,7 @@ class RivalryService
                 'winner' => $winner->name(),
                 'loser' => $loser->name(),
                 'ppv' => $slot->show->name,
-            ], ['wrestler_ids' => [$winnerId, $loserId]], priority: 70, week: $week);
+            ], ['wrestler_ids' => [$winnerId, $loserId]], priority: 70, week: $week, dedupeKey: "slot:{$slot->id}");
 
             return;
         }
@@ -144,6 +144,16 @@ class RivalryService
             }
 
             $rivalry->save();
+
+            // ASSUMPTION: heat stands in for fan feedback until Popularity exists.
+            if ($rivalry->active && $rivalry->weeks_active === (int) config('gm.news.rivalry_milestone_weeks') && $rivalry->heat >= (int) config('gm.rivalries.heating_up_threshold')) {
+                $rivalry->loadMissing(['wrestlerA.wrestler', 'wrestlerB.wrestler']);
+                $this->news->record($save, NewsEventType::RivalryMilestone, NewsTier::Headline, $this->brandOf($rivalry), [
+                    'wrestler_a' => $rivalry->wrestlerA->name(),
+                    'wrestler_b' => $rivalry->wrestlerB->name(),
+                    'weeks' => $rivalry->weeks_active,
+                ], ['wrestler_ids' => [$rivalry->wrestler_a_id, $rivalry->wrestler_b_id]], priority: 60, week: $week);
+            }
         }
     }
 

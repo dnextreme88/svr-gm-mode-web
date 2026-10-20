@@ -387,6 +387,37 @@ return [
         'stories_per_brand' => 2,
         // Deferred: overall ratings aren't designed yet, so upset_win is off.
         'upset_win_overall_margin' => null,
+        // Every aired match is a story; headlines and stories are drawn from
+        // the week's pool weighted by priority.
+        'match_result_priority' => [
+            'other' => 12,
+            'main_event' => 28,
+            'hyped_main_event' => 65,
+        ],
+        'free_agent_signed_priority' => 18,
+        'promo_result_priority' => 14,
+        'contract_expiring_weeks' => 2,
+        'contract_expiring_priority' => 16,
+        // ASSUMPTION: "great fan feedback" is heat at or above
+        // rivalries.heating_up_threshold until Popularity exists.
+        'rivalry_milestone_weeks' => 10,
+    ],
+
+    /*
+    | GM emails (JR/Tazz, the rival GM, Vince McMahon, the Trainer and the
+    | superstars themselves).
+    */
+    'emails' => [
+        'specialty_tip_every_weeks' => 26,
+        // ASSUMPTION: how often the specialties tip names one of your specialists.
+        'specialty_mention_chance' => 0.5,
+        'interference_reminder_weeks' => 13,
+        // ASSUMPTION: Vince's shared-PPV reminder lands 2 weeks out.
+        'ppv_reminder_weeks_before' => 2,
+        'low_cash_threshold' => 500_000,
+        'low_cash_every_weeks' => 4,
+        'contract_reminder_weeks' => 2,
+        'injury_return_notice_weeks' => 2,
     ],
 
     /*
@@ -395,5 +426,12 @@ return [
     'email_senders' => [
         'raw' => 'JR',
         'smackdown' => 'Tazz',
+        // ASSUMPTION: placeholder names for the rival brand's GM.
+        'rival_gm' => [
+            'raw' => 'Raw GM',
+            'smackdown' => 'SmackDown! GM',
+        ],
+        'vince' => 'Vince McMahon',
+        'trainer' => 'Trainer',
     ],
 ];

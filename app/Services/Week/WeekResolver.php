@@ -31,6 +31,7 @@ class WeekResolver
         Steps\TitleUpkeep::class,
         Steps\TrackDeficit::class,
         Steps\SendContractEmails::class,
+        Steps\SendReminders::class,
         Steps\PpvBuzz::class,
         Steps\WrestleManiaWrapUp::class,
         Steps\AdvanceWeek::class,

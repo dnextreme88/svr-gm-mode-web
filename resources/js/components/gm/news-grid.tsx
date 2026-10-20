@@ -10,6 +10,7 @@ export type NewsCard = {
     slot: 'raw' | 'smackdown' | 'neutral';
     priority: number;
     text: string;
+    summary: string;
     payload: Record<string, unknown>;
     promoted: boolean;
 };
@@ -31,8 +32,9 @@ const slotLabel = {
 } as const;
 
 /**
- * The News carousel (§19): one page per week, newest first. Each page has
- * three headline cards, four story cards and a ticker.
+ * The News carousel (§19): one page per played week, newest first. Each page
+ * has three headline cards (Raw, WWE, SmackDown!), four story cards and a
+ * ticker. Every card pairs its headline with a short summary of why.
  */
 export function NewsGrid({ pages }: { pages: NewsPage[] }) {
     const [index, setIndex] = useState(0);
@@ -142,7 +144,7 @@ export function NewsGrid({ pages }: { pages: NewsPage[] }) {
                 aria-label="Headlines"
                 className="grid gap-4 md:grid-cols-3"
             >
-                {(['raw', 'smackdown', 'neutral'] as const).map((slot) =>
+                {(['raw', 'neutral', 'smackdown'] as const).map((slot) =>
                     card(page.headlines[slot], slot, 'headline', `h-${slot}`),
                 )}
             </div>
@@ -203,7 +205,7 @@ function NewsCardView({
             className={cn(
                 'gm-panel',
                 slot === 'neutral' &&
-                    'shadow-[inset_0_2px_0_var(--color-gold)]',
+                'shadow-[inset_0_2px_0_var(--color-gold)]',
             )}
         >
             <button
@@ -215,7 +217,7 @@ function NewsCardView({
                 <div className="flex items-center justify-between gap-2">
                     <span
                         className={cn(
-                            'gm-chyron px-2 py-0.5 font-condensed text-xs font-bold tracking-[0.18em] uppercase',
+                            'gm-chyron py-0.5 pl-2 font-condensed font-bold tracking-[0.18em] uppercase',
                             slot === 'neutral'
                                 ? 'bg-gold text-arena'
                                 : 'bg-brand text-white',
@@ -238,18 +240,15 @@ function NewsCardView({
                 >
                     {item.text}
                 </p>
-                {expanded && (
-                    <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-white/8 pt-3 text-xs text-ink-dim">
-                        {Object.entries(item.payload).map(([key, value]) => (
-                            <div key={key} className="contents">
-                                <dt className="capitalize">
-                                    {key.replaceAll('_', ' ')}
-                                </dt>
-                                <dd className="text-ink">{String(value)}</dd>
-                            </div>
-                        ))}
-                    </dl>
-                )}
+                <p
+                    data-testid="news-summary"
+                    className={cn(
+                        'mt-3 border-t border-white/8 pt-3 text-sm leading-relaxed text-ink-dim',
+                        kind === 'story' && !expanded && 'line-clamp-2',
+                    )}
+                >
+                    {item.summary}
+                </p>
             </button>
         </article>
     );
@@ -264,7 +263,7 @@ function Ticker({ items }: { items: NewsCard[] }) {
             aria-label="News ticker"
             className="mt-4 flex items-stretch overflow-hidden border border-white/8 bg-black/50"
         >
-            <span className="z-10 flex items-center bg-brand px-3 font-condensed text-xs font-bold tracking-[0.2em] text-white uppercase">
+            <span className="z-10 flex items-center bg-brand px-3 font-condensed font-bold tracking-[0.2em] text-white uppercase">
                 Ticker
             </span>
             <div className="relative flex-1 overflow-hidden py-2">

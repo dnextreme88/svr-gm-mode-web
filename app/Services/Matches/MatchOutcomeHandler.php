@@ -87,7 +87,7 @@ class MatchOutcomeHandler
             $this->news->record($context->save, NewsEventType::PpvResults, NewsTier::Headline, NewsBrand::Both, [
                 'ppv' => 'Royal Rumble',
                 'top_result' => "{$winner->name()}'s Royal Rumble win",
-            ], ['wrestler_ids' => [$winner->id]], priority: 90, week: $context->week);
+            ], ['wrestler_ids' => [$winner->id]], priority: 90, week: $context->week, dedupeKey: "slot:{$slot->id}");
         }
 
         if ($slot->fixed_kind === FixedSlotKind::SurvivorSeriesMainEvent) {
@@ -192,7 +192,7 @@ class MatchOutcomeHandler
                     'champion' => $cvcReign->holderName(),
                     'title' => $championship->name,
                     'next_show' => 'next week',
-                ], ['championship_id' => $championship->id, 'wrestler_ids' => $slot->competitorIds()], priority: 70, week: $week);
+                ], ['championship_id' => $championship->id, 'wrestler_ids' => $slot->competitorIds()], priority: 70, week: $week, dedupeKey: "slot:{$slot->id}");
 
                 return "{$nameOf($contenders)} earns a {$championship->name} match next week";
             }
@@ -225,7 +225,7 @@ class MatchOutcomeHandler
                 'contender' => $nameOf($contenders),
                 'won_or_lost' => $won ? 'won' : 'lost',
                 'title' => $reign->championship->name,
-            ], ['championship_id' => $reign->championship_id, 'wrestler_ids' => $slot->competitorIds()], priority: 70, week: $week);
+            ], ['championship_id' => $reign->championship_id, 'wrestler_ids' => $slot->competitorIds()], priority: 70, week: $week, dedupeKey: "slot:{$slot->id}");
 
             return $won
                 ? "{$nameOf($contenders)} wins their last chance"
@@ -272,7 +272,7 @@ class MatchOutcomeHandler
             'loser' => $nameOf($losers),
             'brand' => $brandLabel,
             'winner' => $nameOf($winners),
-        ], ['wrestler_ids' => [...$losers, ...$winners]], priority: 80, week: $week);
+        ], ['wrestler_ids' => [...$losers, ...$winners]], priority: 80, week: $week, dedupeKey: "slot:{$slot->id}");
 
         return "{$nameOf($losers)} leaves {$brandLabel}";
     }

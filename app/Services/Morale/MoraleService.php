@@ -57,7 +57,7 @@ class MoraleService
             }
 
             // Title match demand: only if the brand has a title they're eligible for.
-            // Per ง15, SmackDown Divas have no title, so Divas only count Divas-only titles.
+            // Per ยง15, SmackDown Divas have no title, so Divas only count Divas-only titles.
             $eligible = $championships->contains(fn (Championship $c): bool => $c->brand === $wrestler->brand
                 && $c->allowsWrestler($wrestler->wrestler)
                 && (! $wrestler->wrestler->isDiva() || $c->eligibility === ChampionshipEligibility::DivasOnly));
@@ -147,27 +147,41 @@ class MoraleService
     private function notify(SaveWrestler $wrestler, MoraleComplaintType $type, ComplaintLevel $level, int $value, int $week): void
     {
         $name = $wrestler->name();
-        $subject = match ($type) {
-            MoraleComplaintType::LosingStreak => "{$name} is frustrated by {$value} straight losses",
-            MoraleComplaintType::ContractExtension => "{$name} wants a contract extension",
-            MoraleComplaintType::TitleMatch => "{$name} wants a title shot",
-            MoraleComplaintType::Inactivity => "{$name} wants to be on the card",
-        };
 
-        if ($wrestler->brand === null) {
+        // Superstars only write to the GM once they're Unsatisfied or Upset.
+        if ($wrestler->brand === null || $level === ComplaintLevel::Content) {
             return;
         }
 
-        $this->emails->send($wrestler->game, $wrestler->brand, EmailTemplate::MoraleComplaint, $subject, [
-            'save_wrestler_id' => $wrestler->id,
+        $upset = $level === ComplaintLevel::Upset;
+        [$subject, $body] = match ($type) {
+            MoraleComplaintType::LosingStreak => [
+                "I've lost {$value} straight",
+                "I've lost {$value} matches in a row and I'm sick of it. Put me in a position to win.",
+            ],
+            MoraleComplaintType::ContractExtension => [
+                'I want a new contract',
+                "I've won {$value} straight and I'm still on the same deal. I've earned a new contract.",
+            ],
+            MoraleComplaintType::TitleMatch => [
+                'Where is my title shot?',
+                "It's been {$value} weeks since I got a title match. I deserve a shot at the gold.",
+            ],
+            MoraleComplaintType::Inactivity => [
+                'Put me on the card',
+                "I haven't been used in {$value} weeks. I didn't sign with {$wrestler->brand->label()} to sit in the back.",
+            ],
+        };
+
+        $body .= $upset
+            ? ' I\'m upset, and if nothing changes I\'ll start looking at the other brand.'
+            : ' I\'m not happy about it.';
+
+        $this->emails->fromSuperstar($wrestler, $wrestler->brand, EmailTemplate::MoraleComplaint, $subject, $body, $week, [
             'type' => $type->value,
             'level' => $level->value,
             'value' => $value,
-        ], "{$name} is now {$level->label()} about this. Their morale is the worst of their open complaints.", $week);
-
-        if ($level === ComplaintLevel::Content) {
-            return;
-        }
+        ]);
 
         if ($type === MoraleComplaintType::ContractExtension) {
             $this->news->record($wrestler->game, NewsEventType::ContractDemand, NewsTier::Ticker, $wrestler->brand, [

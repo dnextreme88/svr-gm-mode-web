@@ -7,9 +7,12 @@ use App\Enums\MatchFamily;
 use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
+use App\Enums\PromoTypeKey;
 use App\Enums\ShowStatus;
 use App\Models\MatchResult;
 use App\Models\MatchSlot;
+use App\Models\NewsEvent;
+use App\Models\PromoSlot;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Fatigue\FatigueZones;
@@ -53,6 +56,7 @@ class ShowResolver
         // Promos air before the match they're placed in front of (§5), so
         // their fatigue counts going into that match.
         $promoRng = $context->rng("promos.{$show->streamKey()}");
+        $mainEvent = $slots->filter(fn (MatchSlot $s): bool => $s->isBooked())->last();
 
         foreach ($slots as $slot) {
             $this->promos->resolveBefore($show, $slot->position, $promoRng);
@@ -61,15 +65,43 @@ class ShowResolver
                 continue;
             }
 
-            $this->airMatch($slot, $show, $context, $rng);
+            $this->airMatch($slot, $show, $context, $rng, $slot->is($mainEvent));
         }
 
         $this->promos->resolve($show, $promoRng);
 
+        if ($mainEvent !== null) {
+            $this->hypeMainEvent($show, $mainEvent, $context->week);
+        }
+
         $show->update(['status' => ShowStatus::Aired]);
     }
 
-    private function airMatch(MatchSlot $slot, Show $show, WeekContext $context, Rng $rng): void
+    /**
+     * A successful Main Event Hype turns the main event's result into a
+     * headline. Checked once the show's promos have all resolved, since the
+     * hype may air after the last booked match.
+     */
+    private function hypeMainEvent(Show $show, MatchSlot $mainEvent, int $week): void
+    {
+        $hyped = $show->brand !== null && PromoSlot::where('show_id', $show->id)
+            ->where('succeeded', true)
+            ->whereHas('promoType', fn ($q) => $q->where('key', PromoTypeKey::MainEventHype))
+            ->exists();
+        $result = NewsEvent::where('save_id', $show->save_id)
+            ->where('type', NewsEventType::MatchResult)
+            ->where('dedupe_key', "slot:{$mainEvent->id}")
+            ->first();
+
+        if (! $hyped || $result === null) {
+            return;
+        }
+
+        $this->news->record($show->game, NewsEventType::MainEventHypeResult, NewsTier::Headline, $result->brand, $result->payload, $result->subject_ids, priority: (int) config('gm.news.match_result_priority.hyped_main_event'), week: $week, dedupeKey: $result->dedupe_key);
+        $result->delete();
+    }
+
+    private function airMatch(MatchSlot $slot, Show $show, WeekContext $context, Rng $rng, bool $mainEvent): void
     {
         $week = $context->week;
         $type = $slot->matchType;
@@ -146,11 +178,43 @@ class ShowResolver
             ], ['wrestler_ids' => [...$resolved->winners, ...$resolved->losers]], priority: 30, week: $week, dedupeKey: "slot:{$slot->id}");
         }
 
+        $this->announceResult($slot, $show, $resolved, $wrestlers, $week, $mainEvent);
+
         $brand = $slot->owner_brand ?? $show->brand;
 
         if ($slot->cost > 0 && $brand !== null) {
             $this->ledger->post($context->save, $brand, LedgerCategory::MatchCost, -$slot->cost, "{$type->name} ({$show->name})", $week, $slot);
         }
+    }
+
+    /**
+     * Every match makes the news as a `match_result` story; the main event
+     * (the last booked match) ranks higher. It gives way to bigger news from
+     * the same match (title change, streak…).
+     *
+     * @param  Collection<int, SaveWrestler>  $wrestlers
+     */
+    private function announceResult(MatchSlot $slot, Show $show, ResolvedMatch $resolved, Collection $wrestlers, int $week, bool $mainEvent): void
+    {
+        $this->news->record(
+            $show->game,
+            NewsEventType::MatchResult,
+            NewsTier::Story,
+            $slot->owner_brand ?? $show->brand ?? NewsBrand::Both,
+            [
+                'winner' => $this->namesOf($resolved->winners, $wrestlers),
+                'defeats' => count($resolved->winners) > 1 ? 'defeat' : 'defeats',
+                'loser' => $this->namesOf($resolved->losers, $wrestlers),
+                'by' => $resolved->isDecisive() ? '' : ' by '.mb_strtolower($resolved->method->label()),
+                'match' => $slot->matchType?->name,
+                'show' => $show->name,
+                'brand' => $show->brand?->label(),
+            ],
+            ['wrestler_ids' => [...$resolved->winners, ...$resolved->losers]],
+            priority: (int) config('gm.news.match_result_priority.'.($mainEvent ? 'main_event' : 'other')),
+            week: $week,
+            dedupeKey: "slot:{$slot->id}",
+        );
     }
 
     /**

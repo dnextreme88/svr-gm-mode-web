@@ -65,6 +65,19 @@ type Injury = {
     escalates_to: string | null;
 };
 
+type NewsEvent = {
+    type: string;
+    label: string;
+    group: string;
+    card: 'brand' | 'wwe' | 'either';
+    tier: string;
+    active: boolean;
+    headline: string;
+    summary: string;
+};
+
+type GmEmail = { email: string; from: string; when: string };
+
 type Props = {
     match_types: Array<{
         family: MatchFamily;
@@ -89,6 +102,8 @@ type Props = {
     }>;
     stipulations: Array<{ value: Stipulation; label: string }>;
     promos: { slots: number; types: Promo[] };
+    news: { stories_per_brand: number; groups: string[]; events: NewsEvent[] };
+    emails: GmEmail[];
 };
 
 const tabs = [
@@ -97,6 +112,7 @@ const tabs = [
     { key: 'specialties', label: 'Specialties' },
     { key: 'stipulations', label: 'Stipulations' },
     { key: 'promos', label: 'Promos' },
+    { key: 'news', label: 'News & email' },
 ] as const;
 
 type TabKey = (typeof tabs)[number]['key'];
@@ -681,6 +697,186 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
     );
 }
 
+const cardLabel: Record<NewsEvent['card'], string> = {
+    brand: 'Raw / SmackDown!',
+    wwe: 'WWE',
+    either: 'Raw / SmackDown! or WWE',
+};
+
+/** Counts read as N and M ("N-match winning streak"); the rest as words. */
+function placeholderLabel(name: string): string {
+    return name.length === 1 ? name.toUpperCase() : name.replaceAll('_', ' ');
+}
+
+/** A news template with its `{placeholders}` picked out. */
+function Template({ text }: { text: string }) {
+    return (
+        <>
+            {text.split(/(\{\w+\})/).map((part, i) =>
+                /^\{\w+\}$/.test(part) ? (
+                    <span
+                        key={i}
+                        data-testid="template-placeholder"
+                        className="font-semibold text-gold-hot"
+                    >
+                        {placeholderLabel(part.slice(1, -1))}
+                    </span>
+                ) : (
+                    part
+                ),
+            )}
+        </>
+    );
+}
+
+function NewsAndEmail({ news, emails }: Pick<Props, 'news' | 'emails'>) {
+    return (
+        <div className="space-y-6">
+            <div className="grid items-start gap-6 md:grid-cols-2">
+                <Panel title="How the news works">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            The News page is a weekly report: what happened,
+                            why, and what’s coming next.
+                        </li>
+                        <li>
+                            Everything newsworthy in a week goes into one pool:
+                            match results, titles, stipulations, promos,
+                            rivalries, signings, contracts, injuries and
+                            upcoming PPVs.
+                        </li>
+                        <li>
+                            Headlines and stories are drawn from the pool at
+                            random. Bigger news is more likely to be picked, and
+                            a week always lays out the same way.
+                        </li>
+                        <li>
+                            A plain match result gives way to bigger news from
+                            the same match, like a title change or a snapped
+                            streak.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel title="The page">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            Three headlines: Raw, WWE and SmackDown!. Each
+                            brand’s card only shows that brand’s news. The WWE
+                            card only shows cross-brand news, and a Slander or
+                            Interference result always takes it.
+                        </li>
+                        <li>
+                            {news.stories_per_brand} stories per brand under the
+                            headlines. A brand with no headline-sized news gets
+                            one of its stories promoted.
+                        </li>
+                        <li>
+                            Every card shows its headline and a short summary of
+                            why it happened. Click a story to read all of it.
+                        </li>
+                        <li>
+                            Whatever isn’t picked runs in the ticker. Newer and
+                            Older (or ← / →) step through every week played,
+                            quiet weeks included.
+                        </li>
+                    </ul>
+                </Panel>
+            </div>
+
+            <Panel title="News events" bodyClassName="p-0 overflow-x-auto">
+                <table className="gm-table text-sm">
+                    <thead>
+                        <tr>
+                            <th>Event</th>
+                            <th>Card</th>
+                            <th>Plays as</th>
+                            <th>Headline and summary</th>
+                        </tr>
+                    </thead>
+                    {news.groups.map((group) => (
+                        <tbody key={group}>
+                            <tr>
+                                <th
+                                    colSpan={4}
+                                    className="bg-white/[0.04] font-condensed tracking-[0.15em] text-ink-dim uppercase"
+                                >
+                                    {group}
+                                </th>
+                            </tr>
+                            {news.events
+                                .filter((e) => e.group === group)
+                                .map((e) => (
+                                    <tr
+                                        key={e.type}
+                                        data-testid={`news-event-${e.type}`}
+                                        className={cn(
+                                            !e.active && 'opacity-60',
+                                        )}
+                                    >
+                                        <td className="font-semibold whitespace-nowrap">
+                                            {e.label}
+                                            {!e.active && (
+                                                <div className="mt-1">
+                                                    <Badge>
+                                                        Not in play yet
+                                                    </Badge>
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="whitespace-nowrap text-ink-dim">
+                                            {cardLabel[e.card]}
+                                        </td>
+                                        <td className="text-ink-dim">
+                                            {e.tier}
+                                        </td>
+                                        <td>
+                                            <div className="text-ink">
+                                                <Template text={e.headline} />
+                                            </div>
+                                            <div className="mt-1 text-ink-dim">
+                                                <Template text={e.summary} />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                        </tbody>
+                    ))}
+                </table>
+            </Panel>
+
+            <Panel title="Emails" bodyClassName="p-0 overflow-x-auto">
+                <p className="border-b border-white/6 px-4 py-3 text-sm text-ink-dim">
+                    Your inbox holds private notices for your brand only. Most
+                    come from your announcer; the rest come from the rival GM,
+                    Vince McMahon, the Trainer or the superstars themselves.
+                </p>
+                <table className="gm-table text-sm">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>From</th>
+                            <th>When</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {emails.map((m) => (
+                            <tr key={m.email} data-testid="email-row">
+                                <td className="font-semibold whitespace-nowrap">
+                                    {m.email}
+                                </td>
+                                <td className="whitespace-nowrap text-ink-dim">
+                                    {m.from}
+                                </td>
+                                <td className="text-ink-dim">{m.when}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </Panel>
+        </div>
+    );
+}
+
 export default function Docs() {
     const props = usePage<Props & { game?: GameShell }>().props;
     const [tab, setTab] = useState<TabKey>('matches');
@@ -795,6 +991,9 @@ export default function Docs() {
                     <Stipulations stipulations={props.stipulations} />
                 )}
                 {tab === 'promos' && <Promos promos={props.promos} />}
+                {tab === 'news' && (
+                    <NewsAndEmail news={props.news} emails={props.emails} />
+                )}
             </div>
         </>
     );

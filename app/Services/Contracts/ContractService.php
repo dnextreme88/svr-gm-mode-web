@@ -87,10 +87,10 @@ class ContractService
                 'brand' => $brand->label(),
             ], ['wrestler_ids' => [$wrestler->id]], priority: 60, week: $week);
         } else {
-            $this->news->record($save, NewsEventType::FreeAgentSigned, NewsTier::Ticker, $brand, [
+            $this->news->record($save, NewsEventType::FreeAgentSigned, NewsTier::Story, $brand, [
                 'brand' => $brand->label(),
                 'wrestler' => $wrestler->name(),
-            ], ['wrestler_ids' => [$wrestler->id]], week: $week);
+            ], ['wrestler_ids' => [$wrestler->id]], priority: (int) config('gm.news.free_agent_signed_priority'), week: $week);
         }
 
         return $move;
