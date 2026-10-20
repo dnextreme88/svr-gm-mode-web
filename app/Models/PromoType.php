@@ -17,12 +17,24 @@ use Illuminate\Database\Eloquent\Model;
  * @property bool $variable_amount
  * @property bool $needs_wrestler
  * @property bool $needs_rival_pair
+ * @property bool $needs_championship
+ * @property bool $needs_diva_pair
+ * @property int $fatigue_bars
  * @property string $effect
+ * @property string|null $requirement
  * @property int $sort_order
  */
 #[Unguarded]
 class PromoType extends Model
 {
+    /**
+     * Whether the promo targets two different wrestlers.
+     */
+    public function needsPair(): bool
+    {
+        return $this->needs_rival_pair || $this->needs_diva_pair;
+    }
+
     public function successRate(): float
     {
         return (float) config('gm.promos.success_rates.'.$this->key->value);
@@ -36,6 +48,9 @@ class PromoType extends Model
             'variable_amount' => 'boolean',
             'needs_wrestler' => 'boolean',
             'needs_rival_pair' => 'boolean',
+            'needs_championship' => 'boolean',
+            'needs_diva_pair' => 'boolean',
+            'fatigue_bars' => 'integer',
         ];
     }
 }

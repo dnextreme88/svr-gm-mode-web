@@ -57,6 +57,30 @@
         cubic-bezier(0.2, 0.8, 0.2, 1) both;
     --animate-gm-slide-from-left: gm-slide-from-left 320ms
         cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    --animate-gm-pop-in: gm-pop-in 160ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    --animate-gm-pop-out: gm-pop-out 160ms ease-in both;
+
+    @keyframes gm-pop-in {
+        from {
+            opacity: 0;
+            transform: translateY(-4px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes gm-pop-out {
+        from {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateY(-4px);
+        }
+    }
 
     @keyframes gm-ticker {
         from {
@@ -133,6 +157,17 @@
         50% {
             opacity: 0.35;
         }
+    }
+}
+
+/* Used by .gm-sheen, not by an animate-* utility, so it lives outside @theme. */
+@keyframes gm-sheen {
+    0% {
+        left: -40%;
+    }
+    60%,
+    100% {
+        left: 110%;
     }
 }
 
@@ -217,6 +252,21 @@
             color-mix(in oklab, var(--gm-brand-hot) 60%, transparent) 40%,
             transparent
         );
+    }
+
+    /* A card slot with edits that haven't been saved yet. */
+    .gm-panel-dirty {
+        background: linear-gradient(
+            180deg,
+            color-mix(
+                in oklab,
+                var(--color-gm-orange) 14%,
+                rgb(26 32 48 / 0.9)
+            ),
+            color-mix(in oklab, var(--color-gm-orange) 7%, rgb(11 14 20 / 0.95))
+        );
+        outline: 1px solid
+            color-mix(in oklab, var(--color-gm-orange) 55%, transparent);
     }
 
     /* Angled lower-third label. */
@@ -310,6 +360,39 @@
 
     .gm-btn-sm {
         padding: 0.35rem 0.85rem;
+    }
+
+    /* Destructive actions (Clear) are red on both brands. */
+    .gm-btn-danger {
+        background: var(--color-gm-red-deep);
+        color: white;
+    }
+
+    .gm-btn-danger:hover:not(:disabled) {
+        background: #e5233f;
+        filter: none;
+    }
+
+    /* A light sweep across a progress fill. */
+    .gm-sheen {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .gm-sheen::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: -40%;
+        width: 40%;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgb(255 255 255 / 0.45),
+            transparent
+        );
+        animation: gm-sheen 2.8s ease-in-out infinite;
     }
 
     .gm-input {

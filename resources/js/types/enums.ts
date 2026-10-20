@@ -483,11 +483,13 @@ export const NewsTierLabels: Record<NewsTier, string> = {
 export const ParticipantRole = {
     Competitor: 'competitor',
     Manager: 'manager',
+    Referee: 'referee',
 } as const;
 export type ParticipantRole = (typeof ParticipantRole)[keyof typeof ParticipantRole];
 export const ParticipantRoleLabels: Record<ParticipantRole, string> = {
     'competitor': 'Competitor',
     'manager': 'Manager',
+    'referee': 'Referee',
 };
 
 export const PpvKey = {
@@ -538,6 +540,10 @@ export const PromoTypeKey = {
     PpvHype: 'ppv_hype',
     InterferencePromotion: 'interference_promotion',
     SlanderPromotion: 'slander_promotion',
+    TitleMatchHype: 'title_match_hype',
+    ComebackReminder: 'comeback_reminder',
+    InterviewSpace: 'interview_space',
+    DivaBikiniContest: 'diva_bikini_contest',
 } as const;
 export type PromoTypeKey = (typeof PromoTypeKey)[keyof typeof PromoTypeKey];
 export const PromoTypeKeyLabels: Record<PromoTypeKey, string> = {
@@ -552,6 +558,10 @@ export const PromoTypeKeyLabels: Record<PromoTypeKey, string> = {
     'ppv_hype': 'PPV Hype',
     'interference_promotion': 'Interference Promotion',
     'slander_promotion': 'Slander Promotion',
+    'title_match_hype': 'Title Match Hype',
+    'comeback_reminder': 'Comeback Reminder',
+    'interview_space': 'Interview Space',
+    'diva_bikini_contest': 'Diva Bikini Contest',
 };
 
 export const ReignEndReason = {

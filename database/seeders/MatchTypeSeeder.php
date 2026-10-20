@@ -43,7 +43,7 @@ class MatchTypeSeeder extends Seeder
                     'min_competitors' => $count,
                     'max_competitors' => $count,
                     'fatigue_cost_bars' => $extras['bars'] ?? ($count === 6 ? $rules['six_competitor_bars'][$family] ?? null : null) ?? $defaults['bars'],
-                    'cost' => $defaults['cost'],
+                    'cost' => $extras['cost'] ?? $defaults['cost'],
                     'dq_enabled' => $extras['dq'] ?? $defaults['dq'],
                     'countout_enabled' => $extras['countout'] ?? ($defaults['countout'] && ! in_array($family, $rules['no_rope_break_families'], true)),
                     'rope_breaks' => $extras['rope_breaks'] ?? ! in_array($family, $rules['no_rope_break_families'], true),

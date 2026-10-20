@@ -9,6 +9,8 @@ export type ProposalView = {
     sides: number[][];
     side_names: string[][];
     title_championship_id: number | null;
+    referee_id?: number | null;
+    referee_name?: string | null;
 };
 
 type Props = {
@@ -123,6 +125,11 @@ export function ProposalModal({
                                             .map((side) => side.join(' & '))
                                             .join(' vs ')}
                                     </div>
+                                    {p.referee_name && (
+                                        <div className="mt-1 text-xs text-ink-dim">
+                                            Special referee: {p.referee_name}
+                                        </div>
+                                    )}
                                     {p.title_championship_id !== null && (
                                         <div className="mt-1 text-xs font-bold text-gold-hot uppercase">
                                             ◆{' '}

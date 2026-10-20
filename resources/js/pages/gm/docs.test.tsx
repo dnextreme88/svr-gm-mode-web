@@ -26,6 +26,7 @@ const variant = (overrides: Record<string, unknown>) => ({
     ppv_exclusive: null,
     brand: null,
     gm_bookable: true,
+    special_referee: false,
     win_condition: null,
     ...overrides,
 });
@@ -87,6 +88,34 @@ const props = {
     },
     specialists: [],
     stipulations: [],
+    promos: {
+        slots: 2,
+        types: [
+            {
+                key: 'advertising',
+                name: 'Advertising',
+                amount: 150000,
+                variable_amount: false,
+                success_rate: 1,
+                fatigue_bars: 0,
+                targets_rival: false,
+                requirement: 'Nothing.',
+                effect: 'Guaranteed flat payout next week.',
+            },
+            {
+                key: 'interference_promotion',
+                name: 'Interference Promotion',
+                amount: -50000,
+                variable_amount: false,
+                success_rate: 0.5,
+                fatigue_bars: 2,
+                targets_rival: true,
+                requirement:
+                    'A non-Diva superstar who isn’t seriously injured.',
+                effect: 'Sabotages the rival show.',
+            },
+        ],
+    },
 };
 
 vi.mock('@inertiajs/react', () => ({
@@ -128,6 +157,7 @@ describe('Docs page', () => {
             'Elimination',
             'Ring out',
             'Rope breaks',
+            'Special referee',
             'Timed',
             'Titles',
         ]);
@@ -172,6 +202,27 @@ describe('Docs page', () => {
         await user.click(tab('Fatigue & injuries'));
         expect(screen.getByRole('tabpanel')).toHaveClass(
             'animate-gm-slide-from-left',
+        );
+    });
+
+    it('documents every promo with its cost, success probability, fatigue and needs', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Promos' }));
+
+        expect(
+            screen.getByRole('heading', { name: 'When promos air' }),
+        ).toBeInTheDocument();
+        const interference = screen.getByTestId('promo-interference_promotion');
+        expect(interference).toHaveTextContent('Interference Promotion');
+        expect(interference).toHaveTextContent('50%');
+        expect(interference).toHaveTextContent('A non-Diva superstar');
+        expect(
+            interference.querySelectorAll('[data-state="filled"]'),
+        ).toHaveLength(2);
+        expect(screen.getByTestId('promo-advertising')).toHaveTextContent(
+            '+$150,000',
         );
     });
 });

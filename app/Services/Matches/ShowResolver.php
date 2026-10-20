@@ -50,7 +50,13 @@ class ShowResolver
             ->orderBy('position')
             ->get();
 
+        // Promos air before the match they're placed in front of (§5), so
+        // their fatigue counts going into that match.
+        $promoRng = $context->rng("promos.{$show->streamKey()}");
+
         foreach ($slots as $slot) {
+            $this->promos->resolveBefore($show, $slot->position, $promoRng);
+
             if (! $slot->isBooked()) {
                 continue;
             }
@@ -58,7 +64,7 @@ class ShowResolver
             $this->airMatch($slot, $show, $context, $rng);
         }
 
-        $this->promos->resolve($show, $context->rng("promos.{$show->streamKey()}"));
+        $this->promos->resolve($show, $promoRng);
 
         $show->update(['status' => ShowStatus::Aired]);
     }

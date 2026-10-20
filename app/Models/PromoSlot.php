@@ -12,9 +12,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $show_id
  * @property int $position
+ * @property int|null $before_position the match slot this promo airs before
  * @property int|null $promo_type_id
  * @property int|null $target_wrestler_id
  * @property int|null $target_wrestler_b_id
+ * @property int|null $target_championship_id
  * @property int|null $cost_or_profit
  * @property bool|null $succeeded
  * @property bool $backfired
@@ -23,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read PromoType|null $promoType
  * @property-read SaveWrestler|null $target
  * @property-read SaveWrestler|null $targetB
+ * @property-read Championship|null $targetChampionship
  */
 #[Unguarded]
 class PromoSlot extends Model
@@ -57,6 +60,22 @@ class PromoSlot extends Model
     public function targetB(): BelongsTo
     {
         return $this->belongsTo(SaveWrestler::class, 'target_wrestler_b_id');
+    }
+
+    /**
+     * @return BelongsTo<Championship, $this>
+     */
+    public function targetChampionship(): BelongsTo
+    {
+        return $this->belongsTo(Championship::class, 'target_championship_id');
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function targetIds(): array
+    {
+        return array_values(array_filter([$this->target_wrestler_id, $this->target_wrestler_b_id], fn (?int $id): bool => $id !== null));
     }
 
     protected function casts(): array

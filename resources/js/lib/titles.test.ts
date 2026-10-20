@@ -79,6 +79,7 @@ function draft(sides: number[][], title: number | null = null): SlotDraft {
         titleChampionshipId: title,
         stipulation: null,
         stipulationChampionshipId: null,
+        refereeId: null,
         fixed: false,
     };
 }
@@ -118,6 +119,30 @@ describe('title candidates', () => {
                 (t) => t.id,
             ),
         ).toContain(11);
+    });
+
+    it('skips titles already on the line in another match on the card', () => {
+        expect(
+            titleCandidates(
+                draft([[1], [2]]),
+                singles,
+                context,
+                roster,
+                [12],
+            ).map((t) => t.id),
+        ).toEqual([10]);
+    });
+
+    it('keeps the title this match already has, even if listed as taken', () => {
+        expect(
+            titleCandidates(
+                draft([[1], [2]], 10),
+                singles,
+                context,
+                roster,
+                [10],
+            ).map((t) => t.id),
+        ).toEqual([10, 12]);
     });
 
     it('applies the Cruiserweight eligibility rule to challengers', () => {

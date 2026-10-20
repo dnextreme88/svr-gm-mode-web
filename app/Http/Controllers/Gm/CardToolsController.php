@@ -72,6 +72,8 @@ class CardToolsController extends Controller
             'promo_type_id' => ['required', 'integer', 'exists:promo_types,id'],
             'target_wrestler_id' => ['nullable', 'integer'],
             'target_wrestler_b_id' => ['nullable', 'integer'],
+            'target_championship_id' => ['nullable', 'integer'],
+            'before_position' => ['nullable', 'integer'],
         ]);
 
         DB::transaction(fn () => $this->promos->book(
@@ -80,6 +82,8 @@ class CardToolsController extends Controller
             PromoType::whereKey($data['promo_type_id'])->firstOrFail(),
             isset($data['target_wrestler_id']) ? (int) $data['target_wrestler_id'] : null,
             isset($data['target_wrestler_b_id']) ? (int) $data['target_wrestler_b_id'] : null,
+            isset($data['target_championship_id']) ? (int) $data['target_championship_id'] : null,
+            isset($data['before_position']) ? (int) $data['before_position'] : null,
         ));
 
         return back();
@@ -99,7 +103,7 @@ class CardToolsController extends Controller
     private function names(Proposal $proposal): array
     {
         return SaveWrestler::with('wrestler')
-            ->whereIn('id', $proposal->booking->competitorIds())
+            ->whereIn('id', $proposal->booking->allIds())
             ->get()
             ->mapWithKeys(fn (SaveWrestler $w): array => [$w->id => $w->name()])
             ->all();

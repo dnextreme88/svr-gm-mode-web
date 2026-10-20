@@ -89,6 +89,18 @@ class CardValidator
             }
         }
 
+        if ($type->hasSpecialReferee() && $booking->refereeId === null) {
+            throw new GameRuleException("{$type->name} needs a special referee.");
+        }
+
+        if (! $type->hasSpecialReferee() && $booking->refereeId !== null) {
+            throw new GameRuleException("{$type->name} has no special referee.");
+        }
+
+        if ($booking->refereeId !== null && (in_array($booking->refereeId, $competitorIds, true) || in_array($booking->refereeId, $booking->managers, true))) {
+            throw new GameRuleException('The special referee can’t compete in or manage the same match.');
+        }
+
         $wrestlers = SaveWrestler::with('wrestler')
             ->where('save_id', $show->save_id)
             ->whereIn('id', $booking->allIds())

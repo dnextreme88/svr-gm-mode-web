@@ -10,6 +10,11 @@ import type {
     RosterEntry,
 } from '@/types/gm';
 
+// The Clear confirmation reads the player's brand from the Inertia page.
+vi.mock('@inertiajs/react', () => ({
+    usePage: () => ({ props: {} }),
+}));
+
 const config: FatigueConfig = {
     bar_size: 10,
     safe_max: 70,
@@ -82,6 +87,13 @@ const matchTypes = [
         titles_allowed: false,
         captain_fall: true,
     }),
+    type({
+        id: 6,
+        name: 'Special Referee — Single',
+        family: 'special_referee',
+        variant: 'Single',
+        special_referee: true,
+    }),
 ];
 
 function wrestler(
@@ -134,6 +146,19 @@ const roster = [
     }),
 ];
 
+const familyLabel: Record<number, string> = {
+    1: 'Normal Matches',
+    2: 'Ladder',
+    3: 'Normal Matches',
+    4: 'Fulfill Your Fantasy',
+    5: '6-Man Tag',
+    6: 'Special Referee',
+};
+
+function escapeRe(text: string): string {
+    return text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+}
+
 function emptySlot(position: number): CardSlot {
     return {
         id: position,
@@ -166,25 +191,56 @@ function setup(slots: CardSlot[] = [emptySlot(1), emptySlot(2)]) {
         />,
     );
 
-    return { onSave, onClear, user: userEvent.setup() };
+    const user = userEvent.setup();
+
+    /** Open the match type picker, choose the family, then the variant. */
+    const pickType = async (position: number, typeId: number) => {
+        const t = matchTypes.find((m) => m.id === typeId) as MatchTypeOption;
+        await user.click(
+            screen.getByRole('button', {
+                name: `Match type for match ${position}`,
+            }),
+        );
+        const dialog = screen.getByRole('dialog', {
+            name: `Match type for match ${position}`,
+        });
+        await user.click(
+            within(dialog).getByRole('option', {
+                name: new RegExp(`^${familyLabel[typeId]}`),
+            }),
+        );
+        await user.click(
+            within(
+                within(dialog).getByRole('listbox', {
+                    name: `${familyLabel[typeId]} matches`,
+                }),
+            ).getByRole('option', {
+                name: new RegExp(`^${escapeRe(t.variant)} (Free|\\$)`),
+            }),
+        );
+    };
+
+    /** Open a wrestler slot and pick a name. */
+    const pickWrestler = async (label: string, name: string) => {
+        await user.click(screen.getByRole('button', { name: label }));
+        await user.click(
+            within(screen.getByRole('listbox', { name: label })).getByRole(
+                'option',
+                { name: new RegExp(name) },
+            ),
+        );
+    };
+
+    return { onSave, onClear, user, pickType, pickWrestler };
 }
 
 describe('CardBuilder', () => {
     it('books a match: type first, then wrestlers, then save', async () => {
-        const { onSave, user } = setup();
+        const { onSave, user, pickType, pickWrestler } = setup();
 
-        await user.selectOptions(
-            screen.getByLabelText('Match type for match 1'),
-            '1',
-        );
-        await user.selectOptions(
-            screen.getByLabelText('Match 1 side 1 wrestler 1'),
-            '10',
-        );
-        await user.selectOptions(
-            screen.getByLabelText('Match 1 side 2 wrestler 1'),
-            '11',
-        );
+        await pickType(1, 1);
+        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
+        await pickWrestler('Match 1 side 2 wrestler 1', 'Kane');
         await user.click(screen.getByRole('button', { name: 'Save match 1' }));
 
         expect(onSave).toHaveBeenCalledWith(1, {
@@ -194,46 +250,131 @@ describe('CardBuilder', () => {
             title_championship_id: null,
             stipulation: null,
             stipulation_championship_id: null,
+            referee_id: null,
         });
     });
 
-    it('keeps Save disabled until every competitor spot is filled', async () => {
-        const { user } = setup();
+    it('picks the match type in two steps and shows the full name', async () => {
+        const { user, pickType } = setup();
 
-        await user.selectOptions(
-            screen.getByLabelText('Match type for match 1'),
-            '1',
+        await user.click(
+            screen.getByRole('button', { name: 'Match type for match 1' }),
         );
-        await user.selectOptions(
-            screen.getByLabelText('Match 1 side 1 wrestler 1'),
-            '10',
+        // Variants only appear once a category is picked.
+        expect(
+            screen.queryByRole('listbox', { name: 'Ladder matches' }),
+        ).not.toBeInTheDocument();
+        await user.keyboard('{Escape}');
+
+        await pickType(1, 5);
+
+        expect(screen.getByTestId('match-type-path-1')).toHaveTextContent(
+            '6-Man Tag → Captain Fall Tornado 6-Man Tag Elimination',
         );
+        expect(
+            screen.queryByRole('dialog', { name: 'Match type for match 1' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('closes a picker on Escape and on a click outside', async () => {
+        const { user, pickType } = setup();
+        await pickType(1, 1);
+
+        const slot = 'Match 1 side 1 wrestler 1';
+        await user.click(screen.getByRole('button', { name: slot }));
+        expect(screen.getByRole('listbox', { name: slot })).toBeInTheDocument();
+
+        await user.keyboard('{Escape}');
+        expect(
+            screen.queryByRole('listbox', { name: slot }),
+        ).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: slot }));
+        await user.click(document.body);
+        expect(
+            screen.queryByRole('listbox', { name: slot }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows VACANT on empty wrestler slots', async () => {
+        const { pickType } = setup();
+
+        await pickType(1, 1);
+
+        expect(
+            screen.getByRole('button', { name: 'Match 1 side 1 wrestler 1' }),
+        ).toHaveTextContent('VACANT');
+    });
+
+    it('marks a slot with unsaved changes until it is saved', async () => {
+        const { user, pickType, pickWrestler } = setup();
+        const slot = screen.getByRole('region', { name: 'Match 1' });
+        expect(slot).not.toHaveAttribute('data-dirty');
+
+        await pickType(1, 1);
+        expect(slot).toHaveAttribute('data-dirty', 'true');
+        expect(slot.className).toContain('gm-panel-dirty');
+        expect(within(slot).getByText('Unsaved changes')).toBeInTheDocument();
+
+        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
+        await pickWrestler('Match 1 side 2 wrestler 1', 'Kane');
+        await user.click(screen.getByRole('button', { name: 'Save match 1' }));
+
+        expect(slot).not.toHaveAttribute('data-dirty');
+        expect(within(slot).queryByText('Unsaved changes')).toBeNull();
+    });
+
+    it('shows a floppy icon on Save', () => {
+        setup();
+
+        expect(
+            within(
+                screen.getByRole('button', { name: 'Save match 1' }),
+            ).getByTestId('floppy-icon'),
+        ).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('keeps Save disabled until every competitor spot is filled', async () => {
+        const { pickType, pickWrestler } = setup();
+
+        await pickType(1, 1);
+        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
 
         expect(
             screen.getByRole('button', { name: 'Save match 1' }),
         ).toBeDisabled();
     });
 
-    it('shows the match type cost and fatigue indicator', async () => {
-        const { user } = setup();
+    it('shows the match type cost in green and its fatigue bars', async () => {
+        const { pickType } = setup();
 
-        await user.selectOptions(
-            screen.getByLabelText('Match type for match 1'),
-            '2',
-        );
+        await pickType(1, 2);
 
         const info = screen.getByTestId('type-info-1');
         expect(info).toHaveTextContent('$15,000');
+        expect(within(info).getByTestId('match-cost').className).toContain(
+            'text-zone-safe',
+        );
         expect(info.querySelectorAll('[data-state="filled"]')).toHaveLength(3);
     });
 
-    it('labels the first wrestler on each side as Captain in a Captain Fall match', async () => {
-        const { user } = setup();
+    it('shows free match types as an italic green Free', async () => {
+        const { pickType } = setup();
 
-        await user.selectOptions(
-            screen.getByLabelText('Match type for match 1'),
-            '5',
+        await pickType(1, 1);
+
+        const cost = within(screen.getByTestId('type-info-1')).getByTestId(
+            'match-cost',
         );
+        expect(cost).toHaveTextContent('Free');
+        expect(cost.className).toContain('text-zone-safe');
+        expect(cost.className).toContain('italic');
+    });
+
+    it('labels the first wrestler on each side as Captain in a Captain Fall match', async () => {
+        const { pickType } = setup();
+
+        await pickType(1, 5);
 
         expect(screen.getByTestId('captain-1-0')).toHaveTextContent('Captain');
         expect(screen.getByTestId('captain-1-1')).toHaveTextContent('Captain');
@@ -241,39 +382,27 @@ describe('CardBuilder', () => {
     });
 
     it('disables seriously injured wrestlers', async () => {
-        const { user } = setup();
+        const { user, pickType } = setup();
 
-        await user.selectOptions(
-            screen.getByLabelText('Match type for match 1'),
-            '1',
+        await pickType(1, 1);
+        await user.click(
+            screen.getByRole('button', { name: 'Match 1 side 1 wrestler 1' }),
         );
 
         const flair = within(
-            screen.getByLabelText('Match 1 side 1 wrestler 1'),
+            screen.getByRole('listbox', { name: 'Match 1 side 1 wrestler 1' }),
         ).getByRole('option', { name: /Ric Flair/ });
         expect(flair).toBeDisabled();
         expect(flair).toHaveTextContent('Seriously injured');
     });
 
     it('flags wrestlers booked in more than one match', async () => {
-        const { user } = setup();
+        const { pickType, pickWrestler } = setup();
 
-        await user.selectOptions(
-            screen.getByLabelText('Match type for match 1'),
-            '1',
-        );
-        await user.selectOptions(
-            screen.getByLabelText('Match 1 side 1 wrestler 1'),
-            '10',
-        );
-        await user.selectOptions(
-            screen.getByLabelText('Match type for match 2'),
-            '1',
-        );
-        await user.selectOptions(
-            screen.getByLabelText('Match 2 side 1 wrestler 1'),
-            '10',
-        );
+        await pickType(1, 1);
+        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
+        await pickType(2, 1);
+        await pickWrestler('Match 2 side 1 wrestler 1', 'Edge');
 
         expect(screen.getAllByText('×2 matches')).toHaveLength(2);
         expect(screen.getByTestId('slot-1-side-0-0').className).toContain(
@@ -282,17 +411,11 @@ describe('CardBuilder', () => {
     });
 
     it('projects fatigue through the card and shows the zone each booking lands in', async () => {
-        const { user } = setup();
+        const { pickType, pickWrestler } = setup();
 
         // Edge is at 60%. A 3-bar ladder match takes him to 90%: minor risk.
-        await user.selectOptions(
-            screen.getByLabelText('Match type for match 1'),
-            '2',
-        );
-        await user.selectOptions(
-            screen.getByLabelText('Match 1 side 1 wrestler 1'),
-            '10',
-        );
+        await pickType(1, 2);
+        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
 
         const first = screen.getByTestId('slot-1-side-0-0');
         expect(within(first).getByRole('meter')).toHaveAttribute(
@@ -303,57 +426,175 @@ describe('CardBuilder', () => {
         expect(within(first).getByText('★ Ladder')).toBeInTheDocument();
 
         // Booked again in match 2, he goes in at 90%.
-        await user.selectOptions(
-            screen.getByLabelText('Match type for match 2'),
-            '1',
-        );
-        await user.selectOptions(
-            screen.getByLabelText('Match 2 side 1 wrestler 1'),
-            '10',
-        );
+        await pickType(2, 1);
+        await pickWrestler('Match 2 side 1 wrestler 1', 'Edge');
 
         expect(screen.getByTestId('slot-2-side-0-0')).toHaveTextContent(
             'Going in: Minor risk',
         );
     });
 
-    it('does not let a competitor manage the same match', async () => {
-        const { user } = setup();
-
-        await user.selectOptions(
-            screen.getByLabelText('Match type for match 1'),
-            '3',
+    it('counts saved promo fatigue placed before a match', async () => {
+        const user = userEvent.setup();
+        render(
+            <CardBuilder
+                show={show}
+                slots={[emptySlot(1), emptySlot(2)]}
+                matchTypes={matchTypes}
+                roster={roster}
+                fatigueConfig={config}
+                onSave={vi.fn()}
+                onClear={vi.fn()}
+                promoFatigue={[{ wrestlerId: 11, beforePosition: 2, bars: 2 }]}
+            />,
         );
-        await user.selectOptions(
-            screen.getByLabelText('Match 1 side 1 wrestler 1'),
-            '10',
+        const label = 'Match type for match 2';
+        await user.click(screen.getByRole('button', { name: label }));
+        await user.click(
+            within(screen.getByRole('dialog', { name: label })).getByRole(
+                'option',
+                { name: /^Normal Matches/ },
+            ),
+        );
+        await user.click(
+            within(
+                screen.getByRole('listbox', { name: 'Normal Matches matches' }),
+            ).getByRole('option', { name: /^No Manager (Free|\$)/ }),
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Match 2 side 1 wrestler 1' }),
+        );
+        await user.click(
+            within(
+                screen.getByRole('listbox', {
+                    name: 'Match 2 side 1 wrestler 1',
+                }),
+            ).getByRole('option', { name: /Kane/ }),
         );
 
-        const manager = screen.getByLabelText('Match 1 manager for side 2');
         expect(
-            within(manager).getByRole('option', { name: /Edge/ }),
+            within(screen.getByTestId('slot-2-side-0-0')).getByRole('meter'),
+        ).toHaveAttribute('aria-valuetext', '20%, 30% after booking');
+    });
+
+    it('labels and fills the manager slot with the same picker', async () => {
+        const { pickType, pickWrestler } = setup();
+
+        await pickType(1, 3);
+        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
+
+        const manager = screen.getByTestId('manager-1-1');
+        expect(manager).toHaveTextContent('Manager');
+        expect(within(manager).getByText('Manager').className).toContain(
+            'text-gold',
+        );
+
+        const { user } = { user: userEvent.setup() };
+        await user.click(
+            screen.getByRole('button', { name: 'Match 1 manager for side 2' }),
+        );
+        const list = screen.getByRole('listbox', {
+            name: 'Match 1 manager for side 2',
+        });
+        expect(
+            within(list).getByRole('option', { name: /Edge/ }),
         ).toBeDisabled();
         expect(
-            within(manager).getByRole('option', { name: /Kane/ }),
+            within(list).getByRole('option', { name: /Kane/ }),
         ).not.toBeDisabled();
     });
 
-    it('lists only Divas for Divas-only match types', async () => {
-        const { user } = setup();
+    it('needs a special referee who is not in the match', async () => {
+        const { onSave, user, pickType, pickWrestler } = setup();
 
-        await user.selectOptions(
-            screen.getByLabelText('Match type for match 1'),
-            '4',
+        await pickType(1, 6);
+        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
+        await pickWrestler('Match 1 side 2 wrestler 1', 'Kane');
+
+        expect(screen.getByTestId('referee-1')).toHaveTextContent(
+            'Special referee',
+        );
+        expect(
+            screen.getByRole('button', { name: 'Save match 1' }),
+        ).toBeDisabled();
+
+        await user.click(
+            screen.getByRole('button', { name: 'Match 1 special referee' }),
+        );
+        expect(
+            within(
+                screen.getByRole('listbox', {
+                    name: 'Match 1 special referee',
+                }),
+            ).getByRole('option', { name: /Edge/ }),
+        ).toBeDisabled();
+        await user.keyboard('{Escape}');
+
+        await pickWrestler('Match 1 special referee', 'Trish Stratus');
+        await user.click(screen.getByRole('button', { name: 'Save match 1' }));
+
+        expect(onSave).toHaveBeenCalledWith(
+            1,
+            expect.objectContaining({ sides: [[10], [11]], referee_id: 14 }),
+        );
+    });
+
+    it('lists only Divas for Divas-only match types', async () => {
+        const { user, pickType } = setup();
+
+        await pickType(1, 4);
+        await user.click(
+            screen.getByRole('button', { name: 'Match 1 side 1 wrestler 1' }),
         );
 
-        const names = within(screen.getByLabelText('Match 1 side 1 wrestler 1'))
+        const names = within(
+            screen.getByRole('listbox', { name: 'Match 1 side 1 wrestler 1' }),
+        )
             .getAllByRole('option')
             .map((o) => o.textContent);
 
-        expect(names).toEqual(['Pick a wrestler…', 'Lita', 'Trish Stratus']);
+        expect(names).toEqual(['Leave vacant', 'Lita', 'Trish Stratus']);
     });
 
-    it('clears a slot', async () => {
+    it('tracks booked matches on a progress bar', () => {
+        setup([
+            { ...emptySlot(1), match_type_id: 1, sides: [[10], [11]] },
+            emptySlot(2),
+        ]);
+
+        const bar = screen.getByRole('progressbar', {
+            name: 'Matches booked',
+        });
+        expect(bar).toHaveAttribute('aria-valuenow', '1');
+        expect(bar).toHaveAttribute('aria-valuemax', '2');
+        expect(screen.getByText('1 of 2 matches booked')).toBeInTheDocument();
+    });
+
+    it('clears a slot with a red Clear button, after confirming', async () => {
+        const booked: CardSlot = {
+            ...emptySlot(1),
+            match_type_id: 1,
+            sides: [[10], [11]],
+        };
+        const { onClear, user } = setup([booked, emptySlot(2)]);
+
+        const clear = screen.getByRole('button', { name: 'Clear match 1' });
+        expect(clear.className).toContain('gm-btn-danger');
+        await user.click(clear);
+
+        const dialog = screen.getByRole('dialog', { name: 'Clear match 1?' });
+        expect(onClear).not.toHaveBeenCalled();
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Yes, clear it' }),
+        );
+
+        expect(onClear).toHaveBeenCalledWith(1);
+        expect(
+            screen.getByRole('button', { name: 'Match type for match 1' }),
+        ).toHaveTextContent('Choose a match type');
+    });
+
+    it('keeps the slot when the Clear confirmation is cancelled', async () => {
         const booked: CardSlot = {
             ...emptySlot(1),
             match_type_id: 1,
@@ -362,8 +603,86 @@ describe('CardBuilder', () => {
         const { onClear, user } = setup([booked, emptySlot(2)]);
 
         await user.click(screen.getByRole('button', { name: 'Clear match 1' }));
+        await user.click(
+            within(
+                screen.getByRole('dialog', { name: 'Clear match 1?' }),
+            ).getByRole('button', { name: 'Cancel' }),
+        );
 
-        expect(onClear).toHaveBeenCalledWith(1);
+        expect(onClear).not.toHaveBeenCalled();
+        expect(screen.getByTestId('match-type-path-1')).toHaveTextContent(
+            'Normal Matches → No Manager',
+        );
+    });
+
+    it('only enables Discard when a slot has unsaved changes', async () => {
+        const { pickType } = setup();
+        const discard = screen.getByRole('button', {
+            name: 'Discard changes to match 1',
+        });
+        expect(discard).toBeDisabled();
+
+        await pickType(1, 1);
+
+        expect(discard).toBeEnabled();
+    });
+
+    it('discards unsaved changes back to the saved booking', async () => {
+        const booked: CardSlot = {
+            ...emptySlot(1),
+            match_type_id: 1,
+            sides: [[10], [11]],
+        };
+        const { onSave, onClear, user, pickType } = setup([
+            booked,
+            emptySlot(2),
+        ]);
+
+        await pickType(1, 2);
+        expect(screen.getByTestId('match-type-path-1')).toHaveTextContent(
+            'Ladder → Single',
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Discard changes to match 1' }),
+        );
+
+        const slot = screen.getByRole('region', { name: 'Match 1' });
+        expect(screen.getByTestId('match-type-path-1')).toHaveTextContent(
+            'Normal Matches → No Manager',
+        );
+        expect(
+            screen.getByRole('button', { name: 'Match 1 side 1 wrestler 1' }),
+        ).toHaveTextContent('Edge');
+        expect(
+            screen.getByRole('button', { name: 'Match 1 side 2 wrestler 1' }),
+        ).toHaveTextContent('Kane');
+        expect(slot).not.toHaveAttribute('data-dirty');
+        expect(
+            screen.getByRole('button', { name: 'Save match 1' }),
+        ).toBeDisabled();
+        // Discarding never touches the server.
+        expect(onSave).not.toHaveBeenCalled();
+        expect(onClear).not.toHaveBeenCalled();
+    });
+
+    it('discards a never-saved slot back to empty', async () => {
+        const { user, pickType, pickWrestler } = setup();
+
+        await pickType(2, 1);
+        await pickWrestler('Match 2 side 1 wrestler 1', 'Edge');
+        await user.click(
+            screen.getByRole('button', { name: 'Discard changes to match 2' }),
+        );
+
+        expect(
+            screen.getByRole('button', { name: 'Match type for match 2' }),
+        ).toHaveTextContent('Choose a match type');
+        expect(
+            screen.queryByRole('button', { name: 'Match 2 side 1 wrestler 1' }),
+        ).toBeNull();
+        // Edge's other bookings no longer count this slot.
+        expect(screen.queryByText('×2 matches')).toBeNull();
     });
 
     it('is read-only once the show has aired', () => {
@@ -379,7 +698,9 @@ describe('CardBuilder', () => {
             />,
         );
 
-        expect(screen.getByLabelText('Match type for match 1')).toBeDisabled();
+        expect(
+            screen.getByRole('button', { name: 'Match type for match 1' }),
+        ).toBeDisabled();
         expect(
             screen.queryByRole('button', { name: /Save/ }),
         ).not.toBeInTheDocument();

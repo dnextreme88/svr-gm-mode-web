@@ -18,6 +18,8 @@ type Props = {
     onConfirm: (proposals: ProposalView[]) => Promise<void> | void;
     titleNames?: Record<number, string>;
     disabled?: boolean;
+    /** Shown before the label, e.g. a dice for Randomize. */
+    icon?: React.ReactNode;
     className?: string;
 };
 
@@ -32,6 +34,7 @@ export function ProposalLauncher({
     onConfirm,
     titleNames,
     disabled,
+    icon,
     className,
 }: Props) {
     const [open, setOpen] = useState(false);
@@ -76,6 +79,7 @@ export function ProposalLauncher({
                     void load(roll);
                 }}
             >
+                {icon}
                 {label}
             </button>
             <ProposalModal

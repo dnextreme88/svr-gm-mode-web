@@ -62,6 +62,8 @@ export function titleCandidates(
     type: MatchTypeOption | undefined,
     ctx: TitleContext,
     roster: Map<number, RosterEntry>,
+    /** Titles already on the line in another match on this card. */
+    takenIds: number[] = [],
 ): TitleOption[] {
     if (!type || !type.titles_allowed) {
         return [];
@@ -74,6 +76,14 @@ export function titleCandidates(
     }
 
     return ctx.championships.filter((title) => {
+        // A title can only be defended once per card.
+        if (
+            takenIds.includes(title.id) &&
+            title.id !== draft.titleChampionshipId
+        ) {
+            return false;
+        }
+
         if (!shapeFits(title, type)) {
             return false;
         }

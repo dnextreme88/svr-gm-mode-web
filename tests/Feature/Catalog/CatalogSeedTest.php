@@ -289,10 +289,46 @@ describe('match types (§10)', function () {
             ->and(MatchType::where('family', MatchFamily::Single)->where('dq_enabled', false)->pluck('variant')->sort()->values()->all())->toBe(['Normal Fatal 4-Way', 'Normal Triple Threat']);
     });
 
-    it('gives every type a fatigue cost in whole bars and a price within $0–$50,000', function () {
+    it('gives every type a fatigue cost in whole bars and a price within $0–$55,000', function () {
         expect(MatchType::where('fatigue_cost_bars', '<', 1)->count())->toBe(0)
-            ->and(MatchType::where('cost', '>', 50_000)->count())->toBe(0);
+            ->and(MatchType::where('cost', '>', 55_000)->pluck('name')->all())->toBe([]);
     });
+
+    it('prices match types per the 2026-10-20 house rules', function (string $family, string $variant, int $cost) {
+        expect(MatchType::where('family', $family)->where('variant', $variant)->value('cost'))->toBe($cost);
+    })->with([
+        ['single', 'No Manager', 0],
+        ['single', 'Normal Triple Threat', 1_000],
+        ['tag_team', 'Tornado Tag Elimination', 2_000],
+        ['six_man_tag', 'Captain Fall Tornado 6-Man Tag Elimination', 4_000],
+        ['handicap', 'Two on Trio', 1_000],
+        ['backstage_brawl', 'Backstage Brawl', 16_000],
+        ['backstage_brawl', 'Bar Brawl', 31_000],
+        ['backstage_brawl', 'Parking Lot Brawl', 28_000],
+        ['battle_royal', '6-Man Over the Top Rope', 25_000],
+        ['first_blood', 'Single', 1_000],
+        ['fulfill_your_fantasy', 'Single', 22_000],
+        ['hardcore', 'Single w/Manager vs. w/Manager', 19_000],
+        ['hardcore', 'Tornado 6-Man Tag', 25_000],
+        ['hardcore', 'Triple Threat Tornado Tag', 25_000],
+        ['hell_in_a_cell', 'Fatal 4-Way', 45_000],
+        ['hell_in_a_cell', 'Armageddon Hell in a Cell', 55_000],
+        ['iron_man', 'Single', 37_000],
+        ['ladder', 'Fatal 4-Way', 12_000],
+        ['ladder', 'Triple Threat Tornado Tag', 16_000],
+        ['last_man_standing', 'Single', 40_000],
+        ['special_referee', 'Single', 0],
+        ['special_referee', 'Hell in a Cell', 45_000],
+        ['special_referee', 'Iron Man', 37_000],
+        ['special_referee', 'Last Man Standing', 40_000],
+        ['steel_cage', 'Fatal 4-Way Pin & Give Up', 25_000],
+        ['submission', 'Single', 1_000],
+        ['submission', 'Ultimate Submission', 2_000],
+        ['table', 'Fatal 4-Way', 5_000],
+        ['table', 'Triple Threat Tornado Tag', 8_000],
+        ['tlc', 'Fatal 4-Way', 8_000],
+        ['tlc', 'Triple Threat Tornado Tag', 12_000],
+    ]);
 
     it('records managers only on w/Manager variants', function () {
         $withManagers = MatchType::all()->filter->hasManagers();
@@ -330,8 +366,8 @@ describe('championships (§14)', function () {
 });
 
 describe('promo types (§5)', function () {
-    it('seeds 11 promos with spec amounts and config success rates', function () {
-        expect(PromoType::count())->toBe(11)
+    it('seeds 15 promos with spec amounts and config success rates', function () {
+        expect(PromoType::count())->toBe(15)
             ->and(PromoType::where('key', 'advertising')->value('base_amount'))->toBe(150_000)
             ->and(PromoType::where('key', 'new_superstar')->value('base_amount'))->toBe(-50_000)
             ->and(PromoType::where('targets_rival', true)->pluck('key')->map->value->sort()->values()->all())->toBe(['interference_promotion', 'slander_promotion']);

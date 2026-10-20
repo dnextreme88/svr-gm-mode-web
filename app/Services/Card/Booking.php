@@ -21,6 +21,7 @@ final readonly class Booking
         public ?int $titleChampionshipId = null,
         public ?Stipulation $stipulation = null,
         public ?int $stipulationChampionshipId = null,
+        public ?int $refereeId = null,
     ) {}
 
     /**
@@ -36,11 +37,11 @@ final readonly class Booking
      */
     public function allIds(): array
     {
-        return array_values(array_unique([...$this->competitorIds(), ...array_values($this->managers)]));
+        return array_values(array_unique([...$this->competitorIds(), ...array_values($this->managers), ...($this->refereeId === null ? [] : [$this->refereeId])]));
     }
 
     /**
-     * @param  array{match_type_id: int, sides: list<list<int>>, managers?: array<int|string, int|null>, title_championship_id?: int|null, stipulation?: string|null, stipulation_championship_id?: int|null}  $data
+     * @param  array{match_type_id: int, sides: list<list<int>>, managers?: array<int|string, int|null>, title_championship_id?: int|null, stipulation?: string|null, stipulation_championship_id?: int|null, referee_id?: int|null}  $data
      */
     public static function fromArray(array $data): self
     {
@@ -59,6 +60,7 @@ final readonly class Booking
             isset($data['title_championship_id']) ? (int) $data['title_championship_id'] : null,
             isset($data['stipulation']) ? Stipulation::from($data['stipulation']) : null,
             isset($data['stipulation_championship_id']) ? (int) $data['stipulation_championship_id'] : null,
+            isset($data['referee_id']) ? (int) $data['referee_id'] : null,
         );
     }
 }

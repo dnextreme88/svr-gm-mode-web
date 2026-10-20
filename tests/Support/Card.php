@@ -42,11 +42,11 @@ class Card
      * @param  list<list<string>>  $sides  wrestler names per side
      * @param  array<int, string>  $managers  side => manager name
      */
-    public static function book(Save $save, Show $show, int $position, MatchType $type, array $sides, array $managers = [], ?int $titleId = null, ?Stipulation $stipulation = null): MatchSlot
+    public static function book(Save $save, Show $show, int $position, MatchType $type, array $sides, array $managers = [], ?int $titleId = null, ?Stipulation $stipulation = null, ?string $referee = null): MatchSlot
     {
         $ids = array_map(fn (array $side): array => array_map(fn (string $n): int => GameBuilder::wrestler($save, $n)->id, $side), $sides);
         $managerIds = array_map(fn (string $n): int => GameBuilder::wrestler($save, $n)->id, $managers);
 
-        return app(CardService::class)->book($show, $position, new Booking($type, $ids, $managerIds, $titleId, $stipulation));
+        return app(CardService::class)->book($show, $position, new Booking($type, $ids, $managerIds, $titleId, $stipulation, refereeId: $referee === null ? null : GameBuilder::wrestler($save, $referee)->id));
     }
 }

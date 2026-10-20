@@ -101,7 +101,8 @@ class CardRandomizer
 
         if ($type === null) {
             $fillable = $this->eligibleTypes($show, $brand)
-                ->filter(fn (MatchType $t): bool => $this->poolFor($t, $pool)->count() >= $t->competitorCount())
+                ->filter(fn (MatchType $t): bool => $this->poolFor($t, $pool)->count() >= $t->competitorCount()
+                    && $pool->count() >= $t->competitorCount() + ($t->hasSpecialReferee() ? 1 : 0))
                 ->values();
 
             if ($fillable->isEmpty()) {
@@ -121,12 +122,36 @@ class CardRandomizer
         $title = $this->titles->plan($show, $brand, $type, $candidates, $titlesOnCard, $rng);
 
         if ($title !== null) {
-            return new Proposal($position, new Booking($type, $title['sides'], [], $title['championship_id']), $title['sides']);
+            $referee = $this->pickReferee($type, $pool, $title['sides'], $rng);
+
+            return new Proposal($position, new Booking($type, $title['sides'], [], $title['championship_id'], refereeId: $referee), $title['sides']);
         }
 
         $sides = $this->fillSides($show, $type, $candidates, $rng);
+        $referee = $this->pickReferee($type, $pool, $sides, $rng);
 
-        return new Proposal($position, new Booking($type, $sides), $sides);
+        return new Proposal($position, new Booking($type, $sides, refereeId: $referee), $sides);
+    }
+
+    /**
+     * A random special referee from whoever is left in the pool (§10).
+     *
+     * @param  Collection<int, SaveWrestler>  $pool
+     * @param  list<list<int>>  $sides
+     */
+    private function pickReferee(MatchType $type, Collection $pool, array $sides, Rng $rng): ?int
+    {
+        if (! $type->hasSpecialReferee()) {
+            return null;
+        }
+
+        $left = array_values(array_diff(array_map('intval', $pool->pluck('id')->all()), array_merge(...$sides)));
+
+        if ($left === []) {
+            throw new GameRuleException("Not enough available wrestlers to book {$type->name} with a special referee.");
+        }
+
+        return $rng->pick($left);
     }
 
     /**
@@ -170,7 +195,7 @@ class CardRandomizer
             try {
                 $proposal = $this->proposeSlot($show, $slot->position, null, $rng, $taken, $titles, $brand);
                 $proposals[] = $proposal;
-                $taken = [...$taken, ...$proposal->booking->competitorIds()];
+                $taken = [...$taken, ...$proposal->booking->allIds()];
 
                 if ($proposal->booking->titleChampionshipId !== null) {
                     $titles[] = $proposal->booking->titleChampionshipId;

@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { DiceIcon } from '@/components/gm/dice-icon';
 import { ProposalLauncher } from '@/components/gm/proposal-launcher';
 import type { ProposalResult } from '@/components/gm/proposal-launcher';
 import type { ProposalView } from '@/components/gm/proposal-modal';
@@ -37,6 +38,24 @@ function result(
 }
 
 describe('Randomize / Preset modal (§24)', () => {
+    it('shows the dice icon beside Randomize without changing its name', () => {
+        render(
+            <ProposalLauncher
+                label="Randomize"
+                mode="randomize"
+                icon={<DiceIcon />}
+                fetchProposal={vi.fn()}
+                onConfirm={vi.fn()}
+            />,
+        );
+
+        const button = screen.getByRole('button', { name: 'Randomize' });
+        expect(within(button).getByTestId('dice-icon')).toHaveAttribute(
+            'aria-hidden',
+            'true',
+        );
+    });
+
     it('Randomize opens the preview modal with the proposed booking', async () => {
         const user = userEvent.setup();
         const fetchProposal = vi
