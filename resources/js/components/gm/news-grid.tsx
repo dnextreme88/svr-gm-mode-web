@@ -205,7 +205,7 @@ function NewsCardView({
             className={cn(
                 'gm-panel',
                 slot === 'neutral' &&
-                'shadow-[inset_0_2px_0_var(--color-gold)]',
+                    'shadow-[inset_0_2px_0_var(--color-gold)]',
             )}
         >
             <button
