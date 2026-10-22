@@ -137,6 +137,19 @@ it('documents every news event and GM email on the docs page', function () {
                 && collect($emails)->contains(fn ($e) => $e['email'] === 'PPV reminder' && $e['from'] === 'Vince McMahon')));
 });
 
+it('documents the season calendar with every PPV on its Sunday', function () {
+    GameBuilder::seedCatalog();
+
+    $this->get(route('gm.docs'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('calendar.weekly_show_days', ['raw' => 'Monday', 'smackdown' => 'Friday'])
+            ->where('calendar.season_start', 'Sun Apr 3, 2005')
+            ->where('calendar.season_end', 'Sun Mar 26, 2006')
+            ->has('calendar.ppvs', 15)
+            ->where('calendar.ppvs.0', ['key' => 'backlash', 'name' => 'Backlash', 'season_week' => 4, 'date' => 'Sun Apr 24, 2005', 'brand_scope' => 'raw'])
+            ->where('calendar.ppvs.14.name', 'WrestleMania'));
+});
+
 it('serves the documentation inside a career with the GM header', function () {
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
 

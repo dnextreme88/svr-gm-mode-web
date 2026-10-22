@@ -54,12 +54,15 @@ Route::prefix('gm')->name('gm.')->group(function () {
 
             Route::get('schedule', ScheduleController::class)->name('schedule');
             Route::post('advance', [WeekController::class, 'advance'])->name('advance');
+            Route::post('simulate', [WeekController::class, 'simulate'])->name('simulate');
             Route::get('results/{week}', ResultsController::class)->whereNumber('week')->name('results');
 
             Route::get('shows/{show}', [CardController::class, 'show'])->name('card.show');
             Route::put('shows/{show}/slots/{position}', [CardController::class, 'book'])->whereNumber('position')->name('card.book');
             Route::delete('shows/{show}/slots/{position}', [CardController::class, 'clear'])->whereNumber('position')->name('card.clear');
             Route::post('shows/{show}/cash-in', [CardController::class, 'cashIn'])->name('card.cash-in');
+            Route::post('shows/{show}/confirm', [CardController::class, 'confirm'])->name('card.confirm');
+            Route::post('shows/{show}/unlock', [CardController::class, 'unlock'])->name('card.unlock');
             Route::post('shows/{show}/slots/{position}/randomize', [CardToolsController::class, 'randomize'])->whereNumber('position')->name('card.randomize');
             Route::post('shows/{show}/preset', [CardToolsController::class, 'preset'])->name('card.preset');
             Route::put('shows/{show}/promos/{position}', [CardToolsController::class, 'bookPromo'])->whereNumber('position')->name('card.promo.book');

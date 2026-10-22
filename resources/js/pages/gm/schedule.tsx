@@ -1,36 +1,113 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useState } from 'react';
+import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { PageTitle } from '@/components/gm/panel';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
-import type { Brand, BrandScope, ShowStatus, ShowType } from '@/types/enums';
+import type { Brand, BrandScope } from '@/types/enums';
 import type { GamePageProps } from '@/types/gm';
 
-type WeekCell = {
+/** What a show night does when clicked (`ScheduleController::decorate`). */
+type AirState =
+    | 'aired'
+    | 'open'
+    | 'confirmed'
+    | 'waiting'
+    | 'rival'
+    | 'upcoming'
+    | 'past';
+
+type Air = {
     week: number;
     season_week: number;
-    /** The week's Sunday, when PPVs air. */
-    date: string;
-    /** Each brand's weekly show night (Raw Monday, SmackDown Friday). */
-    show_dates: Record<Brand, string>;
-    ppvs: Array<{ key: string; name: string; brand_scope: BrandScope }>;
+    kind: 'weekly' | 'ppv';
+    /** Null for a shared (Raw and SmackDown!) PPV. */
+    brand: Brand | null;
+    ppv: { key: string; name: string; brand_scope: BrandScope } | null;
+    name: string;
+    mine: boolean;
+    show_id: number | null;
+    state: AirState;
+    results_url: string | null;
+    card_url: string | null;
+    can_simulate: boolean;
 };
 
-type ShowSummary = {
-    id: number;
-    name: string;
-    show_type: ShowType;
-    status: ShowStatus;
-};
+type Day = { date: string; day: number; in_month: boolean; airs: Air[] };
+
+type Month = { key: string; label: string; rows: Day[][] };
 
 type Props = GamePageProps & {
     season: number;
     seasons: number[];
-    months: Array<{ month: string; weeks: WeekCell[] }>;
-    shows: Record<string, ShowSummary[]>;
+    months: Month[];
+    initial_month: string;
 };
 
+const weekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+const stateLabel: Record<AirState, string | null> = {
+    aired: 'Results',
+    open: 'Book',
+    confirmed: 'Booked',
+    waiting: 'After PPV',
+    rival: null,
+    upcoming: null,
+    past: null,
+};
+
+function shortName(air: Air): string {
+    if (air.kind === 'ppv') {
+        return air.name;
+    }
+
+    return air.brand === 'raw' ? 'Raw' : 'SmackDown!';
+}
+
+function longDate(date: string): string {
+    return new Date(`${date}T12:00:00`).toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
+}
+
+/**
+ * The season as a calendar (§3 Schedule): weeks start on Sunday, when PPVs
+ * air, then Raw on Monday and SmackDown! on Friday. Click an aired show for
+ * its results (the rival's too), this week's cards to book them in date
+ * order, or one of your own later show nights to simulate up to it.
+ */
 export default function Schedule() {
-    const { game, season, seasons, months, shows } = usePage<Props>().props;
+    const { game, season, seasons, months, initial_month } =
+        usePage<Props>().props;
+    const [index, setIndex] = useState(() =>
+        Math.max(
+            0,
+            months.findIndex((m) => m.key === initial_month),
+        ),
+    );
+    const [simulate, setSimulate] = useState<{ air: Air; date: string } | null>(
+        null,
+    );
+    const [simulating, setSimulating] = useState(false);
+    const month = months[index];
+
+    if (!month) {
+        return null;
+    }
+
+    const open = (air: Air, date: string) => {
+        const href = air.results_url ?? air.card_url;
+
+        if (href) {
+            router.visit(href);
+        } else if (air.can_simulate) {
+            setSimulate({ air, date });
+        }
+    };
 
     return (
         <>
@@ -62,104 +139,208 @@ export default function Schedule() {
                 )}
             </PageTitle>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {months.map(({ month, weeks }) => (
-                    <section key={weeks[0]?.week ?? month} className="gm-panel">
-                        <h2 className="gm-heading border-b border-white/6 px-4 py-2 text-lg text-ink">
-                            {month}
-                        </h2>
-                        <ol className="divide-y divide-white/5">
-                            {weeks.map((cell) => {
-                                const isCurrent = cell.week === game.week;
-                                const isPast = cell.week < game.week;
-                                const yourPpv = cell.ppvs.find(
-                                    (p) =>
-                                        p.brand_scope === 'shared' ||
-                                        p.brand_scope === game.player_brand,
-                                );
-                                const rivalPpv = cell.ppvs.find(
-                                    (p) => p.brand_scope === game.rival_brand,
-                                );
-                                const aired = (shows[cell.week] ?? []).some(
-                                    (s) => s.status === 'aired',
-                                );
+            <section
+                aria-label="Calendar"
+                className="gm-panel mx-auto p-3 sm:p-5"
+            >
+                <header className="mb-4 flex items-center justify-between gap-3">
+                    <h2
+                        className="gm-heading text-2xl text-ink"
+                        data-testid="calendar-month"
+                    >
+                        {month.label}
+                    </h2>
+                    <div className="flex gap-1">
+                        <button
+                            type="button"
+                            aria-label="Previous month"
+                            className="gm-btn gm-btn-ghost gm-btn-sm"
+                            disabled={index === 0}
+                            onClick={() => setIndex((i) => Math.max(0, i - 1))}
+                        >
+                            <ChevronUp className="size-4" />
+                        </button>
+                        <button
+                            type="button"
+                            aria-label="Next month"
+                            className="gm-btn gm-btn-ghost gm-btn-sm"
+                            disabled={index === months.length - 1}
+                            onClick={() =>
+                                setIndex((i) =>
+                                    Math.min(months.length - 1, i + 1),
+                                )
+                            }
+                        >
+                            <ChevronDown className="size-4" />
+                        </button>
+                    </div>
+                </header>
 
-                                return (
-                                    <li
-                                        key={cell.week}
-                                        aria-current={
-                                            isCurrent ? 'date' : undefined
-                                        }
-                                        className={cn(
-                                            'flex items-center gap-3 px-4 py-2 text-sm',
-                                            isCurrent &&
-                                                'bg-brand/15 shadow-[inset_3px_0_0_var(--gm-brand)]',
-                                            isPast && !aired && 'opacity-55',
-                                            isPast && aired && 'text-ink-dim',
-                                        )}
-                                    >
-                                        <span className="gm-num w-10 text-ink-faint">
-                                            W{cell.season_week}
-                                        </span>
-                                        <span className="w-20 font-condensed text-xs text-ink-dim uppercase">
-                                            {cell.show_dates[game.player_brand]}
-                                        </span>
-                                        <span className="flex-1">
-                                            <span className="text-ink-dim">
-                                                Weekly show
-                                            </span>
-                                            {yourPpv && (
-                                                <span className="block font-condensed font-bold tracking-wide text-gold-hot uppercase">
-                                                    {yourPpv.name}
-                                                    <span className="ml-1.5 text-xs font-normal tracking-wider text-ink-dim">
-                                                        {cell.date}
-                                                    </span>
-                                                </span>
-                                            )}
-                                            {rivalPpv && (
-                                                <span className="block font-condensed text-xs tracking-wider text-ink-faint uppercase">
-                                                    rival: {rivalPpv.name} ·{' '}
-                                                    {cell.date}
-                                                </span>
-                                            )}
-                                        </span>
-                                        {isCurrent &&
-                                            (shows[cell.week] ?? []).map(
-                                                (show) => (
-                                                    <Link
-                                                        key={show.id}
-                                                        href={gm.card.show.url({
-                                                            save: game.id,
-                                                            show: show.id,
-                                                        })}
-                                                        className="gm-btn gm-btn-sm"
-                                                    >
-                                                        {show.show_type ===
-                                                        'ppv'
-                                                            ? 'Book PPV'
-                                                            : 'Book show'}
-                                                    </Link>
-                                                ),
-                                            )}
-                                        {aired && !isCurrent && (
-                                            <Link
-                                                href={gm.results.url({
-                                                    save: game.id,
-                                                    week: cell.week,
-                                                })}
-                                                className="font-condensed text-xs font-semibold tracking-wider text-ink-dim uppercase underline-offset-4 hover:text-ink hover:underline"
-                                                aria-label={`Results for week ${cell.season_week}`}
-                                            >
-                                                ✓ Results
-                                            </Link>
-                                        )}
-                                    </li>
-                                );
-                            })}
-                        </ol>
-                    </section>
-                ))}
-            </div>
+                <div role="grid" aria-label={month.label}>
+                    <div role="row" className="grid grid-cols-7 gap-1">
+                        {weekdays.map((d) => (
+                            <div
+                                key={d}
+                                role="columnheader"
+                                className="pb-2 text-center font-condensed text-xs font-bold tracking-wider text-ink-dim uppercase"
+                            >
+                                {d}
+                            </div>
+                        ))}
+                    </div>
+                    {month.rows.map((row) => (
+                        <div
+                            key={row[0]?.date}
+                            role="row"
+                            className="grid grid-cols-7 gap-1"
+                        >
+                            {row.map((day) => (
+                                <DayCell
+                                    key={day.date}
+                                    day={day}
+                                    onOpen={(air) => open(air, day.date)}
+                                />
+                            ))}
+                        </div>
+                    ))}
+                </div>
+
+                <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink-dim">
+                    <li className="flex items-center gap-1.5">
+                        <span className="size-2.5 bg-gold" /> PPV (Sunday)
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                        <span className="size-2.5 bg-brand" /> Your shows
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                        <span className="size-2.5 bg-white/25" /> Rival shows
+                    </li>
+                    <li>
+                        Click an aired show for its results, this week’s show to
+                        book it, or one of your later shows to simulate to it.
+                    </li>
+                </ul>
+            </section>
+
+            <ConfirmDialog
+                open={simulate !== null}
+                title={
+                    simulate
+                        ? `Simulate to week ${simulate.air.season_week}?`
+                        : ''
+                }
+                message={
+                    simulate && (
+                        <>
+                            The computer books every one of your cards from week{' '}
+                            {game.season_week} to week{' '}
+                            {simulate.air.season_week - 1} and airs them.
+                            Results, fatigue, injuries, title changes,
+                            contracts, morale, news and emails all happen as
+                            normal. You’ll pick up on week{' '}
+                            {simulate.air.season_week} ({simulate.air.name},{' '}
+                            {longDate(simulate.date)}). This can’t be undone.
+                        </>
+                    )
+                }
+                confirmLabel={simulating ? 'Simulating…' : 'Simulate'}
+                onCancel={() => setSimulate(null)}
+                onConfirm={() => {
+                    if (!simulate) {
+                        return;
+                    }
+
+                    setSimulating(true);
+                    router.post(
+                        gm.simulate.url(game.id),
+                        { week: simulate.air.week },
+                        {
+                            onFinish: () => {
+                                setSimulating(false);
+                                setSimulate(null);
+                            },
+                        },
+                    );
+                }}
+            />
         </>
+    );
+}
+
+function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
+    const thisWeek = day.airs.some((a) =>
+        ['open', 'confirmed', 'waiting', 'rival'].includes(a.state),
+    );
+
+    return (
+        <div
+            role="gridcell"
+            data-date={day.date}
+            aria-current={
+                day.airs.some((a) => a.state === 'open') ? 'date' : undefined
+            }
+            className={cn(
+                'flex min-h-16 flex-col gap-1 border border-transparent p-1 sm:min-h-24 sm:p-1.5',
+                day.in_month ? 'bg-white/[0.03]' : 'opacity-35',
+                thisWeek && 'border-brand/40 bg-brand/[0.07]',
+            )}
+        >
+            <span
+                className={cn(
+                    'gm-num text-sm',
+                    day.in_month ? 'text-ink' : 'text-ink-faint',
+                )}
+            >
+                {day.day}
+            </span>
+            {day.airs.map((air) => {
+                const clickable =
+                    air.results_url !== null ||
+                    air.card_url !== null ||
+                    air.can_simulate;
+                const label = stateLabel[air.state];
+
+                return (
+                    <button
+                        key={`${air.kind}-${air.brand ?? 'shared'}`}
+                        type="button"
+                        disabled={!clickable}
+                        data-testid={`air-${day.date}-${air.kind}-${air.brand ?? 'shared'}`}
+                        title={
+                            air.can_simulate
+                                ? `Simulate to week ${air.season_week}`
+                                : air.name
+                        }
+                        aria-label={`${air.name}, week ${air.season_week}${label ? `: ${label}` : ''}${air.can_simulate ? ': simulate to here' : ''}`}
+                        onClick={() => onOpen(air)}
+                        className={cn(
+                            'w-full truncate px-1 py-0.5 text-left font-condensed text-xs leading-tight tracking-wide uppercase sm:px-1.5',
+                            air.kind === 'ppv'
+                                ? 'bg-gold/90 font-bold text-arena'
+                                : air.mine
+                                  ? 'bg-brand font-semibold text-white'
+                                  : 'bg-white/12 text-ink-dim',
+                            air.state === 'aired' && 'opacity-70',
+                            clickable
+                                ? 'cursor-pointer hover:brightness-125'
+                                : 'cursor-default',
+                            air.state === 'waiting' && 'opacity-60',
+                        )}
+                    >
+                        {air.state === 'aired' && (
+                            <span aria-hidden className="mr-1">
+                                ✓
+                            </span>
+                        )}
+                        {shortName(air)}
+                        {label && air.state !== 'aired' && (
+                            <span className="ml-1 hidden font-normal normal-case opacity-80 sm:inline">
+                                · {label}
+                            </span>
+                        )}
+                    </button>
+                );
+            })}
+        </div>
     );
 }

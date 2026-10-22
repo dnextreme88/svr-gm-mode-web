@@ -104,6 +104,19 @@ type Props = {
     promos: { slots: number; types: Promo[] };
     news: { stories_per_brand: number; groups: string[]; events: NewsEvent[] };
     emails: GmEmail[];
+    calendar: {
+        weekly_show_days: Record<'raw' | 'smackdown', string>;
+        weeks_per_season: number;
+        season_start: string;
+        season_end: string;
+        ppvs: Array<{
+            key: string;
+            name: string;
+            season_week: number;
+            date: string;
+            brand_scope: string;
+        }>;
+    };
 };
 
 const tabs = [
@@ -113,6 +126,7 @@ const tabs = [
     { key: 'stipulations', label: 'Stipulations' },
     { key: 'promos', label: 'Promos' },
     { key: 'news', label: 'News & email' },
+    { key: 'schedule', label: 'Schedule' },
 ] as const;
 
 type TabKey = (typeof tabs)[number]['key'];
@@ -877,6 +891,117 @@ function NewsAndEmail({ news, emails }: Pick<Props, 'news' | 'emails'>) {
     );
 }
 
+const scopeLabel: Record<string, string> = {
+    raw: 'Raw',
+    smackdown: 'SmackDown!',
+    shared: 'Raw & SmackDown!',
+};
+
+function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
+    const days = calendar.weekly_show_days;
+
+    return (
+        <div className="space-y-6">
+            <div className="grid items-start gap-6 md:grid-cols-2">
+                <Panel title="The season">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            A season is {calendar.weeks_per_season} weeks, from{' '}
+                            {calendar.season_start} to WrestleMania on{' '}
+                            {calendar.season_end}. Every season repeats the same
+                            calendar.
+                        </li>
+                        <li>
+                            Weeks start on Sunday. PPVs air on the Sunday, then
+                            Raw on {days.raw} and SmackDown! on {days.smackdown}
+                            .
+                        </li>
+                        <li>
+                            The Schedule shows both brands on a month calendar.
+                            Click any show that has aired, yours or the rival’s,
+                            to see its results.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel title="Booking a week">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            Cards are booked in date order: your PPV card first,
+                            then the interbrand card (Royal Rumble or Survivor
+                            Series entrants, or WrestleMania), then your weekly
+                            show.
+                        </li>
+                        <li>
+                            “Continue to …” locks a card and opens the next one.
+                            Unlock it to make changes until the week airs.
+                        </li>
+                        <li>
+                            Air week on your weekly show airs every card of the
+                            week. The results list them in air order, PPV first,
+                            with the week’s fatigue.
+                        </li>
+                        <li>Both buttons ask you to confirm first.</li>
+                    </ul>
+                </Panel>
+            </div>
+
+            <Panel title="Simulate to a date">
+                <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                    <li>
+                        Click one of your own later show nights on the Schedule
+                        (your weekly show, your brand’s PPVs or a shared PPV) to
+                        simulate up to that week. The rival’s shows can’t be
+                        picked.
+                    </li>
+                    <li>
+                        The computer books your cards for every week in between
+                        the way the rival GM does: Preset matches, random promos
+                        and random Royal Rumble entrants.
+                    </li>
+                    <li>
+                        Those weeks air for real: results, fatigue, injuries,
+                        title changes and history, contracts, morale, news and
+                        email all happen as if you had booked them.
+                    </li>
+                    <li>
+                        Simulation stops at WrestleMania, and the week you
+                        picked is left for you to book. It can’t be undone.
+                    </li>
+                </ul>
+            </Panel>
+
+            <Panel title="Pay-per-views" bodyClassName="p-0 overflow-x-auto">
+                <table className="gm-table text-sm">
+                    <thead>
+                        <tr>
+                            <th>Week</th>
+                            <th>PPV</th>
+                            <th>Date</th>
+                            <th>Brand</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {calendar.ppvs.map((p) => (
+                            <tr key={p.key} data-testid={`ppv-${p.key}`}>
+                                <td className="gm-num text-ink-dim">
+                                    {p.season_week}
+                                </td>
+                                <td className="font-semibold">{p.name}</td>
+                                <td className="whitespace-nowrap text-ink-dim">
+                                    {p.date}
+                                </td>
+                                <td className="text-ink-dim">
+                                    {scopeLabel[p.brand_scope] ?? p.brand_scope}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </Panel>
+        </div>
+    );
+}
+
 export default function Docs() {
     const props = usePage<Props & { game?: GameShell }>().props;
     const [tab, setTab] = useState<TabKey>('matches');
@@ -993,6 +1118,9 @@ export default function Docs() {
                 {tab === 'promos' && <Promos promos={props.promos} />}
                 {tab === 'news' && (
                     <NewsAndEmail news={props.news} emails={props.emails} />
+                )}
+                {tab === 'schedule' && (
+                    <ScheduleDocs calendar={props.calendar} />
                 )}
             </div>
         </>

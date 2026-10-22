@@ -7,6 +7,7 @@ use App\Enums\FixedSlotKind;
 use App\Enums\SaveStage;
 use App\Exceptions\GameRuleException;
 use App\Http\Controllers\Controller;
+use App\Http\Presenters\BookingOrderPresenter;
 use App\Http\Presenters\WrestlerPresenter;
 use App\Models\DraftPick;
 use App\Models\Save;
@@ -15,6 +16,7 @@ use App\Models\Show;
 use App\Services\Card\CardRandomizer;
 use App\Services\Ppv\PpvCardService;
 use App\Services\Ppv\ReDraftService;
+use App\Services\Week\BookingOrder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +33,7 @@ class PpvController extends Controller
         private PpvCardService $ppvCards,
         private CardRandomizer $randomizer,
         private ReDraftService $redraft,
+        private BookingOrder $order,
     ) {}
 
     public function entrants(Save $save, Show $show): Response
@@ -43,6 +46,7 @@ class PpvController extends Controller
 
         return Inertia::render('gm/ppv-entrants', [
             'show' => ['id' => $show->id, 'name' => $show->name, 'status' => $show->status->value],
+            'booking_order' => BookingOrderPresenter::for($save, $show, $this->order),
             'mode' => $rumble ? 'rumble' : 'survivor_series',
             'needed' => $rumble ? $this->ppvCards->rumbleEntrantsFor($show, $brand) : (int) config('gm.ppv.survivor_series_team_size'),
             'pool' => $this->randomizer->pool($show, $brand)
@@ -56,6 +60,8 @@ class PpvController extends Controller
 
     public function storeEntrants(Request $request, Save $save, Show $show): RedirectResponse
     {
+        $this->order->assertEditable($save, $show);
+
         if ($request->boolean('random')) {
             DB::transaction(fn () => $this->ppvCards->randomEntrants($show, $save->player_brand, $save->rng("entrants.{$show->streamKey()}.{$save->player_brand->value}")));
         } else {
