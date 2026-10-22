@@ -9,3 +9,4 @@ Dated implementation and upgrade plans for this site. Each plan is a Markdown fi
 | **2026-10-19** | [Docs Page, Match Rules & UI Polish](20261019-docs-page-match-rules-and-ui-polish.md) |
 | **2026-10-20** | [Card Booking UI, Special Referee & Promo Rework](20261020-card-booking-ui-special-referee-and-promos.md) |
 | **2026-10-20** | [Results Screen, Weekly Recovery & CLAUDE.md Rulebook](20261020-results-screen-and-weekly-recovery.md) |
+| **2026-10-20** | [Stories & Events: News Page and GM Emails](20261020-stories-and-events.md) |

@@ -16,7 +16,7 @@ class NewsController extends Controller
     public function __invoke(Save $save, NewsComposer $composer): Response
     {
         return Inertia::render('gm/news', [
-            'pages' => array_map(fn (int $week): array => $composer->compose($save, $week), $composer->weeks($save)),
+            'pages' => $composer->pages($save),
         ]);
     }
 }

@@ -124,7 +124,7 @@ export default function Inbox() {
                                 />
                             </h2>
                             {selected.body && (
-                                <p className="mt-4 text-ink-dim">
+                                <p className="mt-4 whitespace-pre-line text-ink-dim">
                                     <MentionText
                                         text={selected.body}
                                         matcher={matcher}

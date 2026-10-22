@@ -48,7 +48,7 @@ export function PageTitle({ kicker, title, children }: PageTitleProps) {
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <div className="animate-gm-wipe">
                 {kicker && (
-                    <div className="gm-chyron mb-1 inline-block bg-brand px-3 py-0.5 font-condensed font-bold tracking-[0.2em] text-white uppercase">
+                    <div className="gm-chyron mb-1 inline-block bg-brand py-0.5 pl-3 font-condensed font-bold tracking-[0.2em] text-white uppercase">
                         {kicker}
                     </div>
                 )}

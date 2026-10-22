@@ -7,7 +7,7 @@ Web-based simulation of a custom SmackDown vs Raw 2006 GM Mode, with house rules
 - `docs/20261017-spec.md` is the frozen build-phase spec. **Never edit it.** Read it only for historical detail (seed tables, original wording); its section numbers (§N) are still used in code comments. Where it disagrees with this file, this file wins.
 - Anything marked *(assumption)* below or in config: keep the value in config and list it in the PR description.
 - Deferred systems (Popularity, Match Rating, Power 25): stub only. Don't invent formulas.
-- The in-game documentation page (`/gm/docs`: `DocsController` + `resources/js/pages/gm/docs.tsx`) is the player-facing source of truth for game rules. Keep it current. When a change touches anything it documents or should document (match types, match rules, fatigue, injuries, specialties, stipulations, promos, or a new rule or system), ask the user whether to update the docs page before finishing. Don't update it silently, and don't skip the question.
+- The in-game documentation page (`/gm/docs`: `DocsController` + `resources/js/pages/gm/docs.tsx`) is the player-facing source of truth for game rules. Keep it current. When a change touches anything it documents or should document (match types, match rules, fatigue, injuries, specialties, stipulations, promos, news events, emails, or a new rule or system), ask the user whether to update the docs page before finishing. Don't update it silently, and don't skip the question.
 
 ## Game rules
 
@@ -23,7 +23,7 @@ A web take on SmackDown vs Raw 2006 GM Mode with house rules. The original 2006 
 ### Contracts and money
 - Lengths 5 / 12 / 24 / 36 / 52 weeks; shorter costs less up front and more per week. Every contract ticks down 1 per week (injured or unused too) and charges weekly upkeep. At 0 the wrestler goes to Free Agency, titles vacate, briefcases void. Renegotiating resets the clock.
 - An Expiring Contracts digest email lists everyone with 4 or fewer weeks left; a Contract Expired email follows.
-- Free Agency signings and roster moves take effect the following week. Trades are up to 5-for-5, uneven allowed; champions and seriously injured wrestlers can't be traded; neither roster may end over 30.
+- Free Agency signings and roster moves take effect the following week. Trades are up to 5-for-5, uneven allowed; champions and seriously injured wrestlers can't be traded; neither roster may end over 30. The rival GM answers every offer by email.
 - A long deficit forces a choice: money promos, free match types only, or releases.
 
 ### Card building
@@ -52,6 +52,7 @@ A web take on SmackDown vs Raw 2006 GM Mode with house rules. The original 2006 
 - **Weekly recovery (house rule):** at the end of every week **everyone recovers 2 bars** (`gm.fatigue.rest_recovery_bars`), booked or not. A successful Inactive Superstar promo gives its target **2 more** (`gm.promos.recovery_bars`). Fatigue never drops below 0. Only wrestlers in matches or fatiguing promos gain fatigue; recovery applies to everyone. Examples: A starts at 30%, wrestles a 50% match (80%), ends the week at 60% and starts the next show there. B starts at 40%, isn't booked (still 40%), ends at 20%. An unbooked wrestler at 30% with a successful Inactive Superstar ends at 0%.
 - Injuries: minor 1–4 weeks (can still compete; may escalate to serious each time they do), serious 5–52 weeks (can't be booked). Labels and durations are seeded.
 - A champion's serious injury vacates the title immediately.
+- The Trainer emails the GM about every injury and escalation; a seriously injured superstar emails 2 weeks before they're cleared.
 
 ### Outcomes
 - Matches resolve in card order with promos in between. Outcomes are placeholders: equal base weights, plus a specialty bonus (specialists cancel out), then a finish event (Referee Attacked, Rival Interference, Foreign Object, Count-Out, Cheap Roll-Up) or a clean finish. Titles change hands only on a decisive win (not DQ or count-out).
@@ -64,12 +65,14 @@ A web take on SmackDown vs Raw 2006 GM Mode with house rules. The original 2006 
 - A contender's DQ or count-out win counts as a champion win for every stipulation.
 
 ### Morale, defection and titles
-- Morale is Happy / Content / Unsatisfied / Upset: the worst of four complaints (losing streak 3/5/7; contract demand at win streaks 10/15/18; no title match for 4/8/12 weeks; unused for 2/4/8 weeks). Injury and sit-out weeks don't count. Each new level emails the GM.
+- Morale is Happy / Content / Unsatisfied / Upset: the worst of four complaints (losing streak 3/5/7; contract demand at win streaks 10/15/18; no title match for 4/8/12 weeks; unused for 2/4/8 weeks). Injury and sit-out weeks don't count. The superstar emails the GM when a complaint reaches Unsatisfied or Upset (Content doesn't email).
 - Unsatisfied and Upset wrestlers may try to defect. They transfer if the rival has room (titles vacate, briefcase voids), otherwise they sit out 2 weeks.
 - Every title keeps a full lineage across seasons, including vacancies and the reason (defected, injured, Loser Leaves, released, contract expired), plus records.
 
 ### News and email
-- News is a weekly carousel: 3 headlines (Raw, SmackDown, neutral), 4 stories, and a ticker, from the event catalog. Email carries private GM notices (hints, contracts, injuries, morale, defections).
+- News is a weekly report: one page per played week from week 1 (quiet weeks show "no headline/story this week"), with 3 headlines (Raw, WWE, SmackDown!), 4 stories (2 per brand) and a ticker. Every card shows its headline plus a short summary of why it happened.
+- Everything newsworthy in a week goes into one pool: every match result, title changes and defenses, Champion vs Contender shots, promo results, rivalries (started, heating up, 10 hot weeks, blow-off), signings, contracts with 2 weeks left, injuries and returns, upcoming PPVs. `NewsComposer` draws headlines and stories from it with the seeded RNG, weighted by priority. Brand cards only use their brand's events. The WWE card only uses cross-brand news (shared-PPV results, Royal Rumble winner, interbrand series, trades, defections, legends, re-draft, season reset). A Slander or Interference result always takes it. A plain match result gives way to bigger news from the same match. Whatever isn't picked runs in the ticker.
+- Email carries private GM notices. JR (Raw) / Tazz (SmackDown): Welcome at each season start, Superstar specialties at season weeks 1 and 27, the Interference reminder after 13 unused weeks (once per stretch), Low on Cash at $500,000 or less (once every 4 weeks), contract digests, deficit and defection notices. Rival GM: trade answers (accept or decline, one superstar per line) and Slander reactions. Vince McMahon: reminders 2 weeks before SummerSlam, Survivor Series, Royal Rumble and WrestleMania, and the re-draft after WrestleMania. Trainer: every injury (who, what, how long). Superstars: morale complaints at Unsatisfied/Upset, contract up in 2 weeks, back from serious injury in 2 weeks.
 
 ### Deferred
 - Popularity, Match Rating and the Power 25 ranking: structure only, no formulas. Controller (XInput) support is planned but not built.
@@ -90,6 +93,7 @@ A web take on SmackDown vs Raw 2006 GM Mode with house rules. The original 2006 
 - A career is listed under Saved careers only after the player hits **Save career** (`saves.saved_at`). After that, progress is kept as it happens. Starting a new game deletes any never-saved career.
 - Roster names are plain ring names with no nicknames (`Roddy Piper`, not `"Rowdy" Roddy Piper`). There are no managers-by-default; Jimmy Hart is a regular wrestler.
 - On `/gm/docs`, a match's **rules** (DQ, Elimination, Ring out, Rope breaks, Special referee, Timed, Titles) and **win conditions** (Pinfall, Submission, Count-out, Captain fall, and the type's own condition) are separate: the Match rules and Win conditions cards sit side by side, and each match row shows only the badges that apply, sorted alphabetically. When you add a rule or win condition, add its description to the matching card in `resources/js/pages/gm/docs.tsx`.
+- The `/gm/docs` **News & email** tab lists every news event from `App\Services\News\NewsCatalog` (group, card, tier; headline and summary templates come from `NewsTemplates`) and every GM email from `DocsController::emails()`. When you add a news event type, add it to `NewsCatalog` (a test fails otherwise). When you add an email, add its row to `DocsController::emails()`.
 - Match-type house rules (rope breaks, ring outs, no-title types, six-competitor fatigue) live in `config('gm.match_rules')`; per-variant overrides go in `database/seeders/data/match_types.php`. Match prices: family defaults in `config('gm.match_type_defaults')`, per-variant `cost` overrides in the data file. Catalog data changes go in the seeders only; apply them with `php artisan migrate:fresh --seed` (it wipes saves, which is fine for now). Don't write data-only migrations; migrations are for schema changes.
 - Fatigue and win/loss streaks are always drawn as bars, never as bare text or percentages: `<FatigueMeter>` (`components/gm/fatigue-meter.tsx`) and `<StreakMeter>` (`components/gm/streak-meter.tsx`), as on `/gm/saves/{#}/rosters/{#}`. This includes fatigue *costs* such as a match type's fatigue on `/gm/docs`.
 - Name colour coding (SvR 2006 style): Cruiserweights and Light Heavyweights render blue, Divas red. Use `<WrestlerName>` from `resources/js/components/gm/wrestler-name.tsx` anywhere a wrestler name is listed.
@@ -126,6 +130,8 @@ A web take on SmackDown vs Raw 2006 GM Mode with house rules. The original 2006 
 
 ## TODOS
 
-The 2026-10-19 docs page, match rules and UI polish work is done; see [docs/20261019-docs-page-match-rules-and-ui-polish.md](docs/20261019-docs-page-match-rules-and-ui-polish.md). The 2026-10-20 card booking UI, Special Referee and promo rework is done; see [docs/20261020-card-booking-ui-special-referee-and-promos.md](docs/20261020-card-booking-ui-special-referee-and-promos.md). So is the 2026-10-20 results screen and weekly recovery change; see [docs/20261020-results-screen-and-weekly-recovery.md](docs/20261020-results-screen-and-weekly-recovery.md).
+The 2026-10-19 docs page, match rules and UI polish work is done; see [docs/20261019-docs-page-match-rules-and-ui-polish.md](docs/20261019-docs-page-match-rules-and-ui-polish.md). The 2026-10-20 card booking UI, Special Referee and promo rework is done; see [docs/20261020-card-booking-ui-special-referee-and-promos.md](docs/20261020-card-booking-ui-special-referee-and-promos.md). So is the 2026-10-20 results screen and weekly recovery change; see [docs/20261020-results-screen-and-weekly-recovery.md](docs/20261020-results-screen-and-weekly-recovery.md). The 2026-10-20 news and email rework is in [docs/20261020-stories-and-events.md](docs/20261020-stories-and-events.md).
 
+- **Free agents retiring (not built):** superstars should retire out of the Free Agency pool over time. When built, a retirement makes the WWE (neutral) news and emails the GM.
+- **SummerSlam main event (not built, needs Popularity):** the show with the most fans going into SummerSlam gets its main event slot. Vince's SummerSlam reminder email already mentions it.
 - **Slobber Knocker (pending design):** a 1 vs N match where one wrestler faces an endless line of opponents until they lose. For now it's seeded as a 1-on-1 `No Limit` variant and can't have titles on the line. The user has ideas for how it should really work, so ask before changing its booking or sim rules.

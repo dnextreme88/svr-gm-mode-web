@@ -2,6 +2,7 @@
 
 namespace App\Services\Week\Steps;
 
+use App\Enums\Brand;
 use App\Enums\MitbStatus;
 use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
@@ -10,6 +11,7 @@ use App\Enums\SaveStage;
 use App\Models\MoneyInTheBank;
 use App\Models\Season;
 use App\Models\Show;
+use App\Services\Mail\EmailService;
 use App\Services\News\NewsRecorder;
 use App\Services\Ppv\InterbrandSeriesService;
 use App\Services\Week\WeekContext;
@@ -25,6 +27,7 @@ class WrestleManiaWrapUp implements WeekStep
     public function __construct(
         private InterbrandSeriesService $series,
         private NewsRecorder $news,
+        private EmailService $emails,
     ) {}
 
     public function handle(WeekContext $context): void
@@ -55,5 +58,9 @@ class WrestleManiaWrapUp implements WeekStep
         $context->save->update(['stage' => SaveStage::Redrafting]);
 
         $this->news->record($context->save, NewsEventType::SeasonReset, NewsTier::Headline, NewsBrand::Both, [], [], priority: 99, week: $context->week);
+
+        foreach (Brand::cases() as $brand) {
+            $this->emails->draftReminder($context->save, $brand, $context->week);
+        }
     }
 }

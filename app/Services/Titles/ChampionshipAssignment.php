@@ -15,6 +15,7 @@ use App\Models\SaveWrestler;
 use App\Models\TagTeam;
 use App\Models\TitleReign;
 use App\Services\Injuries\InjuryStatus;
+use App\Services\Mail\EmailService;
 use App\Services\News\NewsRecorder;
 use App\Services\Week\ShowScheduler;
 use Illuminate\Database\Eloquent\Collection;
@@ -30,6 +31,7 @@ class ChampionshipAssignment
         private ShowScheduler $shows,
         private NewsRecorder $news,
         private InjuryStatus $injuries,
+        private EmailService $emails,
     ) {}
 
     /**
@@ -175,6 +177,7 @@ class ChampionshipAssignment
 
         $save->update(['stage' => SaveStage::InSeason]);
         $this->shows->ensureWeek($save, $save->current_week);
+        $this->emails->welcome($save, $save->player_brand, $save->current_week);
     }
 
     /**

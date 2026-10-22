@@ -131,6 +131,44 @@ const props = {
             },
         ],
     },
+    news: {
+        stories_per_brand: 2,
+        groups: ['Matches', 'Brand battle'],
+        events: [
+            {
+                type: 'match_result',
+                label: 'Match Result',
+                group: 'Matches',
+                card: 'either',
+                tier: 'Story (the main event ranks higher)',
+                active: true,
+                headline: '{winner} defeats {loser} at {show}.',
+                summary: '{match}: {winner} got the win over {loser}.',
+            },
+            {
+                type: 'ratings_war',
+                label: 'Ratings War',
+                group: 'Brand battle',
+                card: 'brand',
+                tier: 'Story',
+                active: false,
+                headline: '{brand} wins the ratings war this week.',
+                summary: '{brand} drew the bigger audience this week.',
+            },
+        ],
+    },
+    emails: [
+        {
+            email: 'PPV reminder',
+            from: 'Vince McMahon',
+            when: '2 weeks before each shared PPV.',
+        },
+        {
+            email: 'Injury report',
+            from: 'Trainer',
+            when: 'Every injury or escalation.',
+        },
+    ],
 };
 
 vi.mock('@inertiajs/react', () => ({
@@ -239,6 +277,39 @@ describe('Docs page', () => {
         expect(screen.getByTestId('promo-advertising')).toHaveTextContent(
             '+$150,000',
         );
+    });
+
+    it('lists every news event by group with its card, tier and templates, then the emails', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'News & email' }));
+
+        expect(
+            screen.getByRole('heading', { name: 'How the news works' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('columnheader', { name: 'Brand battle' }),
+        ).toBeInTheDocument();
+
+        const result = screen.getByTestId('news-event-match_result');
+        expect(result).toHaveTextContent('Raw / SmackDown! or WWE');
+        expect(result).toHaveTextContent('Story (the main event ranks higher)');
+        expect(result).toHaveTextContent('winner defeats loser at show.');
+        expect(
+            within(result)
+                .getAllByTestId('template-placeholder')
+                .map((p) => p.textContent),
+        ).toEqual(['winner', 'loser', 'show', 'match', 'winner', 'loser']);
+
+        const ratings = screen.getByTestId('news-event-ratings_war');
+        expect(ratings).toHaveTextContent('Not in play yet');
+        expect(ratings).toHaveClass('opacity-60');
+
+        const emails = screen.getAllByTestId('email-row');
+        expect(emails).toHaveLength(2);
+        expect(emails[0]).toHaveTextContent('PPV reminder');
+        expect(emails[0]).toHaveTextContent('Vince McMahon');
     });
 
     it('draws Inactive Superstar’s recovery as green bars', async () => {

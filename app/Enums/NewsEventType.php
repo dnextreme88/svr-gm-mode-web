@@ -58,4 +58,9 @@ enum NewsEventType: string
     case SlanderResult = 'slander_result';
     case InterferencePromoResult = 'interference_promo_result';
     case SeasonReset = 'season_reset';
+    case MatchResult = 'match_result';
+    case MainEventHypeResult = 'main_event_hype_result';
+    case PromoResult = 'promo_result';
+    case ContractExpiring = 'contract_expiring';
+    case RivalryMilestone = 'rivalry_milestone';
 }

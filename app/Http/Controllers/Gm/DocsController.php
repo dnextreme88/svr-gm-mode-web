@@ -10,12 +10,13 @@ use App\Models\MatchType;
 use App\Models\PromoType;
 use App\Models\Save;
 use App\Models\Wrestler;
+use App\Services\News\NewsCatalog;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
  * Reference pages built from the catalog: match types (§10), fatigue and
- * injuries (§6), specialties (§21) and stipulations (§22). Nothing here is
+ * injuries (§6), specialties (§21), stipulations (§22), promos, news and email. Nothing here is
  * per-save: it's served both inside a career (with the GM header and nav)
  * and from the save list, without one.
  */
@@ -24,7 +25,7 @@ class DocsController extends Controller
     /**
      * `$save` is only bound on the in-career route, so the GM header is shared.
      */
-    public function __invoke(?Save $save = null): Response
+    public function __invoke(NewsCatalog $catalog, ?Save $save = null): Response
     {
         $matchTypes = MatchType::with('ppvExclusive')
             ->orderBy('sort_order')
@@ -119,6 +120,48 @@ class DocsController extends Controller
                 'value' => $s->value,
                 'label' => $s->label(),
             ], Stipulation::cases()),
+            'news' => [
+                'stories_per_brand' => (int) config('gm.news.stories_per_brand'),
+                'groups' => NewsCatalog::GROUPS,
+                'events' => $catalog->entries(),
+            ],
+            'emails' => $this->emails(),
         ]);
+    }
+
+    /**
+     * Every GM email: who sends it and when, with the thresholds from config.
+     *
+     * @return list<array{email: string, from: string, when: string}>
+     */
+    private function emails(): array
+    {
+        $senders = (array) config('gm.email_senders');
+        $jrTazz = "{$senders['raw']} (Raw) / {$senders['smackdown']} (SmackDown!)";
+        $rivalGm = 'The rival GM';
+        $vince = (string) $senders['vince'];
+        $trainer = (string) $senders['trainer'];
+        $superstar = 'The superstar';
+        $emails = (array) config('gm.emails');
+        $lowCash = '$'.number_format((int) $emails['low_cash_threshold']);
+
+        return [
+            ['email' => 'Welcome', 'from' => $jrTazz, 'when' => 'At the start of every season: after the titles are awarded in season 1, and after the re-draft later on.'],
+            ['email' => 'Superstar specialties', 'from' => $jrTazz, 'when' => "Every {$emails['specialty_tip_every_weeks']} weeks (season weeks 1 and 27). Explains specialties and sometimes names one of your specialists."],
+            ['email' => 'Interference reminder', 'from' => $jrTazz, 'when' => "After {$emails['interference_reminder_weeks']} weeks without an Interference promo. Once per stretch; running the promo restarts the clock."],
+            ['email' => 'Low on cash', 'from' => $jrTazz, 'when' => "When the budget is {$lowCash} or less, at most once every {$emails['low_cash_every_weeks']} weeks while it stays low."],
+            ['email' => 'Expiring contracts', 'from' => $jrTazz, 'when' => 'Every week, listing everyone with '.(int) config('gm.contracts.expiring_threshold_weeks').' or fewer weeks left, with Renegotiate and Release buttons.'],
+            ['email' => 'Contract expired', 'from' => $jrTazz, 'when' => 'The week a contract runs out and the wrestler leaves for Free Agency.'],
+            ['email' => 'Deficit', 'from' => $jrTazz, 'when' => 'After '.(int) config('gm.finances.deficit_weeks_limit').' straight weeks in the red. You must pick a way to recover before the next week airs.'],
+            ['email' => 'Defection attempt', 'from' => $jrTazz, 'when' => 'When an Unsatisfied or Upset superstar tries to jump to the other brand.'],
+            ['email' => 'Trade answer', 'from' => $rivalGm, 'when' => 'Right after every trade offer: accepted or declined, with each superstar on its own line.'],
+            ['email' => 'Slander reaction', 'from' => $rivalGm, 'when' => 'After your Slander promo airs. Furious and out for revenge if it worked, laughing at you if it didn’t.'],
+            ['email' => 'PPV reminder', 'from' => $vince, 'when' => "{$emails['ppv_reminder_weeks_before']} weeks before each shared PPV: SummerSlam, Survivor Series, Royal Rumble and WrestleMania."],
+            ['email' => 'Re-draft reminder', 'from' => $vince, 'when' => 'Right after WrestleMania, explaining the re-draft rules.'],
+            ['email' => 'Injury report', 'from' => $trainer, 'when' => 'Every injury or escalation: who, what, how serious and how many weeks out.'],
+            ['email' => 'Morale complaint', 'from' => $superstar, 'when' => 'When one of their complaints reaches Unsatisfied or Upset (losing streak, contract demand, no title match, not being used).'],
+            ['email' => 'Contract reminder', 'from' => $superstar, 'when' => "{$emails['contract_reminder_weeks']} weeks before their contract runs out."],
+            ['email' => 'Return notice', 'from' => $superstar, 'when' => "{$emails['injury_return_notice_weeks']} weeks before a serious injury heals."],
+        ];
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Services\Week\Steps;
 
 use App\Enums\EmailTemplate;
+use App\Models\Email;
 use App\Models\SaveBrand;
 use App\Services\Mail\EmailService;
 use App\Services\Week\WeekContext;
@@ -27,6 +28,8 @@ class TrackDeficit implements WeekStep
         $limit = (int) config('gm.finances.deficit_weeks_limit');
 
         foreach (SaveBrand::where('save_id', $context->save->id)->get() as $brand) {
+            $this->warnLowCash($context, $brand);
+
             if ($brand->budget >= 0) {
                 $brand->update(['deficit_weeks' => 0, 'deficit_choice' => null]);
 
@@ -50,6 +53,27 @@ class TrackDeficit implements WeekStep
                 );
             }
         }
+    }
+
+    /**
+     * JR/Tazz warn about a low balance once a month while it stays low.
+     */
+    private function warnLowCash(WeekContext $context, SaveBrand $brand): void
+    {
+        if ($brand->budget > (int) config('gm.emails.low_cash_threshold')) {
+            return;
+        }
+
+        $last = Email::where('save_id', $context->save->id)
+            ->where('brand', $brand->brand)
+            ->where('template', EmailTemplate::LowCash)
+            ->max('week_number');
+
+        if ($last !== null && $context->week - (int) $last < (int) config('gm.emails.low_cash_every_weeks')) {
+            return;
+        }
+
+        $this->emails->lowCash($context->save, $brand->brand, $brand->budget, $context->week);
     }
 
     /**

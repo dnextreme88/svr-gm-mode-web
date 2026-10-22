@@ -138,6 +138,15 @@ export const EmailTemplate = {
     TitleShot: 'title_shot',
     Trade: 'trade',
     Deficit: 'deficit',
+    Welcome: 'welcome',
+    SpecialtyTip: 'specialty_tip',
+    PromoReminder: 'promo_reminder',
+    PpvReminder: 'ppv_reminder',
+    DraftReminder: 'draft_reminder',
+    LowCash: 'low_cash',
+    ContractReminder: 'contract_reminder',
+    InjuryReturning: 'injury_returning',
+    SlanderResult: 'slander_result',
 } as const;
 export type EmailTemplate = (typeof EmailTemplate)[keyof typeof EmailTemplate];
 export const EmailTemplateLabels: Record<EmailTemplate, string> = {
@@ -150,6 +159,15 @@ export const EmailTemplateLabels: Record<EmailTemplate, string> = {
     'title_shot': 'Title Shot',
     'trade': 'Trade',
     'deficit': 'Deficit',
+    'welcome': 'Welcome',
+    'specialty_tip': 'Specialty Tip',
+    'promo_reminder': 'Promo Reminder',
+    'ppv_reminder': 'Ppv Reminder',
+    'draft_reminder': 'Draft Reminder',
+    'low_cash': 'Low Cash',
+    'contract_reminder': 'Contract Reminder',
+    'injury_returning': 'Injury Returning',
+    'slander_result': 'Slander Result',
 };
 
 export const FinishEvent = {
@@ -404,6 +422,11 @@ export const NewsEventType = {
     SlanderResult: 'slander_result',
     InterferencePromoResult: 'interference_promo_result',
     SeasonReset: 'season_reset',
+    MatchResult: 'match_result',
+    MainEventHypeResult: 'main_event_hype_result',
+    PromoResult: 'promo_result',
+    ContractExpiring: 'contract_expiring',
+    RivalryMilestone: 'rivalry_milestone',
 } as const;
 export type NewsEventType = (typeof NewsEventType)[keyof typeof NewsEventType];
 export const NewsEventTypeLabels: Record<NewsEventType, string> = {
@@ -454,6 +477,11 @@ export const NewsEventTypeLabels: Record<NewsEventType, string> = {
     'slander_result': 'Slander Result',
     'interference_promo_result': 'Interference Promo Result',
     'season_reset': 'Season Reset',
+    'match_result': 'Match Result',
+    'main_event_hype_result': 'Main Event Hype Result',
+    'promo_result': 'Promo Result',
+    'contract_expiring': 'Contract Expiring',
+    'rivalry_milestone': 'Rivalry Milestone',
 };
 
 export const NewsSlot = {

@@ -14,6 +14,7 @@ use App\Models\DraftPick;
 use App\Models\InterbrandSeries;
 use App\Models\Save;
 use App\Models\SaveWrestler;
+use App\Services\Mail\EmailService;
 use App\Services\News\NewsRecorder;
 use App\Services\Roster\RosterService;
 use App\Services\Titles\MitbService;
@@ -33,6 +34,7 @@ class ReDraftService
         private TitleService $titles,
         private MitbService $mitb,
         private NewsRecorder $news,
+        private EmailService $emails,
     ) {}
 
     public function series(Save $save): ?InterbrandSeries
@@ -147,6 +149,7 @@ class ReDraftService
 
         $series?->update(['redraft_done' => true]);
         $save->update(['stage' => SaveStage::InSeason]);
+        $this->emails->welcome($save, $save->player_brand, $save->current_week);
     }
 
     private function move(SaveWrestler $wrestler, Brand $to, int $week): void
