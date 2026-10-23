@@ -100,6 +100,22 @@ type Props = {
         weight_class: WeightClass;
         specialties: MatchFamily[];
     }>;
+    rosters: {
+        cap: number;
+        starting_budget: number;
+        contract_weeks: number;
+        legends_draftable: boolean;
+        ai_roll_max: number;
+        ai_focus_from: number;
+        wwe: Record<
+            'raw' | 'smackdown',
+            Array<{
+                name: string;
+                roster_type: RosterType;
+                weight_class: WeightClass;
+            }>
+        >;
+    };
     stipulations: Array<{ value: Stipulation; label: string }>;
     promos: { slots: number; types: Promo[] };
     news: { stories_per_brand: number; groups: string[]; events: NewsEvent[] };
@@ -127,6 +143,7 @@ const tabs = [
     { key: 'promos', label: 'Promos' },
     { key: 'news', label: 'News & email' },
     { key: 'schedule', label: 'Schedule' },
+    { key: 'rosters', label: 'Rosters & draft' },
 ] as const;
 
 type TabKey = (typeof tabs)[number]['key'];
@@ -897,6 +914,95 @@ const scopeLabel: Record<string, string> = {
     shared: 'Raw & SmackDown!',
 };
 
+function RostersDocs({ rosters }: Pick<Props, 'rosters'>) {
+    return (
+        <div className="space-y-6">
+            <p className="max-w-3xl text-sm text-ink-dim">
+                A new game picks how both rosters are built. Either way each
+                brand starts with a {formatMoney(rosters.starting_budget)}{' '}
+                budget, granted once, and can hold up to {rosters.cap} wrestlers
+                (Superstars, Divas and Legends all count).
+            </p>
+            <div className="grid items-start gap-6 md:grid-cols-2">
+                <Panel title="Manual draft pick">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            You and the rival GM alternate picks from the whole
+                            pool. Who picks first is random.
+                        </li>
+                        <li>
+                            Up to {rosters.cap} picks each. You can stop early
+                            and fill spots from Free Agency later.
+                        </li>
+                        <li>
+                            {rosters.legends_draftable
+                                ? 'Legends can be drafted.'
+                                : 'Legends can’t be drafted. They wait in Free Agency.'}
+                        </li>
+                        <li>
+                            Each pick signs a {rosters.contract_weeks}-week
+                            contract, and its signing fee comes out of the
+                            budget.
+                        </li>
+                        <li>
+                            The rival GM rolls 1–{rosters.ai_roll_max} on every
+                            pick. On {rosters.ai_focus_from}+ it goes after its
+                            brand’s division (Raw:{' '}
+                            <span className="gm-name-diva font-semibold">
+                                Divas
+                            </span>
+                            ; SmackDown!:{' '}
+                            <span className="gm-name-cruiser font-semibold">
+                                Cruiserweights and Light Heavyweights
+                            </span>
+                            ), otherwise anyone affordable.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel title="Use WWE roster">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            No draft. Each brand signs its real WWE roster from
+                            November 14, 2005, when SmackDown! vs Raw 2006 came
+                            out, trimmed to {rosters.cap} each.
+                        </li>
+                        <li>
+                            Signings work like draft picks: a{' '}
+                            {rosters.contract_weeks}-week contract, with its
+                            signing fee out of the budget.
+                        </li>
+                        <li>
+                            Everyone else, Legends included, starts in Free
+                            Agency.
+                        </li>
+                        <li>
+                            The game goes straight to crowning your champions.
+                        </li>
+                    </ul>
+                </Panel>
+            </div>
+
+            <div className="grid items-start gap-6 md:grid-cols-2">
+                {(['raw', 'smackdown'] as const).map((brand) => (
+                    <Panel
+                        key={brand}
+                        title={`WWE roster: ${brandName(brand)} (${rosters.wwe[brand].length})`}
+                        bodyClassName="p-0"
+                    >
+                        <ul className="grid grid-cols-2 gap-x-4 gap-y-1 px-4 py-3 text-sm">
+                            {rosters.wwe[brand].map((w) => (
+                                <li key={w.name}>
+                                    <WrestlerName wrestler={w} />
+                                </li>
+                            ))}
+                        </ul>
+                    </Panel>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
     const days = calendar.weekly_show_days;
 
@@ -1122,6 +1228,7 @@ export default function Docs() {
                 {tab === 'schedule' && (
                     <ScheduleDocs calendar={props.calendar} />
                 )}
+                {tab === 'rosters' && <RostersDocs rosters={props.rosters} />}
             </div>
         </>
     );

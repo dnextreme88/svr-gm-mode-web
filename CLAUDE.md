@@ -15,6 +15,7 @@ A web take on SmackDown vs Raw 2006 GM Mode with house rules. The original 2006 
 
 ### Setup and season
 - The player runs **Raw** or **SmackDown** against an AI rival GM. Budget **$15M**, granted once at the first draft; it carries over between seasons. Roster cap **30** (Superstars, Divas and Legends all count).
+- **Rosters (new game):** **Manual draft pick** (default) runs the initial draft below. **Use WWE roster** skips it: each brand signs the 30 wrestlers the catalog places on it (the real WWE rosters of Nov 14, 2005, trimmed to 30), on the same contract and fee as a draft pick, and the game goes straight to title assignment. Anyone without a brand, Legends included, starts in Free Agency.
 - **Initial draft:** up to 30 picks each, random first pick, alternating. Legends can't be drafted (they wait in Free Agency). The rival GM rolls 1–100 each pick: 60+ picks from its division (Raw: Divas; SmackDown: Cruiserweights and Light Heavyweights), else anyone affordable.
 - After the draft, titles are awarded in tier order (world, second tier, tag, special); the player can leave one vacant. At award time a wrestler can hold only one title. The rival always crowns someone.
 - A season is 52 weeks on one continuous calendar, **April 2005 to March 2006** (week 1 = Sun Apr 3, 2005; WrestleMania = Sun Mar 26, 2006). **Weeks start on Sunday**: PPVs air Sunday, then Raw Monday and SmackDown Friday. 15 PPVs: 6 Raw, 5 SmackDown, 4 shared (Royal Rumble, WrestleMania, SummerSlam, Survivor Series). Every season reuses the same calendar.
@@ -89,7 +90,7 @@ A web take on SmackDown vs Raw 2006 GM Mode with house rules. The original 2006 
 - All randomness goes through an injectable, seeded RNG stored on the save. Never call `rand()`/`Math.random()` directly. Tests use a fixed seed.
 - Tunable numbers (odds, thresholds, durations, success rates) go in `config/gm.php`, not inline.
 - Week resolution must be idempotent per `week_number` and run in a DB transaction.
-- Seed data (roster, match types, injury types, titles, PPVs, promos, specialties) comes from the spec tables via seeders. The roster's brand assignment is a placeholder; rosters are built by the draft.
+- Seed data (roster, match types, injury types, titles, PPVs, promos, specialties) comes from the spec tables via seeders. The roster's `placeholder_brand` is the Nov 14, 2005 WWE roster (30 per brand, see `docs/20261024-2005-roster.md`): a manual draft ignores it, and "Use WWE roster" signs it.
 - Every rule with a test list in the spec gets those tests before the feature is considered done.
 - No login or user accounts for now: saves are global, `/` redirects to `/gm`, and there is no `users` table, Fortify or settings area. Don't reintroduce auth unless asked.
 - A career is listed under Saved careers only after the player hits **Save career** (`saves.saved_at`). After that, progress is kept as it happens. Starting a new game deletes any never-saved career.
@@ -135,6 +136,7 @@ A web take on SmackDown vs Raw 2006 GM Mode with house rules. The original 2006 
 
 The 2026-10-19 docs page, match rules and UI polish work is done; see [docs/20261019-docs-page-match-rules-and-ui-polish.md](docs/20261019-docs-page-match-rules-and-ui-polish.md). The 2026-10-20 card booking UI, Special Referee and promo rework is done; see [docs/20261020-card-booking-ui-special-referee-and-promos.md](docs/20261020-card-booking-ui-special-referee-and-promos.md). So is the 2026-10-20 results screen and weekly recovery change; see [docs/20261020-results-screen-and-weekly-recovery.md](docs/20261020-results-screen-and-weekly-recovery.md). The 2026-10-20 news and email rework is in [docs/20261020-stories-and-events.md](docs/20261020-stories-and-events.md). The 2026-10-21 calendar, booking order and simulation work is in [docs/20261021-calendar-schedule-and-booking-order.md](docs/20261021-calendar-schedule-and-booking-order.md).
 
+- **Rival GM draft focus (decide later):** the rival rolls 1–100 per initial-draft pick and goes for its division on `ai_focus_from` (60) or higher, which is 41% of rolls, not 40%. If 40% is wanted, set `gm.draft.ai_focus_from` to 61 and update this file and the Rosters & draft tab on `/gm/docs`. Logic: `AiGm::draftPick`.
 - **Free agents retiring (not built):** superstars should retire out of the Free Agency pool over time. When built, a retirement makes the WWE (neutral) news and emails the GM.
 - **SummerSlam main event (not built, needs Popularity):** the show with the most fans going into SummerSlam gets its main event slot. Vince's SummerSlam reminder email already mentions it.
 - **Slobber Knocker (pending design):** a 1 vs N match where one wrestler faces an endless line of opponents until they lose. For now it's seeded as a 1-on-1 `No Limit` variant and can't have titles on the line. The user has ideas for how it should really work, so ask before changing its booking or sim rules.

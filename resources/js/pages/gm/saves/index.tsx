@@ -8,8 +8,8 @@ import { formatMoney } from '@/lib/gm';
 import { HttpError, requestJson } from '@/lib/http';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
-import type { Brand, SaveStage } from '@/types/enums';
-import { SaveStageLabels } from '@/types/enums';
+import type { Brand, DraftMode, SaveStage } from '@/types/enums';
+import { DraftModeLabels, SaveStageLabels } from '@/types/enums';
 
 type SaveSlot = {
     id: number;
@@ -103,7 +103,20 @@ function UnsavedCareer({ save }: { save: SaveSlot }) {
     );
 }
 
-function draftRules(startingBudget: number): string[] {
+const draftModePitch: Record<DraftMode, string> = {
+    manual: 'Manually pick your own superstars and alternate picks with the rival GM.',
+    wwe_roster:
+        'Both brands start with a preset WWE roster from November 2005.',
+};
+
+function draftRules(startingBudget: number, mode: DraftMode): string[] {
+    if (mode === 'wwe_roster') {
+        return [
+            'Each brand starts with a preset 30-man WWE roster of November 2005',
+            `Each show starts with a ${formatMoney(startingBudget)} budget; the signing fees come out of it`,
+        ];
+    }
+
     return [
         'Initial draft pick is chosen at random',
         `Each show starts with a ${formatMoney(startingBudget)} budget`,
@@ -113,7 +126,7 @@ function draftRules(startingBudget: number): string[] {
     ];
 }
 
-type Started = { draft_url: string; first_brand: Brand };
+type Started = { next_url: string; first_brand: Brand };
 
 export default function Saves({
     saves,
@@ -124,10 +137,16 @@ export default function Saves({
     unsaved: SaveSlot | null;
     starting_budget: number;
 }) {
-    const form = useForm<{ name: string; brand: Brand }>({
+    const form = useForm<{
+        name: string;
+        brand: Brand;
+        draft_mode: DraftMode;
+    }>({
         name: `My GM Career ${saves.length + 1}`,
         brand: 'raw',
+        draft_mode: 'manual',
     });
+    const usesWweRoster = form.data.draft_mode === 'wwe_roster';
     // The reel opens as soon as Start is pressed; the result lands when the
     // server has created the career and drawn the order.
     const [reel, setReel] = useState<{ result: Started | null } | null>(null);
@@ -142,7 +161,12 @@ export default function Saves({
                 gm.saves.store.url(),
                 form.data,
             );
-            setReel({ result: started });
+            // There's no draft order to reveal when the rosters are signed.
+            if (usesWweRoster) {
+                router.visit(started.next_url);
+            } else {
+                setReel({ result: started });
+            }
         } catch (error) {
             setReel(null);
             form.setError(
@@ -171,11 +195,11 @@ export default function Saves({
                 </p>
             </div>
 
-            {reel && (
+            {reel && !usesWweRoster && (
                 <FirstPickReel
                     result={reel.result?.first_brand ?? null}
                     onDone={() =>
-                        reel.result && router.visit(reel.result.draft_url)
+                        reel.result && router.visit(reel.result.next_url)
                     }
                 />
             )}
@@ -265,16 +289,68 @@ export default function Saves({
                             </div>
                         </fieldset>
 
+                        <fieldset>
+                            <legend className="gm-label mb-3">Rosters</legend>
+                            <div
+                                className="grid gap-4 sm:grid-cols-2"
+                                data-brand-tint={form.data.brand}
+                            >
+                                {(['manual', 'wwe_roster'] as const).map(
+                                    (mode) => {
+                                        const selected =
+                                            form.data.draft_mode === mode;
+
+                                        return (
+                                            <label
+                                                key={mode}
+                                                className={cn(
+                                                    'block cursor-pointer border px-4 py-3 transition-all',
+                                                    selected
+                                                        ? 'border-brand bg-brand/10'
+                                                        : 'border-white/10 bg-black/30 hover:border-white/25',
+                                                )}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="draft_mode"
+                                                    value={mode}
+                                                    checked={selected}
+                                                    onChange={() =>
+                                                        form.setData(
+                                                            'draft_mode',
+                                                            mode,
+                                                        )
+                                                    }
+                                                    className="sr-only"
+                                                />
+                                                <span className="font-condensed font-semibold tracking-wide uppercase">
+                                                    {DraftModeLabels[mode]}
+                                                </span>
+                                                <p className="mt-1 text-sm text-ink-dim">
+                                                    {draftModePitch[mode]}
+                                                </p>
+                                            </label>
+                                        );
+                                    },
+                                )}
+                            </div>
+                        </fieldset>
+
                         <section
                             aria-labelledby="draft-rules"
                             className="border-l-2 border-brand bg-white/[0.03] px-4 py-3"
                             data-brand-tint={form.data.brand}
                         >
                             <h3 id="draft-rules" className="gm-label mb-2">
-                                Draft Rules:
+                                {usesWweRoster
+                                    ? 'Roster Rules:'
+                                    : 'Draft Rules:'}
                             </h3>
                             <ul className="space-y-1 text-sm text-ink">
-                                {draftRules(starting_budget).map((rule) => (
+                                {draftRules(
+                                    starting_budget,
+                                    form.data.draft_mode,
+                                ).map((rule) => (
                                     <li key={rule} className="flex gap-2">
                                         <span className="text-brand-hot">
                                             ▸
@@ -321,7 +397,9 @@ export default function Saves({
                                 className="gm-btn"
                                 disabled={reel !== null}
                             >
-                                Start the draft
+                                {usesWweRoster
+                                    ? 'Play with WWE Roster'
+                                    : 'Start the draft'}
                             </button>
                         </div>
                     </form>

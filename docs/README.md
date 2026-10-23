@@ -11,3 +11,4 @@ Dated implementation and upgrade plans for this site. Each plan is a Markdown fi
 | **2026-10-20** | [Results Screen, Weekly Recovery & CLAUDE.md Rulebook](20261020-results-screen-and-weekly-recovery.md) |
 | **2026-10-20** | [Stories & Events: News Page and GM Emails](20261020-stories-and-events.md) |
 | **2026-10-21** | [Calendar Schedule, Booking Order & Simulate to a Date](20261021-calendar-schedule-and-booking-order.md) |
+| **2026-10-24** | [2005 Roster & Use WWE Roster](20261024-2005-roster.md) |

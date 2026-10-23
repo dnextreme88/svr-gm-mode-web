@@ -14,12 +14,24 @@ it('returns the first pick as JSON so the new-game reel can reveal it', function
 
     $response = $this->postJson(route('gm.saves.store'), ['name' => 'Reel', 'brand' => 'raw'])
         ->assertCreated()
-        ->assertJsonStructure(['draft_url', 'first_brand']);
+        ->assertJsonStructure(['next_url', 'first_brand']);
 
     $save = Save::where('name', 'Reel')->firstOrFail();
 
     expect($response->json('first_brand'))->toBe($save->draft_order[0])
-        ->and($response->json('draft_url'))->toBe(route('gm.draft.show', $save));
+        ->and($response->json('next_url'))->toBe(route('gm.draft.show', $save));
+});
+
+it('sends a "Use WWE roster" game straight to title assignment', function () {
+    GameBuilder::seedCatalog();
+
+    $response = $this->postJson(route('gm.saves.store'), ['name' => 'Real', 'brand' => 'smackdown', 'draft_mode' => 'wwe_roster'])
+        ->assertCreated();
+
+    $save = Save::where('name', 'Real')->firstOrFail();
+
+    expect($response->json('next_url'))->toBe(route('gm.titles.assign', $save))
+        ->and($save->stage)->toBe(SaveStage::AssigningTitles);
 });
 
 it('rejects a new game without a name over JSON', function () {
@@ -120,7 +132,26 @@ it('renders the documentation page from the catalog', function () {
             ->has('injuries.minor')
             ->has('injuries.serious')
             ->has('stipulations', 3)
+            ->has('rosters.wwe.raw', 30)
+            ->has('rosters.wwe.smackdown', 30)
+            ->where('rosters.cap', 30)
             ->where('specialists', fn ($rows) => collect($rows)->contains(fn ($w) => $w['name'] === 'Edge')));
+});
+
+it('lists the 2005 specialty additions on the documentation page', function () {
+    GameBuilder::seedCatalog();
+
+    $this->get(route('gm.docs'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('specialists', 29)
+            ->where('specialists', function ($rows) {
+                $byName = collect($rows)->keyBy('name')->map(fn ($w) => collect($w['specialties'])->sort()->values()->all());
+
+                return $byName['Kane'] === ['first_blood']
+                    && $byName['Stone Cold Steve Austin'] === ['first_blood']
+                    && $byName['Mick Foley'] === ['hardcore', 'hell_in_a_cell']
+                    && $byName['Spike Dudley'] === ['hardcore', 'table'];
+            }));
 });
 
 it('documents every news event and GM email on the docs page', function () {

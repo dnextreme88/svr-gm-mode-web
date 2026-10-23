@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Gm;
 
+use App\Enums\Brand;
 use App\Enums\InjurySeverity;
 use App\Enums\Stipulation;
 use App\Http\Controllers\Controller;
@@ -103,6 +104,24 @@ class DocsController extends Controller
                 'escalation_chance' => (float) config('gm.injuries.escalation_chance'),
             ],
             'specialists' => $specialists,
+            'rosters' => [
+                'cap' => (int) config('gm.roster_cap'),
+                'starting_budget' => (int) config('gm.starting_budget'),
+                'contract_weeks' => (int) config('gm.contracts.draft_default_length'),
+                'legends_draftable' => (bool) config('gm.draft.legends_draftable'),
+                'ai_roll_max' => (int) config('gm.draft.ai_roll_max'),
+                'ai_focus_from' => (int) config('gm.draft.ai_focus_from'),
+                'wwe' => collect(Brand::cases())->mapWithKeys(fn (Brand $brand): array => [
+                    $brand->value => Wrestler::where('placeholder_brand', $brand)
+                        ->orderBy('name')
+                        ->get()
+                        ->map(fn (Wrestler $wrestler): array => [
+                            'name' => $wrestler->name,
+                            'roster_type' => $wrestler->roster_type->value,
+                            'weight_class' => $wrestler->weight_class->value,
+                        ]),
+                ]),
+            ],
             'promos' => [
                 'slots' => (int) config('gm.card.weekly_promo_slots'),
                 'types' => PromoType::orderBy('name')->get()->map(fn (PromoType $t): array => [

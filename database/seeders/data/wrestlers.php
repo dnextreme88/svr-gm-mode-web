@@ -3,7 +3,9 @@
 /*
 | Full roster (§9) with weight classes (§12) and specialties (§21).
 | Columns: name, roster_type, placeholder_brand, weight_class, billed_weight_lb.
-| Brand assignments are placeholders; rosters are built by the draft.
+| Brands are the WWE rosters of Nov 14, 2005 (SvR 2006's release), trimmed
+| to 30 each (docs/20261024-2005-roster.md). A "Use WWE roster" game signs
+| them as listed; a manual draft ignores them. Free agents have no brand.
 */
 
 $raw = [
@@ -11,12 +13,9 @@ $raw = [
     ['Lance Cade', 'heavyweight', 267],
     ['Trevor Murdoch', 'heavyweight', 241],
     ['Carlito', 'light_heavyweight', 240],
-    ['Chavo Guerrero', 'cruiserweight', 215],
-    ['Chris Jericho', 'light_heavyweight', 225],
     ['Chris Masters', 'heavyweight', 265],
-    ['Danny Basham', 'heavyweight', 250],
     ['Edge', 'heavyweight', 240],
-    ['Eugene', 'heavyweight', 235],
+    ['Eugene', 'light_heavyweight', 235],
     ['The Hurricane', 'cruiserweight', 191],
     ['John Cena', 'heavyweight', 251],
     ['Kane', 'super_heavyweight', 324],
@@ -30,10 +29,49 @@ $raw = [
     ['Snitsky', 'heavyweight', 285],
     ['Tajiri', 'cruiserweight', 180],
     ['Triple H', 'heavyweight', 255],
-    ['Jeff Hardy', 'light_heavyweight', 225],
     ['Val Venis', 'light_heavyweight', null],
     ['Mick Foley', 'heavyweight', 300],
     ['Viscera', 'super_heavyweight', null],
+    ['Hacksaw Jim Duggan', 'heavyweight', null],
+    ['Tatanka', 'heavyweight', null],
+];
+
+$smackdown = [
+    ['Batista', 'heavyweight', 290],
+    ['Mr. Kennedy', 'light_heavyweight', 235],
+    ['Joey Mercury', 'light_heavyweight', 191],
+    ['Johnny Nitro', 'light_heavyweight', 224],
+    ['Booker T', 'heavyweight', 253],
+    ['Chris Benoit', 'light_heavyweight', 220],
+    ['Daivari', 'cruiserweight', 189],
+    ['Eddie Guerrero', 'light_heavyweight', 221],
+    ['Heidenreich', 'super_heavyweight', 300],
+    ['JBL', 'heavyweight', 280],
+    ['Orlando Jordan', 'heavyweight', 257],
+    ['Paul London', 'cruiserweight', 180],
+    ['Randy Orton', 'heavyweight', 245],
+    ['Rey Mysterio', 'cruiserweight', 175],
+    ['Scotty 2 Hotty', 'light_heavyweight', 209],
+    ['Stevie Richards', 'light_heavyweight', 220],
+    ['Sylvain Grenier', 'heavyweight', 250],
+    ['Undertaker', 'super_heavyweight', 309],
+    ['William Regal', 'heavyweight', 240],
+    ['Bobby Lashley', 'heavyweight', 273],
+    ['Brian Kendrick', 'cruiserweight', null],
+    ['Super Crazy', 'cruiserweight', null],
+    ['Nunzio', 'cruiserweight', null],
+    ['Psicosis', 'cruiserweight', null],
+    ['Funaki', 'cruiserweight', 195],
+    ['Hardcore Holly', 'heavyweight', 235],
+    ['Vito', 'heavyweight', 255],
+    ['Road Warrior Animal', 'heavyweight', null],
+];
+
+$freeAgents = [
+    ['Chavo Guerrero', 'cruiserweight', 215],
+    ['Chris Jericho', 'light_heavyweight', 225],
+    ['Danny Basham', 'heavyweight', 250],
+    ['Jeff Hardy', 'light_heavyweight', 225],
     ['Umaga', 'super_heavyweight', null],
     ['JTG', 'cruiserweight', null],
     ['Shad', 'heavyweight', null],
@@ -41,49 +79,52 @@ $raw = [
     ['Rory McAllister', 'heavyweight', null],
     ['Bubba Ray Dudley', 'heavyweight', null],
     ['D-Von Dudley', 'heavyweight', null],
-];
-
-$smackdown = [
-    ['Batista', 'heavyweight', 290],
-    ['Mr. Kennedy', 'light_heavyweight', 235],
-    ['Joey Mercury', 'cruiserweight', 191],
-    ['Johnny Nitro', 'light_heavyweight', 224],
+    ['Dolph Ziggler', 'light_heavyweight', 223],
+    ['Kenzo Suzuki', 'heavyweight', 260],
+    ['Lance Storm', 'light_heavyweight', 231],
+    ['Marty Jannetty', 'light_heavyweight', 234],
+    ['Maven', 'light_heavyweight', 225],
+    ['Rhino', 'heavyweight', 295],
+    ['Rosey', 'super_heavyweight', 375],
+    ['Tyson Tomko', 'heavyweight', 292],
+    ['Jerry Lawler', 'heavyweight', null],
     ['Matt Hardy', 'light_heavyweight', 235],
-    ['Booker T', 'heavyweight', 253],
     ['Charlie Haas', 'heavyweight', 249],
-    ['Chris Benoit', 'heavyweight', 220],
     ['Christian', 'light_heavyweight', 227],
-    ['Daivari', 'cruiserweight', 189],
     ['Doug Basham', 'heavyweight', 245],
-    ['Eddie Guerrero', 'light_heavyweight', 221],
-    ['Heidenreich', 'super_heavyweight', 300],
-    ['JBL', 'heavyweight', 280],
     ['Mark Jindrak', 'heavyweight', 265],
     ['Muhammad Hassan', 'heavyweight', 245],
-    ['Orlando Jordan', 'heavyweight', 257],
-    ['Paul London', 'cruiserweight', 180],
-    ['Randy Orton', 'heavyweight', 245],
-    ['Rey Mysterio', 'cruiserweight', 175],
-    ['Scotty 2 Hotty', 'light_heavyweight', 209],
     ['Spike Dudley', 'cruiserweight', 150],
-    ['Stevie Richards', 'light_heavyweight', 220],
-    ['Sylvain Grenier', 'heavyweight', 250],
-    ['Undertaker', 'super_heavyweight', 309],
-    ['William Regal', 'heavyweight', 240],
-    ['Bobby Lashley', 'heavyweight', 273],
     ['The Great Khali', 'ultra_heavyweight', 420],
-    ['Brian Kendrick', 'cruiserweight', null],
     ['Deuce', 'light_heavyweight', null],
     ['Domino', 'light_heavyweight', null],
     ['Mark Henry', 'super_heavyweight', null],
     ['The Boogeyman', 'heavyweight', null],
-    ['Super Crazy', 'cruiserweight', null],
-    ['Nunzio', 'cruiserweight', null],
-    ['Psicosis', 'cruiserweight', null],
+    ['Billy Kidman', 'cruiserweight', 195],
+    ['The Blue Meanie', 'super_heavyweight', 323],
+    ['Frankie Kazarian', 'cruiserweight', 215],
+    ['Jamie Noble', 'cruiserweight', 198],
+    ['Juventud', 'cruiserweight', 165],
+    ['Kid Kash', 'cruiserweight', 202],
+    ['Luther Reigns', 'heavyweight', 285],
+    ['Matt Morgan', 'super_heavyweight', 308],
+    ['Paul Burchill', 'heavyweight', 247],
+    ['Shannon Moore', 'cruiserweight', 202],
+    ['Simon Dean', 'cruiserweight', 220],
+    ['Tommy Dreamer', 'heavyweight', null],
+    ['Al Snow', 'light_heavyweight', 235],
+    ['Goldust', 'light_heavyweight', 232],
+    ['Jimmy Wang Yang', 'cruiserweight', 206],
+    ['Mike Knox', 'heavyweight', 293],
 ];
 
-$rawDivas = ['Trish Stratus', 'Lita', 'Ashley Massaro', 'Mickie James', 'Maria', 'Victoria'];
-$smackdownDivas = ['Christy Hemme', 'Joy Giovanni', 'Michelle McCool', 'Stacy Keibler', 'Melina', 'Torrie Wilson', 'Cherry'];
+$rawDivas = ['Trish Stratus', 'Lita', 'Mickie James', 'Victoria', 'Torrie Wilson'];
+$smackdownDivas = ['Melina', 'Sharmell'];
+$freeAgentDivas = [
+    'Ashley Massaro', 'Maria', 'Candice Michelle', 'Hiroko', 'Ivory', 'Molly Holly',
+    'Christy Hemme', 'Joy Giovanni', 'Michelle McCool', 'Stacy Keibler', 'Cherry',
+    'Dawn Marie', 'Jillian Hall', 'Miss Jackie', 'Vickie Guerrero', 'Mae Young',
+];
 
 $legends = [
     ['Andre The Giant', 'ultra_heavyweight', 520],
@@ -97,7 +138,6 @@ $legends = [
     ['The Rock', 'heavyweight', 275],
     ['Jake Roberts', 'heavyweight', 253],
     ['Dusty Rhodes', 'heavyweight', null],
-    ['Jerry Lawler', 'heavyweight', null],
     ['Jim Neidhart', 'heavyweight', null],
     ['Mr. Perfect', 'heavyweight', null],
     ['Roddy Piper', 'heavyweight', null],
@@ -107,30 +147,34 @@ $legends = [
     ['Sabu', 'light_heavyweight', null],
     ['Sgt. Slaughter', 'super_heavyweight', null],
     ['Terry Funk', 'heavyweight', null],
-    ['Tommy Dreamer', 'heavyweight', null],
     ['Bob Orton', 'heavyweight', null],
-    ['Hacksaw Jim Duggan', 'heavyweight', null],
-    ['Tatanka', 'heavyweight', null],
-    ['Animal', 'heavyweight', null],
-    ['Hawk', 'heavyweight', null],
+    ['Road Warrior Hawk', 'heavyweight', null],
+    ['Arn Anderson', 'heavyweight', 255],
+    ['The Brooklyn Brawler', 'heavyweight', 248],
+    ['Dean Malenko', 'cruiserweight', 212],
+    ['Fit Finlay', 'light_heavyweight', 233],
+    ['Gerald Brisco', 'cruiserweight', 209],
+    ['Jack Brisco', 'light_heavyweight', 234],
+    ['Jimmy Snuka', 'light_heavyweight', 235],
+    ['Michael Hayes', 'heavyweight', 255],
+    ['Mr. McMahon', 'heavyweight', 248],
+    ['Pat Patterson', 'light_heavyweight', 237],
+    ['Ricky Steamboat', 'light_heavyweight', 235],
+    ['Superstar Billy Graham', 'heavyweight', 275],
 ];
 
 $rows = [];
 
-foreach ($raw as [$name, $class, $weight]) {
-    $rows[] = ['name' => $name, 'roster_type' => 'superstar', 'placeholder_brand' => 'raw', 'weight_class' => $class, 'billed_weight_lb' => $weight];
+foreach ([['raw', $raw], ['smackdown', $smackdown], [null, $freeAgents]] as [$brand, $list]) {
+    foreach ($list as [$name, $class, $weight]) {
+        $rows[] = ['name' => $name, 'roster_type' => 'superstar', 'placeholder_brand' => $brand, 'weight_class' => $class, 'billed_weight_lb' => $weight];
+    }
 }
 
-foreach ($smackdown as [$name, $class, $weight]) {
-    $rows[] = ['name' => $name, 'roster_type' => 'superstar', 'placeholder_brand' => 'smackdown', 'weight_class' => $class, 'billed_weight_lb' => $weight];
-}
-
-foreach ($rawDivas as $name) {
-    $rows[] = ['name' => $name, 'roster_type' => 'diva', 'placeholder_brand' => 'raw', 'weight_class' => 'featherweight', 'billed_weight_lb' => null];
-}
-
-foreach ($smackdownDivas as $name) {
-    $rows[] = ['name' => $name, 'roster_type' => 'diva', 'placeholder_brand' => 'smackdown', 'weight_class' => 'featherweight', 'billed_weight_lb' => null];
+foreach ([['raw', $rawDivas], ['smackdown', $smackdownDivas], [null, $freeAgentDivas]] as [$brand, $list]) {
+    foreach ($list as $name) {
+        $rows[] = ['name' => $name, 'roster_type' => 'diva', 'placeholder_brand' => $brand, 'weight_class' => 'featherweight', 'billed_weight_lb' => null];
+    }
 }
 
 foreach ($legends as [$name, $class, $weight]) {
@@ -143,7 +187,8 @@ return [
         'The Great Khali' => ['steel_cage'],
         'Edge' => ['tlc', 'ladder'],
         'Christian' => ['tlc', 'ladder'],
-        'Mick Foley' => ['hardcore'],
+        'Mick Foley' => ['hardcore', 'hell_in_a_cell'],
+        'Kane' => ['first_blood'],
         'Matt Hardy' => ['tlc', 'ladder'],
         'Jeff Hardy' => ['tlc', 'ladder'],
         'Chris Masters' => ['submission'],
@@ -156,11 +201,12 @@ return [
         'Chris Benoit' => ['submission'],
         'JBL' => ['first_blood'],
         'Eddie Guerrero' => ['first_blood'],
-        'Spike Dudley' => ['table'],
+        'Spike Dudley' => ['table', 'hardcore'],
         'Bubba Ray Dudley' => ['table'],
         'D-Von Dudley' => ['table'],
         'Undertaker' => ['hell_in_a_cell'],
         'Bret Hart' => ['submission', 'iron_man'],
+        'Stone Cold Steve Austin' => ['first_blood'],
         'John Cena' => ['submission'],
         'Kurt Angle' => ['submission'],
         'Stevie Richards' => ['hardcore'],

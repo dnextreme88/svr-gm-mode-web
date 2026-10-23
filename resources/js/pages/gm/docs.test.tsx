@@ -87,6 +87,35 @@ const props = {
         escalation_chance: 0.2,
     },
     specialists: [],
+    rosters: {
+        cap: 30,
+        starting_budget: 15000000,
+        contract_weeks: 52,
+        legends_draftable: false,
+        ai_roll_max: 100,
+        ai_focus_from: 60,
+        wwe: {
+            raw: [
+                {
+                    name: 'John Cena',
+                    roster_type: 'superstar',
+                    weight_class: 'heavyweight',
+                },
+                {
+                    name: 'Trish Stratus',
+                    roster_type: 'diva',
+                    weight_class: 'featherweight',
+                },
+            ],
+            smackdown: [
+                {
+                    name: 'Rey Mysterio',
+                    roster_type: 'superstar',
+                    weight_class: 'cruiserweight',
+                },
+            ],
+        },
+    },
     stipulations: [],
     promos: {
         slots: 2,
@@ -377,5 +406,30 @@ describe('Docs page', () => {
                 screen.getByTestId('promo-interference_promotion'),
             ).getByRole('img', { name: 'Adds 2 fatigue bars' }),
         ).toBeInTheDocument();
+    });
+
+    it('explains both ways to build the rosters and lists the WWE rosters', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Rosters & draft' }));
+
+        expect(screen.getByText('Manual draft pick')).toBeInTheDocument();
+        expect(screen.getByText('Use WWE roster')).toBeInTheDocument();
+        expect(
+            screen.getByText(/Legends can’t be drafted/),
+        ).toBeInTheDocument();
+        expect(screen.getByText('WWE roster: Raw (2)')).toBeInTheDocument();
+        expect(
+            screen.getByText('WWE roster: SmackDown! (1)'),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Trish Stratus')).toHaveAttribute(
+            'data-tone',
+            'diva',
+        );
+        expect(screen.getByText('Rey Mysterio')).toHaveAttribute(
+            'data-tone',
+            'cruiser',
+        );
     });
 });

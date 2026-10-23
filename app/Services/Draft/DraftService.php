@@ -184,6 +184,32 @@ class DraftService
     }
 
     /**
+     * "Use WWE roster": skip the draft. Each brand signs everyone the
+     * catalog places on it, on the same contract and fee as a draft pick,
+     * and the save moves on to championship assignment.
+     */
+    public function signWweRosters(Save $save): void
+    {
+        $wrestlers = SaveWrestler::with('wrestler')
+            ->where('save_id', $save->id)
+            ->whereNull('brand')
+            ->whereHas('wrestler', fn ($q) => $q->whereNotNull('placeholder_brand'))
+            ->get();
+
+        foreach ($wrestlers as $wrestler) {
+            /** @var Brand $brand */
+            $brand = $wrestler->wrestler->placeholder_brand;
+            $this->contracts->signDrafted($save, $wrestler, $brand, $save->current_week);
+        }
+
+        foreach (Brand::cases() as $brand) {
+            $this->finish($save, $brand);
+        }
+
+        $this->finalize($save);
+    }
+
+    /**
      * Once neither brand can pick, move on to championship assignment.
      */
     public function finalize(Save $save): void

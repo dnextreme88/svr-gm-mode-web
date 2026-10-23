@@ -98,6 +98,16 @@ export const ContractStatusLabels: Record<ContractStatus, string> = {
     'superseded': 'Superseded',
 };
 
+export const DraftMode = {
+    Manual: 'manual',
+    WweRoster: 'wwe_roster',
+} as const;
+export type DraftMode = (typeof DraftMode)[keyof typeof DraftMode];
+export const DraftModeLabels: Record<DraftMode, string> = {
+    'manual': 'Manual draft pick',
+    'wwe_roster': 'Use WWE roster',
+};
+
 export const DraftPhase = {
     Initial: 'initial',
     WrestlemaniaReset: 'wrestlemania_reset',
