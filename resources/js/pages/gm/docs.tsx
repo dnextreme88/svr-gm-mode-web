@@ -693,6 +693,13 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                             out (“In Promo 1”). Different promos are fine.
                         </li>
                         <li>
+                            Continue Rivalry picks one of your brand’s rivalries
+                            from a single list, like “Jeff Hardy vs. Rob Van
+                            Dam”. It always succeeds, and both rivals take 1
+                            fatigue bar. Rivalries are always one on one and
+                            named alphabetically, here and on the Rivalry page.
+                        </li>
+                        <li>
                             Save promo greys out once the promo is saved, and
                             lights up again when you change something, with
                             Unsaved changes beside it. Discard puts the promo

@@ -79,7 +79,11 @@ const eligibility: Record<string, PromoEligibilityView> = {
     interference_promotion: rules({ wrestler_ids: [10] }),
     continue_rivalry: rules({
         wrestler_ids: [11, 12, 10],
-        pairs: [[10, 11]],
+        // Kane vs Edge and Edge vs Carlito, stored in no particular order.
+        pairs: [
+            [11, 10],
+            [10, 12],
+        ],
     }),
     title_match_hype: rules({ championship_ids: [7] }),
 };
@@ -330,48 +334,40 @@ describe('PromoSlots', () => {
         });
     });
 
-    it('lists the wrestlers a promo can use alphabetically', async () => {
-        const { user } = setup();
+    it('picks a Continue Rivalry from one list of rivalries, named alphabetically', async () => {
+        const { onSave, user } = setup();
 
         await user.click(screen.getByTestId('promo-1-continue_rivalry'));
-        await user.click(
-            screen.getByRole('button', { name: 'Promo 1 first wrestler' }),
-        );
-
         expect(
-            within(
-                screen.getByRole('listbox', { name: 'Promo 1 first wrestler' }),
-            )
-                .getAllByRole('option')
-                .map((o) => o.textContent),
-        ).toEqual(['Leave vacant', 'Carlito', 'Edge', 'Kane']);
-    });
+            screen.queryByRole('button', { name: 'Promo 1 second wrestler' }),
+        ).toBeNull();
 
-    it('limits the second Continue Rivalry pick to the first pick’s rivals', async () => {
-        const { user } = setup();
+        await user.click(
+            screen.getByRole('button', { name: 'Promo 1 rivalry' }),
+        );
+        const options = within(
+            screen.getByRole('listbox', { name: 'Promo 1 rivalry' }),
+        ).getAllByRole('option');
 
-        await user.click(screen.getByTestId('promo-1-continue_rivalry'));
-        await user.click(
-            screen.getByRole('button', { name: 'Promo 1 first wrestler' }),
-        );
-        await user.click(
-            within(
-                screen.getByRole('listbox', { name: 'Promo 1 first wrestler' }),
-            ).getByRole('option', { name: 'Edge' }),
-        );
-        await user.click(
-            screen.getByRole('button', { name: 'Promo 1 second wrestler' }),
-        );
+        expect(options.map((o) => o.textContent)).toEqual([
+            'Carlito vs. Edge',
+            'Edge vs. Kane',
+        ]);
 
+        await user.click(options[1]);
         expect(
-            within(
-                screen.getByRole('listbox', {
-                    name: 'Promo 1 second wrestler',
-                }),
-            )
-                .getAllByRole('option')
-                .map((o) => o.textContent),
-        ).toEqual(['Leave vacant', 'Kane']);
+            screen.getByRole('button', { name: 'Promo 1 rivalry' }),
+        ).toHaveTextContent('Edge vs. Kane');
+
+        await user.click(screen.getByRole('button', { name: 'Save promo 1' }));
+        expect(onSave).toHaveBeenCalledWith(
+            1,
+            expect.objectContaining({
+                promo_type_id: 4,
+                target_wrestler_id: 10,
+                target_wrestler_b_id: 11,
+            }),
+        );
     });
 
     it('picks the title for Title Match Hype', async () => {

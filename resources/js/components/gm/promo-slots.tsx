@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { Panel } from '@/components/gm/panel';
+import { RivalryPicker, sortPair } from '@/components/gm/rivalry-picker';
+import type { RivalryOption } from '@/components/gm/rivalry-picker';
 import { WrestlerPicker } from '@/components/gm/wrestler-picker';
 import type { PickerOption } from '@/components/gm/wrestler-picker';
 import { formatMoney } from '@/lib/gm';
@@ -230,6 +232,28 @@ function PromoEditor({
                       };
             });
 
+    // Continue Rivalry picks one of the brand's rivalries, "A vs. B",
+    // alphabetically.
+    const rivalryOptions: RivalryOption[] = (rules?.pairs ?? [])
+        .map(([x, y]) => [rosterById.get(x), rosterById.get(y)] as const)
+        .filter(
+            (p): p is readonly [RosterEntry, RosterEntry] =>
+                p[0] !== undefined && p[1] !== undefined,
+        )
+        .map(([x, y]) => {
+            const pair = sortPair(x, y);
+            const twin = twinOf.get(x.id) ?? twinOf.get(y.id);
+
+            return twin === undefined
+                ? { pair }
+                : { pair, disabled: true, note: `In Promo ${twin}` };
+        })
+        .sort((p, q) =>
+            `${p.pair[0].name} ${p.pair[1].name}`.localeCompare(
+                `${q.pair[0].name} ${q.pair[1].name}`,
+            ),
+        );
+
     const firstIds = rules?.wrestler_ids ?? [];
     const secondIds = isContinue
         ? (rules?.pairs ?? [])
@@ -374,7 +398,23 @@ function PromoEditor({
                         )}
                     </div>
 
-                    {(type.needs_wrestler || pair) && (
+                    {isContinue && (
+                        <div>
+                            <div className="gm-label mb-1">Rivalry</div>
+                            <RivalryPicker
+                                label={`Promo ${slot.position} rivalry`}
+                                value={a !== null && b !== null ? [a, b] : null}
+                                options={rivalryOptions}
+                                disabled={readOnly}
+                                onChange={([x, y]) => {
+                                    setA(x);
+                                    setB(y);
+                                }}
+                            />
+                        </div>
+                    )}
+
+                    {(type.needs_wrestler || pair) && !isContinue && (
                         <div className="grid gap-2 sm:grid-cols-2">
                             <div>
                                 <div className="gm-label mb-1">

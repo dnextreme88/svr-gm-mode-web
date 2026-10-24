@@ -34,6 +34,18 @@ class RivalryService
             ->get();
     }
 
+    /**
+     * The two wrestler ids, the alphabetically first name first.
+     *
+     * @return array{0: int, 1: int}
+     */
+    public function alphabetical(int $a, int $b): array
+    {
+        $names = SaveWrestler::with('wrestler')->whereIn('id', [$a, $b])->get()->mapWithKeys(fn (SaveWrestler $w): array => [$w->id => $w->name()]);
+
+        return strcasecmp((string) $names->get($a), (string) $names->get($b)) <= 0 ? [$a, $b] : [$b, $a];
+    }
+
     public function between(Save $save, int $a, int $b): ?Rivalry
     {
         return Rivalry::where('save_id', $save->id)
@@ -54,10 +66,14 @@ class RivalryService
             return $existing;
         }
 
+        // House rule: a rivalry is named alphabetically ("Jeff Hardy vs. Rob
+        // Van Dam"), so the first wrestler is the one whose name sorts first.
+        [$first, $second] = $this->alphabetical($a, $b);
+
         $rivalry = Rivalry::create([
             'save_id' => $save->id,
-            'wrestler_a_id' => min($a, $b),
-            'wrestler_b_id' => max($a, $b),
+            'wrestler_a_id' => $first,
+            'wrestler_b_id' => $second,
             'heat' => (int) config('gm.rivalries.start_heat'),
             'started_week' => $week,
             'last_activity_week' => $week,

@@ -176,6 +176,18 @@ In Backlash week the WWE card led with a failed SmackDown Slander, because only 
 - **Discard button:** each promo has a **Discard** button (ghost, between Save and Clear), as matches do. It's enabled only with unsaved changes, and it puts the type, wrestlers, title and spot back to the saved promo (or empties a slot that was never saved).
 - **Docs:** the `/gm/docs` Promos tab ("How promos work") states both.
 
+## Continue Rivalry picker and alphabetical rivalries (2026-10-25)
+
+- **One rivalry picker:** Continue Rivalry no longer has two wrestler pickers. A single picker (`components/gm/rivalry-picker.tsx`, built on `usePopover`/`PopoverPanel`) lists the brand's active rivalries as "Jeff Hardy vs. Rob Van Dam", sorted alphabetically.
+    - Picking one sets both targets, alphabetical first.
+    - A rivalry already in the other Continue Rivalry promo is greyed out ("In Promo N").
+- **Always succeeds:** Continue Rivalry is 100% (see the success-rate change), and both rivals take 1 fatigue bar where it airs.
+- **Rivalries are named alphabetically:** a rivalry is always 1v1.
+    - `RivalryService::start` stores the alphabetically first wrestler as `wrestler_a` (`RivalryService::alphabetical`). The rivalry news ("{wrestler_a} vs {wrestler_b}") reads alphabetically too.
+    - The Rivalry page sorts every pair alphabetically, older rivalries stored by id included.
+    - `between()` still finds a rivalry in either order.
+- **Docs:** the `/gm/docs` Promos tab describes the picker and the naming.
+
 ## Docs page (2026-10-25)
 
 - **Results & titles (new tab):** four panels.
@@ -203,6 +215,7 @@ In Backlash week the WWE card led with a failed SmackDown Slander, because only 
     - `app/Services/Matches/ShowResolver.php`, `MatchResolver.php`, `MatchOutcomeHandler.php`, `ResolvedMatch.php`
     - `app/Services/Injuries/InjuryService.php`
     - `app/Services/Promos/PromoService.php`, `PromoStoryWriter.php`
+    - `app/Services/Rivalries/RivalryService.php`, `app/Http/Controllers/Gm/RivalryController.php`
     - `app/Services/News/NewsComposer.php`, `NewsTemplates.php`, `NewsCatalog.php`, `PromoStories.php`
     - `app/Support/Rng/*`
     - Models: `app/Models/WeekAiring.php`, `MatchResult.php`, `Injury.php`, `PromoSlot.php`, `PromoType.php`
@@ -212,7 +225,7 @@ In Backlash week the WWE card led with a failed SmackDown Slander, because only 
     - Migrations: `2026_10_25_000001_create_week_airings_and_result_columns.php`, `2026_10_25_000002_add_fatigue_after_to_injuries.php`
 - **Frontend:**
     - Pages: `resources/js/pages/gm/results.tsx`, `titles/history.tsx`, `rosters/index.tsx`, `docs.tsx`
-    - Components: `components/gm/book-to-win-card.tsx`, `champion-tag.tsx`, `outcome-card.tsx`, `air-week-button.tsx`, `fatigue-progress.tsx`, `fatigue-meter.tsx`, `promo-slots.tsx`
+    - Components: `components/gm/book-to-win-card.tsx`, `champion-tag.tsx`, `outcome-card.tsx`, `air-week-button.tsx`, `fatigue-progress.tsx`, `fatigue-meter.tsx`, `promo-slots.tsx`, `rivalry-picker.tsx`
 - **Tests:**
-    - Backend: `tests/Feature/Season/LiveResultsTest.php`, `tests/Feature/Titles/TitleHistoryTest.php`, `tests/Feature/News/{NewsEvents,PpvHeadline,PromoStories}Test.php`, `tests/Feature/Matches/FatigueInjuryTest.php`, `tests/Feature/Card/{Promo,PromoRules}Test.php`
+    - Backend: `tests/Feature/Season/LiveResultsTest.php`, `tests/Feature/Titles/TitleHistoryTest.php`, `tests/Feature/News/{NewsEvents,PpvHeadline,PromoStories}Test.php`, `tests/Feature/Matches/FatigueInjuryTest.php`, `tests/Feature/Card/{Promo,PromoRules}Test.php`, `tests/Feature/Rivalries/RivalryOrderTest.php`
     - Frontend: `results.test.tsx`, `titles/history.test.tsx`, `rosters/index.test.tsx`, `docs.test.tsx`, `promo-slots.test.tsx`
