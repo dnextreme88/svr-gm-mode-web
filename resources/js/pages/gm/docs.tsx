@@ -78,6 +78,18 @@ type NewsEvent = {
 
 type GmEmail = { email: string; from: string; when: string };
 
+/** A story catalog group: a promo, or a quiet-week card. */
+type StoryGroup = {
+    key: string;
+    name: string;
+    situations: Array<{
+        situation: string;
+        label: string;
+        extra: boolean;
+        variants: Array<{ headline: string; summary: string }>;
+    }>;
+};
+
 type Props = {
     match_types: Array<{
         family: MatchFamily;
@@ -119,16 +131,8 @@ type Props = {
     stipulations: Array<{ value: Stipulation; label: string }>;
     promos: { slots: number; types: Promo[] };
     news: { stories_per_brand: number; groups: string[]; events: NewsEvent[] };
-    promo_stories: Array<{
-        key: string;
-        name: string;
-        situations: Array<{
-            situation: string;
-            label: string;
-            extra: boolean;
-            variants: Array<{ headline: string; summary: string }>;
-        }>;
-    }>;
+    promo_stories: StoryGroup[];
+    quiet_stories: StoryGroup[];
     emails: GmEmail[];
     calendar: {
         weekly_show_days: Record<'raw' | 'smackdown', string>;
@@ -274,12 +278,8 @@ const winConditions: Array<{ rule: string; detail: string }> = [
         detail: 'Put an opponent through a table.',
     },
     {
-        rule: 'Ladder retrieval',
-        detail: 'Climb a ladder and grab the item hanging above the ring.',
-    },
-    {
         rule: 'Briefcase retrieval',
-        detail: 'Climb a ladder and grab the Money in the Bank briefcase.',
+        detail: 'Climb a ladder and grab the briefcase hanging above the ring (Ladder matches). In Money in the Bank, the briefcase is a world title shot.',
     },
     {
         rule: 'Cage escape',
@@ -770,58 +770,62 @@ function Template({ text }: { text: string }) {
     );
 }
 
-function PromoStoriesPanel({
-    promoStories,
+/**
+ * Every situation of a story catalog with all its versions, one collapsible
+ * group each.
+ */
+function StoryCatalogPanel({
+    title,
+    intro,
+    groups,
+    testIdPrefix,
 }: {
-    promoStories: Props['promo_stories'];
+    title: string;
+    intro: React.ReactNode;
+    groups: StoryGroup[];
+    testIdPrefix: string;
 }) {
     return (
-        <Panel title="Promo stories" bodyClassName="p-0">
+        <Panel title={title} bodyClassName="p-0">
             <div className="space-y-2 border-b border-white/6 px-4 py-3 text-sm text-ink-dim">
-                <p>
-                    Every promo writes its own story once the show has aired,
-                    based on what happened around it: how the wrestler’s match
-                    went, how the hyped main event or title match ended, or the
-                    wrestler’s form.
-                </p>
-                <p>
-                    Each situation has at least 4 versions, and one is picked
-                    with equal odds. Extras join the pool when they fit (a
-                    streak, a long wait for a title shot, holding a title).
-                </p>
+                {intro}
             </div>
             <div className="divide-y divide-white/6">
-                {promoStories.map((promo) => (
+                {groups.map((group) => (
                     <details
-                        key={promo.key}
-                        data-testid={`promo-stories-${promo.key}`}
+                        key={group.key}
+                        data-testid={`${testIdPrefix}-${group.key}`}
                         className="group px-4 py-3"
                     >
                         <summary className="cursor-pointer font-semibold text-ink">
-                            {promo.name}
+                            {group.name}
                             <span className="ml-2 text-sm font-normal text-ink-dim">
-                                {promo.situations.length} situations
+                                {group.situations.length} situations
                             </span>
                         </summary>
                         <div className="mt-3 space-y-4">
-                            {promo.situations.map((s) => (
+                            {group.situations.map((s) => (
                                 <div key={s.situation}>
                                     <div className="gm-label mb-1">
                                         {s.label} ({s.variants.length})
                                     </div>
                                     <ul className="space-y-2 text-sm">
-                                        {s.variants.map((v) => (
-                                            <li key={v.headline}>
-                                                <div className="text-ink">
-                                                    <Template
-                                                        text={v.headline}
-                                                    />
-                                                </div>
-                                                <div className="text-ink-dim">
-                                                    <Template
-                                                        text={v.summary}
-                                                    />
-                                                </div>
+                                        {s.variants.map((v, i) => (
+                                            <li key={i}>
+                                                {v.headline && (
+                                                    <div className="text-ink">
+                                                        <Template
+                                                            text={v.headline}
+                                                        />
+                                                    </div>
+                                                )}
+                                                {v.summary && (
+                                                    <div className="text-ink-dim">
+                                                        <Template
+                                                            text={v.summary}
+                                                        />
+                                                    </div>
+                                                )}
                                             </li>
                                         ))}
                                     </ul>
@@ -835,11 +839,92 @@ function PromoStoriesPanel({
     );
 }
 
+function PromoStoriesPanel({ promoStories }: { promoStories: StoryGroup[] }) {
+    return (
+        <StoryCatalogPanel
+            title="Promo stories"
+            testIdPrefix="promo-stories"
+            groups={promoStories}
+            intro={
+                <>
+                    <p>
+                        Every promo writes its own story once the show has
+                        aired, based on what happened around it: how the
+                        wrestler’s match went, how the hyped main event or title
+                        match ended, or the wrestler’s form.
+                    </p>
+                    <p>
+                        Each situation has at least 4 versions, and one is
+                        picked with equal odds. Extras join the pool when they
+                        fit (a streak, a long wait for a title shot, holding a
+                        title).
+                    </p>
+                </>
+            }
+        />
+    );
+}
+
+function QuietWeekStoriesPanel({
+    quietStories,
+}: {
+    quietStories: StoryGroup[];
+}) {
+    return (
+        <StoryCatalogPanel
+            title="Quiet-week stories"
+            testIdPrefix="quiet-stories"
+            groups={quietStories}
+            intro={
+                <>
+                    <p>
+                        The News page is never empty. When a week airs, any card
+                        its news left empty gets a quiet-week story, written
+                        then, so an old week still shows that week’s champions,
+                        budget and injuries.
+                    </p>
+                    <ul className="list-disc space-y-1 pl-4">
+                        <li>
+                            WWE headline: tickets on sale for whatever airs
+                            next, the PPV by name or the weekly show with its
+                            date.
+                        </li>
+                        <li>
+                            Brand headline: the brand’s top champion (world,
+                            then second tier, tag, special) spent the week with
+                            the fans in a city, or with no champions the roster
+                            hung out at WWE HQ. Then a line on the budget, a
+                            warning at $500,000 or less.
+                        </li>
+                        <li>
+                            Brand stories: a random superstar’s last match, then
+                            the injury report for the last 6 months, with
+                            booking advice if anyone got hurt.
+                        </li>
+                        <li>
+                            Ticker: unhappy wrestlers and contracts about to run
+                            out, or all quiet.
+                        </li>
+                    </ul>
+                    <p>
+                        Quiet-week stories rank lowest and never take a slot
+                        from real news. One version is picked with equal odds.
+                    </p>
+                </>
+            }
+        />
+    );
+}
+
 function NewsAndEmail({
     news,
     emails,
     promoStories,
-}: Pick<Props, 'news' | 'emails'> & { promoStories: Props['promo_stories'] }) {
+    quietStories,
+}: Pick<Props, 'news' | 'emails'> & {
+    promoStories: StoryGroup[];
+    quietStories: StoryGroup[];
+}) {
     return (
         <div className="space-y-6">
             <div className="grid items-start gap-6 md:grid-cols-2">
@@ -865,6 +950,14 @@ function NewsAndEmail({
                             the same match, like a title change or a snapped
                             streak.
                         </li>
+                        <li>
+                            Match results rank by size, in this order: a PPV
+                            match, then a title match, then the main event, then
+                            a gimmick match (anything but a plain singles, tag,
+                            6-man tag or handicap match; Table tag matches count
+                            as gimmicks). A win by DQ or count-out ranks a
+                            little lower.
+                        </li>
                     </ul>
                 </Panel>
                 <Panel title="The page">
@@ -877,8 +970,11 @@ function NewsAndEmail({
                         </li>
                         <li>
                             {news.stories_per_brand} stories per brand under the
-                            headlines. A brand with no headline-sized news gets
-                            one of its stories promoted.
+                            headlines. A title change always takes its brand’s
+                            headline. A brand with no headline-sized news gets
+                            its biggest match as the headline instead (by the
+                            order above), or the bigger news that replaced that
+                            match’s result.
                         </li>
                         <li>
                             Every card shows its headline and a short summary of
@@ -955,6 +1051,8 @@ function NewsAndEmail({
             </Panel>
 
             <PromoStoriesPanel promoStories={promoStories} />
+
+            <QuietWeekStoriesPanel quietStories={quietStories} />
 
             <Panel title="Emails" bodyClassName="p-0 overflow-x-auto">
                 <p className="border-b border-white/6 px-4 py-3 text-sm text-ink-dim">
@@ -1307,6 +1405,7 @@ export default function Docs() {
                         news={props.news}
                         emails={props.emails}
                         promoStories={props.promo_stories}
+                        quietStories={props.quiet_stories}
                     />
                 )}
                 {tab === 'schedule' && (

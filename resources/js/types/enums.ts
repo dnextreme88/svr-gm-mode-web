@@ -437,6 +437,11 @@ export const NewsEventType = {
     PromoResult: 'promo_result',
     ContractExpiring: 'contract_expiring',
     RivalryMilestone: 'rivalry_milestone',
+    TicketsOnSale: 'tickets_on_sale',
+    BrandSpotlight: 'brand_spotlight',
+    SuperstarRecap: 'superstar_recap',
+    InjuryReport: 'injury_report',
+    LockerRoomNote: 'locker_room_note',
 } as const;
 export type NewsEventType = (typeof NewsEventType)[keyof typeof NewsEventType];
 export const NewsEventTypeLabels: Record<NewsEventType, string> = {
@@ -492,6 +497,11 @@ export const NewsEventTypeLabels: Record<NewsEventType, string> = {
     'promo_result': 'Promo Result',
     'contract_expiring': 'Contract Expiring',
     'rivalry_milestone': 'Rivalry Milestone',
+    'tickets_on_sale': 'Tickets On Sale',
+    'brand_spotlight': 'Brand Spotlight',
+    'superstar_recap': 'Superstar Recap',
+    'injury_report': 'Injury Report',
+    'locker_room_note': 'Locker Room Note',
 };
 
 export const NewsSlot = {

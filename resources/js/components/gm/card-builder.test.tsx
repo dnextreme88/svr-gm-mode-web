@@ -63,7 +63,7 @@ const matchTypes = [
         variant: 'Single',
         fatigue_cost_bars: 3,
         cost: 15000,
-        win_condition: 'Ladder retrieval',
+        win_condition: 'Briefcase retrieval',
     }),
     type({
         id: 3,

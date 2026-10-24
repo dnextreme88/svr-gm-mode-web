@@ -109,13 +109,13 @@ return [
     ['iron_man', 'Single No Manager vs. w/Manager', $one, $noMgrVsMgr, ['win_condition' => 'Most falls', 'timed' => true]],
     ['iron_man', 'Single w/Manager vs. w/Manager', $one, $mgrVsMgr, ['win_condition' => 'Most falls', 'timed' => true]],
 
-    ['ladder', 'Single', $one, [], ['win_condition' => 'Ladder retrieval']],
-    ['ladder', 'Single No Manager vs. w/Manager', $one, $noMgrVsMgr, ['win_condition' => 'Ladder retrieval']],
-    ['ladder', 'Single w/Manager vs. w/Manager', $one, $mgrVsMgr, ['win_condition' => 'Ladder retrieval']],
-    ['ladder', 'Tornado Tag', $tag, [], ['win_condition' => 'Ladder retrieval']],
-    ['ladder', 'Triple Threat Tornado Tag', $ttTag, [], ['cost' => 16_000, 'win_condition' => 'Ladder retrieval']],
-    ['ladder', 'Triple Threat', $tt, [], ['win_condition' => 'Ladder retrieval']],
-    ['ladder', 'Fatal 4-Way', $f4w, [], ['win_condition' => 'Ladder retrieval']],
+    ['ladder', 'Single', $one, [], ['win_condition' => 'Briefcase retrieval']],
+    ['ladder', 'Single No Manager vs. w/Manager', $one, $noMgrVsMgr, ['win_condition' => 'Briefcase retrieval']],
+    ['ladder', 'Single w/Manager vs. w/Manager', $one, $mgrVsMgr, ['win_condition' => 'Briefcase retrieval']],
+    ['ladder', 'Tornado Tag', $tag, [], ['win_condition' => 'Briefcase retrieval']],
+    ['ladder', 'Triple Threat Tornado Tag', $ttTag, [], ['cost' => 16_000, 'win_condition' => 'Briefcase retrieval']],
+    ['ladder', 'Triple Threat', $tt, [], ['win_condition' => 'Briefcase retrieval']],
+    ['ladder', 'Fatal 4-Way', $f4w, [], ['win_condition' => 'Briefcase retrieval']],
     // House rule: WrestleMania only, 6-man, no titles, no Divas (§10).
     ['ladder', 'Money in the Bank', $six, [], ['ppv_exclusive' => 'wrestlemania', 'titles_allowed' => false, 'divas_allowed' => false, 'win_condition' => 'Briefcase retrieval', 'mitb' => true]],
 
@@ -151,12 +151,12 @@ return [
     ['table', 'Tornado 6-Man Tag', $sixTag, [], ['cost' => 8_000, 'win_condition' => 'Put through a table']],
     ['table', 'Triple Threat Tornado Tag', $ttTag, [], ['cost' => 8_000, 'win_condition' => 'Put through a table']],
 
-    ['tlc', 'Single', $one, [], ['win_condition' => 'Ladder retrieval']],
-    ['tlc', 'Tornado Tag', $tag, [], ['win_condition' => 'Ladder retrieval']],
-    ['tlc', 'Triple Threat', $tt, [], ['win_condition' => 'Ladder retrieval']],
-    ['tlc', 'Fatal 4-Way', $f4w, [], ['win_condition' => 'Ladder retrieval']],
+    ['tlc', 'Single', $one, [], []],
+    ['tlc', 'Tornado Tag', $tag, [], []],
+    ['tlc', 'Triple Threat', $tt, [], []],
+    ['tlc', 'Fatal 4-Way', $f4w, [], []],
     // House rule: not in the 2006 game.
-    ['tlc', 'Triple Threat Tornado Tag', $ttTag, [], ['cost' => 12_000, 'win_condition' => 'Ladder retrieval']],
+    ['tlc', 'Triple Threat Tornado Tag', $ttTag, [], ['cost' => 12_000]],
 
     // House rule: Survivor Series exclusive, always its main event, no titles.
     ['survivor_series_elimination', 'Traditional 3 vs 3', $sixTag, [], ['ppv_exclusive' => 'survivor_series', 'is_elimination' => true, 'titles_allowed' => false]],

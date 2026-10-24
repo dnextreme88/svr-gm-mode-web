@@ -14,6 +14,7 @@ use App\Models\PromoType;
 use App\Models\Save;
 use App\Models\Wrestler;
 use App\Services\Calendar\CalendarService;
+use App\Services\News\FallbackStories;
 use App\Services\News\NewsCatalog;
 use App\Services\News\PromoStories;
 use Inertia\Inertia;
@@ -143,6 +144,7 @@ class DocsController extends Controller
                 'value' => $s->value,
                 'label' => $s->label(),
             ], Stipulation::cases()),
+            'quiet_stories' => FallbackStories::catalog(),
             'promo_stories' => collect(PromoStories::catalog())->map(fn (array $situations, string $key): array => [
                 'key' => $key,
                 'name' => PromoTypeKey::from($key)->label(),

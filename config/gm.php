@@ -390,9 +390,24 @@ return [
             'other' => 12,
             'main_event' => 28,
             'hyped_main_event' => 65,
+            // House rule, headline precedence: PPV → title → main event →
+            // gimmick. Each step outranks everything below it (a PPV match
+            // beats any weekly match, a title match any non-title one, the
+            // main event any non-title undercard match), and a gimmick match
+            // (anything but a plain singles, tag, 6-man tag or handicap match;
+            // Table tag variants are gimmicks) beats a plain one. A DQ or
+            // count-out win is smaller news, never enough to flip a step.
+            'ppv_bonus' => 60,
+            'title_bonus' => 30,
+            'gimmick_bonus' => 6,
+            'not_decisive_penalty' => 6,
         ],
         'free_agent_signed_priority' => 18,
         'promo_result_priority' => 14,
+        // Quiet weeks: where a brand's top champion tours, and how far back
+        // the injury report looks (about 6 months).
+        'tour_cities' => ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Philadelphia', 'Boston', 'Detroit', 'Atlanta', 'Miami', 'Toronto', 'Las Vegas', 'Seattle', 'Denver', 'St. Louis', 'Pittsburgh', 'Phoenix'],
+        'injury_report_weeks' => 26,
         // Interview Space: a streak this long can be what the wrestler talks about.
         'promo_story_streak_from' => 3,
         'contract_expiring_weeks' => 2,

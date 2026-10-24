@@ -29,6 +29,12 @@ use Illuminate\Database\Eloquent\Collection;
  */
 class ShowResolver
 {
+    /**
+     * Plain match families; everything else is a gimmick match, which ranks
+     * higher in the news.
+     */
+    private const PLAIN_FAMILIES = [MatchFamily::Single, MatchFamily::TagTeam, MatchFamily::SixManTag, MatchFamily::Handicap];
+
     public function __construct(
         private MatchResolver $matches,
         private InjuryService $injuries,
@@ -181,12 +187,57 @@ class ShowResolver
                 'match' => $slot->matchType?->name,
                 'show' => $show->name,
                 'brand' => $show->brand?->label(),
+                // A quiet brand's headline defaults to its main event, a PPV's
+                // first (NewsComposer).
+                'main_event' => $mainEvent,
+                'ppv' => $show->isPpv(),
             ],
             ['wrestler_ids' => [...$resolved->winners, ...$resolved->losers]],
-            priority: (int) config('gm.news.match_result_priority.'.($mainEvent ? 'main_event' : 'other')),
+            priority: $this->resultPriority($slot, $show, $resolved, $mainEvent),
             week: $week,
             dedupeKey: "slot:{$slot->id}",
         );
+    }
+
+    /**
+     * How big a match result is: a title match above any non-title match, a
+     * PPV match above a weekly show's, the main event above the undercard, a
+     * gimmick match above a plain one, and a DQ or count-out win below a
+     * decisive one.
+     */
+    private function resultPriority(MatchSlot $slot, Show $show, ResolvedMatch $resolved, bool $mainEvent): int
+    {
+        $cfg = (array) config('gm.news.match_result_priority');
+        $priority = (int) $cfg[$mainEvent ? 'main_event' : 'other'];
+
+        if ($slot->title_championship_id !== null) {
+            $priority += (int) $cfg['title_bonus'];
+        }
+
+        if ($show->isPpv()) {
+            $priority += (int) $cfg['ppv_bonus'];
+        }
+
+        if ($this->isGimmick($slot)) {
+            $priority += (int) $cfg['gimmick_bonus'];
+        }
+
+        if (! $resolved->isDecisive()) {
+            $priority -= (int) $cfg['not_decisive_penalty'];
+        }
+
+        return max(1, $priority);
+    }
+
+    /**
+     * Anything but a plain singles, tag, 6-man tag or handicap match. The
+     * Table tag variants are plain families, but tables make them gimmicks.
+     */
+    private function isGimmick(MatchSlot $slot): bool
+    {
+        $type = $slot->matchType;
+
+        return $type !== null && (! in_array($type->family, self::PLAIN_FAMILIES, true) || str_contains($type->variant, 'Table'));
     }
 
     /**

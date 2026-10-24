@@ -133,6 +133,7 @@ it('renders the documentation page from the catalog', function () {
             ->has('injuries.serious')
             ->has('stipulations', 3)
             ->has('promo_stories', 14)
+            ->has('quiet_stories', 5)
             ->has('rosters.wwe.raw', 30)
             ->has('rosters.wwe.smackdown', 30)
             ->where('rosters.cap', 30)

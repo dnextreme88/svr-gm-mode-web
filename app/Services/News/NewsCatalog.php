@@ -25,6 +25,7 @@ class NewsCatalog
         'Promos',
         'Injuries and morale',
         'Brand battle',
+        'Quiet weeks',
     ];
 
     /**
@@ -34,7 +35,7 @@ class NewsCatalog
      * @var array<string, array{group: string, card: string, tier: string, active?: bool}>
      */
     private const ENTRIES = [
-        'match_result' => ['group' => 'Matches', 'card' => 'either', 'tier' => 'Story (the main event ranks higher)'],
+        'match_result' => ['group' => 'Matches', 'card' => 'either', 'tier' => 'Story, ranked PPV → title → main event → gimmick (DQ and count-out wins lower). The biggest match leads a brand with no headline'],
         'main_event_hype_result' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline (worded by the Main Event Hype promo story)'],
         'interference_finish' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Story'],
         'win_streak' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Story at 3 and 5 wins, Headline at 10'],
@@ -94,6 +95,12 @@ class NewsCatalog
 
         'ratings_war' => ['group' => 'Brand battle', 'card' => 'brand', 'tier' => 'Story', 'active' => false],
         'ratings_streak' => ['group' => 'Brand battle', 'card' => 'brand', 'tier' => 'Story', 'active' => false],
+
+        'tickets_on_sale' => ['group' => 'Quiet weeks', 'card' => 'wwe', 'tier' => 'Headline, only when the WWE card has nothing else'],
+        'brand_spotlight' => ['group' => 'Quiet weeks', 'card' => 'brand', 'tier' => 'Headline, only when a brand has nothing else'],
+        'superstar_recap' => ['group' => 'Quiet weeks', 'card' => 'brand', 'tier' => 'Story, filling an empty story slot'],
+        'injury_report' => ['group' => 'Quiet weeks', 'card' => 'brand', 'tier' => 'Story, filling the second empty story slot'],
+        'locker_room_note' => ['group' => 'Quiet weeks', 'card' => 'brand', 'tier' => 'Ticker, when the ticker is empty'],
     ];
 
     public function __construct(private NewsTemplates $templates) {}

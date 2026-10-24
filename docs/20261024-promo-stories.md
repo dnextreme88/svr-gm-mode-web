@@ -37,6 +37,24 @@ Every promo made the same generic `promo_result` card ("Raw's Interview Space pr
     - The match type dropdown matches the selector's width, with a narrower category column, and each type's cost and fatigue go under its name.
     - The title and stipulation selectors take the full width and wrap long names instead of overflowing the page.
 
+## News headlines and match ranking (2026-10-24)
+
+- **Headline precedence: PPV → title → main event → gimmick.** Match results carry a priority (`ShowResolver::resultPriority`, `gm.news.match_result_priority`): undercard 12, main event 28, +30 for a title match, +60 for a PPV match, +6 for a gimmick match (anything but Single, Tag Team, 6-Man Tag or Handicap; the Table tag variants count as gimmicks), −6 for a DQ or count-out win. The steps are spaced so each one outranks everything below it and a DQ never flips one: a PPV match beats any weekly match, an undercard title match (42) beats a non-title gimmick main event (34), and a main event beats any non-title undercard match.
+- **A title change always takes its brand's headline** (the highest-priority one if there are several); other headline-sized news is still a weighted draw. A simulated week had a reign record beat the title change that ended the reign.
+- **A brand with no headline gets its biggest match.** `NewsComposer` promotes the story about the highest-ranked match (the match result, or the bigger news that replaced it on the same match, like a title defence or a promo story) instead of a weighted draw. Match results also record `main_event` and `ppv` in their payload.
+- **Ladder matches are won by Briefcase retrieval** (was "Ladder retrieval"), like Money in the Bank. **TLC matches have no match-specific win condition:** they are won by pinfall or submission. Seed data only; `/gm/docs` lists one Briefcase retrieval condition.
+
+## Quiet weeks (2026-10-24)
+
+- **The News page is never empty.** `QuietWeekNews` runs last before the week advances: it lays out the week's page with `NewsComposer` and writes filler only for the cards left empty, so an old week's page shows that week's champions, budget and injuries.
+    - **WWE headline** (`tickets_on_sale`): tickets for whatever airs next: next week's PPV by name (it airs Sunday, first), else Monday Night Raw with its date.
+    - **Brand headline** (`brand_spotlight`): the brand's top champion by title order (world, second tier, tag, special) spent the week with fans in a city (`gm.news.tour_cities`); with no champions, the roster hung out at WWE HQ. Then a budget line: positive above `gm.emails.low_cash_threshold` ($500,000), a warning with advice at or below it.
+    - **Brand stories:** first a random superstar's last match (`superstar_recap`: won or lost, opponent, how, show, how long ago; "waiting for a first match" if nobody has wrestled), then the injury report (`injury_report`) for the last `gm.news.injury_report_weeks` (26): praise for a clean roster, or the count, the latest injury and booking advice.
+    - **Ticker** (`locker_room_note`), only when the ticker is empty: unhappy wrestlers (Unsatisfied or Upset), contracts within `gm.contracts.expiring_threshold_weeks` of running out, or all quiet.
+- Texts live in `App\Services\News\FallbackStories` (4 variants for each headline and story, 2 for ticker notes), drawn with the seeded RNG. Filler has priority 1, and `NewsComposer` never promotes it over real news.
+- The "how the match ended" phrasing moved from `PromoStoryWriter` to `App\Services\News\MatchFinish`, shared by promo stories and recaps.
+- 5 new news event types (57 in all), listed on `/gm/docs` in a new **Quiet weeks** group. The News & email tab also has a **Quiet-week stories** panel (after Promo stories): what fills each card and when, then every situation with all its versions (`FallbackStories::catalog()`). Both panels share one `StoryCatalogPanel`.
+
 ## Follow-ups (CLAUDE.md TODOS)
 
 - Alignment-based stories: a goofy/annoying interview, bashing the fans, a champion retaining by heelish tactics. Needs face/heel alignment.
@@ -47,3 +65,5 @@ Every promo made the same generic `promo_result` card ("Raw's Interview Space pr
 - `PromoStoriesTest`: every standalone situation has 4+ variants; every promo type has stories; only known placeholders; Interview Space won/lost/unbooked (and that every variant of the pool can come up); Main Event Hype title change headline and failed-hype story; Title Match Hype retained with position and the cheap escape; Comeback Reminder names the wrestler and weeks left; Submission specialists win clean finishes by submission.
 - Updated `NewsEventsTest`, `PromoTest` (story keys instead of fixed text), `PromoRulesTest`, `EnumValuesTest`, `CatalogSeedTest` (14 promos), `UiTodosTest` and `docs.test.tsx` (Promo stories panel).
 - `card-builder.test.tsx`: the Booked label; a 6-way in two rows of 3, a Fatal 4-Way as 2 × 2, singles and teams on one row with one "vs". `promo-slots.test.tsx`: promo wrestler lists are alphabetical. `saves/index.test.tsx`: follows the New Game button's "Play with WWE Roster" label.
+- `NewsComposerTest`: a quiet brand's headline is its main event, or the news that replaced its result. `NewsEventsTest`: main event, gimmick and DQ priorities and the `main_event` flag. `MatchOutcomeTest`: Ladder's clean finish reads briefcase retrieval.
+- `QuietWeekNewsTest`: an empty week fills every card; tickets name the next show and date, or the PPV; the top champion tours (world title first); WWE HQ and the low-budget warning; the last-match recap and the injury report; unhappy wrestlers in the ticker; a busy week gets no filler. `NewsComposerTest`: PPV → title → main event → gimmick precedence, an undercard title match over a non-title main event, a PPV main event over the weekly one, filler never promoted over real news. `NewsEventsTest`: title, gimmick (Table tag) and DQ priorities.

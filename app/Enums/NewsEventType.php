@@ -63,4 +63,19 @@ enum NewsEventType: string
     case PromoResult = 'promo_result';
     case ContractExpiring = 'contract_expiring';
     case RivalryMilestone = 'rivalry_milestone';
+
+    // Quiet-week fallbacks (house rule): written only for cards a week left empty.
+    case TicketsOnSale = 'tickets_on_sale';
+    case BrandSpotlight = 'brand_spotlight';
+    case SuperstarRecap = 'superstar_recap';
+    case InjuryReport = 'injury_report';
+    case LockerRoomNote = 'locker_room_note';
+
+    /**
+     * Quiet-week filler: never promoted over real news.
+     */
+    public function isFallback(): bool
+    {
+        return in_array($this, [self::TicketsOnSale, self::BrandSpotlight, self::SuperstarRecap, self::InjuryReport, self::LockerRoomNote], true);
+    }
 }

@@ -76,7 +76,7 @@ it('covers all 8 championships, 14 promos and 15 PPVs', function () {
 });
 
 it('lists the full §19 news catalog', function () {
-    expect(NewsEventType::values())->toHaveCount(52)
+    expect(NewsEventType::values())->toHaveCount(57)
         ->toContain('title_change', 'retained_by_dq', 'mitb_cash_in', 'interbrand_series_result', 'defection_blocked', 'season_reset', 'match_result', 'main_event_hype_result', 'promo_result', 'contract_expiring', 'rivalry_milestone');
 });
 

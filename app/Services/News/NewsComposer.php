@@ -63,6 +63,7 @@ class NewsComposer
     {
         $events ??= NewsEvent::where('save_id', $save->id)->where('week_number', $week)->get();
         $rows = $this->dedupe($events->sortBy([['priority', 'desc'], ['id', 'asc']])->values());
+        $matchRanks = $this->matchRanks($events);
         $rng = $save->rng('news.page', $week);
 
         $headlines = [];
@@ -72,11 +73,24 @@ class NewsComposer
         foreach (['raw', 'smackdown', 'neutral'] as $slot) {
             $pool = $rows->filter(fn (array $e): bool => $e['slot'] === $slot && $e['tier'] !== NewsTier::Ticker->value)->values();
             $headline = $slot === 'neutral' ? $pool->first(fn (array $e): bool => in_array($e['type'], self::FORCED_NEUTRAL, true)) : null;
+            // House rule: a title change always takes its card's headline.
+            $headline ??= $pool->filter(fn (array $e): bool => $e['type'] === NewsEventType::TitleChange->value && $e['tier'] === NewsTier::Headline->value)
+                ->sortByDesc('priority')
+                ->first();
             $headline ??= $this->weightedTake($pool->filter(fn (array $e): bool => $e['tier'] === NewsTier::Headline->value), 1, $rng)[0] ?? null;
 
-            // A slot with no headline gets one of its stories promoted.
+            // A slot with no headline gets one of its stories promoted: the
+            // biggest match first (PPV → title → main event → gimmick, see
+            // `gm.news.match_result_priority`), else a weighted draw.
             if ($headline === null) {
-                $headline = $this->weightedTake($pool, 1, $rng)[0] ?? null;
+                // Quiet-week filler only leads when there is nothing else.
+                $real = $pool->reject(fn (array $e): bool => NewsEventType::from($e['type'])->isFallback());
+                $promotable = $real->isEmpty() ? $pool : $real;
+                $headline = $promotable->filter(fn (array $e): bool => isset($matchRanks[$e['id']]))
+                    ->sortBy([fn (array $a, array $b): int => $matchRanks[$b['id']] <=> $matchRanks[$a['id']], fn (array $a, array $b): int => $b['priority'] <=> $a['priority']])
+                    ->first()
+                    ?? $this->weightedTake($promotable, 1, $rng)[0]
+                    ?? null;
 
                 if ($headline !== null) {
                     $headline['promoted'] = true;
@@ -112,6 +126,36 @@ class NewsComposer
             // Fan support trend comes from the deferred Popularity system.
             'fan_support' => null,
         ];
+    }
+
+    /**
+     * How big each event's match is, keyed by event id: the match result's
+     * priority (which encodes PPV → title → main event → gimmick), shared
+     * by the bigger news that replaced it on the same match (title defence,
+     * promo story…), matched on the match's dedupe key.
+     *
+     * @param  Collection<int, NewsEvent>  $events
+     * @return array<int, int>
+     */
+    private function matchRanks(Collection $events): array
+    {
+        $ranks = [];
+
+        foreach ($events as $e) {
+            if ($e->type === NewsEventType::MatchResult && $e->dedupe_key !== null) {
+                $ranks[$e->dedupe_key] = $e->priority;
+            }
+        }
+
+        $ids = [];
+
+        foreach ($events as $e) {
+            if ($e->dedupe_key !== null && isset($ranks[$e->dedupe_key])) {
+                $ids[$e->id] = $ranks[$e->dedupe_key];
+            }
+        }
+
+        return $ids;
     }
 
     /**

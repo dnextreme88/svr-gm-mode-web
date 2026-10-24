@@ -87,6 +87,42 @@ const props = {
         escalation_chance: 0.2,
     },
     specialists: [],
+    quiet_stories: [
+        {
+            key: 'tickets',
+            name: 'WWE headline: tickets on sale',
+            situations: [
+                {
+                    situation: 'tickets.ppv',
+                    label: 'A PPV airs next (named)',
+                    extra: false,
+                    variants: [
+                        {
+                            headline: 'Tickets on sale now for {event}!',
+                            summary: '{event} is next on {date}.',
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            key: 'spotlight',
+            name: 'Brand headline: a champion on tour, or WWE HQ',
+            situations: [
+                {
+                    situation: 'budget.good',
+                    label: 'Budget line, above the $500,000 low-cash mark',
+                    extra: false,
+                    variants: [
+                        {
+                            headline: '',
+                            summary: 'The {brand} books look healthy.',
+                        },
+                    ],
+                },
+            ],
+        },
+    ],
     promo_stories: [
         {
             key: 'interview_space',
@@ -188,7 +224,7 @@ const props = {
                 label: 'Match Result',
                 group: 'Matches',
                 card: 'either',
-                tier: 'Story (the main event ranks higher)',
+                tier: 'Story, ranked PPV → title → main event → gimmick (DQ and count-out wins lower). The biggest match leads a brand with no headline',
                 active: true,
                 headline: '{winner} defeats {loser} at {show}.',
                 summary: '{match}: {winner} got the win over {loser}.',
@@ -359,12 +395,24 @@ describe('Docs page', () => {
             screen.getByRole('heading', { name: 'How the news works' }),
         ).toBeInTheDocument();
         expect(
+            screen.getByText(
+                /a PPV\s+match, then a title match, then the main event/,
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                /gets\s+its biggest match as the headline instead/,
+            ),
+        ).toBeInTheDocument();
+        expect(
             screen.getByRole('columnheader', { name: 'Brand battle' }),
         ).toBeInTheDocument();
 
         const result = screen.getByTestId('news-event-match_result');
         expect(result).toHaveTextContent('Raw / Smackdown or WWE');
-        expect(result).toHaveTextContent('Story (the main event ranks higher)');
+        expect(result).toHaveTextContent(
+            'ranked PPV → title → main event → gimmick',
+        );
         expect(result).toHaveTextContent('winner defeats loser at show.');
         expect(
             within(result)
@@ -462,5 +510,24 @@ describe('Docs page', () => {
         expect(promo).toHaveTextContent('Interview Space');
         expect(promo).toHaveTextContent('Success, then won their match (1)');
         expect(promo).toHaveTextContent('talks the talk');
+    });
+
+    it('explains quiet weeks and lists every quiet-week story', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'News & email' }));
+
+        expect(
+            screen.getByText(/The News page is never empty/),
+        ).toBeInTheDocument();
+        const tickets = screen.getByTestId('quiet-stories-tickets');
+        expect(tickets).toHaveTextContent('WWE headline: tickets on sale');
+        expect(tickets).toHaveTextContent('A PPV airs next (named) (1)');
+        expect(tickets).toHaveTextContent('Tickets on sale now for');
+        // A budget line has no headline of its own, only the sentence.
+        expect(screen.getByTestId('quiet-stories-spotlight')).toHaveTextContent(
+            'books look healthy',
+        );
     });
 });
