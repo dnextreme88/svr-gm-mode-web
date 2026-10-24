@@ -39,8 +39,9 @@ class InjuryService
     }
 
     /**
-     * Promos that tire their wrestlers (Interference, Start a Rivalry) roll
-     * injuries exactly like a match that adds the same fatigue (§5, §6).
+     * Promos that tire their wrestlers (Interference, Start a Rivalry, Diva
+     * Bikini Contest, Continue Rivalry) roll injuries exactly like a match
+     * that adds the same fatigue (§5, §6).
      */
     public function rollForPromo(SaveWrestler $wrestler, int $fatigueGoingIn, int $fatigueBars, int $week, Rng $rng): ?Injury
     {

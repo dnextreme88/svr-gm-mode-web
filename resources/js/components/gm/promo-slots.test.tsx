@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { PromoSlots } from '@/components/gm/promo-slots';
+import { PromoSlots, successLabel } from '@/components/gm/promo-slots';
 import type {
     PromoEligibilityView,
     PromoSlotView,
@@ -151,6 +151,13 @@ function setup(slots: PromoSlotView[] = [emptySlot(1)]) {
 const grid = () => screen.getByRole('radiogroup', { name: 'Promo 1 type' });
 
 describe('PromoSlots', () => {
+    it('shows a success range for a promo whose odds depend on a rolled deal', () => {
+        expect(
+            successLabel({ success_rate: 0.8, success_range: [0.25, 0.8] }),
+        ).toBe('25–80%');
+        expect(successLabel({ success_rate: 0.5 })).toBe('50%');
+    });
+
     it('blocks the spot another promo already airs in, and defaults to the next free one', async () => {
         const { user } = setup([
             { ...emptySlot(1), promo_type_id: 1, before_position: 6 },

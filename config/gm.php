@@ -305,22 +305,23 @@ return [
     | §5 Promos. Success rates are starting estimates (house rule).
     */
     'promos' => [
+        // House rule (2026-10-25): every promo succeeds except these.
+        // Merchandise Sponsorship's odds come with its rolled tier below.
         'success_rates' => [
-            'new_superstar' => 0.75,
-            'continue_rivalry' => 0.90,
-            'start_rivalry' => 0.85,
-            'inactive_superstar' => 0.90,
-            'advertising' => 1.00,
-            'merchandise_sponsorship' => 1.00,
-            'main_event_hype' => 0.75,
-            'ppv_hype' => 0.80,
+            'new_superstar' => 1.00,
+            'continue_rivalry' => 1.00,
+            'start_rivalry' => 1.00,
+            'inactive_superstar' => 1.00,
+            'advertising' => 0.80,
+            'merchandise_sponsorship' => 0.80,
+            'main_event_hype' => 1.00,
+            'ppv_hype' => 1.00,
             'interference_promotion' => 0.50,
             'slander_promotion' => 0.50,
-            // ASSUMPTION: the four SvR 2006 promos added 2026-10-20.
-            'title_match_hype' => 0.80,
-            'comeback_reminder' => 0.90,
+            'title_match_hype' => 1.00,
+            'comeback_reminder' => 1.00,
             'interview_space' => 0.90,
-            'diva_bikini_contest' => 0.85,
+            'diva_bikini_contest' => 1.00,
         ],
         'amounts' => [
             'new_superstar' => -50_000,
@@ -343,6 +344,9 @@ return [
         'fatigue_bars' => [
             'interference_promotion' => 2,
             'start_rivalry' => 2,
+            // House rule (2026-10-25): both Divas and both rivals take part.
+            'diva_bikini_contest' => 2,
+            'continue_rivalry' => 1,
         ],
         // Extra end-of-week recovery a successful promo gives its target.
         'recovery_bars' => [
@@ -353,12 +357,14 @@ return [
         // ASSUMPTION: "freshly signed/traded-in" window for New Superstar.
         'new_superstar_window_weeks' => 2,
         'slander_overuse_window_weeks' => 4,
-        // ASSUMPTION: the spec says Merchandise starts low and scales with use.
-        'merchandise' => [
-            'base' => 10_000,
-            'step' => 10_000,
-            'cap' => 100_000,
-            'reset_after_idle_weeks' => 2,
+        // House rule (2026-10-25): Merchandise Sponsorship rolls one of these
+        // tiers (equal odds) when it airs; the bigger the deal, the less
+        // likely it lands. A success pays the tier's amount.
+        'merchandise_tiers' => [
+            ['amount' => 100_000, 'chance' => 0.80],
+            ['amount' => 250_000, 'chance' => 0.70],
+            ['amount' => 500_000, 'chance' => 0.50],
+            ['amount' => 1_000_000, 'chance' => 0.25],
         ],
     ],
 

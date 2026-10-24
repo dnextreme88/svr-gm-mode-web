@@ -100,6 +100,7 @@ class CardController extends Controller
                 'name' => $t->name,
                 'amount' => $t->base_amount,
                 'success_rate' => $t->successRate(),
+                'success_range' => $t->successRange(),
                 'needs_wrestler' => $t->needs_wrestler,
                 'needs_rival_pair' => $t->needs_rival_pair,
                 'needs_diva_pair' => $t->needs_diva_pair,

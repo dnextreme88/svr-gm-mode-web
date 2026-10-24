@@ -6,6 +6,7 @@ use App\Enums\LedgerCategory;
 use App\Enums\PromoTypeKey;
 use App\Exceptions\GameRuleException;
 use App\Models\Championship;
+use App\Models\FatigueLog;
 use App\Models\Injury;
 use App\Models\LedgerEntry;
 use App\Models\MatchParticipant;
@@ -198,6 +199,23 @@ describe('airing', function () {
         expect($before(1))->toBe(0)
             ->and($before(2))->toBe(Card::singles()->fatigue_cost_bars * $bar + 2 * $bar);
     });
+
+    it('tires both Divas in a Bikini Contest (2 bars) and both rivals in Continue Rivalry (1 bar)', function (PromoTypeKey $key, string $a, string $b, int $bars) {
+        $save = GameBuilder::inSeason(raw: ['Lita', 'Trish Stratus', 'Edge', 'Kane'], smackdown: ['Batista']);
+        app(RivalryService::class)->start($save, idOf($save, 'Edge'), idOf($save, 'Kane'), 1);
+        promo($save, $key, ['a' => $a, 'b' => $b]);
+
+        app(WeekResolver::class)->resolve($save->refresh());
+
+        $after = fn (string $name): int => (int) FatigueLog::where('save_wrestler_id', idOf($save, $name))->value('after_shows');
+
+        expect(PromoType::where('key', $key)->value('fatigue_bars'))->toBe($bars)
+            ->and($after($a))->toBe($bars * (int) config('gm.fatigue.bar_size'))
+            ->and($after($b))->toBe($bars * (int) config('gm.fatigue.bar_size'));
+    })->with([
+        'Diva Bikini Contest' => [PromoTypeKey::DivaBikiniContest, 'Lita', 'Trish Stratus', 2],
+        'Continue Rivalry' => [PromoTypeKey::ContinueRivalry, 'Edge', 'Kane', 1],
+    ]);
 
     it('can seriously injure a wrestler who goes into a fatiguing promo at 100%', function () {
         $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);

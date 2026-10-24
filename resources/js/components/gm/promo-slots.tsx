@@ -15,6 +15,8 @@ export type PromoTypeOption = {
     name: string;
     amount: number;
     success_rate: number;
+    /** Lowest and highest odds when they depend on a rolled tier (Merchandise). */
+    success_range?: [number, number] | null;
     needs_wrestler: boolean;
     needs_rival_pair: boolean;
     needs_diva_pair?: boolean;
@@ -133,6 +135,15 @@ function amountLabel(t: PromoTypeOption): string {
     }
 
     return `${t.amount > 0 ? '+' : '−'}${formatMoney(Math.abs(t.amount))}`;
+}
+
+export function successLabel(t: {
+    success_rate: number;
+    success_range?: [number, number] | null;
+}): string {
+    return t.success_range
+        ? `${Math.round(t.success_range[0] * 100)}–${Math.round(t.success_range[1] * 100)}%`
+        : `${Math.round(t.success_rate * 100)}%`;
 }
 
 export function airsLabel(before: number, matchSlotCount: number): string {
@@ -254,7 +265,7 @@ function PromoEditor({
                                 <span>
                                     Success Probability:{' '}
                                     <span className="gm-num text-ink">
-                                        {Math.round(t.success_rate * 100)}%
+                                        {successLabel(t)}
                                     </span>
                                 </span>
                                 {(t.recovery_bars ?? 0) > 0 && (

@@ -4,6 +4,13 @@
 
 **Air week N** used to resolve the whole week in one go, and the results screen only replayed it. The player now decides their own matches on the results screen: each one can be simulated (the normal odds) or decided with **Book to Win**. Promos weren't shown on the results screen at all. The Title History lineage had redundant columns (Event, Lost, Ended) and didn't say which matches a champion defended in. The Rosters table had a Weight Class column that wasn't needed.
 
+Later changes on the same branch:
+
+- **News wording:** title change and match result news reworded.
+- **Promos:** one promo per spot, new success rates, random Merchandise deals, and crashed Interview Spaces.
+- **Injuries:** judged on fatigue after the match.
+- **WWE headline:** the PPV now takes the WWE headline in a PPV week.
+
 ## Live results (2026-10-25)
 
 - **Air week** (`WeekController::advance`) calls `WeekResolver::begin()` and opens the results screen. It runs the steps before `AirShows` (`PrepareShows`), records fatigue going in, marks the week's shows `airing`, and airs up to the player's first match.
@@ -119,10 +126,62 @@ In Backlash week the WWE card led with a failed SmackDown Slander, because only 
 - **PPV buzz on the WWE card:** `PpvBuzz` now records "{ppv} is N weeks away" on the WWE card for every PPV, brand PPVs included (a story 2 weeks out, a headline 1 week out). Before, brand PPVs only made their brand's card.
 - **Catalog and docs:** `NewsCatalog` describes the new `ppv_results` and `ppv_upcoming` placement, and the `/gm/docs` News & email tab ("The page") lists the WWE headline order.
 
+## Promo success rates, Merchandise deals and crashed interviews (2026-10-25)
+
+- **Success rates** (`gm.promos.success_rates`): every promo is now 100% except these:
+
+    | Promo                   | Success                      |
+    | ----------------------- | ---------------------------- |
+    | Advertising             | 80%                          |
+    | Interview Space         | 90% (kept so it can fail)    |
+    | Interference Promotion  | 50%                          |
+    | Slander Promotion       | 50%                          |
+    | Merchandise Sponsorship | depends on the deal it rolls |
+
+- **Merchandise Sponsorship:** `PromoService::merchandiseTier` rolls one deal from `gm.promos.merchandise_tiers` with equal odds, then the success roll uses that deal's odds:
+
+    | Deal       | Success |
+    | ---------- | ------- |
+    | $100,000   | 80%     |
+    | $250,000   | 70%     |
+    | $500,000   | 50%     |
+    | $1,000,000 | 25%     |
+    - A success pays the amount. A failure pays nothing.
+    - The old consecutive-use scaling (`gm.promos.merchandise`, `merchandiseAmount`) is removed.
+    - `PromoType::successRange()` feeds the card and `/gm/docs`, which show "25–80%".
+
+- **Interview Space crashed:** when Interview Space fails for a wrestler who isn't booked on the card, `PromoService::crashInterview` picks a random healthy male superstar from the same brand. It skips Divas, the seriously injured and anyone sitting out. The pick is stored as the promo's second target, and the outcome note reads "Crashed by X".
+    - If neither of the two is in an active rivalry, a rivalry starts between them, and the note ends with "rivalry started".
+- **Interview Space stories:** `PromoStories` has two new situations, 4 variants each. Each variant is one combination of sit-down interview / interview × goofy / enthusiastic, so each pair is 50/50.
+    - `interview_space.spotlight`: the fallback when an unbooked, successful interview has nothing about the wrestler's form (no streak, title wait or title). "{wrestler} had a sit-down interview tonight and was being goofy. It was a great interview and gave insights on how he would be used and ready to take over and dominate the Raw division!" The pronoun is "she" for a Diva.
+    - `interview_space.crashed`: a failed unbooked interview that got crashed. "… The interview was on-going until {wrestler_b} crashed the party and decked {wrestler} with authority. What's gonna happen next between these two?" When the attack started a rivalry, it adds " The attack has started a rivalry between the two."
+    - A failed interview with nobody to crash it still falls flat (`unbooked_flat`). Booked interviews keep their match stories, and form extras keep theirs.
+    - The story says "the Raw division" (the brand) rather than "the Monday Night Raw division".
+- **Merchandise stories:** these no longer say the deal grows with use.
+- **Docs:** the `/gm/docs` Promos tab lists the deals and their odds, which promos can fail, and the crashed interview.
+
+## Promo fatigue for Diva Bikini Contest and Continue Rivalry (2026-10-25)
+
+- `gm.promos.fatigue_bars` gives Diva Bikini Contest **2 bars** and Continue Rivalry **1 bar**, on top of Interference and Start a Rivalry's 2.
+- `PromoService::tire` already tires every target, so both Divas and both rivals take it where the promo airs, success or fail. They roll injuries on the fatigue it leaves them on, like a match.
+- The bars are seeded onto `promo_types.fatigue_bars`. `php artisan db:seed --class=PromoTypeSeeder` applies them to an existing database without wiping saves, because the seeder uses `updateOrCreate`.
+- **Docs:** the `/gm/docs` Promos tab ("When promos air") lists every fatiguing promo and its bars. The promo list draws them as bars. The panel's old going-in injury wording is replaced with the after-match rule.
+
 ## Docs page (2026-10-25)
 
-- `/gm/docs` has a new **Results & titles** tab with four panels: Live results, Book to Win (its DQ/count-out chance comes from config through `DocsController`'s `results` prop), The results screen, and Title History.
-- The Schedule tab's Booking a week panel now says Air week starts the live results.
+- **Results & titles (new tab):** four panels.
+    - Live results.
+    - Book to Win. Its DQ/count-out chance comes from config through `DocsController`'s `results` prop.
+    - The results screen.
+    - Title History, including the title-win row under each reign.
+- **Schedule:** the Booking a week panel says Air week starts the live results.
+- **Fatigue & injuries:** the Fatigue zones panel explains the after-match injury rule, with the configured serious share and the "110% Injury" and "Serious Injury: …!" display.
+- **Promos:**
+    - The new success rates, the Merchandise deals and their odds (`merchandise_tiers` prop), and the crashed Interview Space.
+    - One promo per spot.
+    - The Interference/Slander headline exception in a PPV week.
+    - The promo list shows Merchandise as 25–80%.
+- **News & email:** "The page" panel lists the WWE headline order. The event list picks up the new `ppv_results`, `title_change`, `match_result` and `ppv_upcoming` wording and placement from `NewsCatalog` and `NewsTemplates`.
 
 ## Rosters (2026-10-25)
 
@@ -131,14 +190,20 @@ In Backlash week the WWE card led with a failed SmackDown Slander, because only 
 ## Files
 
 - **Backend:**
-    - `app/Services/Week/WeekResolver.php`, `Steps/AirShows.php`, `WeekContext.php`, `WeekSimulator.php`
-    - `app/Services/Matches/ShowResolver.php`, `MatchResolver.php`, `MatchOutcomeHandler.php`
-    - `app/Support/Rng/*`, `app/Models/WeekAiring.php`
-    - `app/Http/Controllers/Gm/{Week,Results,TitleHistory,Contract,Trade,Schedule}Controller.php`, `app/Http/Presenters/{Card,Game}Presenter.php`
-    - Migration `2026_10_25_000001_create_week_airings_and_result_columns.php`
+    - `app/Services/Week/WeekResolver.php`, `Steps/AirShows.php`, `Steps/PpvBuzz.php`, `WeekContext.php`, `WeekSimulator.php`
+    - `app/Services/Matches/ShowResolver.php`, `MatchResolver.php`, `MatchOutcomeHandler.php`, `ResolvedMatch.php`
+    - `app/Services/Injuries/InjuryService.php`
+    - `app/Services/Promos/PromoService.php`, `PromoStoryWriter.php`
+    - `app/Services/News/NewsComposer.php`, `NewsTemplates.php`, `NewsCatalog.php`, `PromoStories.php`
+    - `app/Support/Rng/*`
+    - Models: `app/Models/WeekAiring.php`, `MatchResult.php`, `Injury.php`, `PromoSlot.php`, `PromoType.php`
+    - Controllers: `app/Http/Controllers/Gm/{Week,Results,TitleHistory,Contract,Trade,Schedule,Card,Docs}Controller.php`
+    - Presenters: `app/Http/Presenters/{Card,Game}Presenter.php`
+    - `config/gm.php`, `routes/gm.php`
+    - Migrations: `2026_10_25_000001_create_week_airings_and_result_columns.php`, `2026_10_25_000002_add_fatigue_after_to_injuries.php`
 - **Frontend:**
-    - `resources/js/pages/gm/results.tsx`, `titles/history.tsx`, `rosters/index.tsx`
-    - `components/gm/book-to-win-card.tsx`, `champion-tag.tsx`, `outcome-card.tsx`, `air-week-button.tsx`
+    - Pages: `resources/js/pages/gm/results.tsx`, `titles/history.tsx`, `rosters/index.tsx`, `docs.tsx`
+    - Components: `components/gm/book-to-win-card.tsx`, `champion-tag.tsx`, `outcome-card.tsx`, `air-week-button.tsx`, `fatigue-progress.tsx`, `fatigue-meter.tsx`, `promo-slots.tsx`
 - **Tests:**
-    - `tests/Feature/Season/LiveResultsTest.php`, `tests/Feature/Titles/TitleHistoryTest.php`
-    - `results.test.tsx`, `titles/history.test.tsx`, `rosters/index.test.tsx`
+    - Backend: `tests/Feature/Season/LiveResultsTest.php`, `tests/Feature/Titles/TitleHistoryTest.php`, `tests/Feature/News/{NewsEvents,PpvHeadline,PromoStories}Test.php`, `tests/Feature/Matches/FatigueInjuryTest.php`, `tests/Feature/Card/{Promo,PromoRules}Test.php`
+    - Frontend: `results.test.tsx`, `titles/history.test.tsx`, `rosters/index.test.tsx`, `docs.test.tsx`, `promo-slots.test.tsx`

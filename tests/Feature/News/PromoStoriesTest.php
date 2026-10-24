@@ -16,6 +16,7 @@ use App\Services\News\NewsTemplates;
 use App\Services\News\PromoStories;
 use App\Services\Promos\PromoService;
 use App\Services\Promos\PromoStoryWriter;
+use App\Services\Rivalries\RivalryService;
 use App\Services\Week\WeekResolver;
 use Tests\Support\Card;
 use Tests\Support\FixedOutcomes;
@@ -38,6 +39,11 @@ function storyPromo(Save $save, PromoTypeKey $key, ?string $wrestler = null, ?st
         $wrestlerB === null ? null : GameBuilder::wrestler($save, $wrestlerB)->id,
         $championshipId,
     );
+}
+
+function seriouslyHurt(Save $save, string $name): void
+{
+    app(InjuryService::class)->injure(GameBuilder::wrestler($save, $name), InjurySeverity::Serious, 1, $save->rng("hurt.{$name}"));
 }
 
 function storyWeek(Save $save): void
@@ -66,7 +72,7 @@ describe('the story catalog', function () {
     });
 
     it('only uses placeholders the writer fills in', function () {
-        $known = ['brand', 'rival_brand', 'show', 'wrestler', 'wrestler_b', 'opponent', 'winner', 'loser', 'champion', 'challenger', 'title', 'how', 'where', 'streak', 'weeks', 'injury', 'weeks_left', 'amount', 'ppv', 'ppv_weeks'];
+        $known = ['brand', 'rival_brand', 'show', 'wrestler', 'wrestler_b', 'opponent', 'winner', 'loser', 'champion', 'challenger', 'title', 'how', 'where', 'streak', 'weeks', 'injury', 'weeks_left', 'amount', 'ppv', 'ppv_weeks', 'pronoun', 'rivalry'];
 
         foreach (PromoStories::keys() as $key) {
             foreach (PromoStories::variants($key) as [$headline, $summary]) {
@@ -81,6 +87,50 @@ describe('the story catalog', function () {
 describe('Interview Space', function () {
     beforeEach(function () {
         config(['gm.promos.success_rates.interview_space' => 1.0]);
+    });
+
+    it('falls back to the spotlight interview when there is nothing about the wrestler’s form', function () {
+        $save = GameBuilder::inSeason(raw: ['Rob Van Dam', 'Kane', 'Edge'], smackdown: ['Batista']);
+        storyPromo($save, PromoTypeKey::InterviewSpace, 'Rob Van Dam');
+
+        storyWeek($save);
+        $story = rawPromoStory();
+
+        expect($story->payload['story'])->toBe('interview_space.spotlight')
+            ->and(app(NewsTemplates::class)->summary(NewsEventType::PromoResult, $story->payload))
+            ->toMatch('/^Rob Van Dam had an? (sit-down interview|interview) tonight and was being (goofy|enthusiastic)\. It was a great interview and gave insights on how he would be used and ready to take over and dominate the Raw division!$/');
+    });
+
+    it('gets crashed when it fails: a healthy male superstar decks the wrestler and a rivalry starts', function () {
+        config(['gm.promos.success_rates.interview_space' => 0.0]);
+        $save = GameBuilder::inSeason(raw: ['Rob Van Dam', 'Kane', 'Trish Stratus', 'Edge'], smackdown: ['Batista']);
+        seriouslyHurt($save, 'Kane');
+        storyPromo($save, PromoTypeKey::InterviewSpace, 'Rob Van Dam');
+
+        storyWeek($save);
+        $story = rawPromoStory();
+        $summary = app(NewsTemplates::class)->summary(NewsEventType::PromoResult, $story->payload);
+        $crasher = $story->payload['wrestler_b'];
+
+        expect($story->payload['story'])->toBe('interview_space.crashed')
+            // Not the injured Kane, not the Diva.
+            ->and($crasher)->not->toBeIn(['Kane', 'Trish Stratus', 'Rob Van Dam'])
+            ->and($summary)->toContain("{$crasher} crashed the party and decked Rob Van Dam with authority. What's gonna happen next between these two? The attack has started a rivalry between the two.")
+            ->and(app(RivalryService::class)->between($save, GameBuilder::wrestler($save, 'Rob Van Dam')->id, GameBuilder::wrestler($save, $crasher)->id))->not->toBeNull();
+    });
+
+    it('leaves out the rivalry when either wrestler is already in one', function () {
+        config(['gm.promos.success_rates.interview_space' => 0.0]);
+        $save = GameBuilder::inSeason(raw: ['Rob Van Dam', 'Kane', 'Edge'], smackdown: ['Batista']);
+        app(RivalryService::class)->start($save, GameBuilder::wrestler($save, 'Rob Van Dam')->id, GameBuilder::wrestler($save, 'Edge')->id, 1);
+        storyPromo($save, PromoTypeKey::InterviewSpace, 'Rob Van Dam');
+
+        storyWeek($save);
+        $story = rawPromoStory();
+
+        expect($story->payload['story'])->toBe('interview_space.crashed')
+            ->and($story->payload['rivalry'])->toBe('')
+            ->and(app(NewsTemplates::class)->summary(NewsEventType::PromoResult, $story->payload))->toEndWith('What\'s gonna happen next between these two?');
     });
 
     it('spins a win as inspired by the interview', function () {

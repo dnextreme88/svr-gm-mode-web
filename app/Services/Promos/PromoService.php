@@ -5,16 +5,19 @@ namespace App\Services\Promos;
 use App\Enums\Brand;
 use App\Enums\LedgerCategory;
 use App\Enums\PromoTypeKey;
+use App\Enums\RosterType;
 use App\Enums\ShowStatus;
 use App\Exceptions\GameRuleException;
 use App\Models\MatchSlot;
 use App\Models\PromoSlot;
 use App\Models\PromoType;
+use App\Models\Rivalry;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Fatigue\FatigueZones;
 use App\Services\Finance\LedgerService;
 use App\Services\Injuries\InjuryService;
+use App\Services\Injuries\InjuryStatus;
 use App\Services\Mail\EmailService;
 use App\Services\Rivalries\RivalryService;
 use App\Support\Rng\Rng;
@@ -30,6 +33,12 @@ use App\Support\Rng\Rng;
  */
 class PromoService
 {
+    /**
+     * Ends a crashed Interview Space's outcome note when the attack started
+     * a rivalry (the story mentions it).
+     */
+    public const CRASH_RIVALRY_NOTE = 'rivalry started';
+
     public function __construct(
         private LedgerService $ledger,
         private RivalryService $rivalries,
@@ -186,25 +195,16 @@ class PromoService
     }
 
     /**
-     * Merchandise Sponsorship pays more the more consistently it's used (§5).
-     * ASSUMPTION: base + step per consecutive week, capped, reset after idle weeks.
+     * Merchandise Sponsorship's deal for this airing (house rule): one of
+     * the configured tiers, equal odds. Bigger deals land less often.
+     *
+     * @return array{amount: int, chance: float}
      */
-    public function merchandiseAmount(Show $show, Brand $brand): int
+    public function merchandiseTier(Rng $rng): array
     {
-        $cfg = (array) config('gm.promos.merchandise');
-        $streak = 0;
-        $idle = 0;
+        $tier = $rng->pick((array) config('gm.promos.merchandise_tiers'));
 
-        for ($week = $show->week_number - 1; $week > 0 && $idle < (int) $cfg['reset_after_idle_weeks']; $week--) {
-            if ($this->usedIn($show, $brand, PromoTypeKey::MerchandiseSponsorship, $week)) {
-                $streak++;
-                $idle = 0;
-            } else {
-                $idle++;
-            }
-        }
-
-        return min((int) $cfg['cap'], (int) $cfg['base'] + $streak * (int) $cfg['step']);
+        return ['amount' => (int) $tier['amount'], 'chance' => (float) $tier['chance']];
     }
 
     /**
@@ -233,9 +233,10 @@ class PromoService
 
         $save = $show->game;
         $week = $show->week_number;
-        $amount = $type->key === PromoTypeKey::MerchandiseSponsorship ? $this->merchandiseAmount($show, $brand) : $type->base_amount;
+        $tier = $type->key === PromoTypeKey::MerchandiseSponsorship ? $this->merchandiseTier($rng) : null;
+        $amount = $tier['amount'] ?? $type->base_amount;
         $backfired = $type->key === PromoTypeKey::SlanderPromotion && $this->slanderOverused($show, $brand);
-        $succeeded = ! $backfired && $rng->chance($type->successRate());
+        $succeeded = ! $backfired && $rng->chance($tier['chance'] ?? $type->successRate());
 
         // The cost is paid whether or not the promo works.
         if ($amount < 0) {
@@ -270,6 +271,12 @@ class PromoService
             };
         }
 
+        // House rule: a failed Interview Space for someone not booked on the
+        // card gets crashed by another superstar (see `crashInterview`).
+        if ($type->key === PromoTypeKey::InterviewSpace && ! $succeeded && $slot->target !== null && ! $this->bookedOn($show, $slot->target->id)) {
+            $note = $this->crashInterview($show, $brand, $slot, $rng) ?? $note;
+        }
+
         $slot->update([
             'cost_or_profit' => $amount,
             'succeeded' => $succeeded,
@@ -286,8 +293,9 @@ class PromoService
     }
 
     /**
-     * Promo fatigue (house rule): the wrestlers take it success or fail, and
-     * roll injury on the fatigue they had going into the promo.
+     * Promo fatigue (house rule): every wrestler in the promo (both Divas in a
+     * Bikini Contest, both rivals in Continue Rivalry) takes it, success or
+     * fail, and rolls injury on the fatigue it leaves them on.
      */
     private function tire(Show $show, PromoType $type, PromoSlot $slot, Rng $rng): void
     {
@@ -306,6 +314,49 @@ class PromoService
             $wrestler->update(['fatigue' => FatigueZones::cap($goingIn + $type->fatigue_bars * (int) config('gm.fatigue.bar_size'))]);
             $this->injuries->rollForPromo($wrestler->refresh(), $goingIn, $type->fatigue_bars, $show->week_number, $rng);
         }
+    }
+
+    /**
+     * Interview Space gone wrong (house rule): a random healthy male
+     * superstar from the same brand crashes the interview and decks the
+     * wrestler (stored as the promo's second target). If neither is in a
+     * rivalry yet, that starts one.
+     */
+    private function crashInterview(Show $show, Brand $brand, PromoSlot $slot, Rng $rng): ?string
+    {
+        $target = $slot->target;
+
+        if ($target === null) {
+            return null;
+        }
+
+        $injured = app(InjuryStatus::class)->seriouslyInjuredIds($show->save_id, $show->week_number);
+        $candidates = SaveWrestler::with('wrestler')
+            ->where('save_id', $show->save_id)
+            ->where('brand', $brand)
+            ->where('id', '!=', $target->id)
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (SaveWrestler $w): bool => $w->wrestler->roster_type !== RosterType::Diva && ! in_array($w->id, $injured, true) && ! $w->isSittingOut($show->week_number))
+            ->values();
+
+        if ($candidates->isEmpty()) {
+            return null;
+        }
+
+        /** @var SaveWrestler $crasher */
+        $crasher = $rng->pick($candidates->all());
+        $slot->update(['target_wrestler_b_id' => $crasher->id]);
+
+        $inRivalry = $this->rivalries->active($show->game)->flatMap(fn (Rivalry $r): array => [$r->wrestler_a_id, $r->wrestler_b_id])->all();
+
+        if (! in_array($target->id, $inRivalry, true) && ! in_array($crasher->id, $inRivalry, true)) {
+            $this->rivalries->start($show->game, $target->id, $crasher->id, $show->week_number);
+
+            return "Crashed by {$crasher->name()}: ".self::CRASH_RIVALRY_NOTE;
+        }
+
+        return "Crashed by {$crasher->name()}";
     }
 
     private function bookedOn(Show $show, int $wrestlerId): bool

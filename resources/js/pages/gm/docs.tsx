@@ -4,6 +4,7 @@ import { SpecialtyBadge } from '@/components/gm/badges';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { PageTitle, Panel } from '@/components/gm/panel';
+import { successLabel } from '@/components/gm/promo-slots';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { brandName, formatMoney } from '@/lib/gm';
 import { cn } from '@/lib/utils';
@@ -49,6 +50,7 @@ type Promo = {
     amount: number;
     variable_amount: boolean;
     success_rate: number;
+    success_range?: [number, number] | null;
     fatigue_bars: number;
     /** Extra end-of-week recovery for the target (Inactive Superstar). */
     recovery_bars: number;
@@ -129,7 +131,11 @@ type Props = {
         >;
     };
     stipulations: Array<{ value: Stipulation; label: string }>;
-    promos: { slots: number; types: Promo[] };
+    promos: {
+        slots: number;
+        types: Promo[];
+        merchandise_tiers: Array<{ amount: number; chance: number }>;
+    };
     news: { stories_per_brand: number; groups: string[]; events: NewsEvent[] };
     promo_stories: StoryGroup[];
     quiet_stories: StoryGroup[];
@@ -654,7 +660,27 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                         </li>
                         <li>
                             Each promo rolls against its success probability.
-                            The cost is paid whether it works or not.
+                            The cost is paid whether it works or not. Every
+                            promo succeeds except Advertising, Interview Space,
+                            Interference, Slander and Merchandise Sponsorship.
+                        </li>
+                        <li data-testid="merchandise-tiers">
+                            Merchandise Sponsorship rolls one deal when it airs,
+                            with equal odds:{' '}
+                            {promos.merchandise_tiers
+                                .map(
+                                    (t) =>
+                                        `${formatMoney(t.amount)} (${Math.round(t.chance * 100)}% success)`,
+                                )
+                                .join(', ')}
+                            . A success pays that amount; a failure pays
+                            nothing.
+                        </li>
+                        <li>
+                            A failed Interview Space for someone not booked on
+                            the card gets crashed: a random healthy male
+                            superstar from the same brand decks them. If neither
+                            is in a rivalry yet, that starts one.
                         </li>
                         <li>
                             Promos nobody on your roster can do are greyed out
@@ -681,14 +707,17 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                             new promo defaults to the latest spot still free.
                         </li>
                         <li>
-                            Promos with a fatigue cost tire their wrestlers
-                            right there, so that fatigue counts going into their
-                            later matches.
+                            Promos with a fatigue cost tire every wrestler in
+                            them right there, success or fail, so that fatigue
+                            counts going into their later matches: Interference
+                            and Start a Rivalry 2 bars, Diva Bikini Contest 2
+                            bars (both Divas), Continue Rivalry 1 bar (both
+                            rivals).
                         </li>
                         <li>
-                            Promo fatigue rolls injuries like a match: 80–90%
-                            going in rolls for a minor injury, and 100% means a
-                            serious one.
+                            Promo fatigue rolls injuries like a match, on the
+                            fatigue it leaves them on: 80–100% is always an
+                            injury, over 100% always a serious one.
                         </li>
                         <li>
                             A Title Match Hype whose title match is gone by air
@@ -724,9 +753,7 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                                 >
                                     {promoAmount(p)}
                                 </td>
-                                <td className="gm-num">
-                                    {Math.round(p.success_rate * 100)}%
-                                </td>
+                                <td className="gm-num">{successLabel(p)}</td>
                                 <td>
                                     {p.recovery_bars > 0 ? (
                                         <FatigueCost

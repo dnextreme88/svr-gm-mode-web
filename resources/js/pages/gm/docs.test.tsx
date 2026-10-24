@@ -174,6 +174,10 @@ const props = {
     stipulations: [],
     promos: {
         slots: 2,
+        merchandise_tiers: [
+            { amount: 100000, chance: 0.8 },
+            { amount: 1000000, chance: 0.25 },
+        ],
         types: [
             {
                 key: 'advertising',
@@ -480,6 +484,17 @@ describe('Docs page', () => {
             screen.getByText(/A booked title match always ends/),
         ).toBeInTheDocument();
         expect(screen.getByText('(C)').className).toContain('text-gold');
+    });
+
+    it('lists the Merchandise Sponsorship deals with their odds', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Promos' }));
+
+        const tiers = screen.getByTestId('merchandise-tiers');
+        expect(tiers).toHaveTextContent('80% success');
+        expect(tiers).toHaveTextContent('25% success');
     });
 
     it('draws Inactive Superstar’s recovery as green bars', async () => {
