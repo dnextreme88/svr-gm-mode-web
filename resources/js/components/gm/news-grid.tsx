@@ -27,13 +27,13 @@ export type NewsPage = {
 
 const slotLabel = {
     raw: 'Raw',
-    smackdown: 'SmackDown!',
+    smackdown: 'Smackdown',
     neutral: 'WWE',
 } as const;
 
 /**
  * The News carousel (§19): one page per played week, newest first. Each page
- * has three headline cards (Raw, WWE, SmackDown!), four story cards and a
+ * has three headline cards (Raw, WWE, Smackdown), four story cards and a
  * ticker. Every card pairs its headline with a short summary of why.
  */
 export function NewsGrid({ pages }: { pages: NewsPage[] }) {

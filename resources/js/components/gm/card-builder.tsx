@@ -348,6 +348,10 @@ function SlotEditor({
         w.blocked_reason ??
         (w.injury?.severity === 'minor' ? 'Minor injury' : null);
 
+    // Booked in another slot on this card (double booking is allowed).
+    const bookedElsewhere = (id: number) =>
+        (counts.get(id) ?? 0) - (everyone.includes(id) ? 1 : 0) > 0;
+
     const competitorOptions = (side: number, index: number): PickerOption[] => {
         const current = draft.sides[side]?.[index];
 
@@ -373,6 +377,7 @@ function SlotEditor({
                     !w.bookable ||
                     (everyone.includes(w.id) && w.id !== current),
                 note: note(w),
+                booked: bookedElsewhere(w.id),
             }));
     };
 
@@ -383,7 +388,83 @@ function SlotEditor({
             disabled:
                 !w.bookable || (everyone.includes(w.id) && w.id !== current),
             note: note(w),
+            booked: bookedElsewhere(w.id),
         }));
+
+    // One side of the match: its wrestlers and, where the type has one,
+    // its manager.
+    const sideCell = (
+        side: (number | null)[],
+        sideIndex: number,
+        className: string,
+    ) =>
+        type ? (
+            <div className={cn('space-y-2', className)}>
+                {side.map((id, index) => (
+                    <CompetitorSlot
+                        key={index}
+                        testId={`slot-${draft.position}-side-${sideIndex}-${index}`}
+                        label={`${label} side ${sideIndex + 1} wrestler ${index + 1}`}
+                        id={id}
+                        captain={type.captain_fall && index === 0}
+                        captainTestId={`captain-${draft.position}-${sideIndex}`}
+                        options={competitorOptions(sideIndex, index)}
+                        fallbackName={id !== null ? names?.[id] : undefined}
+                        readOnly={readOnly}
+                        onChange={(next) =>
+                            setCompetitor(sideIndex, index, next)
+                        }
+                        details={
+                            id !== null && rosterById.has(id) ? (
+                                <CompetitorDetails
+                                    wrestler={rosterById.get(id) as RosterEntry}
+                                    type={type}
+                                    fatigue={projectedFatigue(
+                                        id,
+                                        draft.position,
+                                        drafts,
+                                        types,
+                                        rosterById,
+                                        fatigueConfig,
+                                        promoFatigue,
+                                    )}
+                                    config={fatigueConfig}
+                                    matches={counts.get(id) ?? 0}
+                                />
+                            ) : null
+                        }
+                        multi={id !== null && (counts.get(id) ?? 0) > 1}
+                    />
+                ))}
+                {type.manager_sides.includes(sideIndex) && (
+                    <div data-testid={`manager-${draft.position}-${sideIndex}`}>
+                        <div className="gm-label mb-1 text-gold">Manager</div>
+                        <WrestlerPicker
+                            label={`${label} manager for side ${sideIndex + 1}`}
+                            value={draft.managers[sideIndex] ?? null}
+                            options={helperOptions(
+                                draft.managers[sideIndex] ?? null,
+                            )}
+                            emptyLabel="No manager"
+                            clearLabel="No manager"
+                            fallbackName={
+                                names?.[draft.managers[sideIndex] ?? '']
+                            }
+                            disabled={readOnly}
+                            onChange={(next) =>
+                                onChange({
+                                    ...draft,
+                                    managers: {
+                                        ...draft.managers,
+                                        [sideIndex]: next,
+                                    },
+                                })
+                            }
+                        />
+                    </div>
+                )}
+            </div>
+        ) : null;
 
     const setCompetitor = (side: number, index: number, id: number | null) => {
         const sides = draft.sides.map((s) => [...s]);
@@ -415,16 +496,19 @@ function SlotEditor({
             )}
         >
             <header className="flex flex-wrap items-start gap-3 border-b border-white/6 px-4 py-2.5">
-                <span
-                    className={cn(
-                        'gm-chyron mt-0.5 py-1 pr-7 pl-3 font-condensed font-bold tracking-[0.18em] uppercase',
-                        isMainEvent
-                            ? 'bg-gold text-arena'
-                            : 'bg-brand text-white',
-                    )}
-                >
-                    {isMainEvent ? 'Main event' : label}
-                </span>
+                {/* Small screens: the label, the type picker and the cost line each get a line. */}
+                <div className="w-full sm:w-auto">
+                    <span
+                        className={cn(
+                            'gm-chyron mt-0.5 inline-block py-1 pr-7 pl-3 font-condensed font-bold tracking-[0.18em] uppercase',
+                            isMainEvent
+                                ? 'bg-gold text-arena'
+                                : 'bg-brand text-white',
+                        )}
+                    >
+                        {isMainEvent ? 'Main event' : label}
+                    </span>
+                </div>
                 <MatchTypePicker
                     position={draft.position}
                     type={type}
@@ -445,7 +529,7 @@ function SlotEditor({
                 />
                 {type && (
                     <span
-                        className="mt-1.5 flex items-center gap-3 font-condensed tracking-wider text-ink-dim uppercase"
+                        className="mt-1.5 flex w-full items-center justify-between gap-3 font-condensed tracking-wider text-ink-dim uppercase sm:w-auto sm:justify-start"
                         data-testid={`type-info-${draft.position}`}
                     >
                         <span>
@@ -457,122 +541,27 @@ function SlotEditor({
                         </span>
                     </span>
                 )}
-                {title && <div className="mt-0.5 ml-auto">{title}</div>}
+                {title && (
+                    <div className="mt-0.5 w-full sm:ml-auto sm:w-auto">
+                        {title}
+                    </div>
+                )}
             </header>
 
             {type ? (
                 <div className="space-y-3 p-4">
-                    <div className="flex flex-wrap items-stretch gap-3">
-                        {draft.sides.map((side, sideIndex) => (
-                            <div key={sideIndex} className="contents">
-                                {sideIndex > 0 && (
-                                    <div className="gm-heading flex items-center px-1 text-xl text-ink-faint italic">
-                                        vs
-                                    </div>
-                                )}
-                                <div className="min-w-56 flex-1 space-y-2">
-                                    {side.map((id, index) => (
-                                        <CompetitorSlot
-                                            key={index}
-                                            testId={`slot-${draft.position}-side-${sideIndex}-${index}`}
-                                            label={`${label} side ${sideIndex + 1} wrestler ${index + 1}`}
-                                            id={id}
-                                            captain={
-                                                type.captain_fall && index === 0
-                                            }
-                                            captainTestId={`captain-${draft.position}-${sideIndex}`}
-                                            options={competitorOptions(
-                                                sideIndex,
-                                                index,
-                                            )}
-                                            fallbackName={
-                                                id !== null
-                                                    ? names?.[id]
-                                                    : undefined
-                                            }
-                                            readOnly={readOnly}
-                                            onChange={(next) =>
-                                                setCompetitor(
-                                                    sideIndex,
-                                                    index,
-                                                    next,
-                                                )
-                                            }
-                                            details={
-                                                id !== null &&
-                                                rosterById.has(id) ? (
-                                                    <CompetitorDetails
-                                                        wrestler={
-                                                            rosterById.get(
-                                                                id,
-                                                            ) as RosterEntry
-                                                        }
-                                                        type={type}
-                                                        fatigue={projectedFatigue(
-                                                            id,
-                                                            draft.position,
-                                                            drafts,
-                                                            types,
-                                                            rosterById,
-                                                            fatigueConfig,
-                                                            promoFatigue,
-                                                        )}
-                                                        config={fatigueConfig}
-                                                        matches={
-                                                            counts.get(id) ?? 0
-                                                        }
-                                                    />
-                                                ) : null
-                                            }
-                                            multi={
-                                                id !== null &&
-                                                (counts.get(id) ?? 0) > 1
-                                            }
-                                        />
-                                    ))}
-                                    {type.manager_sides.includes(sideIndex) && (
-                                        <div
-                                            data-testid={`manager-${draft.position}-${sideIndex}`}
-                                        >
-                                            <div className="gm-label mb-1 text-gold">
-                                                Manager
-                                            </div>
-                                            <WrestlerPicker
-                                                label={`${label} manager for side ${sideIndex + 1}`}
-                                                value={
-                                                    draft.managers[sideIndex] ??
-                                                    null
-                                                }
-                                                options={helperOptions(
-                                                    draft.managers[sideIndex] ??
-                                                        null,
-                                                )}
-                                                emptyLabel="No manager"
-                                                clearLabel="No manager"
-                                                fallbackName={
-                                                    names?.[
-                                                        draft.managers[
-                                                            sideIndex
-                                                        ] ?? ''
-                                                    ]
-                                                }
-                                                disabled={readOnly}
-                                                onChange={(next) =>
-                                                    onChange({
-                                                        ...draft,
-                                                        managers: {
-                                                            ...draft.managers,
-                                                            [sideIndex]: next,
-                                                        },
-                                                    })
-                                                }
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    <SideGrid
+                        columns={sideColumns(draft.sides.length)}
+                        count={draft.sides.length}
+                        testId={`sides-${draft.position}`}
+                        renderSide={(sideIndex) =>
+                            sideCell(
+                                draft.sides[sideIndex],
+                                sideIndex,
+                                'min-w-0',
+                            )
+                        }
+                    />
                     {type.special_referee && (
                         <div
                             className="max-w-xs"
@@ -648,6 +637,86 @@ function SlotEditor({
 /**
  * Pick a match type in two steps: the family, then one of its variants.
  */
+/**
+ * Sides per row. Up to 3 sides share one row; 4 sides go 2 × 2 and anything
+ * bigger in rows of 3, so every side sits under the one above it.
+ */
+function sideColumns(sides: number): number {
+    if (sides <= 3) {
+        return sides;
+    }
+
+    return sides === 4 ? 2 : 3;
+}
+
+function Versus() {
+    return (
+        <div className="gm-heading flex items-center justify-center px-1 text-xl text-ink-faint italic">
+            vs
+        </div>
+    );
+}
+
+/**
+ * Sides in rows of `columns`, with "vs" between the sides of a row. A short
+ * last row keeps the same columns, so it lines up with the rows above. On
+ * small screens the sides stack.
+ */
+function SideGrid({
+    columns,
+    count,
+    testId,
+    renderSide,
+}: {
+    columns: number;
+    count: number;
+    testId: string;
+    renderSide: (sideIndex: number) => React.ReactNode;
+}) {
+    const rows: number[][] = [];
+
+    for (let i = 0; i < count; i += columns) {
+        rows.push(
+            Array.from(
+                { length: Math.min(columns, count - i) },
+                (_, k) => i + k,
+            ),
+        );
+    }
+
+    // 1fr auto 1fr (auto 1fr)…: a column per side with a "vs" between them.
+    const template = Array.from(
+        { length: columns },
+        () => 'minmax(0,1fr)',
+    ).join(' auto ');
+
+    return (
+        <div className="space-y-3" data-testid={testId}>
+            {rows.map((row, r) => (
+                <div
+                    key={r}
+                    data-testid={`${testId}-row-${r}`}
+                    className="flex flex-col gap-3 md:grid md:items-stretch"
+                    style={{ gridTemplateColumns: template }}
+                >
+                    {/* Stacked on small screens, rows need a "vs" between them too. */}
+                    {r > 0 && (
+                        <div className="md:hidden">
+                            <Versus />
+                        </div>
+                    )}
+                    {row.map((sideIndex, c) => (
+                        <div key={sideIndex} className="contents">
+                            {c > 0 && <Versus />}
+                            {renderSide(sideIndex)}
+                        </div>
+                    ))}
+                </div>
+            ))}
+        </div>
+    );
+}
+
 function MatchTypePicker({
     position,
     type,
@@ -670,7 +739,10 @@ function MatchTypePicker({
     const label = `Match type for match ${position}`;
 
     return (
-        <div ref={ref} className="relative mt-[3px] min-w-64 flex-1">
+        <div
+            ref={ref}
+            className="relative mt-[3px] min-w-64 flex-1 basis-full sm:basis-auto"
+        >
             <button
                 type="button"
                 aria-label={label}
@@ -711,7 +783,7 @@ function MatchTypePicker({
                     open={open}
                     role="dialog"
                     aria-label={label}
-                    className="grid w-[min(40rem,calc(100vw-2rem))] grid-cols-[minmax(0,11rem)_minmax(0,1fr)]"
+                    className="grid w-full grid-cols-[minmax(0,9rem)_minmax(0,1fr)] sm:w-[min(40rem,calc(100vw-2rem))] sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]"
                 >
                     <div
                         role="listbox"
@@ -757,7 +829,8 @@ function MatchTypePicker({
                                         close();
                                     }}
                                     className={cn(
-                                        'flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-sm hover:bg-white/6',
+                                        // Small screens: the cost and fatigue go under the name.
+                                        'flex w-full flex-col items-start gap-1 px-3 py-1.5 text-left text-sm hover:bg-white/6 sm:flex-row sm:items-center sm:justify-between sm:gap-3',
                                         t.id === type?.id && 'bg-brand/20',
                                     )}
                                 >

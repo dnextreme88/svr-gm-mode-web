@@ -63,7 +63,7 @@ const matchTypes = [
         variant: 'Single',
         fatigue_cost_bars: 3,
         cost: 15000,
-        win_condition: 'Ladder retrieval',
+        win_condition: 'Briefcase retrieval',
     }),
     type({
         id: 3,
@@ -93,6 +93,20 @@ const matchTypes = [
         family: 'special_referee',
         variant: 'Single',
         special_referee: true,
+    }),
+    type({
+        id: 7,
+        name: 'Hell In A Cell — Armageddon Hell in a Cell',
+        family: 'hell_in_a_cell',
+        variant: 'Armageddon Hell in a Cell',
+        sides: [1, 1, 1, 1, 1, 1],
+    }),
+    type({
+        id: 8,
+        name: 'Ladder — Fatal 4-Way',
+        family: 'ladder',
+        variant: 'Fatal 4-Way',
+        sides: [1, 1, 1, 1],
     }),
 ];
 
@@ -153,6 +167,8 @@ const familyLabel: Record<number, string> = {
     4: 'Fulfill Your Fantasy',
     5: '6-Man Tag',
     6: 'Special Referee',
+    7: 'Hell In A Cell',
+    8: 'Ladder',
 };
 
 function escapeRe(text: string): string {
@@ -408,6 +424,88 @@ describe('CardBuilder', () => {
         expect(screen.getByTestId('slot-1-side-0-0').className).toContain(
             'border-zone-minor',
         );
+    });
+
+    it('marks wrestlers booked elsewhere on the card as Booked', async () => {
+        const { user, pickType, pickWrestler } = setup();
+
+        await pickType(1, 1);
+        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
+        await pickType(2, 1);
+        await user.click(
+            screen.getByRole('button', { name: 'Match 2 side 1 wrestler 1' }),
+        );
+
+        const list = screen.getByRole('listbox', {
+            name: 'Match 2 side 1 wrestler 1',
+        });
+        const edge = within(list).getByRole('option', { name: /Edge/ });
+        const booked = within(edge).getByText('Booked');
+
+        expect(edge).toBeEnabled();
+        expect(booked.className).toContain('text-gold-hot');
+        expect(
+            within(list).getByRole('option', { name: /Kane/ }),
+        ).not.toHaveTextContent('Booked');
+    });
+
+    it('lays a 6-way match out in two rows of 3, lined up', async () => {
+        const { pickType } = setup();
+
+        await pickType(1, 7);
+
+        const rows = [0, 1].map((r) => screen.getByTestId(`sides-1-row-${r}`));
+        expect(rows.map((r) => r.style.gridTemplateColumns)).toEqual(
+            Array(2).fill(
+                'minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr)',
+            ),
+        );
+        expect(
+            rows.map(
+                (r) =>
+                    within(r).getAllByRole('button', { name: /wrestler/ })
+                        .length,
+            ),
+        ).toEqual([3, 3]);
+        expect(within(rows[0]).getAllByText('vs')).toHaveLength(2);
+    });
+
+    it('lays a Fatal 4-Way out as 2 × 2', async () => {
+        const { pickType } = setup();
+
+        await pickType(1, 8);
+
+        expect(
+            screen.getByTestId('sides-1-row-0').style.gridTemplateColumns,
+        ).toBe('minmax(0,1fr) auto minmax(0,1fr)');
+        expect(screen.getByTestId('sides-1-row-1')).toBeInTheDocument();
+    });
+
+    it('keeps singles on one row, with a vs between the sides', async () => {
+        const { pickType } = setup();
+
+        await pickType(1, 1);
+
+        const row = screen.getByTestId('sides-1-row-0');
+        expect(row.style.gridTemplateColumns).toBe(
+            'minmax(0,1fr) auto minmax(0,1fr)',
+        );
+        // Stacked on small screens: one dropdown per line, vs between.
+        expect(row.className).toContain('flex-col');
+        expect(within(row).getAllByText('vs')).toHaveLength(1);
+        expect(screen.queryByTestId('sides-1-row-1')).not.toBeInTheDocument();
+    });
+
+    it('keeps a team’s wrestlers together, with one vs between the teams', async () => {
+        const { pickType } = setup();
+
+        await pickType(1, 5);
+
+        const row = screen.getByTestId('sides-1-row-0');
+        expect(within(row).getAllByText('vs')).toHaveLength(1);
+        expect(
+            within(row).getAllByRole('button', { name: /wrestler/ }),
+        ).toHaveLength(6);
     });
 
     it('projects fatigue through the card and shows the zone each booking lands in', async () => {

@@ -34,6 +34,8 @@ class WeekResolver
         Steps\SendReminders::class,
         Steps\PpvBuzz::class,
         Steps\WrestleManiaWrapUp::class,
+        // Last before the week ends: fills whatever the week's news left empty.
+        Steps\QuietWeekNews::class,
         Steps\AdvanceWeek::class,
     ];
 

@@ -65,6 +65,11 @@ class NewsTemplates
         'main_event_hype_result' => "The hype was real: {winner} {defeats} {loser}{by} in {brand}'s main event!",
         'promo_result' => "{brand}'s {promo} promo {outcome}.",
         'contract_expiring' => "{wrestler}'s {brand} contract runs out in {n} weeks.",
+        'tickets_on_sale' => 'Tickets on sale now for {event}!',
+        'brand_spotlight' => '{champion} takes the {title} on the road.',
+        'superstar_recap' => "Looking back at {wrestler}'s last match.",
+        'injury_report' => '{brand} injury report: {count} in 6 months.',
+        'locker_room_note' => 'News from the {brand} locker room.',
         'rivalry_milestone' => "{wrestler_a} vs {wrestler_b}: {weeks} weeks in, the fans can't get enough.",
     ];
 
@@ -90,7 +95,7 @@ class NewsTemplates
         'ppv_upcoming' => '{ppv} is {n} weeks away. Expect the card to take shape over the coming shows.',
         'ppv_main_event_set' => '{ppv} has its main event: {wrestler_a} vs {wrestler_b}, with the world title on the line.',
         'ppv_results' => '{top_result} is the moment everyone will be talking about after {ppv}.',
-        'survivor_series_teams' => 'Raw and SmackDown! settle it in the Traditional 3 vs 3 elimination match. Team {captain_a} and Team {captain_b} are set.',
+        'survivor_series_teams' => 'Raw and Smackdown settle it in the Traditional 3 vs 3 elimination match. Team {captain_a} and Team {captain_b} are set.',
         'mitb_qualified' => '{wrestler} is in the Money in the Bank ladder match at WrestleMania. Six climb, one briefcase.',
         'mitb_winner' => '{wrestler} climbed the ladder and grabbed the briefcase: a world title shot they can cash in on any card for a year.',
         'mitb_cash_in' => '{wrestler} cashed in the Money in the Bank briefcase on {champion}, and {result}.',
@@ -138,6 +143,11 @@ class NewsTemplates
         'promo_result.fails' => '{brand} put {promo} on this week\'s show, but it fell flat. The money is spent either way.',
         'promo_result.fizzles' => '{brand} planned {promo} for this week, but the card changed and it had nothing to work with.',
         'contract_expiring' => "{wrestler} has {n} weeks left on their {brand} contract. Without a new deal they'll walk into Free Agency.",
+        'tickets_on_sale' => '{event} is next on the calendar on {date}.',
+        'brand_spotlight' => "{brand}'s top champion spent the week with the fans in {city}, or the roster hung out at WWE HQ. Then a word on the budget.",
+        'superstar_recap' => "A look back at a {brand} superstar's last match.",
+        'injury_report' => "How many {brand} superstars were hurt in the last 6 months, with advice when it's too many.",
+        'locker_room_note' => 'Who is unhappy, whose contract is running out, or all quiet.',
     ];
 
     public function template(NewsEventType $type): string
@@ -150,7 +160,7 @@ class NewsTemplates
      */
     public function render(NewsEventType $type, array $payload): string
     {
-        return $this->fill($this->template($type), $payload);
+        return $this->fill($this->promoStory($payload)[0] ?? $this->template($type), $payload);
     }
 
     /**
@@ -160,10 +170,31 @@ class NewsTemplates
      */
     public function summary(NewsEventType $type, array $payload): string
     {
+        $story = $this->promoStory($payload);
+
+        if ($story !== null) {
+            return $this->fill($story[1], $payload);
+        }
+
         $variant = $payload['outcome'] ?? $payload['won_or_lost'] ?? null;
         $key = is_string($variant) && isset(self::SUMMARIES["{$type->value}.{$variant}"]) ? "{$type->value}.{$variant}" : $type->value;
 
         return $this->fill(self::SUMMARIES[$key], $payload);
+    }
+
+    /**
+     * The promo story an event was written from (`story` + `variant` in its
+     * payload, see `PromoStories`), if any.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{0: string, 1: string}|null
+     */
+    private function promoStory(array $payload): ?array
+    {
+        $key = $payload['story'] ?? null;
+        $variant = $payload['variant'] ?? null;
+
+        return is_string($key) && is_int($variant) ? PromoStories::story($key, $variant) ?? FallbackStories::story($key, $variant) : null;
     }
 
     /**
@@ -203,7 +234,7 @@ class NewsTemplates
 
         $text = (string) preg_replace('/\b1 weeks\b/', '1 week', $text);
 
-        // "…at Friday Night SmackDown!." reads as a typo.
+        // "…at Friday Night Smackdown." reads as a typo.
         return (string) preg_replace('/([!?])\./', '$1', $text);
     }
 }

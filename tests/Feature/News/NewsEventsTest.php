@@ -12,6 +12,7 @@ use App\Models\NewsEvent;
 use App\Models\PromoType;
 use App\Models\Save;
 use App\Services\Contracts\ContractService;
+use App\Services\News\PromoStories;
 use App\Services\Promos\PromoService;
 use App\Services\Rivalries\RivalryService;
 use App\Services\Week\WeekResolver;
@@ -55,6 +56,43 @@ it('records every aired match as a story for its brand', function () {
         ->and($results->pluck('rendered_text')->implode(' | '))->toContain('Edge defeats Kane at ', 'Christian defeats Shelton Benjamin by disqualification at ');
 });
 
+it('ranks the main event highest, a gimmick match above a plain one, and a DQ win lowest', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Christian', 'Shelton Benjamin', 'Carlito', 'Kurt Angle'], smackdown: ['Batista']);
+    Card::book($save, Card::show($save), 1, Card::type('ladder', 'Single'), [['Edge'], ['Kane']]);
+    Card::book($save, Card::show($save), 2, Card::singles(), [['Christian'], ['Shelton Benjamin']]);
+    Card::book($save, Card::show($save), 3, Card::singles(), [['Carlito'], ['Kurt Angle']]);
+    FixedOutcomes::queue('Edge', MatchMethod::MatchSpecific)->queue('Christian', MatchMethod::Dq)->queue('Carlito');
+
+    newsWeek($save);
+
+    $byWinner = newsOf(NewsEventType::MatchResult)->where('brand.value', 'raw')->keyBy('payload.winner');
+    $cfg = config('gm.news.match_result_priority');
+
+    expect($byWinner['Edge']->priority)->toBe($cfg['other'] + $cfg['gimmick_bonus'])
+        ->and($byWinner['Christian']->priority)->toBe($cfg['other'] - $cfg['not_decisive_penalty'])
+        ->and($byWinner['Carlito']->priority)->toBe($cfg['main_event'])
+        ->and($byWinner->map(fn (NewsEvent $e) => $e->payload['main_event'])->all())->toBe(['Edge' => false, 'Christian' => false, 'Carlito' => true]);
+});
+
+it('ranks an undercard title match above a non-title gimmick main event, and Table tags as gimmicks', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Christian', 'Shelton Benjamin', 'Carlito', 'Kurt Angle', 'Chris Masters', 'Tajiri'], smackdown: ['Batista']);
+    $title = GameBuilder::giveTitle($save, 'intercontinental', ['Kane'])->championship_id;
+    Card::book($save, Card::show($save), 1, Card::singles(), [['Edge'], ['Kane']], titleId: $title);
+    Card::book($save, Card::show($save), 2, Card::type('tag_team', 'Table Tornado Tag Elimination'), [['Christian', 'Shelton Benjamin'], ['Chris Masters', 'Tajiri']]);
+    Card::book($save, Card::show($save), 3, Card::type('ladder', 'Single'), [['Carlito'], ['Kurt Angle']]);
+    FixedOutcomes::queue('Kane')->queue('Christian', MatchMethod::MatchSpecific)->queue('Carlito', MatchMethod::MatchSpecific);
+
+    newsWeek($save);
+
+    $cfg = config('gm.news.match_result_priority');
+    $byWinner = newsOf(NewsEventType::MatchResult)->where('brand.value', 'raw')->keyBy('payload.winner');
+
+    expect($byWinner['Kane']->priority)->toBe($cfg['other'] + $cfg['title_bonus'])
+        ->and($byWinner['Kane']->priority)->toBeGreaterThan($byWinner['Carlito']->priority)
+        ->and($byWinner['Christian & Shelton Benjamin']->priority)->toBe($cfg['other'] + $cfg['gimmick_bonus'])
+        ->and($byWinner['Carlito']->priority)->toBe($cfg['main_event'] + $cfg['gimmick_bonus']);
+});
+
 it('turns the main event into a headline after a successful Main Event Hype', function (float $rate, NewsEventType $expected) {
     config(['gm.promos.success_rates.main_event_hype' => $rate]);
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
@@ -84,7 +122,11 @@ it('treats the last booked match as the main event when the later slots are empt
 
     newsWeek($save);
 
-    expect(newsOf(NewsEventType::MainEventHypeResult)->sole()->rendered_text)->toBe("The hype was real: Edge defeats Kane in Raw's main event!")
+    $hype = newsOf(NewsEventType::MainEventHypeResult)->sole();
+
+    expect($hype->payload['story'])->toBe('main_event_hype.success_match')
+        ->and($hype->payload['winner'])->toBe('Edge')
+        ->and($hype->payload['loser'])->toBe('Kane')
         ->and(newsOf(NewsEventType::MatchResult)->sole()->rendered_text)->toStartWith('Christian defeats Shelton Benjamin');
 });
 
@@ -109,11 +151,12 @@ it('records a promo result for the brand that ran it, except Slander and Interfe
 
     newsWeek($save);
 
-    // The rival GM books its own promos on SmackDown!, so look at Raw's.
+    // The rival GM books its own promos on Smackdown, so look at Raw's.
     $result = newsOf(NewsEventType::PromoResult)->where('brand.value', 'raw')->sole();
 
     expect($result->brand->value)->toBe('raw')
-        ->and($result->rendered_text)->toBe("Raw's Advertising promo succeeds.")
+        ->and($result->payload['story'])->toBe('advertising.success')
+        ->and($result->rendered_text)->toBe(str_replace('{brand}', 'Raw', PromoStories::story('advertising.success', $result->payload['variant'])[0]))
         ->and(newsOf(NewsEventType::SlanderResult))->toHaveCount(1)
         ->and(newsOf(NewsEventType::PromoResult)->pluck('payload.promo')->all())->not->toContain('Slander Promotion');
 });

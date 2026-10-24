@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Gm;
 
 use App\Enums\Brand;
+use App\Enums\DraftMode;
 use App\Enums\SaveStage;
 use App\Http\Controllers\Controller;
 use App\Models\Save;
@@ -51,27 +52,31 @@ class SaveController extends Controller
     /**
      * Starting a new game throws away any career that was never saved.
      * JSON callers get the first pick back, so the new-game screen can
-     * reveal it before heading to the draft.
+     * reveal it before heading to the draft. A "Use WWE roster" game skips
+     * the draft and heads straight to title assignment.
      */
     public function store(Request $request, NewGameService $newGame): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:60'],
             'brand' => ['required', Rule::enum(Brand::class)],
+            'draft_mode' => ['sometimes', Rule::enum(DraftMode::class)],
         ]);
+        $mode = DraftMode::from($data['draft_mode'] ?? DraftMode::Manual->value);
 
         Save::whereNull('saved_at')->get()->each->delete();
 
-        $save = $newGame->create($data['name'], Brand::from($data['brand']));
+        $save = $newGame->create($data['name'], Brand::from($data['brand']), mode: $mode);
+        $next = $mode === DraftMode::WweRoster ? route('gm.titles.assign', $save) : route('gm.draft.show', $save);
 
         if ($request->expectsJson() && ! $request->header('X-Inertia')) {
             return response()->json([
-                'draft_url' => route('gm.draft.show', $save),
+                'next_url' => $next,
                 'first_brand' => $save->draft_order[0],
             ], 201);
         }
 
-        return to_route('gm.draft.show', $save);
+        return redirect($next);
     }
 
     /**

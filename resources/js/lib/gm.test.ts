@@ -14,6 +14,6 @@ describe('generated enum types', () => {
     });
 
     it('exposes labels keyed by value', () => {
-        expect(BrandLabels[Brand.Smackdown]).toBe('SmackDown!');
+        expect(BrandLabels[Brand.Smackdown]).toBe('Smackdown');
     });
 });

@@ -2,7 +2,7 @@
 
 ## Context
 
-The News page rarely had anything in the Raw and SmackDown! story cards ("no story this week"), and Newer/Older looked broken. Ordinary match results, most signings and promo outcomes made no brand news. The composer moved a brand's top story up to its headline, so a brand needed 3+ stories before its story cards filled. The archive only listed weeks that had news, so there was usually one page. The inbox only got reactive notices: no welcome, no tips, and a declined trade sent nothing.
+The News page rarely had anything in the Raw and Smackdown story cards ("no story this week"), and Newer/Older looked broken. Ordinary match results, most signings and promo outcomes made no brand news. The composer moved a brand's top story up to its headline, so a brand needed 3+ stories before its story cards filled. The archive only listed weeks that had news, so there was usually one page. The inbox only got reactive notices: no welcome, no tips, and a declined trade sent nothing.
 
 The News page should read like a weekly news report: what happened, why, and what's coming. The inbox should sound like SvR 2006, with mail from JR/Tazz, the rival GM, Vince McMahon, the Trainer and the superstars.
 
@@ -11,7 +11,7 @@ The News page should read like a weekly news report: what happened, why, and wha
 ### One pool per week, drawn at random
 
 - Everything newsworthy in the week goes into one pool. `NewsComposer::compose()` draws from it with `$save->rng('news.page', $week)`, weighted by priority, so a week lays out the same way on every reload.
-- **Headlines:** Raw and SmackDown! each pick from their own Headline-tier events, falling back to their stories (marked `promoted`). The **WWE** (neutral) card only uses cross-brand (`NewsBrand::Both`) events; a Slander or Interference result always takes it.
+- **Headlines:** Raw and Smackdown each pick from their own Headline-tier events, falling back to their stories (marked `promoted`). The **WWE** (neutral) card only uses cross-brand (`NewsBrand::Both`) events; a Slander or Interference result always takes it.
 - **Stories:** 2 random picks per brand from what's left of that brand's events.
 - **Ticker:** everything not picked, plus Ticker-tier events, by priority.
 - A plain `match_result` is dropped when another event covers the same match (shared `slot:{id}` dedupe key: title change, retained, Champion vs Contender, Last Chance, Loser Leaves, Royal Rumble, rivalry blow-off, interference finish, streak snapped).
@@ -36,7 +36,7 @@ The News page should read like a weekly news report: what happened, why, and wha
 ### Navigation and layout
 
 - The carousel covers every played week from week 1 (quiet weeks show the "no headline/story this week" cards). `NewsComposer::pages()` loads the save's events in one query.
-- Headline order is Raw, WWE, SmackDown!.
+- Headline order is Raw, WWE, Smackdown.
 - The brand ribbon's text was cut off by its slanted edge: `px-2` beat `.gm-chyron`'s right padding. It's now `pl-2` (and `pl-3` on page titles).
 
 ## Email
@@ -64,14 +64,14 @@ The News page should read like a weekly news report: what happened, why, and wha
 ## `/gm/docs`: News & email tab
 
 - New tab after Promos. Two cards explain how the news works and how the page is laid out.
-- **News events** table, grouped (Matches, Titles, Stipulations, Pay-per-views, Rivalries, Roster and contracts, Promos, Injuries and morale, Brand battle). Each row shows the event, which card it lands on (Raw / SmackDown!, WWE, or either), how it plays (Headline / Story / Ticker), and its headline and summary templates with the placeholders highlighted.
+- **News events** table, grouped (Matches, Titles, Stipulations, Pay-per-views, Rivalries, Roster and contracts, Promos, Injuries and morale, Brand battle). Each row shows the event, which card it lands on (Raw / Smackdown, WWE, or either), how it plays (Headline / Story / Ticker), and its headline and summary templates with the placeholders highlighted.
     - Group, card and tier live in `App\Services\News\NewsCatalog`; a test fails if a news event type is missing from it. The templates come from `NewsTemplates`.
     - Upset Win, Ratings War and Ratings Streak are listed as "Not in play yet" (they wait on ratings and Popularity).
 - **Emails** table: every GM email, who sends it and when, built in `DocsController::emails()` with thresholds read from config.
 
 ## Assumptions
 
-- Rival GM sender names are placeholders (`Raw GM`, `SmackDown! GM`).
+- Rival GM sender names are placeholders (`Raw GM`, `Smackdown GM`).
 - The specialties tip names a specialist 50% of the time.
 - Vince's shared-PPV reminder comes 2 weeks out.
 - "Great fan feedback" for the rivalry milestone is heat ≥ the heating-up threshold until Popularity exists.

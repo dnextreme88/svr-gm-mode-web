@@ -136,6 +136,7 @@ function PromoEditor({
         ids
             .map((id) => rosterById.get(id))
             .filter((w): w is RosterEntry => w !== undefined)
+            .sort((x, y) => x.name.localeCompare(y.name))
             .map((w) => ({ wrestler: w }));
 
     const firstIds = rules?.wrestler_ids ?? [];

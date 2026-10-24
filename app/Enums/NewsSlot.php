@@ -19,7 +19,7 @@ enum NewsSlot: string
     {
         return match ($this) {
             self::Raw => 'Raw',
-            self::Smackdown => 'SmackDown!',
+            self::Smackdown => 'Smackdown',
             self::Neutral => 'Neutral',
         };
     }

@@ -7,12 +7,9 @@ use App\Enums\MatchFamily;
 use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
-use App\Enums\PromoTypeKey;
 use App\Enums\ShowStatus;
 use App\Models\MatchResult;
 use App\Models\MatchSlot;
-use App\Models\NewsEvent;
-use App\Models\PromoSlot;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Fatigue\FatigueZones;
@@ -20,6 +17,7 @@ use App\Services\Finance\LedgerService;
 use App\Services\Injuries\InjuryService;
 use App\Services\News\NewsRecorder;
 use App\Services\Promos\PromoService;
+use App\Services\Promos\PromoStoryWriter;
 use App\Services\Rivalries\RivalryService;
 use App\Services\Week\WeekContext;
 use App\Support\Rng\Rng;
@@ -31,6 +29,12 @@ use Illuminate\Database\Eloquent\Collection;
  */
 class ShowResolver
 {
+    /**
+     * Plain match families; everything else is a gimmick match, which ranks
+     * higher in the news.
+     */
+    private const PLAIN_FAMILIES = [MatchFamily::Single, MatchFamily::TagTeam, MatchFamily::SixManTag, MatchFamily::Handicap];
+
     public function __construct(
         private MatchResolver $matches,
         private InjuryService $injuries,
@@ -39,6 +43,7 @@ class ShowResolver
         private NewsRecorder $news,
         private MatchOutcomeHandler $outcomes,
         private PromoService $promos,
+        private PromoStoryWriter $promoStories,
     ) {}
 
     public function air(Show $show, WeekContext $context): void
@@ -69,36 +74,9 @@ class ShowResolver
         }
 
         $this->promos->resolve($show, $promoRng);
-
-        if ($mainEvent !== null) {
-            $this->hypeMainEvent($show, $mainEvent, $context->week);
-        }
+        $this->promoStories->write($show, $context->rng("promo-stories.{$show->streamKey()}"));
 
         $show->update(['status' => ShowStatus::Aired]);
-    }
-
-    /**
-     * A successful Main Event Hype turns the main event's result into a
-     * headline. Checked once the show's promos have all resolved, since the
-     * hype may air after the last booked match.
-     */
-    private function hypeMainEvent(Show $show, MatchSlot $mainEvent, int $week): void
-    {
-        $hyped = $show->brand !== null && PromoSlot::where('show_id', $show->id)
-            ->where('succeeded', true)
-            ->whereHas('promoType', fn ($q) => $q->where('key', PromoTypeKey::MainEventHype))
-            ->exists();
-        $result = NewsEvent::where('save_id', $show->save_id)
-            ->where('type', NewsEventType::MatchResult)
-            ->where('dedupe_key', "slot:{$mainEvent->id}")
-            ->first();
-
-        if (! $hyped || $result === null) {
-            return;
-        }
-
-        $this->news->record($show->game, NewsEventType::MainEventHypeResult, NewsTier::Headline, $result->brand, $result->payload, $result->subject_ids, priority: (int) config('gm.news.match_result_priority.hyped_main_event'), week: $week, dedupeKey: $result->dedupe_key);
-        $result->delete();
     }
 
     private function airMatch(MatchSlot $slot, Show $show, WeekContext $context, Rng $rng, bool $mainEvent): void
@@ -209,12 +187,57 @@ class ShowResolver
                 'match' => $slot->matchType?->name,
                 'show' => $show->name,
                 'brand' => $show->brand?->label(),
+                // A quiet brand's headline defaults to its main event, a PPV's
+                // first (NewsComposer).
+                'main_event' => $mainEvent,
+                'ppv' => $show->isPpv(),
             ],
             ['wrestler_ids' => [...$resolved->winners, ...$resolved->losers]],
-            priority: (int) config('gm.news.match_result_priority.'.($mainEvent ? 'main_event' : 'other')),
+            priority: $this->resultPriority($slot, $show, $resolved, $mainEvent),
             week: $week,
             dedupeKey: "slot:{$slot->id}",
         );
+    }
+
+    /**
+     * How big a match result is: a title match above any non-title match, a
+     * PPV match above a weekly show's, the main event above the undercard, a
+     * gimmick match above a plain one, and a DQ or count-out win below a
+     * decisive one.
+     */
+    private function resultPriority(MatchSlot $slot, Show $show, ResolvedMatch $resolved, bool $mainEvent): int
+    {
+        $cfg = (array) config('gm.news.match_result_priority');
+        $priority = (int) $cfg[$mainEvent ? 'main_event' : 'other'];
+
+        if ($slot->title_championship_id !== null) {
+            $priority += (int) $cfg['title_bonus'];
+        }
+
+        if ($show->isPpv()) {
+            $priority += (int) $cfg['ppv_bonus'];
+        }
+
+        if ($this->isGimmick($slot)) {
+            $priority += (int) $cfg['gimmick_bonus'];
+        }
+
+        if (! $resolved->isDecisive()) {
+            $priority -= (int) $cfg['not_decisive_penalty'];
+        }
+
+        return max(1, $priority);
+    }
+
+    /**
+     * Anything but a plain singles, tag, 6-man tag or handicap match. The
+     * Table tag variants are plain families, but tables make them gimmicks.
+     */
+    private function isGimmick(MatchSlot $slot): bool
+    {
+        $type = $slot->matchType;
+
+        return $type !== null && (! in_array($type->family, self::PLAIN_FAMILIES, true) || str_contains($type->variant, 'Table'));
     }
 
     /**

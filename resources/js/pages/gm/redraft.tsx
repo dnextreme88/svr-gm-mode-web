@@ -68,7 +68,7 @@ export default function Redraft() {
                     </Panel>
                     <Panel>
                         <Stat
-                            label="SmackDown! series wins"
+                            label="Smackdown series wins"
                             value={series.smackdown_wins}
                         />
                     </Panel>

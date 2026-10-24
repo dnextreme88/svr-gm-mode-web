@@ -6,7 +6,7 @@ In a PPV week only the weekly show got booked: the week's Air button aired every
 
 ## Rules changed (2026-10-21)
 
-- **Weeks start on Sunday.** PPVs air Sunday, then Raw Monday and SmackDown! Friday (`CalendarService::showDate` now looks forward from the Sunday). Shows air in that order: brand PPV cards, the interbrand card, then the weekly shows.
+- **Weeks start on Sunday.** PPVs air Sunday, then Raw Monday and Smackdown Friday (`CalendarService::showDate` now looks forward from the Sunday). Shows air in that order: brand PPV cards, the interbrand card, then the weekly shows.
 - **One continuous calendar, April 2005 → March 2006**, every season. The Jan–Mar dates no longer fold back onto 2005: New Year's Revolution is Jan 8, Royal Rumble Jan 29, No Way Out Feb 19 and WrestleMania Mar 26, 2006.
 - **Booking order.** The player books a week's cards in date order: their brand's PPV card → the interbrand card (Rumble/Survivor Series entrants, or WrestleMania) → the weekly show.
     - "Continue to …" (confirmation) sets `shows.confirmed_at` and opens the next card. A confirmed card is read-only until it's unlocked (which reopens every later card too).

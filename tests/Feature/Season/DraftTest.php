@@ -2,6 +2,7 @@
 
 use App\Enums\Brand;
 use App\Enums\ContractLength;
+use App\Enums\DraftMode;
 use App\Enums\DraftPickType;
 use App\Enums\LedgerCategory;
 use App\Enums\Morale;
@@ -31,7 +32,7 @@ use Tests\Support\GameBuilder;
 it('creates a save with every wrestler in Free Agency and $15M per brand, granted once', function () {
     $save = GameBuilder::newSave();
 
-    expect(SaveWrestler::where('save_id', $save->id)->count())->toBe(110)
+    expect(SaveWrestler::where('save_id', $save->id)->count())->toBe(158)
         ->and(SaveWrestler::where('save_id', $save->id)->whereNotNull('brand')->count())->toBe(0)
         ->and($save->brand(Brand::Raw)->budget)->toBe(15_000_000)
         ->and($save->brand(Brand::Smackdown)->budget)->toBe(15_000_000)
@@ -94,7 +95,7 @@ it('caps each brand at 30 picks and sends everyone undrafted to Free Agency', fu
 
     expect(SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Raw)->count())->toBe(30)
         ->and(SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Smackdown)->count())->toBe(30)
-        ->and(SaveWrestler::where('save_id', $save->id)->whereNull('brand')->count())->toBe(50)
+        ->and(SaveWrestler::where('save_id', $save->id)->whereNull('brand')->count())->toBe(98)
         ->and(DraftPick::where('save_id', $save->id)->where('brand', Brand::Smackdown)->where('pick_type', DraftPickType::Random)->count())->toBe(30)
         ->and($save->stage)->toBe(SaveStage::AssigningTitles);
 });
@@ -109,6 +110,44 @@ it('starts draftees Happy on a contract paid from the budget', function () {
     expect($wrestler->refresh()->morale)->toBe(Morale::Happy)
         ->and($wrestler->activeContract?->weeks_remaining)->toBe(52)
         ->and($save->brand($brand)->budget)->toBe(15_000_000 - 100_000);
+});
+
+describe('Use WWE roster (house rule)', function () {
+    beforeEach(function () {
+        GameBuilder::seedCatalog();
+        $this->save = app(NewGameService::class)->create('Real', Brand::Raw, GameBuilder::SEED, DraftMode::WweRoster);
+    });
+
+    it('signs each brand its Nov 2005 roster and skips the draft', function () {
+        $signed = fn (Brand $brand) => SaveWrestler::where('save_id', $this->save->id)->where('brand', $brand)->get();
+
+        expect($signed(Brand::Raw))->toHaveCount(30)
+            ->and($signed(Brand::Smackdown))->toHaveCount(30)
+            ->and($signed(Brand::Raw)->every(fn (SaveWrestler $w) => $w->wrestler->placeholder_brand === Brand::Raw))->toBeTrue()
+            ->and($signed(Brand::Smackdown)->every(fn (SaveWrestler $w) => $w->wrestler->placeholder_brand === Brand::Smackdown))->toBeTrue()
+            ->and(SaveWrestler::where('save_id', $this->save->id)->whereNull('brand')->count())->toBe(98)
+            ->and(DraftPick::where('save_id', $this->save->id)->count())->toBe(0)
+            ->and($this->save->refresh()->stage)->toBe(SaveStage::AssigningTitles);
+    });
+
+    it('pays for every signing like a draft pick', function () {
+        $fees = fn (Brand $brand) => -LedgerEntry::where('save_id', $this->save->id)->where('brand', $brand)->where('category', LedgerCategory::SigningFee)->sum('amount');
+
+        foreach (Brand::cases() as $brand) {
+            expect(LedgerEntry::where('save_id', $this->save->id)->where('brand', $brand)->where('category', LedgerCategory::SigningFee)->count())->toBe(30)
+                ->and($this->save->brand($brand)->budget)->toBe(15_000_000 - (int) $fees($brand));
+        }
+
+        $wrestler = GameBuilder::wrestler($this->save, 'John Cena');
+
+        expect($wrestler->morale)->toBe(Morale::Happy)
+            ->and($wrestler->activeContract?->weeks_remaining)->toBe(52);
+    });
+
+    it('crowns the rival brand\'s champions and leaves the player\'s titles to assign', function () {
+        expect(TitleReign::where('save_id', $this->save->id)->get()->every(fn (TitleReign $r) => $r->championship->brand === Brand::Smackdown))->toBeTrue()
+            ->and(TitleReign::where('save_id', $this->save->id)->count())->toBeGreaterThan(0);
+    });
 });
 
 it('leaves the AI opening pick to the draft room, one step at a time', function () {

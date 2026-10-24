@@ -304,7 +304,6 @@ return [
             'continue_rivalry' => 0.90,
             'start_rivalry' => 0.85,
             'inactive_superstar' => 0.90,
-            'injury_return' => 0.80,
             'advertising' => 1.00,
             'merchandise_sponsorship' => 1.00,
             'main_event_hype' => 0.75,
@@ -322,7 +321,6 @@ return [
             'continue_rivalry' => -2_000,
             'start_rivalry' => 0,
             'inactive_superstar' => -2_000,
-            'injury_return' => -50_000,
             'advertising' => 150_000,
             'merchandise_sponsorship' => 0,
             'main_event_hype' => -50_000,
@@ -344,8 +342,6 @@ return [
         'recovery_bars' => [
             'inactive_superstar' => 2,
         ],
-        // ASSUMPTION: Injury Return works on a serious injury that healed this recently.
-        'injury_return_window_weeks' => 2,
         // Comeback Reminder: the wrestler has been out more than this many weeks.
         'comeback_reminder_min_weeks_out' => 3,
         // ASSUMPTION: "freshly signed/traded-in" window for New Superstar.
@@ -394,9 +390,26 @@ return [
             'other' => 12,
             'main_event' => 28,
             'hyped_main_event' => 65,
+            // House rule, headline precedence: PPV → title → main event →
+            // gimmick. Each step outranks everything below it (a PPV match
+            // beats any weekly match, a title match any non-title one, the
+            // main event any non-title undercard match), and a gimmick match
+            // (anything but a plain singles, tag, 6-man tag or handicap match;
+            // Table tag variants are gimmicks) beats a plain one. A DQ or
+            // count-out win is smaller news, never enough to flip a step.
+            'ppv_bonus' => 60,
+            'title_bonus' => 30,
+            'gimmick_bonus' => 6,
+            'not_decisive_penalty' => 6,
         ],
         'free_agent_signed_priority' => 18,
         'promo_result_priority' => 14,
+        // Quiet weeks: where a brand's top champion tours, and how far back
+        // the injury report looks (about 6 months).
+        'tour_cities' => ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Philadelphia', 'Boston', 'Detroit', 'Atlanta', 'Miami', 'Toronto', 'Las Vegas', 'Seattle', 'Denver', 'St. Louis', 'Pittsburgh', 'Phoenix'],
+        'injury_report_weeks' => 26,
+        // Interview Space: a streak this long can be what the wrestler talks about.
+        'promo_story_streak_from' => 3,
         'contract_expiring_weeks' => 2,
         'contract_expiring_priority' => 16,
         // ASSUMPTION: "great fan feedback" is heat at or above
@@ -430,7 +443,7 @@ return [
         // ASSUMPTION: placeholder names for the rival brand's GM.
         'rival_gm' => [
             'raw' => 'Raw GM',
-            'smackdown' => 'SmackDown! GM',
+            'smackdown' => 'Smackdown GM',
         ],
         'vince' => 'Vince McMahon',
         'trainer' => 'Trainer',

@@ -19,7 +19,7 @@ enum BrandScope: string
     {
         return match ($this) {
             self::Raw => 'Raw',
-            self::Smackdown => 'SmackDown!',
+            self::Smackdown => 'Smackdown',
             self::Shared => 'Big Four',
         };
     }

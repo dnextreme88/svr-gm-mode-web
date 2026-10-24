@@ -56,7 +56,7 @@ export function TitleCycler({
 
     return (
         <div
-            className="flex items-center gap-1 text-sm"
+            className="flex w-full items-center gap-1 text-sm sm:w-auto"
             role="group"
             aria-label={`Title on the line for match ${draft.position}`}
         >
@@ -72,7 +72,7 @@ export function TitleCycler({
             <span
                 data-testid={`title-${draft.position}`}
                 className={cn(
-                    'text-md mt-1 min-w-[300px] px-3 py-1 text-center font-condensed font-bold tracking-[0.14em] uppercase',
+                    'text-md mt-1 min-w-0 flex-1 px-3 py-1 text-center font-condensed font-bold tracking-[0.14em] uppercase sm:min-w-[300px] sm:flex-none',
                     current
                         ? 'bg-gradient-to-b from-gold-hot to-gold text-arena'
                         : 'bg-white/5 text-ink-dim',
@@ -130,10 +130,10 @@ export function StipulationPicker({
     };
 
     return (
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex w-full items-center gap-2 text-sm sm:w-auto">
             <span className="gm-label">Stipulation</span>
             <div
-                className="flex items-center gap-1"
+                className="flex min-w-0 flex-1 items-center gap-1 sm:flex-none"
                 role="group"
                 aria-label={`Stipulation for match ${draft.position}`}
             >
@@ -149,7 +149,7 @@ export function StipulationPicker({
                 <span
                     data-testid={`stipulation-${draft.position}`}
                     className={cn(
-                        'min-w-[250px] px-3 py-1 text-center font-condensed text-xs font-bold tracking-[0.14em] uppercase',
+                        'min-w-0 flex-1 px-3 py-1 text-center font-condensed text-xs font-bold tracking-[0.14em] uppercase sm:min-w-[250px] sm:flex-none',
                         current
                             ? 'bg-gradient-to-b from-gold-hot to-gold text-arena'
                             : 'bg-white/5 text-ink-dim',

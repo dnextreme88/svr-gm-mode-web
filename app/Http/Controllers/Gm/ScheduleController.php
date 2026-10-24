@@ -81,7 +81,7 @@ class ScheduleController extends Controller
 
         return [
             ...$air,
-            'name' => $air['ppv']['name'] ?? ($brand === 'raw' ? 'Monday Night Raw' : 'Friday Night SmackDown!'),
+            'name' => $air['ppv']['name'] ?? ($brand === 'raw' ? 'Monday Night Raw' : 'Friday Night Smackdown'),
             'mine' => $mine,
             'show_id' => $show?->id,
             'state' => $state,

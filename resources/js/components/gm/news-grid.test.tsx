@@ -81,7 +81,7 @@ describe('NewsGrid', () => {
         expect(screen.getByText('Neutral headline 3')).toBeInTheDocument();
         // SmackDown has one story; its second card is an empty placeholder.
         expect(
-            screen.getByText('SmackDown!: no story this week'),
+            screen.getByText('Smackdown: no story this week'),
         ).toBeInTheDocument();
     });
 
@@ -124,7 +124,7 @@ describe('NewsGrid', () => {
         expect(screen.getByTestId('news-week')).toHaveTextContent('Week 4');
     });
 
-    it('orders the headlines Raw, WWE, SmackDown!', () => {
+    it('orders the headlines Raw, WWE, Smackdown', () => {
         render(<NewsGrid pages={[page(3)]} />);
 
         const headlines = within(

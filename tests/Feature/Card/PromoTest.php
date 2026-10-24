@@ -113,7 +113,7 @@ it('backfires Slander automatically if used more than once in 4 weeks, and alway
         ->and($news)->toHaveCount(2)
         ->and($news->pluck('tier')->map->value->unique()->all())->toBe(['headline'])
         ->and($news->pluck('brand')->map->value->unique()->all())->toBe(['both'])
-        ->and($news[1]->rendered_text)->toContain('backfires');
+        ->and($news[1]->payload['story'])->toBe('slander_promotion.backfires');
 });
 
 it('reports Interference results as a neutral headline whether it succeeds or fails', function () {
@@ -123,7 +123,10 @@ it('reports Interference results as a neutral headline whether it succeeds or fa
 
     airPromos($save);
 
-    expect(NewsEvent::where('type', 'interference_promo_result')->sole()->rendered_text)->toContain('fails to disrupt');
+    $event = NewsEvent::where('type', 'interference_promo_result')->sole();
+
+    expect($event->payload['story'])->toBe('interference_promotion.fails')
+        ->and($event->rendered_text)->toContain('Edge');
 });
 
 it('starts and continues rivalries', function () {

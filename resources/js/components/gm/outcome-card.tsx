@@ -48,7 +48,7 @@ export function OutcomeCard({
 
             <div className="mt-8 animate-gm-rise">
                 <div className="gm-label text-zone-safe">Winner</div>
-                <h2 className="gm-heading mt-1 text-5xl font-bold text-ink md:text-7xl">
+                <h2 className="gm-heading mt-1 text-3xl font-bold text-ink md:text-5xl">
                     {outcome.winners.join(' & ')}
                 </h2>
                 <div className="mt-4 font-condensed text-lg tracking-wide text-ink-dim uppercase">

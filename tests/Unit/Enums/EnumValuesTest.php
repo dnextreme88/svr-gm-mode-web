@@ -69,14 +69,14 @@ it('matches the spec values', function (string $enum, array $expected) {
     expect($enum::values())->toBe($expected);
 })->with('spec enums');
 
-it('covers all 8 championships, 15 promos and 15 PPVs', function () {
+it('covers all 8 championships, 14 promos and 15 PPVs', function () {
     expect(ChampionshipKey::cases())->toHaveCount(8)
-        ->and(PromoTypeKey::cases())->toHaveCount(15)
+        ->and(PromoTypeKey::cases())->toHaveCount(14)
         ->and(PpvKey::cases())->toHaveCount(15);
 });
 
 it('lists the full §19 news catalog', function () {
-    expect(NewsEventType::values())->toHaveCount(52)
+    expect(NewsEventType::values())->toHaveCount(57)
         ->toContain('title_change', 'retained_by_dq', 'mitb_cash_in', 'interbrand_series_result', 'defection_blocked', 'season_reset', 'match_result', 'main_event_hype_result', 'promo_result', 'contract_expiring', 'rivalry_milestone');
 });
 
@@ -91,7 +91,7 @@ it('includes the core email templates from §11', function () {
 });
 
 it('gives every case a non-empty label', function () {
-    expect(Brand::Smackdown->label())->toBe('SmackDown!')
+    expect(Brand::Smackdown->label())->toBe('Smackdown')
         ->and(ChampionshipKey::Womens->label())->toBe("Women's Championship")
         ->and(ContractLength::OneYear->label())->toBe('1 year')
         ->and(WeightClass::LightHeavyweight->label())->toBe('Light Heavyweight');

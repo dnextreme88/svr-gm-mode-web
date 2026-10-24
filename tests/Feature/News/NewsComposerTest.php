@@ -93,6 +93,90 @@ it('promotes one of a brand’s stories when it has no headline', function () {
         ->and($page['stories']['smackdown'])->toHaveCount(1);
 });
 
+/**
+ * A match result's priority from `gm.news.match_result_priority`.
+ */
+function rank(bool $main = false, bool $title = false, bool $ppv = false, bool $gimmick = false, bool $dq = false): int
+{
+    $cfg = config('gm.news.match_result_priority');
+
+    return $cfg[$main ? 'main_event' : 'other'] + ($title ? $cfg['title_bonus'] : 0) + ($ppv ? $cfg['ppv_bonus'] : 0)
+        + ($gimmick ? $cfg['gimmick_bonus'] : 0) - ($dq ? $cfg['not_decisive_penalty'] : 0);
+}
+
+it('makes the main event a quiet brand’s headline over any non-title undercard match', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+
+    foreach (range(1, 5) as $i) {
+        news($save, NewsEventType::MatchResult, NewsTier::Story, NewsBrand::Raw, rank(gimmick: true), "slot:{$i}", ['main_event' => false]);
+    }
+
+    news($save, NewsEventType::MatchResult, NewsTier::Story, NewsBrand::Raw, rank(main: true), 'slot:6', ['main_event' => true]);
+    $main = NewsEvent::latest('id')->first();
+
+    $headline = app(NewsComposer::class)->compose($save, 1)['headlines']['raw'];
+
+    expect($headline['id'])->toBe($main->id)
+        ->and($headline['promoted'])->toBeTrue();
+});
+
+it('ranks headlines PPV, then title, then main event, then gimmick', function () {
+    expect(rank(ppv: true))->toBeGreaterThan(rank(main: true, title: true, gimmick: true))
+        ->and(rank(title: true, dq: true))->toBeGreaterThan(rank(main: true, gimmick: true))
+        ->and(rank(main: true, dq: true))->toBeGreaterThan(rank(gimmick: true))
+        ->and(rank(gimmick: true))->toBeGreaterThan(rank());
+});
+
+it('picks an undercard title match over a non-title main event', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+    news($save, NewsEventType::MatchResult, NewsTier::Story, NewsBrand::Raw, rank(title: true), 'slot:2', ['main_event' => false]);
+    $title = NewsEvent::latest('id')->first();
+    news($save, NewsEventType::MatchResult, NewsTier::Story, NewsBrand::Raw, rank(main: true, gimmick: true), 'slot:6', ['main_event' => true]);
+
+    expect(app(NewsComposer::class)->compose($save, 1)['headlines']['raw']['id'])->toBe($title->id);
+});
+
+it('picks the PPV main event over the weekly show’s when both aired that week', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+    news($save, NewsEventType::MatchResult, NewsTier::Story, NewsBrand::Raw, rank(main: true, title: true, gimmick: true), 'slot:6', ['main_event' => true, 'ppv' => false]);
+    news($save, NewsEventType::MatchResult, NewsTier::Story, NewsBrand::Raw, rank(main: true, ppv: true), 'slot:11', ['main_event' => true, 'ppv' => true]);
+    $ppv = NewsEvent::latest('id')->first();
+
+    expect(app(NewsComposer::class)->compose($save, 1)['headlines']['raw']['id'])->toBe($ppv->id);
+});
+
+it('promotes the bigger news that replaced the main event result', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+    news($save, NewsEventType::MatchResult, NewsTier::Story, NewsBrand::Raw, rank(), 'slot:1', ['main_event' => false]);
+    news($save, NewsEventType::MatchResult, NewsTier::Story, NewsBrand::Raw, rank(main: true, title: true), 'slot:6', ['main_event' => true]);
+    news($save, NewsEventType::TitleRetained, NewsTier::Story, NewsBrand::Raw, 20, 'slot:6');
+    $retained = NewsEvent::latest('id')->first();
+
+    expect(app(NewsComposer::class)->compose($save, 1)['headlines']['raw']['id'])->toBe($retained->id);
+});
+
+it('always gives a title change its brand’s headline', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+
+    foreach (range(1, 6) as $i) {
+        news($save, NewsEventType::RecordBroken, NewsTier::Headline, NewsBrand::Raw, 200);
+    }
+
+    news($save, NewsEventType::TitleChange, NewsTier::Headline, NewsBrand::Raw, 100);
+    $change = NewsEvent::latest('id')->first();
+
+    expect(app(NewsComposer::class)->compose($save, 1)['headlines']['raw']['id'])->toBe($change->id);
+});
+
+it('never promotes quiet-week filler over real news', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+    news($save, NewsEventType::SuperstarRecap, NewsTier::Story, NewsBrand::Raw, 50);
+    news($save, NewsEventType::Released, NewsTier::Story, NewsBrand::Raw, 1);
+    $real = NewsEvent::latest('id')->first();
+
+    expect(app(NewsComposer::class)->compose($save, 1)['headlines']['raw']['id'])->toBe($real->id);
+});
+
 it('keeps brand cards to their own brand and the neutral card to cross-brand news', function () {
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
 
@@ -112,7 +196,7 @@ it('always gives the neutral headline to a Slander or Interference result', func
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
     news($save, NewsEventType::TradeCompleted, NewsTier::Headline, NewsBrand::Both, 100);
     news($save, NewsEventType::DefectionCompleted, NewsTier::Headline, NewsBrand::Both, 100);
-    news($save, NewsEventType::SlanderResult, NewsTier::Headline, NewsBrand::Both, 1, payload: ['brand' => 'Raw', 'rival_brand' => 'SmackDown!', 'outcome' => 'succeeds']);
+    news($save, NewsEventType::SlanderResult, NewsTier::Headline, NewsBrand::Both, 1, payload: ['brand' => 'Raw', 'rival_brand' => 'Smackdown', 'outcome' => 'succeeds']);
 
     expect(app(NewsComposer::class)->compose($save, 1)['headlines']['neutral']['type'])->toBe('slander_result');
 });
@@ -169,7 +253,7 @@ it('describes every news event type on the docs catalog, in a known group', func
 });
 
 it('tells a different story for each Slander outcome', function (string $outcome, string $expected) {
-    $summary = app(NewsTemplates::class)->summary(NewsEventType::SlanderResult, ['brand' => 'Raw', 'rival_brand' => 'SmackDown!', 'outcome' => $outcome]);
+    $summary = app(NewsTemplates::class)->summary(NewsEventType::SlanderResult, ['brand' => 'Raw', 'rival_brand' => 'Smackdown', 'outcome' => $outcome]);
 
     expect($summary)->toContain($expected);
 })->with([

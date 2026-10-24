@@ -89,14 +89,6 @@ describe('availability', function () {
         expect(rulesFor($save, PromoTypeKey::ComebackReminder)['available'])->toBe($available);
     })->with([[4, false], [5, true]]);
 
-    it('offers Injury Return to wrestlers back from a serious injury within the window', function (int $endsWeek, bool $available) {
-        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
-        seriouslyInjure($save, 'Kane')->update(['ends_week' => $endsWeek]);
-        $save->update(['current_week' => 8]);
-
-        expect(rulesFor($save, PromoTypeKey::InjuryReturn)['available'])->toBe($available);
-    })->with([[8, true], [7, true], [6, false], [9, false]]);
-
     it('limits Interference to healthy non-Divas', function () {
         $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Lita'], smackdown: ['Batista']);
         seriouslyInjure($save, 'Kane');

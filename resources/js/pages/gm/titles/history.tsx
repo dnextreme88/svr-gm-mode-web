@@ -165,7 +165,7 @@ export default function TitleHistory() {
                             )}
                             <div
                                 role="group"
-                                aria-label={`${brand === 'raw' ? 'Raw' : 'SmackDown!'} titles`}
+                                aria-label={`${brand === 'raw' ? 'Raw' : 'Smackdown'} titles`}
                                 data-brand-tint={brand}
                             >
                                 <div className="px-3 pt-2 pb-1.5">

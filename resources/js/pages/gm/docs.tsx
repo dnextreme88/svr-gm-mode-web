@@ -78,6 +78,18 @@ type NewsEvent = {
 
 type GmEmail = { email: string; from: string; when: string };
 
+/** A story catalog group: a promo, or a quiet-week card. */
+type StoryGroup = {
+    key: string;
+    name: string;
+    situations: Array<{
+        situation: string;
+        label: string;
+        extra: boolean;
+        variants: Array<{ headline: string; summary: string }>;
+    }>;
+};
+
 type Props = {
     match_types: Array<{
         family: MatchFamily;
@@ -100,9 +112,27 @@ type Props = {
         weight_class: WeightClass;
         specialties: MatchFamily[];
     }>;
+    rosters: {
+        cap: number;
+        starting_budget: number;
+        contract_weeks: number;
+        legends_draftable: boolean;
+        ai_roll_max: number;
+        ai_focus_from: number;
+        wwe: Record<
+            'raw' | 'smackdown',
+            Array<{
+                name: string;
+                roster_type: RosterType;
+                weight_class: WeightClass;
+            }>
+        >;
+    };
     stipulations: Array<{ value: Stipulation; label: string }>;
     promos: { slots: number; types: Promo[] };
     news: { stories_per_brand: number; groups: string[]; events: NewsEvent[] };
+    promo_stories: StoryGroup[];
+    quiet_stories: StoryGroup[];
     emails: GmEmail[];
     calendar: {
         weekly_show_days: Record<'raw' | 'smackdown', string>;
@@ -127,6 +157,7 @@ const tabs = [
     { key: 'promos', label: 'Promos' },
     { key: 'news', label: 'News & email' },
     { key: 'schedule', label: 'Schedule' },
+    { key: 'rosters', label: 'Rosters & draft' },
 ] as const;
 
 type TabKey = (typeof tabs)[number]['key'];
@@ -247,12 +278,8 @@ const winConditions: Array<{ rule: string; detail: string }> = [
         detail: 'Put an opponent through a table.',
     },
     {
-        rule: 'Ladder retrieval',
-        detail: 'Climb a ladder and grab the item hanging above the ring.',
-    },
-    {
         rule: 'Briefcase retrieval',
-        detail: 'Climb a ladder and grab the Money in the Bank briefcase.',
+        detail: 'Climb a ladder and grab the briefcase hanging above the ring (Ladder matches). In Money in the Bank, the briefcase is a world title shot.',
     },
     {
         rule: 'Cage escape',
@@ -712,9 +739,9 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
 }
 
 const cardLabel: Record<NewsEvent['card'], string> = {
-    brand: 'Raw / SmackDown!',
+    brand: 'Raw / Smackdown',
     wwe: 'WWE',
-    either: 'Raw / SmackDown! or WWE',
+    either: 'Raw / Smackdown or WWE',
 };
 
 /** Counts read as N and M ("N-match winning streak"); the rest as words. */
@@ -743,7 +770,161 @@ function Template({ text }: { text: string }) {
     );
 }
 
-function NewsAndEmail({ news, emails }: Pick<Props, 'news' | 'emails'>) {
+/**
+ * Every situation of a story catalog with all its versions, one collapsible
+ * group each.
+ */
+function StoryCatalogPanel({
+    title,
+    intro,
+    groups,
+    testIdPrefix,
+}: {
+    title: string;
+    intro: React.ReactNode;
+    groups: StoryGroup[];
+    testIdPrefix: string;
+}) {
+    return (
+        <Panel title={title} bodyClassName="p-0">
+            <div className="space-y-2 border-b border-white/6 px-4 py-3 text-sm text-ink-dim">
+                {intro}
+            </div>
+            <div className="divide-y divide-white/6">
+                {groups.map((group) => (
+                    <details
+                        key={group.key}
+                        data-testid={`${testIdPrefix}-${group.key}`}
+                        className="group px-4 py-3"
+                    >
+                        <summary className="cursor-pointer font-semibold text-ink">
+                            {group.name}
+                            <span className="ml-2 text-sm font-normal text-ink-dim">
+                                {group.situations.length} situations
+                            </span>
+                        </summary>
+                        <div className="mt-3 space-y-4">
+                            {group.situations.map((s) => (
+                                <div key={s.situation}>
+                                    <div className="gm-label mb-1">
+                                        {s.label} ({s.variants.length})
+                                    </div>
+                                    <ul className="space-y-2 text-sm">
+                                        {s.variants.map((v, i) => (
+                                            <li key={i}>
+                                                {v.headline && (
+                                                    <div className="text-ink">
+                                                        <Template
+                                                            text={v.headline}
+                                                        />
+                                                    </div>
+                                                )}
+                                                {v.summary && (
+                                                    <div className="text-ink-dim">
+                                                        <Template
+                                                            text={v.summary}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                    </details>
+                ))}
+            </div>
+        </Panel>
+    );
+}
+
+function PromoStoriesPanel({ promoStories }: { promoStories: StoryGroup[] }) {
+    return (
+        <StoryCatalogPanel
+            title="Promo stories"
+            testIdPrefix="promo-stories"
+            groups={promoStories}
+            intro={
+                <>
+                    <p>
+                        Every promo writes its own story once the show has
+                        aired, based on what happened around it: how the
+                        wrestler’s match went, how the hyped main event or title
+                        match ended, or the wrestler’s form.
+                    </p>
+                    <p>
+                        Each situation has at least 4 versions, and one is
+                        picked with equal odds. Extras join the pool when they
+                        fit (a streak, a long wait for a title shot, holding a
+                        title).
+                    </p>
+                </>
+            }
+        />
+    );
+}
+
+function QuietWeekStoriesPanel({
+    quietStories,
+}: {
+    quietStories: StoryGroup[];
+}) {
+    return (
+        <StoryCatalogPanel
+            title="Quiet-week stories"
+            testIdPrefix="quiet-stories"
+            groups={quietStories}
+            intro={
+                <>
+                    <p>
+                        The News page is never empty. When a week airs, any card
+                        its news left empty gets a quiet-week story, written
+                        then, so an old week still shows that week’s champions,
+                        budget and injuries.
+                    </p>
+                    <ul className="list-disc space-y-1 pl-4">
+                        <li>
+                            WWE headline: tickets on sale for whatever airs
+                            next, the PPV by name or the weekly show with its
+                            date.
+                        </li>
+                        <li>
+                            Brand headline: the brand’s top champion (world,
+                            then second tier, tag, special) spent the week with
+                            the fans in a city, or with no champions the roster
+                            hung out at WWE HQ. Then a line on the budget, a
+                            warning at $500,000 or less.
+                        </li>
+                        <li>
+                            Brand stories: a random superstar’s last match, then
+                            the injury report for the last 6 months, with
+                            booking advice if anyone got hurt.
+                        </li>
+                        <li>
+                            Ticker: unhappy wrestlers and contracts about to run
+                            out, or all quiet.
+                        </li>
+                    </ul>
+                    <p>
+                        Quiet-week stories rank lowest and never take a slot
+                        from real news. One version is picked with equal odds.
+                    </p>
+                </>
+            }
+        />
+    );
+}
+
+function NewsAndEmail({
+    news,
+    emails,
+    promoStories,
+    quietStories,
+}: Pick<Props, 'news' | 'emails'> & {
+    promoStories: StoryGroup[];
+    quietStories: StoryGroup[];
+}) {
     return (
         <div className="space-y-6">
             <div className="grid items-start gap-6 md:grid-cols-2">
@@ -769,20 +950,31 @@ function NewsAndEmail({ news, emails }: Pick<Props, 'news' | 'emails'>) {
                             the same match, like a title change or a snapped
                             streak.
                         </li>
+                        <li>
+                            Match results rank by size, in this order: a PPV
+                            match, then a title match, then the main event, then
+                            a gimmick match (anything but a plain singles, tag,
+                            6-man tag or handicap match; Table tag matches count
+                            as gimmicks). A win by DQ or count-out ranks a
+                            little lower.
+                        </li>
                     </ul>
                 </Panel>
                 <Panel title="The page">
                     <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
                         <li>
-                            Three headlines: Raw, WWE and SmackDown!. Each
+                            Three headlines: Raw, WWE and Smackdown. Each
                             brand’s card only shows that brand’s news. The WWE
                             card only shows cross-brand news, and a Slander or
                             Interference result always takes it.
                         </li>
                         <li>
                             {news.stories_per_brand} stories per brand under the
-                            headlines. A brand with no headline-sized news gets
-                            one of its stories promoted.
+                            headlines. A title change always takes its brand’s
+                            headline. A brand with no headline-sized news gets
+                            its biggest match as the headline instead (by the
+                            order above), or the bigger news that replaced that
+                            match’s result.
                         </li>
                         <li>
                             Every card shows its headline and a short summary of
@@ -858,6 +1050,10 @@ function NewsAndEmail({ news, emails }: Pick<Props, 'news' | 'emails'>) {
                 </table>
             </Panel>
 
+            <PromoStoriesPanel promoStories={promoStories} />
+
+            <QuietWeekStoriesPanel quietStories={quietStories} />
+
             <Panel title="Emails" bodyClassName="p-0 overflow-x-auto">
                 <p className="border-b border-white/6 px-4 py-3 text-sm text-ink-dim">
                     Your inbox holds private notices for your brand only. Most
@@ -893,9 +1089,98 @@ function NewsAndEmail({ news, emails }: Pick<Props, 'news' | 'emails'>) {
 
 const scopeLabel: Record<string, string> = {
     raw: 'Raw',
-    smackdown: 'SmackDown!',
-    shared: 'Raw & SmackDown!',
+    smackdown: 'Smackdown',
+    shared: 'Raw & Smackdown',
 };
+
+function RostersDocs({ rosters }: Pick<Props, 'rosters'>) {
+    return (
+        <div className="space-y-6">
+            <p className="max-w-3xl text-sm text-ink-dim">
+                A new game picks how both rosters are built. Either way each
+                brand starts with a {formatMoney(rosters.starting_budget)}{' '}
+                budget, granted once, and can hold up to {rosters.cap} wrestlers
+                (Superstars, Divas and Legends all count).
+            </p>
+            <div className="grid items-start gap-6 md:grid-cols-2">
+                <Panel title="Manual draft pick">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            You and the rival GM alternate picks from the whole
+                            pool. Who picks first is random.
+                        </li>
+                        <li>
+                            Up to {rosters.cap} picks each. You can stop early
+                            and fill spots from Free Agency later.
+                        </li>
+                        <li>
+                            {rosters.legends_draftable
+                                ? 'Legends can be drafted.'
+                                : 'Legends can’t be drafted. They wait in Free Agency.'}
+                        </li>
+                        <li>
+                            Each pick signs a {rosters.contract_weeks}-week
+                            contract, and its signing fee comes out of the
+                            budget.
+                        </li>
+                        <li>
+                            The rival GM rolls 1–{rosters.ai_roll_max} on every
+                            pick. On {rosters.ai_focus_from}+ it goes after its
+                            brand’s division (Raw:{' '}
+                            <span className="gm-name-diva font-semibold">
+                                Divas
+                            </span>
+                            ; Smackdown:{' '}
+                            <span className="gm-name-cruiser font-semibold">
+                                Cruiserweights and Light Heavyweights
+                            </span>
+                            ), otherwise anyone affordable.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel title="Use WWE roster">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            No draft. Each brand signs its real WWE roster from
+                            November 14, 2005, when Smackdown vs Raw 2006 came
+                            out, trimmed to {rosters.cap} each.
+                        </li>
+                        <li>
+                            Signings work like draft picks: a{' '}
+                            {rosters.contract_weeks}-week contract, with its
+                            signing fee out of the budget.
+                        </li>
+                        <li>
+                            Everyone else, Legends included, starts in Free
+                            Agency.
+                        </li>
+                        <li>
+                            The game goes straight to crowning your champions.
+                        </li>
+                    </ul>
+                </Panel>
+            </div>
+
+            <div className="grid items-start gap-6 md:grid-cols-2">
+                {(['raw', 'smackdown'] as const).map((brand) => (
+                    <Panel
+                        key={brand}
+                        title={`WWE roster: ${brandName(brand)} (${rosters.wwe[brand].length})`}
+                        bodyClassName="p-0"
+                    >
+                        <ul className="grid grid-cols-2 gap-x-4 gap-y-1 px-4 py-3 text-sm">
+                            {rosters.wwe[brand].map((w) => (
+                                <li key={w.name}>
+                                    <WrestlerName wrestler={w} />
+                                </li>
+                            ))}
+                        </ul>
+                    </Panel>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
     const days = calendar.weekly_show_days;
@@ -913,8 +1198,7 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                         </li>
                         <li>
                             Weeks start on Sunday. PPVs air on the Sunday, then
-                            Raw on {days.raw} and SmackDown! on {days.smackdown}
-                            .
+                            Raw on {days.raw} and Smackdown on {days.smackdown}.
                         </li>
                         <li>
                             The Schedule shows both brands on a month calendar.
@@ -1117,11 +1401,17 @@ export default function Docs() {
                 )}
                 {tab === 'promos' && <Promos promos={props.promos} />}
                 {tab === 'news' && (
-                    <NewsAndEmail news={props.news} emails={props.emails} />
+                    <NewsAndEmail
+                        news={props.news}
+                        emails={props.emails}
+                        promoStories={props.promo_stories}
+                        quietStories={props.quiet_stories}
+                    />
                 )}
                 {tab === 'schedule' && (
                     <ScheduleDocs calendar={props.calendar} />
                 )}
+                {tab === 'rosters' && <RostersDocs rosters={props.rosters} />}
             </div>
         </>
     );

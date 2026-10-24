@@ -7,7 +7,7 @@ export const Brand = {
 export type Brand = (typeof Brand)[keyof typeof Brand];
 export const BrandLabels: Record<Brand, string> = {
     'raw': 'Raw',
-    'smackdown': 'SmackDown!',
+    'smackdown': 'Smackdown',
 };
 
 export const BrandScope = {
@@ -18,7 +18,7 @@ export const BrandScope = {
 export type BrandScope = (typeof BrandScope)[keyof typeof BrandScope];
 export const BrandScopeLabels: Record<BrandScope, string> = {
     'raw': 'Raw',
-    'smackdown': 'SmackDown!',
+    'smackdown': 'Smackdown',
     'shared': 'Big Four',
 };
 
@@ -96,6 +96,16 @@ export const ContractStatusLabels: Record<ContractStatus, string> = {
     'expired': 'Expired',
     'released': 'Released',
     'superseded': 'Superseded',
+};
+
+export const DraftMode = {
+    Manual: 'manual',
+    WweRoster: 'wwe_roster',
+} as const;
+export type DraftMode = (typeof DraftMode)[keyof typeof DraftMode];
+export const DraftModeLabels: Record<DraftMode, string> = {
+    'manual': 'Manual draft pick',
+    'wwe_roster': 'Use WWE roster',
 };
 
 export const DraftPhase = {
@@ -370,7 +380,7 @@ export const NewsBrand = {
 export type NewsBrand = (typeof NewsBrand)[keyof typeof NewsBrand];
 export const NewsBrandLabels: Record<NewsBrand, string> = {
     'raw': 'Raw',
-    'smackdown': 'SmackDown!',
+    'smackdown': 'Smackdown',
     'both': 'Both',
 };
 
@@ -427,6 +437,11 @@ export const NewsEventType = {
     PromoResult: 'promo_result',
     ContractExpiring: 'contract_expiring',
     RivalryMilestone: 'rivalry_milestone',
+    TicketsOnSale: 'tickets_on_sale',
+    BrandSpotlight: 'brand_spotlight',
+    SuperstarRecap: 'superstar_recap',
+    InjuryReport: 'injury_report',
+    LockerRoomNote: 'locker_room_note',
 } as const;
 export type NewsEventType = (typeof NewsEventType)[keyof typeof NewsEventType];
 export const NewsEventTypeLabels: Record<NewsEventType, string> = {
@@ -482,6 +497,11 @@ export const NewsEventTypeLabels: Record<NewsEventType, string> = {
     'promo_result': 'Promo Result',
     'contract_expiring': 'Contract Expiring',
     'rivalry_milestone': 'Rivalry Milestone',
+    'tickets_on_sale': 'Tickets On Sale',
+    'brand_spotlight': 'Brand Spotlight',
+    'superstar_recap': 'Superstar Recap',
+    'injury_report': 'Injury Report',
+    'locker_room_note': 'Locker Room Note',
 };
 
 export const NewsSlot = {
@@ -492,7 +512,7 @@ export const NewsSlot = {
 export type NewsSlot = (typeof NewsSlot)[keyof typeof NewsSlot];
 export const NewsSlotLabels: Record<NewsSlot, string> = {
     'raw': 'Raw',
-    'smackdown': 'SmackDown!',
+    'smackdown': 'Smackdown',
     'neutral': 'Neutral',
 };
 
@@ -561,7 +581,6 @@ export const PromoTypeKey = {
     ContinueRivalry: 'continue_rivalry',
     StartRivalry: 'start_rivalry',
     InactiveSuperstar: 'inactive_superstar',
-    InjuryReturn: 'injury_return',
     Advertising: 'advertising',
     MerchandiseSponsorship: 'merchandise_sponsorship',
     MainEventHype: 'main_event_hype',
@@ -579,7 +598,6 @@ export const PromoTypeKeyLabels: Record<PromoTypeKey, string> = {
     'continue_rivalry': 'Continue Rivalry',
     'start_rivalry': 'Start a Rivalry',
     'inactive_superstar': 'Inactive Superstar',
-    'injury_return': 'Injury Return',
     'advertising': 'Advertising',
     'merchandise_sponsorship': 'Merchandise Sponsorship',
     'main_event_hype': 'Main Event Hype',
