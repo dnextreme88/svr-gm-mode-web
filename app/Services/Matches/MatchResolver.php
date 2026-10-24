@@ -3,6 +3,7 @@
 namespace App\Services\Matches;
 
 use App\Enums\FinishEvent;
+use App\Enums\MatchFamily;
 use App\Enums\MatchMethod;
 use App\Models\MatchParticipant;
 use App\Models\MatchSlot;
@@ -71,7 +72,7 @@ class MatchResolver
         }
 
         [$method, $summary] = $finish === null
-            ? $this->cleanFinish($slot, $rng, $winnerName, $loserName)
+            ? $this->cleanFinish($slot, $rng, $winnerName, $loserName, $this->hasSubmissionSpecialist($slot, $winnerSide))
             : $this->eventFinish($slot, $finish, $winnerName, $loserName, $interferer === null ? null : ($names[$interferer] ?? $this->lookupName($interferer)));
 
         return new ResolvedMatch(
@@ -173,7 +174,7 @@ class MatchResolver
     /**
      * @return array{0: MatchMethod, 1: string}
      */
-    private function cleanFinish(MatchSlot $slot, Rng $rng, string $winner, string $loser): array
+    private function cleanFinish(MatchSlot $slot, Rng $rng, string $winner, string $loser, bool $submissionSpecialist = false): array
     {
         $condition = $slot->matchType?->win_condition;
 
@@ -191,11 +192,22 @@ class MatchResolver
             $submissionChance *= (float) config('gm.outcomes.rope_break_submission_factor');
         }
 
-        if ($rng->chance($submissionChance)) {
+        // House rule: a Submission specialist wins a clean finish by submission.
+        // The roll still happens so the RNG stream stays the same.
+        if ($rng->chance($submissionChance) || $submissionSpecialist) {
             return [MatchMethod::Submission, "{$winner} makes {$loser} tap out."];
         }
 
         return [MatchMethod::Pinfall, "{$winner} pins {$loser} clean in the middle of the ring."];
+    }
+
+    /**
+     * Whether anyone on the side has the Submission specialty.
+     */
+    private function hasSubmissionSpecialist(MatchSlot $slot, int $side): bool
+    {
+        return $slot->competitors()->contains(fn (MatchParticipant $p): bool => $p->side === $side
+            && $p->saveWrestler->wrestler->specialties->contains(fn (WrestlerSpecialty $s): bool => $s->family === MatchFamily::Submission));
     }
 
     /**

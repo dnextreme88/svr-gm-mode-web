@@ -69,9 +69,9 @@ it('matches the spec values', function (string $enum, array $expected) {
     expect($enum::values())->toBe($expected);
 })->with('spec enums');
 
-it('covers all 8 championships, 15 promos and 15 PPVs', function () {
+it('covers all 8 championships, 14 promos and 15 PPVs', function () {
     expect(ChampionshipKey::cases())->toHaveCount(8)
-        ->and(PromoTypeKey::cases())->toHaveCount(15)
+        ->and(PromoTypeKey::cases())->toHaveCount(14)
         ->and(PpvKey::cases())->toHaveCount(15);
 });
 

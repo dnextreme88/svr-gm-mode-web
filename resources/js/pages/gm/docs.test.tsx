@@ -87,6 +87,25 @@ const props = {
         escalation_chance: 0.2,
     },
     specialists: [],
+    promo_stories: [
+        {
+            key: 'interview_space',
+            name: 'Interview Space',
+            situations: [
+                {
+                    situation: 'success_won',
+                    label: 'Success, then won their match',
+                    extra: false,
+                    variants: [
+                        {
+                            headline: '{wrestler} talks the talk',
+                            summary: '{wrestler} beat {opponent} {how}.',
+                        },
+                    ],
+                },
+            ],
+        },
+    ],
     rosters: {
         cap: 30,
         starting_budget: 15000000,
@@ -431,5 +450,17 @@ describe('Docs page', () => {
             'data-tone',
             'cruiser',
         );
+    });
+
+    it('lists every promo’s story situations and their variants', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'News & email' }));
+
+        const promo = screen.getByTestId('promo-stories-interview_space');
+        expect(promo).toHaveTextContent('Interview Space');
+        expect(promo).toHaveTextContent('Success, then won their match (1)');
+        expect(promo).toHaveTextContent('talks the talk');
     });
 });

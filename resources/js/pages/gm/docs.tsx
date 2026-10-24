@@ -119,6 +119,16 @@ type Props = {
     stipulations: Array<{ value: Stipulation; label: string }>;
     promos: { slots: number; types: Promo[] };
     news: { stories_per_brand: number; groups: string[]; events: NewsEvent[] };
+    promo_stories: Array<{
+        key: string;
+        name: string;
+        situations: Array<{
+            situation: string;
+            label: string;
+            extra: boolean;
+            variants: Array<{ headline: string; summary: string }>;
+        }>;
+    }>;
     emails: GmEmail[];
     calendar: {
         weekly_show_days: Record<'raw' | 'smackdown', string>;
@@ -760,7 +770,76 @@ function Template({ text }: { text: string }) {
     );
 }
 
-function NewsAndEmail({ news, emails }: Pick<Props, 'news' | 'emails'>) {
+function PromoStoriesPanel({
+    promoStories,
+}: {
+    promoStories: Props['promo_stories'];
+}) {
+    return (
+        <Panel title="Promo stories" bodyClassName="p-0">
+            <div className="space-y-2 border-b border-white/6 px-4 py-3 text-sm text-ink-dim">
+                <p>
+                    Every promo writes its own story once the show has aired,
+                    based on what happened around it: how the wrestler’s match
+                    went, how the hyped main event or title match ended, or the
+                    wrestler’s form.
+                </p>
+                <p>
+                    Each situation has at least 4 versions, and one is picked
+                    with equal odds. Extras join the pool when they fit (a
+                    streak, a long wait for a title shot, holding a title).
+                </p>
+            </div>
+            <div className="divide-y divide-white/6">
+                {promoStories.map((promo) => (
+                    <details
+                        key={promo.key}
+                        data-testid={`promo-stories-${promo.key}`}
+                        className="group px-4 py-3"
+                    >
+                        <summary className="cursor-pointer font-semibold text-ink">
+                            {promo.name}
+                            <span className="ml-2 text-sm font-normal text-ink-dim">
+                                {promo.situations.length} situations
+                            </span>
+                        </summary>
+                        <div className="mt-3 space-y-4">
+                            {promo.situations.map((s) => (
+                                <div key={s.situation}>
+                                    <div className="gm-label mb-1">
+                                        {s.label} ({s.variants.length})
+                                    </div>
+                                    <ul className="space-y-2 text-sm">
+                                        {s.variants.map((v) => (
+                                            <li key={v.headline}>
+                                                <div className="text-ink">
+                                                    <Template
+                                                        text={v.headline}
+                                                    />
+                                                </div>
+                                                <div className="text-ink-dim">
+                                                    <Template
+                                                        text={v.summary}
+                                                    />
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                    </details>
+                ))}
+            </div>
+        </Panel>
+    );
+}
+
+function NewsAndEmail({
+    news,
+    emails,
+    promoStories,
+}: Pick<Props, 'news' | 'emails'> & { promoStories: Props['promo_stories'] }) {
     return (
         <div className="space-y-6">
             <div className="grid items-start gap-6 md:grid-cols-2">
@@ -874,6 +953,8 @@ function NewsAndEmail({ news, emails }: Pick<Props, 'news' | 'emails'>) {
                     ))}
                 </table>
             </Panel>
+
+            <PromoStoriesPanel promoStories={promoStories} />
 
             <Panel title="Emails" bodyClassName="p-0 overflow-x-auto">
                 <p className="border-b border-white/6 px-4 py-3 text-sm text-ink-dim">
@@ -1223,7 +1304,11 @@ export default function Docs() {
                 )}
                 {tab === 'promos' && <Promos promos={props.promos} />}
                 {tab === 'news' && (
-                    <NewsAndEmail news={props.news} emails={props.emails} />
+                    <NewsAndEmail
+                        news={props.news}
+                        emails={props.emails}
+                        promoStories={props.promo_stories}
+                    />
                 )}
                 {tab === 'schedule' && (
                     <ScheduleDocs calendar={props.calendar} />

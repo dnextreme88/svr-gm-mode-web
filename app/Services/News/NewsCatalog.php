@@ -35,7 +35,7 @@ class NewsCatalog
      */
     private const ENTRIES = [
         'match_result' => ['group' => 'Matches', 'card' => 'either', 'tier' => 'Story (the main event ranks higher)'],
-        'main_event_hype_result' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline'],
+        'main_event_hype_result' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline (worded by the Main Event Hype promo story)'],
         'interference_finish' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Story'],
         'win_streak' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Story at 3 and 5 wins, Headline at 10'],
         'streak_snapped' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline'],
@@ -81,7 +81,7 @@ class NewsCatalog
         'defection_completed' => ['group' => 'Roster and contracts', 'card' => 'wwe', 'tier' => 'Headline'],
         'season_reset' => ['group' => 'Roster and contracts', 'card' => 'wwe', 'tier' => 'Headline'],
 
-        'promo_result' => ['group' => 'Promos', 'card' => 'brand', 'tier' => 'Story'],
+        'promo_result' => ['group' => 'Promos', 'card' => 'brand', 'tier' => 'Story (worded by the promo story, see Promo stories)'],
         'slander_result' => ['group' => 'Promos', 'card' => 'wwe', 'tier' => 'Headline (always takes the WWE card)'],
         'interference_promo_result' => ['group' => 'Promos', 'card' => 'wwe', 'tier' => 'Headline (always takes the WWE card)'],
 

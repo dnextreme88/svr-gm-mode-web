@@ -150,7 +150,7 @@ class NewsTemplates
      */
     public function render(NewsEventType $type, array $payload): string
     {
-        return $this->fill($this->template($type), $payload);
+        return $this->fill($this->promoStory($payload)[0] ?? $this->template($type), $payload);
     }
 
     /**
@@ -160,10 +160,31 @@ class NewsTemplates
      */
     public function summary(NewsEventType $type, array $payload): string
     {
+        $story = $this->promoStory($payload);
+
+        if ($story !== null) {
+            return $this->fill($story[1], $payload);
+        }
+
         $variant = $payload['outcome'] ?? $payload['won_or_lost'] ?? null;
         $key = is_string($variant) && isset(self::SUMMARIES["{$type->value}.{$variant}"]) ? "{$type->value}.{$variant}" : $type->value;
 
         return $this->fill(self::SUMMARIES[$key], $payload);
+    }
+
+    /**
+     * The promo story an event was written from (`story` + `variant` in its
+     * payload, see `PromoStories`), if any.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{0: string, 1: string}|null
+     */
+    private function promoStory(array $payload): ?array
+    {
+        $key = $payload['story'] ?? null;
+        $variant = $payload['variant'] ?? null;
+
+        return is_string($key) && is_int($variant) ? PromoStories::story($key, $variant) : null;
     }
 
     /**

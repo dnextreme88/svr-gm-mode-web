@@ -455,8 +455,8 @@ describe('championships (§14)', function () {
 });
 
 describe('promo types (§5)', function () {
-    it('seeds 15 promos with spec amounts and config success rates', function () {
-        expect(PromoType::count())->toBe(15)
+    it('seeds 14 promos with spec amounts and config success rates', function () {
+        expect(PromoType::count())->toBe(14)
             ->and(PromoType::where('key', 'advertising')->value('base_amount'))->toBe(150_000)
             ->and(PromoType::where('key', 'new_superstar')->value('base_amount'))->toBe(-50_000)
             ->and(PromoType::where('targets_rival', true)->pluck('key')->map->value->sort()->values()->all())->toBe(['interference_promotion', 'slander_promotion']);

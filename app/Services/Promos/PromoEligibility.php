@@ -52,7 +52,7 @@ class PromoEligibility
     }
 
     /**
-     * @param  array{roster: Collection<int, SaveWrestler>, all: list<int>, booked: list<int>, injured: list<int>, active: list<int>, rivals: list<array{0: int, 1: int}>, inRivalry: list<int>, returned: list<int>, longOut: list<int>, titles: list<int>, joined: list<int>}  $c
+     * @param  array{roster: Collection<int, SaveWrestler>, all: list<int>, booked: list<int>, injured: list<int>, active: list<int>, rivals: list<array{0: int, 1: int}>, inRivalry: list<int>, longOut: list<int>, titles: list<int>, joined: list<int>}  $c
      * @return array{available: bool, reason: string|null, wrestler_ids: list<int>, pairs: list<array{0: int, 1: int}>, championship_ids: list<int>}
      */
     private function forType(PromoType $type, array $c): array
@@ -65,7 +65,6 @@ class PromoEligibility
             PromoTypeKey::ContinueRivalry => [$this->idsIn($c['rivals']), $c['rivals'], [], 'You have no active rivalries.'],
             PromoTypeKey::StartRivalry => [array_values(array_diff($healthy, $c['inRivalry'])), [], [], 'Needs two healthy wrestlers who aren’t already in a rivalry.'],
             PromoTypeKey::InactiveSuperstar => [array_values(array_diff($c['all'], $c['booked'])), [], [], 'Everyone on your roster is booked on this card.'],
-            PromoTypeKey::InjuryReturn => [$c['returned'], [], [], 'Nobody has come back from a serious injury recently.'],
             PromoTypeKey::ComebackReminder => [$c['longOut'], [], [], 'Nobody has been out injured for more than '.(int) config('gm.promos.comeback_reminder_min_weeks_out').' weeks.'],
             PromoTypeKey::InterviewSpace => [$healthy, [], [], 'Nobody on your roster is healthy enough.'],
             PromoTypeKey::DivaBikiniContest => [array_values(array_intersect($healthy, $divas)), [], [], 'Needs two healthy Divas.'],
@@ -92,7 +91,7 @@ class PromoEligibility
     }
 
     /**
-     * @return array{roster: Collection<int, SaveWrestler>, all: list<int>, booked: list<int>, injured: list<int>, active: list<int>, rivals: list<array{0: int, 1: int}>, inRivalry: list<int>, returned: list<int>, longOut: list<int>, titles: list<int>, joined: list<int>}
+     * @return array{roster: Collection<int, SaveWrestler>, all: list<int>, booked: list<int>, injured: list<int>, active: list<int>, rivals: list<array{0: int, 1: int}>, inRivalry: list<int>, longOut: list<int>, titles: list<int>, joined: list<int>}
      */
     private function context(Show $show, Brand $brand): array
     {
@@ -109,19 +108,6 @@ class PromoEligibility
         $inRivalry = $this->ints($this->rivalries->active($show->game)
             ->flatMap(fn (Rivalry $r): array => [$r->wrestler_a_id, $r->wrestler_b_id])
             ->unique()
-            ->all());
-
-        $returnWindow = (int) config('gm.promos.injury_return_window_weeks');
-        $returned = $this->ints(Injury::where('save_id', $show->save_id)
-            ->whereIn('save_wrestler_id', $ids)
-            ->where('severity', InjurySeverity::Serious)
-            ->whereNull('healed_week')
-            ->where('ends_week', '<=', $week)
-            ->where('ends_week', '>', $week - $returnWindow)
-            ->pluck('save_wrestler_id')
-            ->map(fn ($id): int => (int) $id)
-            ->unique()
-            ->diff($injured)
             ->all());
 
         $minOut = (int) config('gm.promos.comeback_reminder_min_weeks_out');
@@ -163,7 +149,7 @@ class PromoEligibility
             'active' => $active,
             'rivals' => $rivals,
             'inRivalry' => $inRivalry,
-            'returned' => $returned,
+
             'longOut' => $longOut,
             'titles' => $titles,
             'joined' => $joined,

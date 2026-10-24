@@ -76,7 +76,10 @@ const eligibility: Record<string, PromoEligibilityView> = {
         reason: 'Nobody on your roster is seriously injured.',
     }),
     interference_promotion: rules({ wrestler_ids: [10] }),
-    continue_rivalry: rules({ wrestler_ids: [10, 11], pairs: [[10, 11]] }),
+    continue_rivalry: rules({
+        wrestler_ids: [11, 12, 10],
+        pairs: [[10, 11]],
+    }),
     title_match_hype: rules({ championship_ids: [7] }),
 };
 
@@ -219,6 +222,23 @@ describe('PromoSlots', () => {
             target_championship_id: null,
             before_position: 2,
         });
+    });
+
+    it('lists the wrestlers a promo can use alphabetically', async () => {
+        const { user } = setup();
+
+        await user.click(screen.getByTestId('promo-1-continue_rivalry'));
+        await user.click(
+            screen.getByRole('button', { name: 'Promo 1 first wrestler' }),
+        );
+
+        expect(
+            within(
+                screen.getByRole('listbox', { name: 'Promo 1 first wrestler' }),
+            )
+                .getAllByRole('option')
+                .map((o) => o.textContent),
+        ).toEqual(['Leave vacant', 'Carlito', 'Edge', 'Kane']);
     });
 
     it('limits the second Continue Rivalry pick to the first pick’s rivals', async () => {

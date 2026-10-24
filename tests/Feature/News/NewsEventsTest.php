@@ -12,6 +12,7 @@ use App\Models\NewsEvent;
 use App\Models\PromoType;
 use App\Models\Save;
 use App\Services\Contracts\ContractService;
+use App\Services\News\PromoStories;
 use App\Services\Promos\PromoService;
 use App\Services\Rivalries\RivalryService;
 use App\Services\Week\WeekResolver;
@@ -84,7 +85,11 @@ it('treats the last booked match as the main event when the later slots are empt
 
     newsWeek($save);
 
-    expect(newsOf(NewsEventType::MainEventHypeResult)->sole()->rendered_text)->toBe("The hype was real: Edge defeats Kane in Raw's main event!")
+    $hype = newsOf(NewsEventType::MainEventHypeResult)->sole();
+
+    expect($hype->payload['story'])->toBe('main_event_hype.success_match')
+        ->and($hype->payload['winner'])->toBe('Edge')
+        ->and($hype->payload['loser'])->toBe('Kane')
         ->and(newsOf(NewsEventType::MatchResult)->sole()->rendered_text)->toStartWith('Christian defeats Shelton Benjamin');
 });
 
@@ -113,7 +118,8 @@ it('records a promo result for the brand that ran it, except Slander and Interfe
     $result = newsOf(NewsEventType::PromoResult)->where('brand.value', 'raw')->sole();
 
     expect($result->brand->value)->toBe('raw')
-        ->and($result->rendered_text)->toBe("Raw's Advertising promo succeeds.")
+        ->and($result->payload['story'])->toBe('advertising.success')
+        ->and($result->rendered_text)->toBe(str_replace('{brand}', 'Raw', PromoStories::story('advertising.success', $result->payload['variant'])[0]))
         ->and(newsOf(NewsEventType::SlanderResult))->toHaveCount(1)
         ->and(newsOf(NewsEventType::PromoResult)->pluck('payload.promo')->all())->not->toContain('Slander Promotion');
 });

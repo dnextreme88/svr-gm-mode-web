@@ -7,12 +7,9 @@ use App\Enums\MatchFamily;
 use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
-use App\Enums\PromoTypeKey;
 use App\Enums\ShowStatus;
 use App\Models\MatchResult;
 use App\Models\MatchSlot;
-use App\Models\NewsEvent;
-use App\Models\PromoSlot;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Fatigue\FatigueZones;
@@ -20,6 +17,7 @@ use App\Services\Finance\LedgerService;
 use App\Services\Injuries\InjuryService;
 use App\Services\News\NewsRecorder;
 use App\Services\Promos\PromoService;
+use App\Services\Promos\PromoStoryWriter;
 use App\Services\Rivalries\RivalryService;
 use App\Services\Week\WeekContext;
 use App\Support\Rng\Rng;
@@ -39,6 +37,7 @@ class ShowResolver
         private NewsRecorder $news,
         private MatchOutcomeHandler $outcomes,
         private PromoService $promos,
+        private PromoStoryWriter $promoStories,
     ) {}
 
     public function air(Show $show, WeekContext $context): void
@@ -69,36 +68,9 @@ class ShowResolver
         }
 
         $this->promos->resolve($show, $promoRng);
-
-        if ($mainEvent !== null) {
-            $this->hypeMainEvent($show, $mainEvent, $context->week);
-        }
+        $this->promoStories->write($show, $context->rng("promo-stories.{$show->streamKey()}"));
 
         $show->update(['status' => ShowStatus::Aired]);
-    }
-
-    /**
-     * A successful Main Event Hype turns the main event's result into a
-     * headline. Checked once the show's promos have all resolved, since the
-     * hype may air after the last booked match.
-     */
-    private function hypeMainEvent(Show $show, MatchSlot $mainEvent, int $week): void
-    {
-        $hyped = $show->brand !== null && PromoSlot::where('show_id', $show->id)
-            ->where('succeeded', true)
-            ->whereHas('promoType', fn ($q) => $q->where('key', PromoTypeKey::MainEventHype))
-            ->exists();
-        $result = NewsEvent::where('save_id', $show->save_id)
-            ->where('type', NewsEventType::MatchResult)
-            ->where('dedupe_key', "slot:{$mainEvent->id}")
-            ->first();
-
-        if (! $hyped || $result === null) {
-            return;
-        }
-
-        $this->news->record($show->game, NewsEventType::MainEventHypeResult, NewsTier::Headline, $result->brand, $result->payload, $result->subject_ids, priority: (int) config('gm.news.match_result_priority.hyped_main_event'), week: $week, dedupeKey: $result->dedupe_key);
-        $result->delete();
     }
 
     private function airMatch(MatchSlot $slot, Show $show, WeekContext $context, Rng $rng, bool $mainEvent): void

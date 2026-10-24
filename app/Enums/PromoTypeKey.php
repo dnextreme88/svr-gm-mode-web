@@ -16,7 +16,6 @@ enum PromoTypeKey: string
     case ContinueRivalry = 'continue_rivalry';
     case StartRivalry = 'start_rivalry';
     case InactiveSuperstar = 'inactive_superstar';
-    case InjuryReturn = 'injury_return';
     case Advertising = 'advertising';
     case MerchandiseSponsorship = 'merchandise_sponsorship';
     case MainEventHype = 'main_event_hype';

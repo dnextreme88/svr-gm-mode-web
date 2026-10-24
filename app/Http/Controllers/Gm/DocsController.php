@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Gm;
 
 use App\Enums\Brand;
 use App\Enums\InjurySeverity;
+use App\Enums\PromoTypeKey;
 use App\Enums\Stipulation;
 use App\Http\Controllers\Controller;
 use App\Models\InjuryType;
@@ -14,6 +15,7 @@ use App\Models\Save;
 use App\Models\Wrestler;
 use App\Services\Calendar\CalendarService;
 use App\Services\News\NewsCatalog;
+use App\Services\News\PromoStories;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -141,6 +143,11 @@ class DocsController extends Controller
                 'value' => $s->value,
                 'label' => $s->label(),
             ], Stipulation::cases()),
+            'promo_stories' => collect(PromoStories::catalog())->map(fn (array $situations, string $key): array => [
+                'key' => $key,
+                'name' => PromoTypeKey::from($key)->label(),
+                'situations' => $situations,
+            ])->sortBy('name')->values(),
             'news' => [
                 'stories_per_brand' => (int) config('gm.news.stories_per_brand'),
                 'groups' => NewsCatalog::GROUPS,

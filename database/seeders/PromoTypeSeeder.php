@@ -7,7 +7,7 @@ use App\Models\PromoType;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeds the 15 promo types (§5). Amounts, success rates and fatigue come from
+ * Seeds the 14 promo types (§5). Amounts, success rates and fatigue come from
  * config. Who each promo can target is decided by PromoEligibility.
  */
 class PromoTypeSeeder extends Seeder
@@ -34,11 +34,6 @@ class PromoTypeSeeder extends Seeder
         'inactive_superstar' => [
             'effect' => 'Rests a wrestler who isn’t being used: they recover 2 extra fatigue bars at the end of the week, and their popularity decays more slowly.',
             'requirement' => 'A wrestler who isn’t booked anywhere on this card.',
-            'wrestler' => true,
-        ],
-        'injury_return' => [
-            'effect' => 'Restores popularity lost while a wrestler was out injured.',
-            'requirement' => 'A wrestler back from a serious injury within the last 2 weeks.',
             'wrestler' => true,
         ],
         'advertising' => [
