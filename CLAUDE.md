@@ -35,6 +35,7 @@ A web take on SmackDown vs Raw 2006 GM Mode with house rules. The original 2006 
 - **Managers:** anyone on the roster can manage a w/Manager match they aren't competing in. Managing adds no fatigue but counts as being used. Jimmy Hart is a regular wrestler.
 - **Special Referee** matches need a referee from the roster who isn't competing or managing and isn't seriously injured. The referee takes no fatigue, injury or record.
 - **Titles:** a title can be on the line only if its champion(s) are in the match, and **each title only once per card**. Divas can only hold or challenge for the Women's title; the Cruiserweight title is for Cruiserweight and Light Heavyweight men.
+- Wrestler pickers mark anyone booked in another match on the same card as **Booked** (still pickable). Match sides line up on a grid: up to 3 on one row, 4 as 2 × 2, more in rows of 3; on small screens everything stacks one per line with "vs" between.
 - **Randomize** (one slot) and **Preset** (empty slots) only propose bookings; confirming goes through normal validation. They draw from bookable wrestlers not already on the card, never add stipulations or managers, and book a pending title shot first.
 
 ### Match types

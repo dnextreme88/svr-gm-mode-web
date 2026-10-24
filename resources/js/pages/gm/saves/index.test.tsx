@@ -69,7 +69,7 @@ describe('new game rosters', () => {
         expect(screen.getByText('Roster Rules:')).toBeInTheDocument();
 
         await userEvent.click(
-            screen.getByRole('button', { name: 'Sign the rosters' }),
+            screen.getByRole('button', { name: 'Play with WWE Roster' }),
         );
 
         expect(requestJson).toHaveBeenCalledWith(

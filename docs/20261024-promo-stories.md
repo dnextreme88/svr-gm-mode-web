@@ -1,4 +1,4 @@
-# Promo stories
+# Promo stories and card screen polish
 
 ## Context
 
@@ -19,6 +19,24 @@ Every promo made the same generic `promo_result` card ("Raw's Interview Space pr
 - **Injury Return promo removed** (enum case, seeder, config, eligibility, tests). 14 promos. The `injury_return` news event and the "back from injury" email are unrelated and stay.
 - `/gm/docs` **News & email** has a **Promo stories** panel listing every promo's situations and variants. `gm.news.promo_story_streak_from` (3) is the streak that counts as "form".
 
+## Card screen polish (2026-10-24)
+
+- **Wrestler pickers** (`WrestlerPicker`):
+    - Promo pickers list wrestlers alphabetically.
+    - A wrestler booked in another match on the same card shows **Booked** on the far right in light gold (`text-gold-hot`). They can still be picked, since double booking is allowed. The flag comes from the card's per-wrestler booking counts (`bookedElsewhere` in `card-builder.tsx`) and shows in the manager and Special Referee pickers too.
+    - Names are a size bigger (`text-base`); notes and the Booked label are smaller (11px, condensed, uppercase).
+    - The list is 330px tall: Leave vacant plus 8 full wrestler rows.
+    - The list can't scroll sideways (a 1px rounding overflow showed a horizontal scrollbar), and `.gm-scroll` scrollbar corners are transparent.
+- **Match sides** (`SideGrid` and `sideColumns` in `card-builder.tsx`): every match lays its sides out on a grid, with "vs" between the sides of a row.
+    - Up to 3 sides share one row.
+    - 4 sides go 2 × 2.
+    - 5 or more sides go in rows of 3 (6-ways as two rows of 3, Royal Rumbles in rows of 3), so every side sits under the one above it.
+    - On small screens the sides stack, one dropdown per line, with a centered "vs" between every side, row breaks included.
+- **Small screens** (below the `sm` breakpoint; wider layouts are unchanged):
+    - The match card header stacks: the Match N / Main event label, then the full-width match type selector, then Cost on the left and Fatigue on the right.
+    - The match type dropdown matches the selector's width, with a narrower category column, and each type's cost and fatigue go under its name.
+    - The title and stipulation selectors take the full width and wrap long names instead of overflowing the page.
+
 ## Follow-ups (CLAUDE.md TODOS)
 
 - Alignment-based stories: a goofy/annoying interview, bashing the fans, a champion retaining by heelish tactics. Needs face/heel alignment.
@@ -28,3 +46,4 @@ Every promo made the same generic `promo_result` card ("Raw's Interview Space pr
 
 - `PromoStoriesTest`: every standalone situation has 4+ variants; every promo type has stories; only known placeholders; Interview Space won/lost/unbooked (and that every variant of the pool can come up); Main Event Hype title change headline and failed-hype story; Title Match Hype retained with position and the cheap escape; Comeback Reminder names the wrestler and weeks left; Submission specialists win clean finishes by submission.
 - Updated `NewsEventsTest`, `PromoTest` (story keys instead of fixed text), `PromoRulesTest`, `EnumValuesTest`, `CatalogSeedTest` (14 promos), `UiTodosTest` and `docs.test.tsx` (Promo stories panel).
+- `card-builder.test.tsx`: the Booked label; a 6-way in two rows of 3, a Fatal 4-Way as 2 × 2, singles and teams on one row with one "vs". `promo-slots.test.tsx`: promo wrestler lists are alphabetical. `saves/index.test.tsx`: follows the New Game button's "Play with WWE Roster" label.

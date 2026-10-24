@@ -15,6 +15,8 @@ export type PickerOption = {
     disabled?: boolean;
     /** Shown after the name, e.g. why the wrestler can't be picked. */
     note?: string | null;
+    /** Already booked elsewhere on this card (still pickable). */
+    booked?: boolean;
 };
 
 type Props = {
@@ -96,7 +98,8 @@ export function WrestlerPicker({
                     open={open}
                     role="listbox"
                     aria-label={label}
-                    className="gm-scroll max-h-72 w-full min-w-56 overflow-y-auto py-1"
+                    // Tall enough for Leave vacant and 8 full wrestler rows.
+                    className="gm-scroll max-h-[330px] w-full min-w-56 overflow-x-hidden overflow-y-auto py-1"
                 >
                     <button
                         type="button"
@@ -107,31 +110,45 @@ export function WrestlerPicker({
                     >
                         {clearLabel}
                     </button>
-                    {options.map(({ wrestler, disabled: off, note }) => (
-                        <button
-                            key={wrestler.id}
-                            type="button"
-                            role="option"
-                            aria-selected={wrestler.id === value}
-                            aria-disabled={off || undefined}
-                            disabled={off}
-                            onClick={() => pick(wrestler.id)}
-                            className={cn(
-                                'flex w-full items-baseline justify-between gap-2 px-3 py-1.5 text-left text-sm',
-                                off
-                                    ? 'cursor-not-allowed opacity-40'
-                                    : 'hover:bg-white/6',
-                                wrestler.id === value && 'bg-brand/20',
-                            )}
-                        >
-                            <WrestlerName wrestler={wrestler} />
-                            {note && (
-                                <span className="font-condensed text-xs tracking-wide text-ink-faint uppercase">
-                                    {note}
-                                </span>
-                            )}
-                        </button>
-                    ))}
+                    {options.map(
+                        ({ wrestler, disabled: off, note, booked }) => (
+                            <button
+                                key={wrestler.id}
+                                type="button"
+                                role="option"
+                                aria-selected={wrestler.id === value}
+                                aria-disabled={off || undefined}
+                                disabled={off}
+                                onClick={() => pick(wrestler.id)}
+                                className={cn(
+                                    'flex w-full items-baseline justify-between gap-3 px-3 py-1.5 text-left text-base',
+                                    off
+                                        ? 'cursor-not-allowed opacity-40'
+                                        : 'hover:bg-white/6',
+                                    wrestler.id === value && 'bg-brand/20',
+                                )}
+                            >
+                                <WrestlerName
+                                    wrestler={wrestler}
+                                    className="truncate"
+                                />
+                                {(note || booked) && (
+                                    <span className="flex shrink-0 items-baseline gap-2 font-condensed text-[12px] tracking-wide uppercase">
+                                        {note && (
+                                            <span className="text-ink-faint">
+                                                {note}
+                                            </span>
+                                        )}
+                                        {booked && (
+                                            <span className="text-gold-hot/85">
+                                                Booked
+                                            </span>
+                                        )}
+                                    </span>
+                                )}
+                            </button>
+                        ),
+                    )}
                 </PopoverPanel>
             )}
         </div>

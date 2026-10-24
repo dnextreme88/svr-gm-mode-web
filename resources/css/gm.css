@@ -444,6 +444,11 @@
         background: rgb(255 255 255 / 0.12);
     }
 
+    /* Where a vertical and a horizontal scrollbar meet (white by default). */
+    .gm-scroll::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+
     /*
      * SvR 2006 colour coding: Cruiserweights and Light Heavyweights in blue,
      * Divas in red. Highlighted draft rows use a light brand tint with dark
