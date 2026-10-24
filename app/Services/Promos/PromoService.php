@@ -99,6 +99,17 @@ class PromoService
             if (! in_array($wrestler->id, $rules['wrestler_ids'], true)) {
                 throw new GameRuleException("{$wrestler->name()} can’t take part in {$type->name}. Needs: {$type->requirement}");
             }
+
+            // House rule: a wrestler gets one of each promo per card.
+            $twin = PromoSlot::where('show_id', $show->id)
+                ->where('position', '!=', $position)
+                ->where('promo_type_id', $type->id)
+                ->get()
+                ->first(fn (PromoSlot $s): bool => in_array($wrestler->id, $s->targetIds(), true));
+
+            if ($twin !== null) {
+                throw new GameRuleException("{$wrestler->name()} is already in Promo {$twin->position}'s {$type->name}.");
+            }
         }
 
         if ($type->key === PromoTypeKey::ContinueRivalry && $this->rivalries->between($show->game, (int) $targetId, (int) $targetBId) === null) {

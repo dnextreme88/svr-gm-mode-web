@@ -87,6 +87,11 @@ export function PromoSlots({ slots, ...props }: Props) {
                         slot.position,
                         props.matchSlotCount,
                     )}
+                    others={slots.filter(
+                        (s) =>
+                            s.position !== slot.position &&
+                            s.promo_type_id !== null,
+                    )}
                     {...props}
                 />
             ))}
@@ -155,6 +160,7 @@ export function airsLabel(before: number, matchSlotCount: number): string {
 function PromoEditor({
     slot,
     taken,
+    others,
     types,
     eligibility,
     roster,
@@ -163,7 +169,12 @@ function PromoEditor({
     readOnly,
     onSave,
     onClear,
-}: { slot: PromoSlotView; taken: Map<number, number> } & Omit<Props, 'slots'>) {
+}: {
+    slot: PromoSlotView;
+    taken: Map<number, number>;
+    /** The card's other saved promos. */
+    others: PromoSlotView[];
+} & Omit<Props, 'slots'>) {
     const [typeId, setTypeId] = useState<number | null>(slot.promo_type_id);
     const [a, setA] = useState<number | null>(slot.target_wrestler_id);
     const [b, setB] = useState<number | null>(slot.target_wrestler_b_id);
@@ -171,9 +182,9 @@ function PromoEditor({
         slot.target_championship_id ?? null,
     );
     const [confirmClear, setConfirmClear] = useState(false);
-    const [before, setBefore] = useState<number>(
-        slot.before_position ?? defaultSpot(taken, matchSlotCount),
-    );
+    const savedBefore =
+        slot.before_position ?? defaultSpot(taken, matchSlotCount);
+    const [before, setBefore] = useState<number>(savedBefore);
 
     const sorted = useMemo(
         () => [...types].sort((x, y) => x.name.localeCompare(y.name)),
@@ -185,12 +196,39 @@ function PromoEditor({
     const isContinue = type?.key === 'continue_rivalry';
     const rosterById = new Map(roster.map((w) => [w.id, w]));
 
+    // House rule: a wrestler gets one of each promo per card, so anyone in
+    // another saved promo of this type can't be picked again.
+    const twinOf = new Map<number, number>();
+
+    for (const other of others) {
+        if (other.promo_type_id === typeId) {
+            for (const id of [
+                other.target_wrestler_id,
+                other.target_wrestler_b_id,
+            ]) {
+                if (id !== null) {
+                    twinOf.set(id, other.position);
+                }
+            }
+        }
+    }
+
     const optionsFor = (ids: number[]): PickerOption[] =>
         ids
             .map((id) => rosterById.get(id))
             .filter((w): w is RosterEntry => w !== undefined)
             .sort((x, y) => x.name.localeCompare(y.name))
-            .map((w) => ({ wrestler: w }));
+            .map((w) => {
+                const twin = twinOf.get(w.id);
+
+                return twin === undefined
+                    ? { wrestler: w }
+                    : {
+                          wrestler: w,
+                          disabled: true,
+                          note: `In Promo ${twin}`,
+                      };
+            });
 
     const firstIds = rules?.wrestler_ids ?? [];
     const secondIds = isContinue
@@ -205,7 +243,29 @@ function PromoEditor({
         (!type.needs_wrestler || a !== null) &&
         (!pair || (a !== null && b !== null && a !== b)) &&
         (!type.needs_championship || title !== null) &&
-        !taken.has(before);
+        !taken.has(before) &&
+        (a === null || !twinOf.has(a)) &&
+        (b === null || !twinOf.has(b));
+
+    // Nothing changed since the last save: Save stays greyed out, like a
+    // saved match.
+    // Changed since the last save (or since the slot was empty): Save and
+    // Discard light up, like a match.
+    const dirty =
+        typeId !== slot.promo_type_id ||
+        a !== slot.target_wrestler_id ||
+        (pair && b !== slot.target_wrestler_b_id) ||
+        title !== (slot.target_championship_id ?? null) ||
+        before !== savedBefore;
+
+    // Back to what's saved.
+    const discard = () => {
+        setTypeId(slot.promo_type_id);
+        setA(slot.target_wrestler_id);
+        setB(slot.target_wrestler_b_id);
+        setTitle(slot.target_championship_id ?? null);
+        setBefore(savedBefore);
+    };
 
     const choose = (t: PromoTypeOption) => {
         setTypeId(t.id);
@@ -448,11 +508,11 @@ function PromoEditor({
                 </p>
             )}
             {!readOnly && (
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                     <button
                         type="button"
                         className="gm-btn gm-btn-sm"
-                        disabled={!ready}
+                        disabled={!ready || !dirty}
                         onClick={() =>
                             type &&
                             onSave(slot.position, {
@@ -471,12 +531,26 @@ function PromoEditor({
                     </button>
                     <button
                         type="button"
+                        className="gm-btn gm-btn-ghost gm-btn-sm"
+                        disabled={!dirty}
+                        onClick={discard}
+                        aria-label={`Discard changes to promo ${slot.position}`}
+                    >
+                        Discard
+                    </button>
+                    <button
+                        type="button"
                         className="gm-btn gm-btn-danger gm-btn-sm"
                         disabled={slot.promo_type_id === null}
                         onClick={() => setConfirmClear(true)}
                     >
                         Clear
                     </button>
+                    {dirty && (
+                        <span className="ml-auto font-condensed text-xs font-semibold tracking-wider text-gm-orange uppercase">
+                            Unsaved changes
+                        </span>
+                    )}
                 </div>
             )}
             <ConfirmDialog

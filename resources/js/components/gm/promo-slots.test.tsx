@@ -158,6 +158,78 @@ describe('PromoSlots', () => {
         expect(successLabel({ success_rate: 0.5 })).toBe('50%');
     });
 
+    it('greys out Save once the promo is saved, until something changes', async () => {
+        const { user } = setup([
+            {
+                ...emptySlot(1),
+                promo_type_id: 3,
+                target_wrestler_id: 10,
+                before_position: 6,
+            },
+        ]);
+
+        const save = screen.getByRole('button', { name: 'Save promo 1' });
+        expect(save).toBeDisabled();
+
+        await user.click(screen.getByRole('radio', { name: 'Before match 2' }));
+        expect(save).toBeEnabled();
+        expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+    });
+
+    it('discards unsaved changes back to the saved promo', async () => {
+        const { user } = setup([
+            {
+                ...emptySlot(1),
+                promo_type_id: 3,
+                target_wrestler_id: 10,
+                before_position: 6,
+            },
+        ]);
+        const discard = screen.getByRole('button', {
+            name: 'Discard changes to promo 1',
+        });
+        expect(discard).toBeDisabled();
+
+        await user.click(screen.getByTestId('promo-1-advertising'));
+        expect(discard).toBeEnabled();
+
+        await user.click(discard);
+        expect(
+            screen.getByTestId('promo-1-interference_promotion'),
+        ).toHaveAttribute('aria-checked', 'true');
+        expect(
+            screen.getByRole('radio', { name: 'Before main event' }),
+        ).toHaveAttribute('aria-checked', 'true');
+        expect(discard).toBeDisabled();
+        expect(
+            screen.getByRole('button', { name: 'Save promo 1' }),
+        ).toBeDisabled();
+        expect(screen.queryByText('Unsaved changes')).toBeNull();
+    });
+
+    it('won’t put the same wrestler in two promos of the same type', async () => {
+        const { user } = setup([
+            {
+                ...emptySlot(1),
+                promo_type_id: 3,
+                target_wrestler_id: 10,
+                before_position: 6,
+            },
+            emptySlot(2),
+        ]);
+
+        await user.click(screen.getByTestId('promo-2-interference_promotion'));
+        await user.click(
+            screen.getByRole('button', { name: 'Promo 2 wrestler' }),
+        );
+        const edge = within(
+            screen.getByRole('listbox', { name: 'Promo 2 wrestler' }),
+        ).getByRole('option', { name: /Edge/ });
+
+        expect(edge).toHaveAttribute('aria-disabled', 'true');
+        expect(edge).toHaveTextContent('In Promo 1');
+    });
+
     it('blocks the spot another promo already airs in, and defaults to the next free one', async () => {
         const { user } = setup([
             { ...emptySlot(1), promo_type_id: 1, before_position: 6 },

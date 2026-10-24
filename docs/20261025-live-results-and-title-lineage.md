@@ -167,6 +167,15 @@ In Backlash week the WWE card led with a failed SmackDown Slander, because only 
 - The bars are seeded onto `promo_types.fatigue_bars`. `php artisan db:seed --class=PromoTypeSeeder` applies them to an existing database without wiping saves, because the seeder uses `updateOrCreate`.
 - **Docs:** the `/gm/docs` Promos tab ("When promos air") lists every fatiguing promo and its bars. The promo list draws them as bars. The panel's old going-in injury wording is replaced with the after-match rule.
 
+## One of each promo per wrestler, and a saved-state Save button (2026-10-25)
+
+- **Guard:** a wrestler can't be in two promos of the same type on one card. This covers every promo type: two Interview Spaces for Batista, or Melina in both Diva Bikini Contests.
+    - `PromoService::book` refuses it: "{wrestler} is already in Promo N's {promo}." Different promo types are fine (Edge can have an Interview Space and an Interference).
+    - On the card screen (`promo-slots.tsx`), the wrestler pickers grey out anyone in the other saved promo of the same type, with "In Promo N", and Save won't enable for them.
+- **Save button:** Save promo is greyed out while the promo matches what's saved (type, wrestlers, title and spot), like Save match. It lights up again on any change, with "Unsaved changes" beside it, and greys out again once the save lands.
+- **Discard button:** each promo has a **Discard** button (ghost, between Save and Clear), as matches do. It's enabled only with unsaved changes, and it puts the type, wrestlers, title and spot back to the saved promo (or empties a slot that was never saved).
+- **Docs:** the `/gm/docs` Promos tab ("How promos work") states both.
+
 ## Docs page (2026-10-25)
 
 - **Results & titles (new tab):** four panels.

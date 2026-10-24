@@ -687,6 +687,18 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                             on the card screen.
                         </li>
                         <li>
+                            A wrestler can be in only one of each promo per
+                            card: with two Interview Spaces or two Diva Bikini
+                            Contests, anyone already in the other one is greyed
+                            out (“In Promo 1”). Different promos are fine.
+                        </li>
+                        <li>
+                            Save promo greys out once the promo is saved, and
+                            lights up again when you change something, with
+                            Unsaved changes beside it. Discard puts the promo
+                            back to what’s saved.
+                        </li>
+                        <li>
                             Interference and Slander always make the neutral
                             news headline, success or fail, unless it’s a PPV
                             week: then the PPV’s main event takes it.

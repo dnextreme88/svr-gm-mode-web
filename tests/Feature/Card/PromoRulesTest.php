@@ -169,6 +169,23 @@ describe('booking', function () {
             ->and(fn () => promo($save, PromoTypeKey::Advertising, ['before' => $show->matchSlotCount() + 1]))->toThrow(GameRuleException::class, 'before one of the card');
     });
 
+    it('never books the same wrestler into two promos of the same type', function (PromoTypeKey $key, array $first, array $second) {
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Lita', 'Trish Stratus', 'Victoria'], smackdown: ['Batista']);
+        promo($save, $key, ['position' => 1, ...$first]);
+
+        expect(fn () => promo($save, $key, ['position' => 2, 'before' => 2, ...$second]))->toThrow(GameRuleException::class, 'already in Promo 1');
+    })->with([
+        'Interview Space' => [PromoTypeKey::InterviewSpace, ['a' => 'Edge'], ['a' => 'Edge']],
+        'Diva Bikini Contest' => [PromoTypeKey::DivaBikiniContest, ['a' => 'Lita', 'b' => 'Trish Stratus'], ['a' => 'Victoria', 'b' => 'Lita']],
+    ]);
+
+    it('still lets a wrestler cut two different promos', function () {
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+        promo($save, PromoTypeKey::InterviewSpace, ['position' => 1, 'a' => 'Edge']);
+
+        expect(promo($save, PromoTypeKey::InterferencePromotion, ['position' => 2, 'before' => 2, 'a' => 'Edge'])->target_wrestler_id)->toBe(idOf($save, 'Edge'));
+    });
+
     it('never puts two promos back to back before the same match', function () {
         $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
         $mainEvent = Card::show($save)->matchSlotCount();
