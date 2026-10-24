@@ -64,7 +64,7 @@ export default function Rosters() {
                             )}
                             data-brand-tint={b}
                         >
-                            {b === 'raw' ? 'Raw' : 'SmackDown!'}
+                            {b === 'raw' ? 'Raw' : 'Smackdown'}
                         </Link>
                     ))}
                 </PageTitle>

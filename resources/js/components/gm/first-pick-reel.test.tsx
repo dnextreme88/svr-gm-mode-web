@@ -22,7 +22,7 @@ describe('FirstPickReel', () => {
         act(() => {
             vi.advanceTimersByTime(1000);
         });
-        expect(screen.getByText('SmackDown! picks first!')).toBeInTheDocument();
+        expect(screen.getByText('Smackdown picks first!')).toBeInTheDocument();
         expect(screen.getByTestId('reel-face')).toHaveAttribute(
             'data-face',
             'smackdown',

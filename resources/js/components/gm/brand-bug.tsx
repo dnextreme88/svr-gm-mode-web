@@ -15,7 +15,7 @@ const sizes = {
 
 /**
  * The on-screen brand bug: a scratched scarlet block for Raw, a chrome-blue
- * wordmark for SmackDown!.
+ * wordmark for Smackdown.
  */
 export function BrandBug({ brand, size = 'md', className }: Props) {
     if (brand === 'raw') {
@@ -44,7 +44,7 @@ export function BrandBug({ brand, size = 'md', className }: Props) {
                 className,
             )}
         >
-            SmackDown!
+            Smackdown
         </span>
     );
 }

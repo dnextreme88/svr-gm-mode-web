@@ -31,7 +31,7 @@ class ShowScheduler
     public function ensureWeek(Save $save, int $week): Collection
     {
         foreach (Brand::cases() as $brand) {
-            $this->ensureShow($save, $week, $brand, ShowType::Weekly, null, $brand === Brand::Raw ? 'Monday Night Raw' : 'Friday Night SmackDown!');
+            $this->ensureShow($save, $week, $brand, ShowType::Weekly, null, $brand === Brand::Raw ? 'Monday Night Raw' : 'Friday Night Smackdown');
         }
 
         foreach ($this->calendar->ppvsForWeek($week) as $ppv) {
@@ -76,7 +76,7 @@ class ShowScheduler
         }
 
         if (in_array($ppv->key, [PpvKey::RoyalRumble, PpvKey::SurvivorSeries], true)) {
-            $name = $ppv->key === PpvKey::RoyalRumble ? 'Royal Rumble Match' : 'Survivor Series: Raw vs. SmackDown!';
+            $name = $ppv->key === PpvKey::RoyalRumble ? 'Royal Rumble Match' : 'Survivor Series: Raw vs. Smackdown';
             $this->ppvCards->setUp($this->ensureShow($save, $week, null, ShowType::Ppv, $ppv->id, $name));
         }
     }

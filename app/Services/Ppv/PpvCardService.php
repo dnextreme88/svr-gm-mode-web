@@ -125,7 +125,7 @@ class PpvCardService
 
             $this->news->record($show->game, NewsEventType::SurvivorSeriesTeams, NewsTier::Story, NewsBrand::Both, [
                 'captain_a' => $captains[0] ?? 'Raw',
-                'captain_b' => $captains[1] ?? 'SmackDown!',
+                'captain_b' => $captains[1] ?? 'Smackdown',
             ], [], priority: 40, week: $show->week_number, dedupeKey: "survivor:{$show->id}");
         }
     }

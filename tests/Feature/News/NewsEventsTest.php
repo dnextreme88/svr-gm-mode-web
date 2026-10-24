@@ -114,7 +114,7 @@ it('records a promo result for the brand that ran it, except Slander and Interfe
 
     newsWeek($save);
 
-    // The rival GM books its own promos on SmackDown!, so look at Raw's.
+    // The rival GM books its own promos on Smackdown, so look at Raw's.
     $result = newsOf(NewsEventType::PromoResult)->where('brand.value', 'raw')->sole();
 
     expect($result->brand->value)->toBe('raw')

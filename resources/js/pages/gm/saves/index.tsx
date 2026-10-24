@@ -184,7 +184,7 @@ export default function Saves({
 
             <div className="mb-10 animate-gm-rise text-center">
                 <div className="gm-label mb-3 tracking-[0.4em]">
-                    SmackDown! vs Raw 2006
+                    Smackdown vs Raw 2006
                 </div>
                 <h1 className="gm-heading text-6xl font-bold md:text-8xl">
                     General Manager

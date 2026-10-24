@@ -19,7 +19,7 @@ enum NewsBrand: string
     {
         return match ($this) {
             self::Raw => 'Raw',
-            self::Smackdown => 'SmackDown!',
+            self::Smackdown => 'Smackdown',
             self::Both => 'Both',
         };
     }

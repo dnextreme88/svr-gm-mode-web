@@ -121,7 +121,7 @@ it('shows the rival’s results from the calendar', function () {
             ->where('brand', 'smackdown')
             ->where('focus_show_id', $smackdown->id)
             ->where('from_schedule', true)
-            ->where('shows.0.name', 'Friday Night SmackDown!')
+            ->where('shows.0.name', 'Friday Night Smackdown')
             ->where('shows.0.outcomes.0.winners', ['Batista']));
 });
 

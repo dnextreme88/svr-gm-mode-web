@@ -52,7 +52,7 @@ it('welcomes the player when the first season starts', function () {
     $welcome = inbox($save, EmailTemplate::Welcome, Brand::Smackdown)->sole();
 
     expect($welcome->sender)->toBe('Tazz')
-        ->and($welcome->subject)->toBe('Welcome to SmackDown!')
+        ->and($welcome->subject)->toBe('Welcome to Smackdown')
         ->and($welcome->body)->toContain('If you ever need help, check your email')
         ->and(inbox($save, EmailTemplate::Welcome))->toHaveCount(0);
 });
@@ -112,7 +112,7 @@ it('has the rival GM answer a trade, listing one superstar per line', function (
 
     $email = inbox($save, EmailTemplate::Trade)->sole();
 
-    expect($email->sender)->toBe('SmackDown! GM')
+    expect($email->sender)->toBe('Smackdown GM')
         ->and($email->subject)->toBe($subject)
         ->and($email->body)->toBe("{$opening}\n\nKane\nChristian\n\nfor\n\nBatista")
         ->and(inbox($save, EmailTemplate::Trade, Brand::Smackdown))->toHaveCount(0);
@@ -211,7 +211,7 @@ it('has the rival GM react to a Slander promo', function (float $rate, string $s
 
     $email = inbox($save, EmailTemplate::SlanderResult)->sole();
 
-    expect($email->sender)->toBe('SmackDown! GM')
+    expect($email->sender)->toBe('Smackdown GM')
         ->and($email->subject)->toBe($subject)
         ->and($email->body)->toContain($phrase);
 })->with([

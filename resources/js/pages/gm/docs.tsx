@@ -739,9 +739,9 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
 }
 
 const cardLabel: Record<NewsEvent['card'], string> = {
-    brand: 'Raw / SmackDown!',
+    brand: 'Raw / Smackdown',
     wwe: 'WWE',
-    either: 'Raw / SmackDown! or WWE',
+    either: 'Raw / Smackdown or WWE',
 };
 
 /** Counts read as N and M ("N-match winning streak"); the rest as words. */
@@ -870,7 +870,7 @@ function NewsAndEmail({
                 <Panel title="The page">
                     <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
                         <li>
-                            Three headlines: Raw, WWE and SmackDown!. Each
+                            Three headlines: Raw, WWE and Smackdown. Each
                             brand’s card only shows that brand’s news. The WWE
                             card only shows cross-brand news, and a Slander or
                             Interference result always takes it.
@@ -991,8 +991,8 @@ function NewsAndEmail({
 
 const scopeLabel: Record<string, string> = {
     raw: 'Raw',
-    smackdown: 'SmackDown!',
-    shared: 'Raw & SmackDown!',
+    smackdown: 'Smackdown',
+    shared: 'Raw & Smackdown',
 };
 
 function RostersDocs({ rosters }: Pick<Props, 'rosters'>) {
@@ -1032,7 +1032,7 @@ function RostersDocs({ rosters }: Pick<Props, 'rosters'>) {
                             <span className="gm-name-diva font-semibold">
                                 Divas
                             </span>
-                            ; SmackDown!:{' '}
+                            ; Smackdown:{' '}
                             <span className="gm-name-cruiser font-semibold">
                                 Cruiserweights and Light Heavyweights
                             </span>
@@ -1044,7 +1044,7 @@ function RostersDocs({ rosters }: Pick<Props, 'rosters'>) {
                     <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
                         <li>
                             No draft. Each brand signs its real WWE roster from
-                            November 14, 2005, when SmackDown! vs Raw 2006 came
+                            November 14, 2005, when Smackdown vs Raw 2006 came
                             out, trimmed to {rosters.cap} each.
                         </li>
                         <li>
@@ -1100,8 +1100,7 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                         </li>
                         <li>
                             Weeks start on Sunday. PPVs air on the Sunday, then
-                            Raw on {days.raw} and SmackDown! on {days.smackdown}
-                            .
+                            Raw on {days.raw} and Smackdown on {days.smackdown}.
                         </li>
                         <li>
                             The Schedule shows both brands on a month calendar.

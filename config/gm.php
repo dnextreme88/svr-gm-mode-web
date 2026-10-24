@@ -428,7 +428,7 @@ return [
         // ASSUMPTION: placeholder names for the rival brand's GM.
         'rival_gm' => [
             'raw' => 'Raw GM',
-            'smackdown' => 'SmackDown! GM',
+            'smackdown' => 'Smackdown GM',
         ],
         'vince' => 'Vince McMahon',
         'trainer' => 'Trainer',

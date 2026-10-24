@@ -60,7 +60,7 @@ const props = {
                     day('2005-04-08', [
                         air({
                             brand: 'smackdown',
-                            name: 'Friday Night SmackDown!',
+                            name: 'Friday Night Smackdown',
                             mine: false,
                             state: 'aired',
                             results_url: '/results/1?brand=smackdown&show=2',
@@ -93,7 +93,7 @@ const props = {
                             week: 4,
                             season_week: 4,
                             brand: 'smackdown',
-                            name: 'Friday Night SmackDown!',
+                            name: 'Friday Night Smackdown',
                             mine: false,
                         }),
                     ]),

@@ -112,7 +112,7 @@ it('always gives the neutral headline to a Slander or Interference result', func
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
     news($save, NewsEventType::TradeCompleted, NewsTier::Headline, NewsBrand::Both, 100);
     news($save, NewsEventType::DefectionCompleted, NewsTier::Headline, NewsBrand::Both, 100);
-    news($save, NewsEventType::SlanderResult, NewsTier::Headline, NewsBrand::Both, 1, payload: ['brand' => 'Raw', 'rival_brand' => 'SmackDown!', 'outcome' => 'succeeds']);
+    news($save, NewsEventType::SlanderResult, NewsTier::Headline, NewsBrand::Both, 1, payload: ['brand' => 'Raw', 'rival_brand' => 'Smackdown', 'outcome' => 'succeeds']);
 
     expect(app(NewsComposer::class)->compose($save, 1)['headlines']['neutral']['type'])->toBe('slander_result');
 });
@@ -169,7 +169,7 @@ it('describes every news event type on the docs catalog, in a known group', func
 });
 
 it('tells a different story for each Slander outcome', function (string $outcome, string $expected) {
-    $summary = app(NewsTemplates::class)->summary(NewsEventType::SlanderResult, ['brand' => 'Raw', 'rival_brand' => 'SmackDown!', 'outcome' => $outcome]);
+    $summary = app(NewsTemplates::class)->summary(NewsEventType::SlanderResult, ['brand' => 'Raw', 'rival_brand' => 'Smackdown', 'outcome' => $outcome]);
 
     expect($summary)->toContain($expected);
 })->with([

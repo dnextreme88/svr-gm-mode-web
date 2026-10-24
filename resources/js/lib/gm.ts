@@ -22,7 +22,7 @@ export function formatSignedMoney(amount: number): string {
 }
 
 export function brandName(brand: Brand): string {
-    return brand === 'raw' ? 'Raw' : 'SmackDown!';
+    return brand === 'raw' ? 'Raw' : 'Smackdown';
 }
 
 export function otherBrand(brand: Brand): Brand {

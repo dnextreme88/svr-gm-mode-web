@@ -363,7 +363,7 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
 
         const result = screen.getByTestId('news-event-match_result');
-        expect(result).toHaveTextContent('Raw / SmackDown! or WWE');
+        expect(result).toHaveTextContent('Raw / Smackdown or WWE');
         expect(result).toHaveTextContent('Story (the main event ranks higher)');
         expect(result).toHaveTextContent('winner defeats loser at show.');
         expect(
@@ -389,7 +389,7 @@ describe('Docs page', () => {
         await user.click(screen.getByRole('tab', { name: 'Schedule' }));
 
         expect(
-            screen.getByText(/Raw on Monday and SmackDown! on Friday/),
+            screen.getByText(/Raw on Monday and Smackdown on Friday/),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('heading', { name: 'Booking a week' }),
@@ -404,7 +404,7 @@ describe('Docs page', () => {
             'Sun Apr 24, 2005',
         );
         expect(screen.getByTestId('ppv-summerslam')).toHaveTextContent(
-            'Raw & SmackDown!',
+            'Raw & Smackdown',
         );
     });
 
@@ -440,7 +440,7 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
         expect(screen.getByText('WWE roster: Raw (2)')).toBeInTheDocument();
         expect(
-            screen.getByText('WWE roster: SmackDown! (1)'),
+            screen.getByText('WWE roster: Smackdown (1)'),
         ).toBeInTheDocument();
         expect(screen.getByText('Trish Stratus')).toHaveAttribute(
             'data-tone',

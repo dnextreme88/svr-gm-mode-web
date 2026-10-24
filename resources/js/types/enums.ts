@@ -7,7 +7,7 @@ export const Brand = {
 export type Brand = (typeof Brand)[keyof typeof Brand];
 export const BrandLabels: Record<Brand, string> = {
     'raw': 'Raw',
-    'smackdown': 'SmackDown!',
+    'smackdown': 'Smackdown',
 };
 
 export const BrandScope = {
@@ -18,7 +18,7 @@ export const BrandScope = {
 export type BrandScope = (typeof BrandScope)[keyof typeof BrandScope];
 export const BrandScopeLabels: Record<BrandScope, string> = {
     'raw': 'Raw',
-    'smackdown': 'SmackDown!',
+    'smackdown': 'Smackdown',
     'shared': 'Big Four',
 };
 
@@ -380,7 +380,7 @@ export const NewsBrand = {
 export type NewsBrand = (typeof NewsBrand)[keyof typeof NewsBrand];
 export const NewsBrandLabels: Record<NewsBrand, string> = {
     'raw': 'Raw',
-    'smackdown': 'SmackDown!',
+    'smackdown': 'Smackdown',
     'both': 'Both',
 };
 
@@ -502,7 +502,7 @@ export const NewsSlot = {
 export type NewsSlot = (typeof NewsSlot)[keyof typeof NewsSlot];
 export const NewsSlotLabels: Record<NewsSlot, string> = {
     'raw': 'Raw',
-    'smackdown': 'SmackDown!',
+    'smackdown': 'Smackdown',
     'neutral': 'Neutral',
 };
 

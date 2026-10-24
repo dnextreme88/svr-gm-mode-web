@@ -90,7 +90,7 @@ class NewsTemplates
         'ppv_upcoming' => '{ppv} is {n} weeks away. Expect the card to take shape over the coming shows.',
         'ppv_main_event_set' => '{ppv} has its main event: {wrestler_a} vs {wrestler_b}, with the world title on the line.',
         'ppv_results' => '{top_result} is the moment everyone will be talking about after {ppv}.',
-        'survivor_series_teams' => 'Raw and SmackDown! settle it in the Traditional 3 vs 3 elimination match. Team {captain_a} and Team {captain_b} are set.',
+        'survivor_series_teams' => 'Raw and Smackdown settle it in the Traditional 3 vs 3 elimination match. Team {captain_a} and Team {captain_b} are set.',
         'mitb_qualified' => '{wrestler} is in the Money in the Bank ladder match at WrestleMania. Six climb, one briefcase.',
         'mitb_winner' => '{wrestler} climbed the ladder and grabbed the briefcase: a world title shot they can cash in on any card for a year.',
         'mitb_cash_in' => '{wrestler} cashed in the Money in the Bank briefcase on {champion}, and {result}.',
@@ -224,7 +224,7 @@ class NewsTemplates
 
         $text = (string) preg_replace('/\b1 weeks\b/', '1 week', $text);
 
-        // "…at Friday Night SmackDown!." reads as a typo.
+        // "…at Friday Night Smackdown." reads as a typo.
         return (string) preg_replace('/([!?])\./', '$1', $text);
     }
 }

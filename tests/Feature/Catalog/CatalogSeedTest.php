@@ -484,7 +484,7 @@ it('lays the season out as Sunday-first months from April 2005 to March 2006', f
         // April 1, 2005 is a Friday, so the grid starts on Sunday Mar 27.
         ->and($days('2005-04')->first())->toMatchArray(['date' => '2005-03-27', 'in_month' => false])
         ->and(collect($months->firstWhere('key', '2005-04')['rows'])->every(fn ($row) => count($row) === 7))->toBeTrue()
-        // Week 4: Backlash on Sunday, then Raw on Monday and SmackDown! on Friday.
+        // Week 4: Backlash on Sunday, then Raw on Monday and Smackdown on Friday.
         ->and($airs('2005-04', '2005-04-24')->pluck('ppv.name')->all())->toBe(['Backlash'])
         ->and($airs('2005-04', '2005-04-25')->first())->toMatchArray(['week' => 4, 'kind' => 'weekly', 'brand' => 'raw'])
         ->and($airs('2005-04', '2005-04-29')->first())->toMatchArray(['week' => 4, 'kind' => 'weekly', 'brand' => 'smackdown'])

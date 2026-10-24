@@ -22,7 +22,7 @@ type Air = {
     week: number;
     season_week: number;
     kind: 'weekly' | 'ppv';
-    /** Null for a shared (Raw and SmackDown!) PPV. */
+    /** Null for a shared (Raw and Smackdown) PPV. */
     brand: Brand | null;
     ppv: { key: string; name: string; brand_scope: BrandScope } | null;
     name: string;
@@ -62,7 +62,7 @@ function shortName(air: Air): string {
         return air.name;
     }
 
-    return air.brand === 'raw' ? 'Raw' : 'SmackDown!';
+    return air.brand === 'raw' ? 'Raw' : 'Smackdown';
 }
 
 function longDate(date: string): string {
@@ -76,7 +76,7 @@ function longDate(date: string): string {
 
 /**
  * The season as a calendar (§3 Schedule): weeks start on Sunday, when PPVs
- * air, then Raw on Monday and SmackDown! on Friday. Click an aired show for
+ * air, then Raw on Monday and Smackdown on Friday. Click an aired show for
  * its results (the rival's too), this week's cards to book them in date
  * order, or one of your own later show nights to simulate up to it.
  */

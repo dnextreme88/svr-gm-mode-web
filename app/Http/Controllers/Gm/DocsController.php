@@ -178,7 +178,7 @@ class DocsController extends Controller
     private function emails(): array
     {
         $senders = (array) config('gm.email_senders');
-        $jrTazz = "{$senders['raw']} (Raw) / {$senders['smackdown']} (SmackDown!)";
+        $jrTazz = "{$senders['raw']} (Raw) / {$senders['smackdown']} (Smackdown)";
         $rivalGm = 'The rival GM';
         $vince = (string) $senders['vince'];
         $trainer = (string) $senders['trainer'];

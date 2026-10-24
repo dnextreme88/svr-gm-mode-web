@@ -12,7 +12,7 @@ const props = {
         {
             id: 5,
             template: 'trade',
-            sender: 'SmackDown! GM',
+            sender: 'Smackdown GM',
             subject: 'Trade accepted',
             week_number: 3,
             read: true,
@@ -21,7 +21,7 @@ const props = {
     selected: {
         id: 5,
         template: 'trade',
-        sender: 'SmackDown! GM',
+        sender: 'Smackdown GM',
         subject: 'Trade accepted',
         week_number: 3,
         body,
@@ -46,7 +46,7 @@ describe('Inbox', () => {
     it('shows who sent the email and keeps the body’s line breaks', () => {
         render(<Inbox />);
 
-        expect(screen.getByText(/From SmackDown! GM/)).toBeInTheDocument();
+        expect(screen.getByText(/From Smackdown GM/)).toBeInTheDocument();
 
         const paragraph = screen.getByText(/I accept your trade/);
 

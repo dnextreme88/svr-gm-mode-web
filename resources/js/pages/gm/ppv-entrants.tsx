@@ -101,7 +101,7 @@ export default function PpvEntrants() {
             <p className="-mt-3 mb-6 max-w-2xl text-sm text-ink-dim">
                 {rumble
                     ? 'Fifteen from each brand. No titles are on the line; the winner’s brand gets the WrestleMania main event.'
-                    : 'Raw vs. SmackDown! as the Survivor Series main event. Eliminations by pinfall, submission, DQ or count-out. No titles can be defended.'}
+                    : 'Raw vs. Smackdown as the Survivor Series main event. Eliminations by pinfall, submission, DQ or count-out. No titles can be defended.'}
             </p>
 
             <div className="grid gap-6 lg:grid-cols-[1fr_320px]">

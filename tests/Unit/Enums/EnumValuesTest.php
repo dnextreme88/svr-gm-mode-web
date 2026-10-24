@@ -91,7 +91,7 @@ it('includes the core email templates from §11', function () {
 });
 
 it('gives every case a non-empty label', function () {
-    expect(Brand::Smackdown->label())->toBe('SmackDown!')
+    expect(Brand::Smackdown->label())->toBe('Smackdown')
         ->and(ChampionshipKey::Womens->label())->toBe("Women's Championship")
         ->and(ContractLength::OneYear->label())->toBe('1 year')
         ->and(WeightClass::LightHeavyweight->label())->toBe('Light Heavyweight');
