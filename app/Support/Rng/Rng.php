@@ -69,4 +69,10 @@ interface Rng
      * How many draws this generator has made, recorded for replay/debugging.
      */
     public function steps(): int;
+
+    /**
+     * The generator's full state, so a stream can resume in a later request
+     * exactly where it stopped (see `RngFactory::restore()`).
+     */
+    public function state(): string;
 }

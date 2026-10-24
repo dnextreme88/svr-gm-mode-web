@@ -7,11 +7,13 @@ use App\Enums\MatchMethod;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
 use App\Enums\PromoTypeKey;
+use App\Models\Championship;
 use App\Models\Contract;
 use App\Models\NewsEvent;
 use App\Models\PromoType;
 use App\Models\Save;
 use App\Services\Contracts\ContractService;
+use App\Services\News\NewsTemplates;
 use App\Services\News\PromoStories;
 use App\Services\Promos\PromoService;
 use App\Services\Rivalries\RivalryService;
@@ -53,8 +55,57 @@ it('records every aired match as a story for its brand', function () {
     expect($results)->toHaveCount(3)
         ->and($results->every(fn (NewsEvent $e): bool => $e->tier === NewsTier::Story))->toBeTrue()
         ->and($results->pluck('brand')->map->value->sort()->values()->all())->toBe(['raw', 'raw', 'smackdown'])
-        ->and($results->pluck('rendered_text')->implode(' | '))->toContain('Edge defeats Kane at ', 'Christian defeats Shelton Benjamin by disqualification at ');
+        ->and($results->pluck('rendered_text')->implode(' | '))->toContain(
+            'Edge defeats Kane in decisive fashion. He made sure to get the win via pinfall.',
+            'Christian defeats Shelton Benjamin via disqualification. Not the cleanest win, but a win is a win.',
+        );
 });
+
+it('sums up a match result with the match in a word, not its full type name', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Christian', 'Shelton Benjamin', 'Carlito'], smackdown: ['Batista']);
+    Card::book($save, Card::show($save), 1, Card::type('ladder', 'Single w/Manager vs. w/Manager'), [['Edge'], ['Kane']], ['Carlito', 'Christian']);
+    FixedOutcomes::queue('Edge', MatchMethod::MatchSpecific);
+
+    newsWeek($save);
+
+    $event = newsOf(NewsEventType::MatchResult)->sole();
+    $templates = app(NewsTemplates::class);
+
+    expect($templates->render(NewsEventType::MatchResult, $event->payload))->toBe('Edge defeats Kane in decisive fashion. He made sure to get the win via briefcase retrieval.')
+        ->and($templates->summary(NewsEventType::MatchResult, $event->payload))->toBe('In what was a thrilling match, Edge got the win over Kane as they competed in a thrilling Ladder match!');
+});
+
+it('calls a Diva winner she and a singles match singles', function () {
+    $save = GameBuilder::inSeason(raw: ['Trish Stratus', 'Victoria'], smackdown: ['Batista']);
+    Card::book($save, Card::show($save), 1, Card::singles(), [['Trish Stratus'], ['Victoria']]);
+    FixedOutcomes::queue('Trish Stratus');
+
+    newsWeek($save);
+
+    $event = newsOf(NewsEventType::MatchResult)->sole();
+
+    expect($event->rendered_text)->toContain('She made sure to get the win via pinfall.')
+        ->and(app(NewsTemplates::class)->summary(NewsEventType::MatchResult, $event->payload))->toEndWith('in a thrilling singles match!');
+});
+
+it('words a title change by how it was won, with she for the Women’s title and he for the rest', function (string $key, string $champion, string $challenger, string $pronoun) {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'John Cena', 'Trish Stratus', 'Victoria'], smackdown: ['Batista']);
+    GameBuilder::giveTitle($save, $key, [$champion]);
+    Card::book($save, Card::show($save), 1, Card::singles(), [[$champion], [$challenger]], [], Championship::where('key', $key)->value('id'));
+    FixedOutcomes::queue($challenger, MatchMethod::Submission);
+
+    newsWeek($save);
+
+    $event = newsOf(NewsEventType::TitleChange)->sole();
+    $title = Championship::where('key', $key)->value('name');
+
+    expect($event->rendered_text)->toBe("NEW CHAMPION! {$challenger} defeats {$champion} for the {$title} via submission!")
+        ->and(app(NewsTemplates::class)->summary(NewsEventType::TitleChange, $event->payload))
+        ->toBe("{$challenger} beat {$champion} via submission and walks out with the {$title}! The champion looks forward to meeting new challengers that {$pronoun} will dethrone!");
+})->with([
+    ['womens', 'Trish Stratus', 'Victoria', 'she'],
+    ['wwe', 'Edge', 'John Cena', 'he'],
+]);
 
 it('ranks the main event highest, a gimmick match above a plain one, and a DQ win lowest', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Christian', 'Shelton Benjamin', 'Carlito', 'Kurt Angle'], smackdown: ['Batista']);
@@ -139,7 +190,7 @@ it('words a tag team win in the plural and drops the stray period after a show n
 
     $text = newsOf(NewsEventType::MatchResult)->sole()->rendered_text;
 
-    expect($text)->toStartWith('Batista & JBL defeat Christian & Booker T at ')
+    expect($text)->toStartWith('Batista & JBL defeat Christian & Booker T in decisive fashion. They made sure')
         ->and($text)->not->toContain('!.');
 });
 

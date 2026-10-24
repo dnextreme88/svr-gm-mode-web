@@ -9,12 +9,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Presenters\CardPresenter;
 use App\Models\Email;
 use App\Models\FatigueLog;
+use App\Models\Injury;
 use App\Models\MatchSlot;
 use App\Models\PromoSlot;
 use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Calendar\CalendarService;
+use App\Services\Matches\ShowResolver;
+use App\Services\Titles\TitleService;
+use App\Services\Week\Steps\AirShows;
+use App\Services\Week\WeekContext;
+use App\Services\Week\WeekResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -23,36 +29,53 @@ use Inertia\Response;
 /**
  * The week's results (§20) for one brand, in air order (the Sunday PPV and
  * interbrand card, then the weekly show), with each wrestler's fatigue
- * through the week. `?brand=` views the rival's shows; `?show=` opens that
- * show's first result (both come from the Schedule calendar).
+ * through the week and the promos where they aired. `?brand=` views the
+ * rival's shows; `?show=` opens that show's first result (both come from
+ * the Schedule calendar); `?match=` opens that match (from Title History).
+ *
+ * While the week airs live, the player's undecided matches come through as
+ * pending, the next one ready for Simulate or Book to Win.
  */
 class ResultsController extends Controller
 {
-    public function __construct(private CalendarService $calendar) {}
+    public function __construct(
+        private CalendarService $calendar,
+        private WeekResolver $resolver,
+        private AirShows $airShows,
+        private ShowResolver $showResolver,
+        private TitleService $titles,
+    ) {}
 
     public function __invoke(Request $request, Save $save, int $week): Response
     {
         $brand = Brand::tryFrom((string) $request->query('brand')) ?? $save->player_brand;
         $logs = FatigueLog::where('save_id', $save->id)->where('week_number', $week)->get()->keyBy('save_wrestler_id');
+        $airing = $week === $save->current_week && $this->resolver->airing($save) !== null;
+        $nextId = $airing ? $this->nextMatchId($save, $week) : null;
 
         $shows = Show::with('ppvEvent')
             ->where('save_id', $save->id)
             ->where('week_number', $week)
             ->where(fn ($q) => $q->where('brand', $brand)->orWhereNull('brand'))
-            ->where('status', ShowStatus::Aired)
+            ->whereIn('status', [ShowStatus::Aired, ShowStatus::Airing])
             ->get()
             ->sortBy(fn (Show $s): int => $s->isInterbrand() ? 1 : ($s->isPpv() ? 0 : 2))
-            ->map(function (Show $show) use ($logs): array {
-                $slots = MatchSlot::with(['matchType', 'participants.saveWrestler.wrestler', 'result', 'titleChampionship'])
+            ->map(function (Show $show) use ($save, $logs, $nextId): array {
+                $slots = MatchSlot::with(['matchType', 'participants.saveWrestler.wrestler', 'result.championReign', 'titleChampionship'])
                     ->where('show_id', $show->id)
-                    ->whereHas('result')
                     ->orderBy('position')
-                    ->get();
+                    ->get()
+                    ->filter(fn (MatchSlot $slot): bool => $slot->result !== null || ($show->status === ShowStatus::Airing && $slot->isBooked()))
+                    ->values();
+                $decided = $slots->filter(fn (MatchSlot $slot): bool => $slot->result !== null);
 
                 return [
                     ...CardPresenter::show($show),
-                    'outcomes' => $slots->map(fn (MatchSlot $slot): array => CardPresenter::outcome($slot))->values(),
-                    'fatigue' => $this->fatigue($show, $slots, $logs),
+                    'outcomes' => $slots->map(fn (MatchSlot $slot): array => $slot->result !== null
+                        ? CardPresenter::outcome($slot)
+                        : CardPresenter::pending($slot, $slot->id === $nextId, $this->champions($save, $slot)))->values(),
+                    'promos' => $this->promos($show),
+                    'fatigue' => $this->fatigue($show, $decided, $logs),
                 ];
             })
             ->values();
@@ -62,10 +85,61 @@ class ResultsController extends Controller
             'season_week' => $this->calendar->seasonWeek($week),
             'brand' => $brand->value,
             'focus_show_id' => $request->integer('show') ?: null,
+            'focus_match_id' => $request->integer('match') ?: null,
             'from_schedule' => $request->has('show'),
+            'airing' => $airing,
             'shows' => $shows,
             'new_emails' => Email::where('save_id', $save->id)->where('brand', $save->player_brand)->where('week_number', $week)->count(),
         ]);
+    }
+
+    private function nextMatchId(Save $save, int $week): ?int
+    {
+        $show = $this->airShows->current(new WeekContext($save, $week, $this->calendar->seasonOf($week)));
+
+        return $show === null ? null : $this->showResolver->nextMatch($show)?->id;
+    }
+
+    /**
+     * Who holds the title on the line going into an undecided match.
+     *
+     * @return list<string>
+     */
+    private function champions(Save $save, MatchSlot $slot): array
+    {
+        $reign = $slot->titleChampionship === null ? null : $this->titles->currentReign($save, $slot->titleChampionship);
+
+        return $reign === null || $reign->isVacant() ? [] : $reign->holder_snapshot['names'];
+    }
+
+    /**
+     * The show's promos, each placed before the match it aired in front of.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function promos(Show $show): array
+    {
+        $mainEvent = $show->matchSlotCount();
+
+        return PromoSlot::with(['promoType', 'target.wrestler', 'targetB.wrestler'])
+            ->where('show_id', $show->id)
+            ->whereNotNull('promo_type_id')
+            ->orderBy('position')
+            ->get()
+            ->map(fn (PromoSlot $promo): array => [
+                'position' => $promo->position,
+                'before_position' => $promo->before_position ?? $mainEvent,
+                'type' => $promo->promoType?->name,
+                'status' => $promo->status(),
+                'targets' => collect([$promo->target, $promo->targetB])->filter()->map(fn (SaveWrestler $w): array => [
+                    'id' => $w->id,
+                    'name' => $w->name(),
+                    'roster_type' => $w->wrestler->roster_type->value,
+                    'weight_class' => $w->wrestler->weight_class->value,
+                ])->values()->all(),
+            ])
+            ->values()
+            ->all();
     }
 
     /**
@@ -94,10 +168,18 @@ class ResultsController extends Controller
 
         $ids = array_values(array_unique($ids));
         $wrestlers = SaveWrestler::with('wrestler')->whereIn('id', $ids)->get()->keyBy('id');
+        // This week's injuries: they replace the after-recovery fatigue.
+        $injuries = Injury::with('type')
+            ->whereIn('save_wrestler_id', $ids)
+            ->where('started_week', $show->week_number)
+            ->orderBy('id')
+            ->get()
+            ->keyBy('save_wrestler_id');
 
-        return array_values(array_filter(array_map(function (int $id) use ($logs, $wrestlers, $rested): ?array {
+        return array_values(array_filter(array_map(function (int $id) use ($logs, $wrestlers, $rested, $injuries): ?array {
             $log = $logs->get($id);
             $wrestler = $wrestlers->get($id);
+            $injury = $injuries->get($id);
 
             if ($log === null || $wrestler === null) {
                 return null;
@@ -109,10 +191,15 @@ class ResultsController extends Controller
                 'roster_type' => $wrestler->wrestler->roster_type->value,
                 'weight_class' => $wrestler->wrestler->weight_class->value,
                 'start' => $log->start,
-                'after_shows' => $log->after_shows,
+                // Uncapped when an injury came from going over 100%.
+                'after_shows' => max($log->after_shows, $injury->fatigue_after ?? 0),
                 'end' => $log->end,
                 'recovered_bars' => $log->recovered_bars,
                 'rested' => isset($rested[$id]),
+                'injury' => $injury === null ? null : [
+                    'severity' => $injury->severity->value,
+                    'label' => $injury->type->label,
+                ],
             ];
         }, $ids)));
     }

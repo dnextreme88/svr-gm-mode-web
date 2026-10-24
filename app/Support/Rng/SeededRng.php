@@ -107,4 +107,19 @@ class SeededRng implements Rng
     {
         return $this->steps;
     }
+
+    public function state(): string
+    {
+        return base64_encode(serialize([$this->randomizer, $this->steps]));
+    }
+
+    public static function fromState(string $state): self
+    {
+        [$randomizer, $steps] = unserialize(base64_decode($state), ['allowed_classes' => [Randomizer::class, Xoshiro256StarStar::class]]);
+        $rng = new self('');
+        $rng->randomizer = $randomizer;
+        $rng->steps = $steps;
+
+        return $rng;
+    }
 }

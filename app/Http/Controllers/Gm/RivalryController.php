@@ -21,18 +21,25 @@ class RivalryController extends Controller
             ->orderByDesc('active')
             ->orderByDesc('heat')
             ->get()
-            ->map(fn (Rivalry $r): array => [
-                'id' => $r->id,
-                'wrestler_a' => $r->wrestlerA->name(),
-                'wrestler_b' => $r->wrestlerB->name(),
-                'brand_a' => $r->wrestlerA->brand?->value,
-                'brand_b' => $r->wrestlerB->brand?->value,
-                'heat' => $r->heat,
-                'weeks_active' => $r->weeks_active,
-                'started_week' => $r->started_week,
-                'active' => $r->active,
-                'ended_week' => $r->ended_week,
-            ]);
+            ->map(function (Rivalry $r): array {
+                // Always "A vs. B" alphabetically, older rivalries included.
+                [$a, $b] = strcasecmp($r->wrestlerA->name(), $r->wrestlerB->name()) <= 0
+                    ? [$r->wrestlerA, $r->wrestlerB]
+                    : [$r->wrestlerB, $r->wrestlerA];
+
+                return [
+                    'id' => $r->id,
+                    'wrestler_a' => $a->name(),
+                    'wrestler_b' => $b->name(),
+                    'brand_a' => $a->brand?->value,
+                    'brand_b' => $b->brand?->value,
+                    'heat' => $r->heat,
+                    'weeks_active' => $r->weeks_active,
+                    'started_week' => $r->started_week,
+                    'active' => $r->active,
+                    'ended_week' => $r->ended_week,
+                ];
+            });
 
         return Inertia::render('gm/rivalries', [
             'rivalries' => $rows,

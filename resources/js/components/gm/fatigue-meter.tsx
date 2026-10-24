@@ -44,7 +44,10 @@ export function FatigueMeter({
     showLabel = false,
 }: Props) {
     const total = config.max / config.bar_size;
-    const filled = Math.floor(fatigue / config.bar_size);
+    // Over 100% only comes from a match that pushed past the cap: every bar
+    // is full and the label reads as an injury.
+    const over = fatigue > config.max;
+    const filled = Math.floor(capFatigue(fatigue, config) / config.bar_size);
     const after =
         projected === undefined
             ? filled
@@ -107,7 +110,7 @@ export function FatigueMeter({
                         ? `${capFatigue(projected, config)}%`
                         : `${fatigue}%`}
                     <span className="ml-1 text-xs tracking-wider uppercase opacity-80">
-                        {zoneLabel[zone]}
+                        {over ? 'Injury' : zoneLabel[zone]}
                     </span>
                 </span>
             )}

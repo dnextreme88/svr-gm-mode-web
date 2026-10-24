@@ -8,6 +8,7 @@ use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
 use App\Enums\PromoTypeKey;
+use App\Enums\RosterType;
 use App\Models\Injury;
 use App\Models\MatchParticipant;
 use App\Models\MatchSlot;
@@ -251,8 +252,19 @@ class PromoStoryWriter
             return [[$outcome.($won ? '_won' : '_lost')], ['opponent' => implode(' & ', $opponents), 'how' => MatchFinish::phrase($match)], "slot:{$match->id}"];
         }
 
+        // Not booked and it failed: crashed by another superstar if the promo
+        // found one (PromoService::crashInterview), else it just fell flat.
         if (! $succeeded) {
-            return [['unbooked_flat'], [], null];
+            $crasher = $slot->targetB;
+
+            if ($crasher === null) {
+                return [['unbooked_flat'], [], null];
+            }
+
+            // The promo notes whether the attack started a rivalry.
+            $rivalry = str_ends_with((string) $slot->outcome_note, PromoService::CRASH_RIVALRY_NOTE);
+
+            return [['crashed'], ['rivalry' => $rivalry ? ' The attack has started a rivalry between the two.' : ''], null];
         }
 
         $situations = ['unbooked'];
@@ -274,6 +286,11 @@ class PromoStoryWriter
         } elseif ($wrestler->weeks_since_title_match >= (int) ((array) config('gm.morale.title_match'))[0]) {
             $situations[] = 'unbooked_title_shot+';
             $extra['weeks'] = $wrestler->weeks_since_title_match;
+        }
+
+        // Nothing about their form to talk about: the spotlight interview.
+        if ($situations === ['unbooked']) {
+            return [['spotlight'], ['pronoun' => $wrestler->wrestler->roster_type === RosterType::Diva ? 'she' : 'he'], null];
         }
 
         return [$situations, $extra, null];

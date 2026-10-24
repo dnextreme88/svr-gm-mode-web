@@ -14,7 +14,9 @@ class NewsTemplates
      * @var array<string, string>
      */
     private const TEMPLATES = [
-        'title_change' => 'NEW CHAMPION! {winner} defeats {loser} for the {title} at {show}!',
+        'title_change' => 'NEW CHAMPION! {winner} defeats {loser} for the {title} via {via}!',
+        // News written before the 2026-10-25 wording, without `via`.
+        'title_change.legacy' => 'NEW CHAMPION! {winner} defeats {loser} for the {title} at {show}!',
         'title_retained' => '{champion} retains the {title} against {challenger}.',
         'retained_by_dq' => '{challenger} wins, but {champion} keeps the {title} on a {method}!',
         'contender_earned_shot' => '{contender} beats {champion} and earns a {title} match at {next_show}!',
@@ -26,6 +28,10 @@ class NewsTemplates
         'ppv_upcoming' => '{ppv} is {n} weeks away.',
         'ppv_main_event_set' => 'Main event confirmed for {ppv}: {wrestler_a} vs {wrestler_b}!',
         'ppv_results' => '{ppv} results: {top_result} headlines the night.',
+        'ppv_results.main_event' => '{ppv} main event: {winner} {defeats} {loser}{gimmick} via {via}!',
+        'ppv_results.title_change' => '{ppv} main event: {winner} {defeats} {loser}{gimmick} to win the {title}!',
+        'ppv_results.title_retained' => '{ppv} main event: {winner} {defeats} {loser}{gimmick} to retain the {title}!',
+        'ppv_results.title_kept' => '{ppv} main event: {winner} {defeats} {loser}{gimmick} by {via}, but the {title} stays put!',
         'survivor_series_teams' => 'Team {captain_a} vs Team {captain_b} set for Survivor Series.',
         'mitb_qualified' => '{wrestler} enters the Money in the Bank ladder match.',
         'mitb_winner' => '{wrestler} wins Money in the Bank!',
@@ -61,7 +67,9 @@ class NewsTemplates
         'slander_result' => "{brand}'s smear campaign against {rival_brand} {outcome}!",
         'interference_promo_result' => "{brand} {outcome} {rival_brand}'s show!",
         'season_reset' => 'A new year begins. Ratings reset and the re-draft opens.',
-        'match_result' => '{winner} {defeats} {loser}{by} at {show}.',
+        'match_result' => '{winner} {defeats} {loser} in decisive fashion. {pronoun} made sure to get the win via {via}.',
+        'match_result.not_decisive' => '{winner} {defeats} {loser} via {via}. Not the cleanest win, but a win is a win.',
+        'match_result.legacy' => '{winner} {defeats} {loser}{by} at {show}.',
         'main_event_hype_result' => "The hype was real: {winner} {defeats} {loser}{by} in {brand}'s main event!",
         'promo_result' => "{brand}'s {promo} promo {outcome}.",
         'contract_expiring' => "{wrestler}'s {brand} contract runs out in {n} weeks.",
@@ -81,7 +89,8 @@ class NewsTemplates
      * @var array<string, string>
      */
     private const SUMMARIES = [
-        'title_change' => '{winner} beat {loser} at {show} and walks out with the {title}. The old reign is over.',
+        'title_change' => '{winner} beat {loser} via {via} and {walks} out with the {title}! {the_champion} {looks} forward to meeting new challengers that {champion_pronoun} will dethrone!',
+        'title_change.legacy' => '{winner} beat {loser} at {show} and walks out with the {title}. The old reign is over.',
         'title_retained' => '{challenger} came for the {title}, but {champion} found a way to win and keeps the gold.',
         'retained_by_dq' => '{challenger} won the match, but titles only change hands on a decisive win. {champion} leaves with the {title}.',
         'contender_earned_shot' => '{contender} beat champion {champion} in a Champion vs Contender match. The win earns a {title} match {next_show}.',
@@ -95,6 +104,10 @@ class NewsTemplates
         'ppv_upcoming' => '{ppv} is {n} weeks away. Expect the card to take shape over the coming shows.',
         'ppv_main_event_set' => '{ppv} has its main event: {wrestler_a} vs {wrestler_b}, with the world title on the line.',
         'ppv_results' => '{top_result} is the moment everyone will be talking about after {ppv}.',
+        'ppv_results.main_event' => '{winner} closed out {ppv} with a win over {loser}{gimmick}, and that is the moment everyone will be talking about.',
+        'ppv_results.title_change' => '{ppv} ended with a new champion: {winner} beat {loser}{gimmick} via {via} and walked out with the {title}.',
+        'ppv_results.title_retained' => '{winner} beat {loser}{gimmick} via {via} to close {ppv} and is still the {title} holder.',
+        'ppv_results.title_kept' => '{winner} beat {loser}{gimmick} by {via} to close {ppv}, but titles only change hands on a decisive win, so {loser} keeps the {title}.',
         'survivor_series_teams' => 'Raw and Smackdown settle it in the Traditional 3 vs 3 elimination match. Team {captain_a} and Team {captain_b} are set.',
         'mitb_qualified' => '{wrestler} is in the Money in the Bank ladder match at WrestleMania. Six climb, one briefcase.',
         'mitb_winner' => '{wrestler} climbed the ladder and grabbed the briefcase: a world title shot they can cash in on any card for a year.',
@@ -136,7 +149,8 @@ class NewsTemplates
         'interference_promo_result.disrupts' => "{brand} sent someone to crash {rival_brand}'s show, and it worked: the segment fell apart.",
         'interference_promo_result.fails to disrupt' => "{brand} tried to crash {rival_brand}'s show, but security handled it and the show went on.",
         'season_reset' => 'WrestleMania is over. Each brand can re-draft from the rival roster before the new season starts.',
-        'match_result' => '{match}: {winner} got the win over {loser}{by} at {show}.',
+        'match_result' => 'In what was a thrilling match, {winner} got the win over {loser} as they competed in a thrilling {match_kind} match!',
+        'match_result.legacy' => '{match}: {winner} got the win over {loser}{by} at {show}.',
         'main_event_hype_result' => '{brand} hyped its main event all night, and {winner} delivered against {loser}.',
         'promo_result' => '{brand} put {promo} on this week\'s show, and it {outcome}.',
         'promo_result.succeeds' => '{brand} put {promo} on this week\'s show, and it paid off.',
@@ -160,7 +174,9 @@ class NewsTemplates
      */
     public function render(NewsEventType $type, array $payload): string
     {
-        return $this->fill($this->promoStory($payload)[0] ?? $this->template($type), $payload);
+        $variant = $this->variant($type, $payload, self::TEMPLATES);
+
+        return $this->fill($this->promoStory($payload)[0] ?? self::TEMPLATES[$variant], $payload);
     }
 
     /**
@@ -176,10 +192,24 @@ class NewsTemplates
             return $this->fill($story[1], $payload);
         }
 
-        $variant = $payload['outcome'] ?? $payload['won_or_lost'] ?? null;
-        $key = is_string($variant) && isset(self::SUMMARIES["{$type->value}.{$variant}"]) ? "{$type->value}.{$variant}" : $type->value;
+        return $this->fill(self::SUMMARIES[$this->variant($type, $payload, self::SUMMARIES)], $payload);
+    }
 
-        return $this->fill(self::SUMMARIES[$key], $payload);
+    /**
+     * The template key for this event: `type.variant` when the payload's
+     * `outcome` (or `won_or_lost`) names one, `type.legacy` for title change
+     * and match result news recorded before they carried `via`, else `type`.
+     *
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, string>  $templates
+     */
+    private function variant(NewsEventType $type, array $payload, array $templates): string
+    {
+        $variant = in_array($type, [NewsEventType::TitleChange, NewsEventType::MatchResult], true) && ! isset($payload['via'])
+            ? 'legacy'
+            : $payload['outcome'] ?? $payload['won_or_lost'] ?? null;
+
+        return is_string($variant) && isset($templates["{$type->value}.{$variant}"]) ? "{$type->value}.{$variant}" : $type->value;
     }
 
     /**
@@ -210,7 +240,7 @@ class NewsTemplates
      */
     public function types(): array
     {
-        return array_keys(self::TEMPLATES);
+        return array_values(array_filter(array_keys(self::TEMPLATES), fn (string $key): bool => ! str_contains($key, '.')));
     }
 
     /**

@@ -2,11 +2,13 @@
 
 namespace App\Services\Matches;
 
+use App\Enums\FixedSlotKind;
 use App\Enums\LedgerCategory;
 use App\Enums\MatchFamily;
 use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
+use App\Enums\RosterType;
 use App\Enums\ShowStatus;
 use App\Models\MatchResult;
 use App\Models\MatchSlot;
@@ -52,25 +54,62 @@ class ShowResolver
             return;
         }
 
-        $rng = $context->rng("show.{$show->streamKey()}");
-        $slots = MatchSlot::with(['matchType.ppvExclusive', 'participants.saveWrestler.wrestler.specialties', 'show'])
-            ->where('show_id', $show->id)
-            ->orderBy('position')
-            ->get();
+        while ($this->airNext($show, $context) !== null) {
+            // One match at a time, in card order.
+        }
 
-        // Promos air before the match they're placed in front of (§5), so
-        // their fatigue counts going into that match.
-        $promoRng = $context->rng("promos.{$show->streamKey()}");
-        $mainEvent = $slots->filter(fn (MatchSlot $s): bool => $s->isBooked())->last();
+        $this->close($show, $context);
+    }
+
+    /**
+     * The next booked match that hasn't aired, in card order.
+     */
+    public function nextMatch(Show $show): ?MatchSlot
+    {
+        return $this->slots($show)->first(fn (MatchSlot $s): bool => $s->isBooked() && $s->result === null);
+    }
+
+    /**
+     * Airs the next match: first the promos placed in front of it (§5), so
+     * their fatigue counts going into it, then the match itself. With a
+     * booked side, that side wins (Book to Win). Returns null when every
+     * match has aired.
+     */
+    public function airNext(Show $show, WeekContext $context, ?int $bookedSide = null): ?MatchSlot
+    {
+        $slots = $this->slots($show);
+        $next = $slots->first(fn (MatchSlot $s): bool => $s->isBooked() && $s->result === null);
+
+        if ($next === null) {
+            return null;
+        }
+
+        $promoRng = $context->stream("promos.{$show->streamKey()}");
 
         foreach ($slots as $slot) {
-            $this->promos->resolveBefore($show, $slot->position, $promoRng);
-
-            if (! $slot->isBooked()) {
-                continue;
+            if ($slot->position > $next->position) {
+                break;
             }
 
-            $this->airMatch($slot, $show, $context, $rng, $slot->is($mainEvent));
+            $this->promos->resolveBefore($show, $slot->position, $promoRng);
+        }
+
+        $mainEvent = $slots->filter(fn (MatchSlot $s): bool => $s->isBooked())->last();
+        $this->airMatch($next, $show, $context, $context->stream("show.{$show->streamKey()}"), $next->is($mainEvent), $bookedSide);
+
+        return $next;
+    }
+
+    /**
+     * Once the last match is in: the promos still to air, the promo stories,
+     * and the show is marked aired.
+     */
+    public function close(Show $show, WeekContext $context): void
+    {
+        $promoRng = $context->stream("promos.{$show->streamKey()}");
+
+        foreach ($this->slots($show) as $slot) {
+            $this->promos->resolveBefore($show, $slot->position, $promoRng);
         }
 
         $this->promos->resolve($show, $promoRng);
@@ -79,7 +118,18 @@ class ShowResolver
         $show->update(['status' => ShowStatus::Aired]);
     }
 
-    private function airMatch(MatchSlot $slot, Show $show, WeekContext $context, Rng $rng, bool $mainEvent): void
+    /**
+     * @return Collection<int, MatchSlot>
+     */
+    private function slots(Show $show): Collection
+    {
+        return MatchSlot::with(['matchType.ppvExclusive', 'participants.saveWrestler.wrestler.specialties', 'show', 'result'])
+            ->where('show_id', $show->id)
+            ->orderBy('position')
+            ->get();
+    }
+
+    private function airMatch(MatchSlot $slot, Show $show, WeekContext $context, Rng $rng, bool $mainEvent, ?int $bookedSide): void
     {
         $week = $context->week;
         $type = $slot->matchType;
@@ -97,7 +147,7 @@ class ShowResolver
             $goingIn[$p->save_wrestler_id] = $wrestlers[$p->save_wrestler_id]->fatigue;
         }
 
-        $resolved = $this->matches->resolve($slot, $rng, $this->rivalries->active($context->save));
+        $resolved = $this->matches->resolve($slot, $rng, $this->rivalries->active($context->save), $bookedSide);
 
         $result = MatchResult::create([
             'match_slot_id' => $slot->id,
@@ -105,6 +155,7 @@ class ShowResolver
             'method' => $resolved->method,
             'finish_event' => $resolved->finishEvent,
             'interferer_id' => $resolved->interfererId,
+            'booked' => $bookedSide !== null,
             'summary' => $resolved->summary,
             'rng_seed_step' => $rng->steps(),
         ]);
@@ -158,6 +209,10 @@ class ShowResolver
 
         $this->announceResult($slot, $show, $resolved, $wrestlers, $week, $mainEvent);
 
+        if ($mainEvent && $show->isPpv() && $slot->fixed_kind !== FixedSlotKind::RoyalRumble) {
+            $this->announcePpvMainEvent($slot, $show, $resolved, $result->refresh(), $wrestlers, $week);
+        }
+
         $brand = $slot->owner_brand ?? $show->brand;
 
         if ($slot->cost > 0 && $brand !== null) {
@@ -184,6 +239,10 @@ class ShowResolver
                 'defeats' => count($resolved->winners) > 1 ? 'defeat' : 'defeats',
                 'loser' => $this->namesOf($resolved->losers, $wrestlers),
                 'by' => $resolved->isDecisive() ? '' : ' by '.mb_strtolower($resolved->method->label()),
+                'via' => $resolved->via($slot->matchType),
+                'outcome' => $resolved->isDecisive() ? 'decisive' : 'not_decisive',
+                'pronoun' => $this->pronoun($resolved->winners, $wrestlers),
+                'match_kind' => $this->matchKind($slot),
                 'match' => $slot->matchType?->name,
                 'show' => $show->name,
                 'brand' => $show->brand?->label(),
@@ -197,6 +256,74 @@ class ShowResolver
             week: $week,
             dedupeKey: "slot:{$slot->id}",
         );
+    }
+
+    /**
+     * A PPV's main event is the WWE card's headline that week (house rule):
+     * who won, and whether a title or a gimmick match was involved. The
+     * interbrand card's main event (Survivor Series, WrestleMania) outranks a
+     * brand PPV's; the Royal Rumble has its own result.
+     *
+     * @param  Collection<int, SaveWrestler>  $wrestlers
+     */
+    private function announcePpvMainEvent(MatchSlot $slot, Show $show, ResolvedMatch $resolved, MatchResult $result, Collection $wrestlers, int $week): void
+    {
+        $title = $slot->titleChampionship?->name;
+        $champions = $result->championReign?->holderIds() ?? [];
+
+        $outcome = match (true) {
+            $title === null => 'main_event',
+            $result->title_changed => 'title_change',
+            $champions !== [] && array_diff($champions, $resolved->winners) === [] => 'title_retained',
+            $champions !== [] => 'title_kept',
+            default => 'main_event',
+        };
+
+        $this->news->record($show->game, NewsEventType::PpvResults, NewsTier::Headline, NewsBrand::Both, [
+            'ppv' => $show->name,
+            'outcome' => $outcome,
+            'winner' => $this->namesOf($resolved->winners, $wrestlers),
+            'defeats' => count($resolved->winners) > 1 ? 'defeat' : 'defeats',
+            'loser' => $this->namesOf($resolved->losers, $wrestlers),
+            'via' => $resolved->via($slot->matchType),
+            'title' => $title,
+            'gimmick' => $this->isGimmick($slot) ? " in a {$this->matchKind($slot)} match" : '',
+        ], ['wrestler_ids' => [...$resolved->winners, ...$resolved->losers]], priority: (int) config($show->isInterbrand() ? 'gm.news.ppv_main_event_priority.interbrand' : 'gm.news.ppv_main_event_priority.brand'), week: $week, dedupeKey: "ppv-main:{$slot->id}");
+    }
+
+    /**
+     * "He", "She" (a Diva) or "They" (a team) for the winning side.
+     *
+     * @param  list<int>  $winners
+     * @param  Collection<int, SaveWrestler>  $wrestlers
+     */
+    private function pronoun(array $winners, Collection $wrestlers): string
+    {
+        if (count($winners) > 1) {
+            return 'They';
+        }
+
+        return $wrestlers->get($winners[0])?->wrestler->roster_type === RosterType::Diva ? 'She' : 'He';
+    }
+
+    /**
+     * The match in a word or two for the news: the family ("Ladder",
+     * "Hardcore", "TLC"), with Normal Matches told apart by how many sides
+     * there are (singles, Triple Threat, Fatal 4-Way).
+     */
+    private function matchKind(MatchSlot $slot): string
+    {
+        $family = $slot->matchType?->family;
+
+        if ($family === MatchFamily::Single) {
+            return match (count($slot->sides())) {
+                3 => 'Triple Threat',
+                4 => 'Fatal 4-Way',
+                default => 'singles',
+            };
+        }
+
+        return $family?->label() ?? 'match';
     }
 
     /**

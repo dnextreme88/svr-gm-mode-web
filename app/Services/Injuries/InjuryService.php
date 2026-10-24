@@ -4,7 +4,6 @@ namespace App\Services\Injuries;
 
 use App\Enums\EmailTemplate;
 use App\Enums\InjurySeverity;
-use App\Enums\InjuryZone;
 use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
@@ -13,7 +12,6 @@ use App\Models\Injury;
 use App\Models\InjuryType;
 use App\Models\MatchType;
 use App\Models\SaveWrestler;
-use App\Services\Fatigue\FatigueZones;
 use App\Services\Mail\EmailService;
 use App\Services\News\NewsRecorder;
 use App\Services\Titles\TitleService;
@@ -41,8 +39,9 @@ class InjuryService
     }
 
     /**
-     * Promos that tire their wrestlers (Interference, Start a Rivalry) roll
-     * injuries exactly like a match that adds the same fatigue (§5, §6).
+     * Promos that tire their wrestlers (Interference, Start a Rivalry, Diva
+     * Bikini Contest, Continue Rivalry) roll injuries exactly like a match
+     * that adds the same fatigue (§5, §6).
      */
     public function rollForPromo(SaveWrestler $wrestler, int $fatigueGoingIn, int $fatigueBars, int $week, Rng $rng): ?Injury
     {
@@ -61,17 +60,27 @@ class InjuryService
             }
         }
 
-        $zone = FatigueZones::zoneFor($fatigueGoingIn);
-
-        if ($zone === InjuryZone::SeriousRisk && $fatigueBars > 0) {
-            return $this->injure($wrestler, InjurySeverity::Serious, $week, $rng, $slotId);
+        if ($fatigueBars <= 0) {
+            return null;
         }
 
-        if ($zone === InjuryZone::MinorRisk && $rng->chance((float) config('gm.injuries.minor_chance'))) {
-            return $this->injure($wrestler, InjurySeverity::Minor, $week, $rng, $slotId);
+        // House rule: the fatigue right after the match decides, before it's
+        // capped at 100%. Safe up to 70%; 80–100% always injures (mostly
+        // minor); over 100% is always serious.
+        $after = $fatigueGoingIn + $fatigueBars * (int) config('gm.fatigue.bar_size');
+
+        if ($after <= (int) config('gm.fatigue.safe_max')) {
+            return null;
         }
 
-        return null;
+        $severity = $after > (int) config('gm.fatigue.max') || $rng->chance((float) config('gm.injuries.serious_share'))
+            ? InjurySeverity::Serious
+            : InjurySeverity::Minor;
+
+        $injury = $this->injure($wrestler, $severity, $week, $rng, $slotId);
+        $injury->update(['fatigue_after' => $after]);
+
+        return $injury;
     }
 
     /**

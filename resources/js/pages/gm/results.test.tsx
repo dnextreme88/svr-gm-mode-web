@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Results from '@/pages/gm/results';
-import type { MatchOutcome } from '@/types/gm';
+import type { MatchOutcome, PendingMatch, ResultPromo } from '@/types/gm';
 
 function outcome(
     position: number,
@@ -12,10 +12,14 @@ function outcome(
     overrides: Partial<MatchOutcome> = {},
 ): MatchOutcome {
     return {
+        id: position,
         position,
         match_type: 'Normal Matches — No Manager',
         winners,
         losers,
+        loser_sides: losers.map((side) => side.split(' & ')),
+        booked: false,
+        champions: [],
         managers: [],
         method: 'pinfall',
         method_label: 'Pinfall',
@@ -95,8 +99,63 @@ const props = {
     ],
 };
 
+function pending(
+    position: number,
+    sides: string[][],
+    overrides: Partial<PendingMatch> = {},
+): PendingMatch {
+    return {
+        id: 100 + position,
+        pending: true,
+        is_next: false,
+        position,
+        match_type: 'Normal Matches — No Manager',
+        win_condition: null,
+        sides: sides.map((names, side) => ({
+            side,
+            members: names.map((name, i) => ({
+                id: side * 10 + i + 1,
+                name,
+                roster_type: 'superstar',
+                weight_class: 'heavyweight',
+            })),
+        })),
+        managers: [],
+        referee: null,
+        title: null,
+        stipulation: null,
+        champions: [],
+        ...overrides,
+    };
+}
+
+function promo(
+    position: number,
+    beforePosition: number,
+    status: ResultPromo['status'],
+): ResultPromo {
+    return {
+        position,
+        before_position: beforePosition,
+        type: 'Interview Space',
+        status,
+        targets: [
+            {
+                id: 20,
+                name: 'Rob Van Dam',
+                roster_type: 'superstar',
+                weight_class: 'heavyweight',
+            },
+        ],
+    };
+}
+
+const page: { props: Record<string, unknown> } = { props };
+const post = vi.fn();
+
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
+    router: { post: (...args: unknown[]) => post(...args) },
     Link: ({
         children,
         href,
@@ -110,11 +169,13 @@ vi.mock('@inertiajs/react', () => ({
             {children}
         </a>
     ),
-    usePage: () => ({ props }),
+    usePage: () => ({ props: page.props }),
 }));
 
 afterEach(() => {
     vi.useRealTimers();
+    page.props = props;
+    post.mockReset();
 });
 
 describe('Results page', () => {
@@ -195,6 +256,75 @@ describe('Results page', () => {
         );
     });
 
+    it('shows a serious injury instead of recovery, and a minor one beside it', () => {
+        vi.useFakeTimers();
+        page.props = {
+            ...props,
+            shows: [
+                {
+                    ...props.shows[0],
+                    fatigue: [
+                        {
+                            ...props.shows[0].fatigue[1],
+                            start: 80,
+                            after_shows: 110,
+                            end: 90,
+                            injury: { severity: 'serious', label: 'Torn ACL' },
+                        },
+                        {
+                            ...props.shows[0].fatigue[0],
+                            start: 60,
+                            after_shows: 80,
+                            end: 60,
+                            injury: {
+                                severity: 'minor',
+                                label: 'Sprained Wrist',
+                            },
+                        },
+                    ],
+                },
+            ],
+        };
+        render(<Results />);
+
+        const kane = screen.getByTestId('fatigue-10');
+        const ryder = screen.getByTestId('fatigue-11');
+
+        // After the show: all bars full and a red 110% Injury.
+        act(() => {
+            vi.advanceTimersByTime(1100);
+        });
+        expect(within(kane).getByRole('meter')).toHaveAttribute(
+            'aria-valuenow',
+            '110',
+        );
+        expect(kane).toHaveTextContent('110%Injury');
+        expect(
+            within(kane)
+                .getByRole('meter')
+                .querySelectorAll('[data-state="filled"]'),
+        ).toHaveLength(10);
+
+        act(() => {
+            vi.advanceTimersByTime(1100);
+        });
+        expect(within(kane).queryByRole('meter')).toBeNull();
+        expect(within(kane).getByTestId('injury-10')).toHaveTextContent(
+            'Serious Injury: Torn ACL!',
+        );
+        expect(kane).toHaveTextContent('80% → 110% → Injured');
+
+        // A minor injury still recovers, with the injury beside it.
+        expect(within(ryder).getByRole('meter')).toHaveAttribute(
+            'aria-valuenow',
+            '60',
+        );
+        expect(within(ryder).getByTestId('injury-11')).toHaveTextContent(
+            'Minor Injury: Sprained Wrist!',
+        );
+        expect(ryder).toHaveTextContent('60% → 80% → 60%');
+    });
+
     it('animates each wrestler’s fatigue: going in, after the show, after recovery', () => {
         vi.useFakeTimers();
         render(<Results />);
@@ -267,5 +397,178 @@ describe('Results page', () => {
         expect(
             screen.getByRole('button', { name: 'Replay' }).querySelector('svg'),
         ).not.toBeNull();
+    });
+
+    it('tags the champions going into a title match with (C)', () => {
+        page.props = {
+            ...props,
+            shows: [
+                {
+                    ...props.shows[0],
+                    outcomes: [
+                        outcome(1, ['John Cena'], ['Edge'], {
+                            title: 'WWE Championship',
+                            champions: ['Edge'],
+                        }),
+                    ],
+                },
+            ],
+        };
+        render(<Results />);
+
+        const row = screen.getByTestId('result-7-1');
+        expect(row).toHaveTextContent('John Cenadef.Edge(C)');
+        const tag = within(row).getByText('(C)');
+        expect(tag.className).toContain('text-gold');
+        expect(tag.className).toContain('text-sm');
+    });
+
+    it('lists promos where they aired, with their result', () => {
+        page.props = {
+            ...props,
+            shows: [
+                {
+                    ...props.shows[0],
+                    promos: [promo(1, 2, 'succeeded'), promo(2, 6, 'failed')],
+                },
+            ],
+        };
+        render(<Results />);
+
+        const rows = screen
+            .getAllByTestId(/^(result|promo)-7-\d+$/)
+            .map((r) => r.dataset.testid);
+        expect(rows).toEqual([
+            'result-7-1',
+            'promo-7-1',
+            'result-7-2',
+            'promo-7-2',
+        ]);
+
+        const first = screen.getByTestId('promo-7-1');
+        expect(first).toHaveTextContent('Promo 1');
+        expect(first).toHaveTextContent('Interview Space');
+        expect(first).toHaveTextContent('Rob Van Dam');
+        expect(within(first).getByText('Succeeded').className).toContain(
+            'text-zone-safe',
+        );
+        expect(
+            within(screen.getByTestId('promo-7-2')).getByText('Failed')
+                .className,
+        ).toContain('text-zone-serious');
+    });
+
+    describe('while the week airs live', () => {
+        const live = () => ({
+            ...props,
+            airing: true,
+            shows: [
+                {
+                    ...props.shows[0],
+                    status: 'airing',
+                    fatigue: [],
+                    outcomes: [
+                        outcome(1, ['Kane'], ['Carlito']),
+                        pending(2, [['Edge'], ['John Cena']], {
+                            is_next: true,
+                            title: 'WWE Championship',
+                            champions: ['Edge'],
+                        }),
+                        pending(3, [['Batista'], ['JBL']]),
+                    ],
+                },
+            ],
+        });
+
+        it('opens the next match with Book to Win for each side', async () => {
+            page.props = live();
+            const user = userEvent.setup();
+            render(<Results />);
+
+            expect(
+                within(screen.getByTestId('result-7-2')).getByText(
+                    'Manual book to win',
+                ),
+            ).toBeInTheDocument();
+            expect(screen.getByTestId('result-7-2')).toHaveTextContent(
+                'Edge(C)vsJohn Cena',
+            );
+            expect(screen.getByTestId('result-7-3')).toHaveTextContent(
+                'Waiting',
+            );
+
+            // The next match opens by itself.
+            const detail = screen.getByTestId('result-detail');
+            expect(
+                within(detail).getByText(/always ends with a decisive/),
+            ).toBeInTheDocument();
+
+            const cena = within(detail).getByTestId('book-side-1');
+            await user.click(
+                within(cena).getByRole('button', { name: 'Book to Win' }),
+            );
+
+            expect(post).toHaveBeenCalledWith(
+                expect.stringContaining('/results/1/decide'),
+                { slot_id: 102, winner_side: 1 },
+                expect.anything(),
+            );
+        });
+
+        it('simulates one match or all of them', async () => {
+            page.props = live();
+            const user = userEvent.setup();
+            render(<Results />);
+
+            await user.click(
+                screen.getByRole('button', { name: 'Simulate match' }),
+            );
+            expect(post).toHaveBeenLastCalledWith(
+                expect.stringContaining('/results/1/decide'),
+                { slot_id: 102, winner_side: null },
+                expect.anything(),
+            );
+            // Let the request finish before the next click.
+            post.mock.calls[0][2].onFinish();
+
+            await user.click(
+                screen.getByRole('button', { name: 'Simulate all' }),
+            );
+            expect(post).toHaveBeenLastCalledWith(
+                expect.stringContaining('/results/1/simulate-all'),
+                {},
+                expect.anything(),
+            );
+        });
+
+        it('can’t decide a later match first', async () => {
+            page.props = live();
+            const user = userEvent.setup();
+            render(<Results />);
+
+            await user.click(
+                screen.getByRole('button', {
+                    name: 'Show details for Monday Night Raw match 3',
+                }),
+            );
+
+            const detail = screen.getByTestId('result-detail');
+            for (const button of within(detail).getAllByRole('button', {
+                name: /Book to Win|Simulate match/,
+            })) {
+                expect(button).toBeDisabled();
+            }
+        });
+
+        it('holds Continue and the fatigue card until every match is in', () => {
+            page.props = live();
+            render(<Results />);
+
+            expect(
+                screen.getByRole('button', { name: 'Continue' }),
+            ).toBeDisabled();
+            expect(screen.getByTestId('fatigue-pending')).toBeInTheDocument();
+            expect(screen.queryByTestId(/^fatigue-\d+$/)).toBeNull();
+        });
     });
 });

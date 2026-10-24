@@ -1,3 +1,5 @@
+import { Fragment } from 'react';
+import { SideNames } from '@/components/gm/champion-tag';
 import { cn } from '@/lib/utils';
 import type { MatchOutcome } from '@/types/gm';
 
@@ -49,10 +51,22 @@ export function OutcomeCard({
             <div className="mt-8 animate-gm-rise">
                 <div className="gm-label text-zone-safe">Winner</div>
                 <h2 className="gm-heading mt-1 text-3xl font-bold text-ink md:text-5xl">
-                    {outcome.winners.join(' & ')}
+                    <SideNames
+                        names={outcome.winners}
+                        champions={outcome.champions}
+                    />
                 </h2>
                 <div className="mt-4 font-condensed text-lg tracking-wide text-ink-dim uppercase">
-                    def. {outcome.losers.join(', ')}
+                    def.{' '}
+                    {outcome.loser_sides.map((side, i) => (
+                        <Fragment key={side.join()}>
+                            {i > 0 && ', '}
+                            <SideNames
+                                names={side}
+                                champions={outcome.champions}
+                            />
+                        </Fragment>
+                    ))}
                 </div>
             </div>
 
@@ -60,6 +74,11 @@ export function OutcomeCard({
                 <span className="gm-chyron-both bg-brand py-1 font-condensed text-sm font-bold tracking-[0.15em] text-white uppercase">
                     {outcome.method_label}
                 </span>
+                {outcome.booked && (
+                    <span className="gm-chyron-both bg-gold/20 py-1 font-condensed text-sm font-semibold tracking-[0.15em] text-gold-hot uppercase">
+                        Booked to win
+                    </span>
+                )}
                 {outcome.finish_label && (
                     <span className="gm-chyron-both bg-white/10 py-1 font-condensed text-sm font-semibold tracking-[0.15em] text-ink uppercase">
                         {outcome.finish_label}

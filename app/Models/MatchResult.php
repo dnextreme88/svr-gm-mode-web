@@ -17,13 +17,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property MatchMethod $method
  * @property FinishEvent|null $finish_event
  * @property int|null $interferer_id
+ * @property bool $booked the player booked the winner (Book to Win)
  * @property bool $title_changed
+ * @property int|null $champion_reign_id the reign on the line going in
  * @property string|null $title_banner
  * @property string|null $stipulation_outcome
  * @property string $summary
  * @property int $rng_seed_step
  * @property-read MatchSlot $matchSlot
  * @property-read SaveWrestler|null $interferer
+ * @property-read TitleReign|null $championReign
  */
 #[Unguarded]
 class MatchResult extends Model
@@ -45,6 +48,14 @@ class MatchResult extends Model
     }
 
     /**
+     * @return BelongsTo<TitleReign, $this>
+     */
+    public function championReign(): BelongsTo
+    {
+        return $this->belongsTo(TitleReign::class, 'champion_reign_id');
+    }
+
+    /**
      * Titles change hands only on a decisive win (§20).
      */
     public function isDecisive(): bool
@@ -58,6 +69,7 @@ class MatchResult extends Model
             'method' => MatchMethod::class,
             'finish_event' => FinishEvent::class,
             'title_changed' => 'boolean',
+            'booked' => 'boolean',
         ];
     }
 }

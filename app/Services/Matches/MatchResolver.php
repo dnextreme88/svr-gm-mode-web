@@ -21,13 +21,18 @@ use InvalidArgumentException;
  * Match rules (house rules): without ring outs the fight can't leave the ring,
  * so there are no count-outs or run-ins; rope breaks make clean submissions
  * rarer; in a Captain Fall match the losing side's captain takes the fall.
+ *
+ * Book to Win (house rule): the player can pick the winning side on the
+ * results screen. A booked title match always ends decisively; any other
+ * booked match ends by DQ or count-out only on a small roll.
  */
 class MatchResolver
 {
     /**
      * @param  Collection<int, Rivalry>  $activeRivalries
+     * @param  int|null  $bookedSide  the side the player booked to win, or null to simulate
      */
-    public function resolve(MatchSlot $slot, Rng $rng, Collection $activeRivalries): ResolvedMatch
+    public function resolve(MatchSlot $slot, Rng $rng, Collection $activeRivalries, ?int $bookedSide = null): ResolvedMatch
     {
         if ($slot->matchType === null) {
             throw new InvalidArgumentException('Slot has no match type.');
@@ -39,8 +44,12 @@ class MatchResolver
             throw new InvalidArgumentException('A match needs at least two sides.');
         }
 
+        if ($bookedSide !== null && ! array_key_exists($bookedSide, $sides)) {
+            throw new InvalidArgumentException("Side {$bookedSide} is not in this match.");
+        }
+
         $before = $rng->steps();
-        $winnerSide = (int) $rng->weightedPick($this->sideWeights($slot));
+        $winnerSide = $bookedSide ?? (int) $rng->weightedPick($this->sideWeights($slot));
         $otherSides = array_values(array_filter(array_keys($sides), fn (int $s): bool => $s !== $winnerSide));
         $loserSide = count($otherSides) === 1 ? $otherSides[0] : (int) $rng->pick($otherSides);
 
@@ -58,7 +67,9 @@ class MatchResolver
         $finish = null;
         $interferer = null;
 
-        if (! $rng->chance((float) config('gm.outcomes.clean_finish_chance'))) {
+        if ($bookedSide !== null) {
+            $finish = $this->bookedFinishEvent($slot, $rng);
+        } elseif (! $rng->chance((float) config('gm.outcomes.clean_finish_chance'))) {
             $candidates = $this->allowedFinishes($slot, $sides[$loserSide], $activeRivalries);
 
             if ($candidates !== []) {
@@ -86,6 +97,30 @@ class MatchResolver
             $summary,
             $rng->steps() - $before,
         );
+    }
+
+    /**
+     * A booked win ends decisively, except a non-title match may end by DQ or
+     * count-out (when the type allows them) on a small roll.
+     */
+    private function bookedFinishEvent(MatchSlot $slot, Rng $rng): ?FinishEvent
+    {
+        $type = $slot->matchType;
+
+        if ($type === null || $slot->title_championship_id !== null) {
+            return null;
+        }
+
+        $events = array_values(array_filter([
+            $type->dq_enabled ? FinishEvent::RefereeAttacked : null,
+            $type->countout_enabled && $type->ring_out ? FinishEvent::Countout : null,
+        ]));
+
+        if ($events === [] || ! $rng->chance((float) config('gm.outcomes.booked_non_decisive_chance'))) {
+            return null;
+        }
+
+        return $rng->pick($events);
     }
 
     /**

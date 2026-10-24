@@ -659,12 +659,14 @@ export const SaveStageLabels: Record<SaveStage, string> = {
 export const ShowStatus = {
     Booking: 'booking',
     Locked: 'locked',
+    Airing: 'airing',
     Aired: 'aired',
 } as const;
 export type ShowStatus = (typeof ShowStatus)[keyof typeof ShowStatus];
 export const ShowStatusLabels: Record<ShowStatus, string> = {
     'booking': 'Booking',
     'locked': 'Locked',
+    'airing': 'Airing',
     'aired': 'Aired',
 };
 

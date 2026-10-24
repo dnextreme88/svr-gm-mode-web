@@ -9,6 +9,7 @@ use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Services\Contracts\ContractService;
 use App\Services\Week\Steps\TrackDeficit;
+use App\Services\Week\WeekResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +37,7 @@ class ContractController extends Controller
     public function release(Save $save, SaveWrestler $saveWrestler): RedirectResponse
     {
         $this->assertOwn($save, $saveWrestler);
+        app(WeekResolver::class)->assertNotAiring($save);
 
         DB::transaction(function () use ($save, $saveWrestler): void {
             $this->contracts->release($saveWrestler, $save->current_week);
@@ -54,6 +56,7 @@ class ContractController extends Controller
     public function sign(Request $request, Save $save, SaveWrestler $saveWrestler): RedirectResponse
     {
         $length = $this->length($request);
+        app(WeekResolver::class)->assertNotAiring($save);
 
         DB::transaction(fn () => $this->contracts->signFreeAgent($save, $saveWrestler, $save->player_brand, $length, $save->current_week));
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$saveWrestler->name()} signed. They join the roster next week."]);

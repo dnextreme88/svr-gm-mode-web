@@ -204,6 +204,7 @@ it('sends each show’s fatigue progression with the results', function () {
     GameBuilder::wrestler($save, 'Edge')->update(['fatigue' => 20]);
     Card::book($save, Card::show($save), 1, Card::singles(), [['Edge'], ['Kane']]);
     $this->post(route('gm.advance', $save));
+    $this->post(route('gm.results.simulate-all', [$save, 1]));
 
     $this->get(route('gm.results', [$save, 1]))
         ->assertInertia(fn (Assert $page) => $page->component('gm/results')

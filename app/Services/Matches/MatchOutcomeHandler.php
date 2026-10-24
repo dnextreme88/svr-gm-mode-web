@@ -3,6 +3,7 @@
 namespace App\Services\Matches;
 
 use App\Enums\Brand;
+use App\Enums\ChampionshipEligibility;
 use App\Enums\FixedSlotKind;
 use App\Enums\LedgerCategory;
 use App\Enums\NewsBrand;
@@ -101,6 +102,7 @@ class MatchOutcomeHandler
 
         $result->update([
             'title_changed' => $titleChanged,
+            'champion_reign_id' => $reignBefore?->id,
             'title_banner' => $banner,
             'stipulation_outcome' => $stipulationOutcome,
         ]);
@@ -126,7 +128,7 @@ class MatchOutcomeHandler
             }
 
             $new = $this->titles->changeHands($save, $championship, $this->holderFor($save, $championship, $resolved->winners), $week, WonVia::Match, $show, $slot->id);
-            $this->announceChange($new, $resolved, $nameOf, $show->name, $week);
+            $this->announceChange($new, $slot, $resolved, $nameOf, $show->name, $week);
 
             return [true, 'new_champion', null, null];
         }
@@ -159,7 +161,7 @@ class MatchOutcomeHandler
         $new = $this->titles->changeHands($save, $championship, $this->holderFor($save, $championship, $resolved->winners), $week, $via, $show, $slot->id);
         $this->records->checkAfterReignEnded($reign->refresh(), $week);
         $this->records->checkAfterReignStarted($new, $week);
-        $this->announceChange($new, $resolved, $nameOf, $show->name, $week, $reign->holderName());
+        $this->announceChange($new, $slot, $resolved, $nameOf, $show->name, $week, $reign->holderName());
 
         return [true, 'new_champion', $championSide, $reign];
     }
@@ -292,13 +294,22 @@ class MatchOutcomeHandler
     /**
      * @param  callable(list<int>): string  $nameOf
      */
-    private function announceChange(TitleReign $new, ResolvedMatch $resolved, callable $nameOf, string $showName, int $week, ?string $loser = null): void
+    private function announceChange(TitleReign $new, MatchSlot $slot, ResolvedMatch $resolved, callable $nameOf, string $showName, int $week, ?string $loser = null): void
     {
+        $championship = $new->championship;
+        // The Women's title is the Divas' only title; tag titles have two champions.
+        $tag = $championship->is_tag;
+
         $this->news->record($new->game, NewsEventType::TitleChange, NewsTier::Headline, $new->brand, [
             'winner' => $new->holderName(),
             'loser' => $loser ?? $nameOf($resolved->losers),
-            'title' => $new->championship->name,
+            'title' => $championship->name,
             'show' => $showName,
+            'via' => $resolved->via($slot->matchType),
+            'walks' => $tag ? 'walk' : 'walks',
+            'the_champion' => $tag ? 'The champions' : 'The champion',
+            'looks' => $tag ? 'look' : 'looks',
+            'champion_pronoun' => $tag ? 'they' : ($championship->eligibility === ChampionshipEligibility::DivasOnly ? 'she' : 'he'),
         ], ['championship_id' => $new->championship_id, 'wrestler_ids' => [...$resolved->winners, ...$resolved->losers]], priority: 100, week: $week, dedupeKey: "slot:{$new->won_match_id}");
     }
 

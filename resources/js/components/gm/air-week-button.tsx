@@ -1,13 +1,14 @@
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import gm from '@/routes/gm';
 import type { GameShell } from '@/types/gm';
 
 /**
- * Airs the current week and resolves every match, after a confirmation. It
- * lives on the week's last card (the weekly show), so in a PPV week it airs
- * the PPV and the weekly show together.
+ * Airs the current week, after a confirmation, and opens its live results,
+ * where the player decides each match. It lives on the week's last card (the
+ * weekly show), so in a PPV week it airs the PPV and the weekly show
+ * together. While the week is airing it goes back to the results.
  */
 export function AirWeekButton({
     game,
@@ -26,6 +27,18 @@ export function AirWeekButton({
         return null;
     }
 
+    if (game.airing) {
+        return (
+            <Link
+                href={gm.results.url({ save: game.id, week: game.week })}
+                className="gm-btn"
+            >
+                <span className="size-2 animate-gm-pulse rounded-full bg-white" />
+                Resume results
+            </Link>
+        );
+    }
+
     const list =
         shows.length > 1
             ? `${shows.slice(0, -1).join(', ')} and ${shows[shows.length - 1]}`
@@ -40,7 +53,7 @@ export function AirWeekButton({
                 title={
                     game.deficit.blocked
                         ? 'Choose a deficit recovery plan on Financials first'
-                        : 'Air this week and resolve every match'
+                        : 'Air this week and decide its matches'
                 }
                 onClick={() => setConfirming(true)}
             >
@@ -52,8 +65,9 @@ export function AirWeekButton({
                 title={`Air week ${game.season_week}?`}
                 message={
                     <>
-                        {list} {shows.length > 1 ? 'air' : 'airs'} now and every
-                        match is resolved. You can’t change{' '}
+                        {list} {shows.length > 1 ? 'air' : 'airs'} now. You
+                        decide each match on the results screen: simulate it or
+                        book a winner. You can’t change{' '}
                         {shows.length > 1 ? 'these cards' : 'this card'}{' '}
                         afterwards.
                     </>

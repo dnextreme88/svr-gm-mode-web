@@ -14,7 +14,7 @@ namespace App\Services\News;
  *
  * `{placeholders}`: brand, rival_brand, show, wrestler, wrestler_b,
  * opponent, winner, loser, champion, challenger, title, how, where, streak,
- * weeks, injury, weeks_left, amount, ppv, ppv_weeks.
+ * weeks, injury, weeks_left, amount, ppv, ppv_weeks, pronoun, rivalry.
  */
 class PromoStories
 {
@@ -68,6 +68,22 @@ class PromoStories
         'interview_space.unbooked_champion+' => [
             ['{wrestler} talks up the {title}', '{wrestler} brought the {title} to the interview and dared anyone on {brand} to come and take it.'],
             ['Champion {wrestler} sends a message', 'The {title} holder used the interview to remind {brand} who is on top.'],
+        ],
+        // The fallback when neither a match nor the wrestler's form gives the
+        // interview a story (house rule, 2026-10-25): a sit-down interview
+        // or an interview, goofy or enthusiastic, one variant each.
+        'interview_space.spotlight' => [
+            ['{wrestler} sits down with {show}', '{wrestler} had a sit-down interview tonight and was being goofy. It was a great interview and gave insights on how {pronoun} would be used and ready to take over and dominate the {brand} division!'],
+            ['A fired-up sit-down with {wrestler}', '{wrestler} had a sit-down interview tonight and was being enthusiastic. It was a great interview and gave insights on how {pronoun} would be used and ready to take over and dominate the {brand} division!'],
+            ['{wrestler} clowns around on {show}', '{wrestler} had an interview tonight and was being goofy. It was a great interview and gave insights on how {pronoun} would be used and ready to take over and dominate the {brand} division!'],
+            ['{wrestler} is pumped up on {show}', '{wrestler} had an interview tonight and was being enthusiastic. It was a great interview and gave insights on how {pronoun} would be used and ready to take over and dominate the {brand} division!'],
+        ],
+        // A failed interview that another superstar crashed (house rule).
+        'interview_space.crashed' => [
+            ['{wrestler_b} crashes {wrestler}\'s sit-down interview!', "{wrestler} had a sit-down interview tonight and was being goofy. The interview was on-going until {wrestler_b} crashed the party and decked {wrestler} with authority. What's gonna happen next between these two?{rivalry}"],
+            ['{wrestler_b} ambushes {wrestler} mid-interview!', "{wrestler} had a sit-down interview tonight and was being enthusiastic. The interview was on-going until {wrestler_b} crashed the party and decked {wrestler} with authority. What's gonna happen next between these two?{rivalry}"],
+            ['{wrestler_b} decks {wrestler} on {show}!', "{wrestler} had an interview tonight and was being goofy. The interview was on-going until {wrestler_b} crashed the party and decked {wrestler} with authority. What's gonna happen next between these two?{rivalry}"],
+            ['{wrestler_b} gatecrashes {wrestler}\'s interview!', "{wrestler} had an interview tonight and was being enthusiastic. The interview was on-going until {wrestler_b} crashed the party and decked {wrestler} with authority. What's gonna happen next between these two?{rivalry}"],
         ],
         'interview_space.unbooked_flat' => [
             ["{wrestler}'s interview falls flat", '{wrestler} had the microphone and nothing to say. The crowd had checked out before it was over.'],
@@ -252,9 +268,9 @@ class PromoStories
         ],
         'merchandise_sponsorship.success' => [
             ['{brand} merchandise flies off the shelves', 'Fans at {show} snapped up {brand} merchandise, bringing in {amount}.'],
-            ['{brand} merch deal pays {amount}', 'The merchandise sponsorship on {show} paid {amount}, and it grows the more {brand} keeps it going.'],
+            ['{brand} merch deal pays {amount}', 'The merchandise sponsorship on {show} landed its {amount} deal.'],
             ['T-shirts and dollars for {brand}', '{brand} sold its way to {amount} in merchandise on {show}.'],
-            ['{brand} sponsorship keeps paying', 'Another week of merchandise sponsorship, another {amount} for {brand}.'],
+            ['{brand} sponsorship pays off', 'The merchandise sponsorship came through: {amount} for {brand}.'],
         ],
         'merchandise_sponsorship.failed' => [
             ['Slow merch sales for {brand}', "{brand}'s merchandise push on {show} didn't move much."],

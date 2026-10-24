@@ -1,9 +1,10 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { PromoSlots } from '@/components/gm/promo-slots';
+import { PromoSlots, successLabel } from '@/components/gm/promo-slots';
 import type {
     PromoEligibilityView,
+    PromoSlotView,
     PromoTypeOption,
 } from '@/components/gm/promo-slots';
 import type { RosterEntry } from '@/types/gm';
@@ -78,7 +79,11 @@ const eligibility: Record<string, PromoEligibilityView> = {
     interference_promotion: rules({ wrestler_ids: [10] }),
     continue_rivalry: rules({
         wrestler_ids: [11, 12, 10],
-        pairs: [[10, 11]],
+        // Kane vs Edge and Edge vs Carlito, stored in no particular order.
+        pairs: [
+            [11, 10],
+            [10, 12],
+        ],
     }),
     title_match_hype: rules({ championship_ids: [7] }),
 };
@@ -116,23 +121,23 @@ const roster = [
     wrestler(12, 'Carlito'),
 ];
 
-function setup() {
+const emptySlot = (position: number): PromoSlotView => ({
+    position,
+    promo_type_id: null,
+    target_wrestler_id: null,
+    target_wrestler_b_id: null,
+    succeeded: null,
+    backfired: false,
+    outcome_note: null,
+});
+
+function setup(slots: PromoSlotView[] = [emptySlot(1)]) {
     const onSave = vi.fn();
     const onClear = vi.fn();
 
     render(
         <PromoSlots
-            slots={[
-                {
-                    position: 1,
-                    promo_type_id: null,
-                    target_wrestler_id: null,
-                    target_wrestler_b_id: null,
-                    succeeded: null,
-                    backfired: false,
-                    outcome_note: null,
-                },
-            ]}
+            slots={slots}
             types={types}
             eligibility={eligibility}
             roster={roster}
@@ -150,6 +155,111 @@ function setup() {
 const grid = () => screen.getByRole('radiogroup', { name: 'Promo 1 type' });
 
 describe('PromoSlots', () => {
+    it('shows a success range for a promo whose odds depend on a rolled deal', () => {
+        expect(
+            successLabel({ success_rate: 0.8, success_range: [0.25, 0.8] }),
+        ).toBe('25–80%');
+        expect(successLabel({ success_rate: 0.5 })).toBe('50%');
+    });
+
+    it('greys out Save once the promo is saved, until something changes', async () => {
+        const { user } = setup([
+            {
+                ...emptySlot(1),
+                promo_type_id: 3,
+                target_wrestler_id: 10,
+                before_position: 6,
+            },
+        ]);
+
+        const save = screen.getByRole('button', { name: 'Save promo 1' });
+        expect(save).toBeDisabled();
+
+        await user.click(screen.getByRole('radio', { name: 'Before match 2' }));
+        expect(save).toBeEnabled();
+        expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+    });
+
+    it('discards unsaved changes back to the saved promo', async () => {
+        const { user } = setup([
+            {
+                ...emptySlot(1),
+                promo_type_id: 3,
+                target_wrestler_id: 10,
+                before_position: 6,
+            },
+        ]);
+        const discard = screen.getByRole('button', {
+            name: 'Discard changes to promo 1',
+        });
+        expect(discard).toBeDisabled();
+
+        await user.click(screen.getByTestId('promo-1-advertising'));
+        expect(discard).toBeEnabled();
+
+        await user.click(discard);
+        expect(
+            screen.getByTestId('promo-1-interference_promotion'),
+        ).toHaveAttribute('aria-checked', 'true');
+        expect(
+            screen.getByRole('radio', { name: 'Before main event' }),
+        ).toHaveAttribute('aria-checked', 'true');
+        expect(discard).toBeDisabled();
+        expect(
+            screen.getByRole('button', { name: 'Save promo 1' }),
+        ).toBeDisabled();
+        expect(screen.queryByText('Unsaved changes')).toBeNull();
+    });
+
+    it('won’t put the same wrestler in two promos of the same type', async () => {
+        const { user } = setup([
+            {
+                ...emptySlot(1),
+                promo_type_id: 3,
+                target_wrestler_id: 10,
+                before_position: 6,
+            },
+            emptySlot(2),
+        ]);
+
+        await user.click(screen.getByTestId('promo-2-interference_promotion'));
+        await user.click(
+            screen.getByRole('button', { name: 'Promo 2 wrestler' }),
+        );
+        const edge = within(
+            screen.getByRole('listbox', { name: 'Promo 2 wrestler' }),
+        ).getByRole('option', { name: /Edge/ });
+
+        expect(edge).toHaveAttribute('aria-disabled', 'true');
+        expect(edge).toHaveTextContent('In Promo 1');
+    });
+
+    it('blocks the spot another promo already airs in, and defaults to the next free one', async () => {
+        const { user } = setup([
+            { ...emptySlot(1), promo_type_id: 1, before_position: 6 },
+            emptySlot(2),
+        ]);
+
+        await user.click(screen.getByTestId('promo-2-advertising'));
+        const group = screen.getByRole('radiogroup', { name: 'Promo 2 airs' });
+        const mainEvent = within(group).getByRole('radio', {
+            name: 'Before main event',
+        });
+
+        expect(mainEvent).toBeDisabled();
+        expect(mainEvent).toHaveAttribute('title', 'Promo 1 already airs here');
+        expect(mainEvent.className).toContain('cursor-not-allowed');
+        expect(mainEvent.querySelector('svg')?.getAttribute('class')).toContain(
+            'text-zone-serious',
+        );
+        expect(
+            within(group).getByRole('radio', { name: 'Before match 5' }),
+        ).toHaveAttribute('aria-checked', 'true');
+        expect(
+            screen.getByRole('button', { name: 'Save promo 2' }),
+        ).toBeEnabled();
+    });
+
     it('lists every promo alphabetically, left to right', () => {
         setup();
 
@@ -224,48 +334,40 @@ describe('PromoSlots', () => {
         });
     });
 
-    it('lists the wrestlers a promo can use alphabetically', async () => {
-        const { user } = setup();
+    it('picks a Continue Rivalry from one list of rivalries, named alphabetically', async () => {
+        const { onSave, user } = setup();
 
         await user.click(screen.getByTestId('promo-1-continue_rivalry'));
-        await user.click(
-            screen.getByRole('button', { name: 'Promo 1 first wrestler' }),
-        );
-
         expect(
-            within(
-                screen.getByRole('listbox', { name: 'Promo 1 first wrestler' }),
-            )
-                .getAllByRole('option')
-                .map((o) => o.textContent),
-        ).toEqual(['Leave vacant', 'Carlito', 'Edge', 'Kane']);
-    });
+            screen.queryByRole('button', { name: 'Promo 1 second wrestler' }),
+        ).toBeNull();
 
-    it('limits the second Continue Rivalry pick to the first pick’s rivals', async () => {
-        const { user } = setup();
+        await user.click(
+            screen.getByRole('button', { name: 'Promo 1 rivalry' }),
+        );
+        const options = within(
+            screen.getByRole('listbox', { name: 'Promo 1 rivalry' }),
+        ).getAllByRole('option');
 
-        await user.click(screen.getByTestId('promo-1-continue_rivalry'));
-        await user.click(
-            screen.getByRole('button', { name: 'Promo 1 first wrestler' }),
-        );
-        await user.click(
-            within(
-                screen.getByRole('listbox', { name: 'Promo 1 first wrestler' }),
-            ).getByRole('option', { name: 'Edge' }),
-        );
-        await user.click(
-            screen.getByRole('button', { name: 'Promo 1 second wrestler' }),
-        );
+        expect(options.map((o) => o.textContent)).toEqual([
+            'Carlito vs. Edge',
+            'Edge vs. Kane',
+        ]);
 
+        await user.click(options[1]);
         expect(
-            within(
-                screen.getByRole('listbox', {
-                    name: 'Promo 1 second wrestler',
-                }),
-            )
-                .getAllByRole('option')
-                .map((o) => o.textContent),
-        ).toEqual(['Leave vacant', 'Kane']);
+            screen.getByRole('button', { name: 'Promo 1 rivalry' }),
+        ).toHaveTextContent('Edge vs. Kane');
+
+        await user.click(screen.getByRole('button', { name: 'Save promo 1' }));
+        expect(onSave).toHaveBeenCalledWith(
+            1,
+            expect.objectContaining({
+                promo_type_id: 4,
+                target_wrestler_id: 10,
+                target_wrestler_b_id: 11,
+            }),
+        );
     });
 
     it('picks the title for Title Match Hype', async () => {

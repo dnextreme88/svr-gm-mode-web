@@ -13,5 +13,7 @@ enum ShowStatus: string
 
     case Booking = 'booking';
     case Locked = 'locked';
+    // Live results: the player is deciding this show's matches.
+    case Airing = 'airing';
     case Aired = 'aired';
 }

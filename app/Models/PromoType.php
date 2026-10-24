@@ -40,6 +40,23 @@ class PromoType extends Model
         return (float) config('gm.promos.success_rates.'.$this->key->value);
     }
 
+    /**
+     * Lowest and highest success odds when they depend on a rolled tier
+     * (Merchandise Sponsorship), else null.
+     *
+     * @return array{0: float, 1: float}|null
+     */
+    public function successRange(): ?array
+    {
+        if ($this->key !== PromoTypeKey::MerchandiseSponsorship) {
+            return null;
+        }
+
+        $chances = array_map(fn (array $tier): float => (float) $tier['chance'], (array) config('gm.promos.merchandise_tiers'));
+
+        return $chances === [] ? null : [min($chances), max($chances)];
+    }
+
     protected function casts(): array
     {
         return [

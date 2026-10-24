@@ -6,6 +6,7 @@ use App\Enums\LedgerCategory;
 use App\Enums\PromoTypeKey;
 use App\Exceptions\GameRuleException;
 use App\Models\Championship;
+use App\Models\FatigueLog;
 use App\Models\Injury;
 use App\Models\LedgerEntry;
 use App\Models\MatchParticipant;
@@ -167,6 +168,35 @@ describe('booking', function () {
             ->and(promo($save, PromoTypeKey::Advertising, ['before' => 2])->before_position)->toBe(2)
             ->and(fn () => promo($save, PromoTypeKey::Advertising, ['before' => $show->matchSlotCount() + 1]))->toThrow(GameRuleException::class, 'before one of the card');
     });
+
+    it('never books the same wrestler into two promos of the same type', function (PromoTypeKey $key, array $first, array $second) {
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Lita', 'Trish Stratus', 'Victoria'], smackdown: ['Batista']);
+        promo($save, $key, ['position' => 1, ...$first]);
+
+        expect(fn () => promo($save, $key, ['position' => 2, 'before' => 2, ...$second]))->toThrow(GameRuleException::class, 'already in Promo 1');
+    })->with([
+        'Interview Space' => [PromoTypeKey::InterviewSpace, ['a' => 'Edge'], ['a' => 'Edge']],
+        'Diva Bikini Contest' => [PromoTypeKey::DivaBikiniContest, ['a' => 'Lita', 'b' => 'Trish Stratus'], ['a' => 'Victoria', 'b' => 'Lita']],
+    ]);
+
+    it('still lets a wrestler cut two different promos', function () {
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+        promo($save, PromoTypeKey::InterviewSpace, ['position' => 1, 'a' => 'Edge']);
+
+        expect(promo($save, PromoTypeKey::InterferencePromotion, ['position' => 2, 'before' => 2, 'a' => 'Edge'])->target_wrestler_id)->toBe(idOf($save, 'Edge'));
+    });
+
+    it('never puts two promos back to back before the same match', function () {
+        $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+        $mainEvent = Card::show($save)->matchSlotCount();
+        promo($save, PromoTypeKey::Advertising, ['position' => 1]);
+
+        expect(fn () => promo($save, PromoTypeKey::PpvHype, ['position' => 2, 'before' => $mainEvent]))->toThrow(GameRuleException::class, "Two promos can't air back to back")
+            // Without a pick, the second promo takes the latest free spot.
+            ->and(promo($save, PromoTypeKey::PpvHype, ['position' => 2])->before_position)->toBe($mainEvent - 1)
+            // A promo can be saved again on its own spot.
+            ->and(promo($save, PromoTypeKey::Advertising, ['position' => 1, 'before' => $mainEvent])->before_position)->toBe($mainEvent);
+    });
 });
 
 describe('airing', function () {
@@ -186,6 +216,23 @@ describe('airing', function () {
         expect($before(1))->toBe(0)
             ->and($before(2))->toBe(Card::singles()->fatigue_cost_bars * $bar + 2 * $bar);
     });
+
+    it('tires both Divas in a Bikini Contest (2 bars) and both rivals in Continue Rivalry (1 bar)', function (PromoTypeKey $key, string $a, string $b, int $bars) {
+        $save = GameBuilder::inSeason(raw: ['Lita', 'Trish Stratus', 'Edge', 'Kane'], smackdown: ['Batista']);
+        app(RivalryService::class)->start($save, idOf($save, 'Edge'), idOf($save, 'Kane'), 1);
+        promo($save, $key, ['a' => $a, 'b' => $b]);
+
+        app(WeekResolver::class)->resolve($save->refresh());
+
+        $after = fn (string $name): int => (int) FatigueLog::where('save_wrestler_id', idOf($save, $name))->value('after_shows');
+
+        expect(PromoType::where('key', $key)->value('fatigue_bars'))->toBe($bars)
+            ->and($after($a))->toBe($bars * (int) config('gm.fatigue.bar_size'))
+            ->and($after($b))->toBe($bars * (int) config('gm.fatigue.bar_size'));
+    })->with([
+        'Diva Bikini Contest' => [PromoTypeKey::DivaBikiniContest, 'Lita', 'Trish Stratus', 2],
+        'Continue Rivalry' => [PromoTypeKey::ContinueRivalry, 'Edge', 'Kane', 1],
+    ]);
 
     it('can seriously injure a wrestler who goes into a fatiguing promo at 100%', function () {
         $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);

@@ -202,3 +202,69 @@ it('renders the Title History screen', function () {
     $this->get(route('gm.titles.history', $save))
         ->assertInertia(fn ($page) => $page->component('gm/titles/history')->has('titles', 8)->has('hall')->has('records'));
 });
+
+it('lists each reign’s defenses, newest first, linked to their results', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'John Cena', 'Kane'], smackdown: ['Batista']);
+    $reign = GameBuilder::giveTitle($save, 'wwe', ['Edge']);
+
+    titleMatch($save, 'Edge', 'John Cena');
+    FixedOutcomes::queue('Edge');
+    air($save);
+
+    titleMatch($save->refresh(), 'Edge', 'Kane');
+    FixedOutcomes::queue('Kane', MatchMethod::Dq);
+    air($save);
+
+    $results = MatchResult::orderBy('id')->get();
+
+    expect($results->pluck('champion_reign_id')->all())->toBe([$reign->id, $reign->id]);
+
+    $this->get(route('gm.titles.history', $save))
+        ->assertInertia(fn ($page) => $page
+            ->where('titles.0.lineage.0.how', 'Awarded')
+            ->where('titles.0.lineage.0.holder_reign', 1)
+            // An awarded title has no match it was won in.
+            ->has('titles.0.lineage.0.matches', 2)
+            // Newest first; a DQ loss is still a defense.
+            ->where('titles.0.lineage.0.matches.0.number', 2)
+            ->where('titles.0.lineage.0.matches.0.opponents', 'Kane')
+            ->where('titles.0.lineage.0.matches.1.number', 1)
+            ->where('titles.0.lineage.0.matches.1.opponents', 'John Cena')
+            ->where('titles.0.lineage.0.matches.1.season_week', 1)
+            ->where('titles.0.lineage.0.matches.1.match_type', Card::singles()->name)
+            ->where('titles.0.lineage.0.matches.1.link', route('gm.results', [$save, 1, 'match' => $results[0]->match_slot_id, 'brand' => 'raw'], false)));
+});
+
+it('counts the holder’s own reigns, names the winning match and the vacancy reason', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'John Cena', 'Kane'], smackdown: ['Batista']);
+    GameBuilder::giveTitle($save, 'wwe', ['Edge']);
+
+    titleMatch($save, 'Edge', 'John Cena');
+    FixedOutcomes::queue('John Cena');
+    air($save);
+
+    titleMatch($save->refresh(), 'John Cena', 'Edge');
+    FixedOutcomes::queue('Edge');
+    air($save);
+
+    app(ContractService::class)->release(GameBuilder::wrestler($save, 'Edge'), 3);
+
+    $this->get(route('gm.titles.history', $save))
+        ->assertInertia(fn ($page) => $page
+            // Newest first: vacant, Edge (2nd reign), Cena, Edge (1st reign).
+            ->where('titles.0.lineage.0.holder_type', 'vacant')
+            ->where('titles.0.lineage.0.vacated_reason', 'released')
+            ->where('titles.0.lineage.0.holder_reign', null)
+            ->where('titles.0.lineage.1.holder', 'Edge')
+            ->where('titles.0.lineage.1.reign_number', 3)
+            ->where('titles.0.lineage.1.holder_reign', 2)
+            ->where('titles.0.lineage.1.how', Card::singles()->name)
+            ->where('titles.0.lineage.1.won_ppv', null)
+            // Below Edge's second reign: the match he won it back in.
+            ->has('titles.0.lineage.1.matches', 1)
+            ->where('titles.0.lineage.1.matches.0.kind', 'won')
+            ->where('titles.0.lineage.1.matches.0.number', null)
+            ->where('titles.0.lineage.1.matches.0.opponents', 'John Cena')
+            ->where('titles.0.lineage.2.holder_reign', 1)
+            ->where('titles.0.lineage.3.holder_reign', 1));
+});

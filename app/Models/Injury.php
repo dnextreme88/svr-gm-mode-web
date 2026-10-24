@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $escalated_from_id
  * @property int|null $healed_week
  * @property int|null $match_slot_id
+ * @property int|null $fatigue_after uncapped fatigue right after the match that caused it
  * @property-read InjuryType $type
  * @property-read SaveWrestler $saveWrestler
  */

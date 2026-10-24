@@ -85,15 +85,43 @@ it('pays Advertising’s flat $150,000 next week', function () {
         ->and($income->week_number)->toBe(2);
 });
 
-it('scales Merchandise Sponsorship with consistent use', function () {
+it('rolls a Merchandise Sponsorship deal and pays it only on a success', function (float $chance, array $paid) {
+    config(['gm.promos.merchandise_tiers' => [['amount' => 250_000, 'chance' => $chance]]]);
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
 
-    foreach (range(1, 3) as $ignored) {
-        bookPromo($save, PromoTypeKey::MerchandiseSponsorship);
-        airPromos($save);
+    $slot = bookPromo($save, PromoTypeKey::MerchandiseSponsorship);
+    airPromos($save);
+
+    expect(rawLedger($save, LedgerCategory::PromoIncome)->pluck('amount')->all())->toBe($paid)
+        ->and($slot->refresh()->cost_or_profit)->toBe(250_000);
+})->with([
+    'lands' => [1.0, [250_000]],
+    'falls through' => [0.0, []],
+]);
+
+it('rolls every Merchandise tier with equal odds, each with its own success odds', function () {
+    $tiers = config('gm.promos.merchandise_tiers');
+    $seen = [];
+
+    foreach (range(1, 80) as $i) {
+        $seen[app(PromoService::class)->merchandiseTier(GameBuilder::newSave()->rng("merch.{$i}"))['amount']] = true;
     }
 
-    expect(rawLedger($save, LedgerCategory::PromoIncome)->sortBy('week_number')->pluck('amount')->all())->toBe([10_000, 20_000, 30_000]);
+    expect(array_column($tiers, 'amount'))->toBe([100_000, 250_000, 500_000, 1_000_000])
+        ->and(array_column($tiers, 'chance'))->toBe([0.80, 0.70, 0.50, 0.25])
+        ->and(array_keys($seen))->toEqualCanonicalizing([100_000, 250_000, 500_000, 1_000_000]);
+});
+
+it('makes every promo a sure thing except Advertising, Interview Space, Interference and Slander', function () {
+    $rates = config('gm.promos.success_rates');
+
+    expect(array_filter($rates, fn (float $rate): bool => $rate < 1.0))->toBe([
+        'advertising' => 0.80,
+        'merchandise_sponsorship' => 0.80,
+        'interference_promotion' => 0.50,
+        'slander_promotion' => 0.50,
+        'interview_space' => 0.90,
+    ]);
 });
 
 it('backfires Slander automatically if used more than once in 4 weeks, and always makes the neutral headline', function () {

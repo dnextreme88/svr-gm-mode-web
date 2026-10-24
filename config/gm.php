@@ -116,8 +116,10 @@ return [
     ],
 
     'injuries' => [
-        // ASSUMPTION: minor-zone odds are TBD in the spec.
-        'minor_chance' => 0.15,
+        // House rule (2026-10-25): injuries are judged on fatigue right after
+        // the match. Ending at 80–100% always injures: this share is serious,
+        // the rest minor. Going over 100% is always serious.
+        'serious_share' => 0.20,
         // ASSUMPTION: escalation odds are TBD in the spec.
         'escalation_chance' => 0.20,
         'minor_max_weeks' => 4,
@@ -148,6 +150,10 @@ return [
         // ASSUMPTION: with rope breaks on, a wrestler can reach the ropes to
         // escape a hold, so clean submission finishes happen less often.
         'rope_break_submission_factor' => 0.6,
+        // House rule (2026-10-25): a match the player decides with Book to Win
+        // ends by DQ or count-out this often (where the type allows them).
+        // A booked title match always ends decisively.
+        'booked_non_decisive_chance' => 0.05,
     ],
 
     /*
@@ -299,22 +305,23 @@ return [
     | §5 Promos. Success rates are starting estimates (house rule).
     */
     'promos' => [
+        // House rule (2026-10-25): every promo succeeds except these.
+        // Merchandise Sponsorship's odds come with its rolled tier below.
         'success_rates' => [
-            'new_superstar' => 0.75,
-            'continue_rivalry' => 0.90,
-            'start_rivalry' => 0.85,
-            'inactive_superstar' => 0.90,
-            'advertising' => 1.00,
-            'merchandise_sponsorship' => 1.00,
-            'main_event_hype' => 0.75,
-            'ppv_hype' => 0.80,
+            'new_superstar' => 1.00,
+            'continue_rivalry' => 1.00,
+            'start_rivalry' => 1.00,
+            'inactive_superstar' => 1.00,
+            'advertising' => 0.80,
+            'merchandise_sponsorship' => 0.80,
+            'main_event_hype' => 1.00,
+            'ppv_hype' => 1.00,
             'interference_promotion' => 0.50,
             'slander_promotion' => 0.50,
-            // ASSUMPTION: the four SvR 2006 promos added 2026-10-20.
-            'title_match_hype' => 0.80,
-            'comeback_reminder' => 0.90,
+            'title_match_hype' => 1.00,
+            'comeback_reminder' => 1.00,
             'interview_space' => 0.90,
-            'diva_bikini_contest' => 0.85,
+            'diva_bikini_contest' => 1.00,
         ],
         'amounts' => [
             'new_superstar' => -50_000,
@@ -337,6 +344,9 @@ return [
         'fatigue_bars' => [
             'interference_promotion' => 2,
             'start_rivalry' => 2,
+            // House rule (2026-10-25): both Divas and both rivals take part.
+            'diva_bikini_contest' => 2,
+            'continue_rivalry' => 1,
         ],
         // Extra end-of-week recovery a successful promo gives its target.
         'recovery_bars' => [
@@ -347,12 +357,14 @@ return [
         // ASSUMPTION: "freshly signed/traded-in" window for New Superstar.
         'new_superstar_window_weeks' => 2,
         'slander_overuse_window_weeks' => 4,
-        // ASSUMPTION: the spec says Merchandise starts low and scales with use.
-        'merchandise' => [
-            'base' => 10_000,
-            'step' => 10_000,
-            'cap' => 100_000,
-            'reset_after_idle_weeks' => 2,
+        // House rule (2026-10-25): Merchandise Sponsorship rolls one of these
+        // tiers (equal odds) when it airs; the bigger the deal, the less
+        // likely it lands. A success pays the tier's amount.
+        'merchandise_tiers' => [
+            ['amount' => 100_000, 'chance' => 0.80],
+            ['amount' => 250_000, 'chance' => 0.70],
+            ['amount' => 500_000, 'chance' => 0.50],
+            ['amount' => 1_000_000, 'chance' => 0.25],
         ],
     ],
 
@@ -381,6 +393,10 @@ return [
         'losing_streak_min' => 4,
         'reign_milestones' => [10, 25, 52],
         'ppv_upcoming_weeks' => [2, 1],
+        // House rule (2026-10-25): a PPV's main event takes the WWE headline
+        // that week. The interbrand card's (Survivor Series, WrestleMania)
+        // outranks a brand PPV's; the Royal Rumble result sits at 90.
+        'ppv_main_event_priority' => ['interbrand' => 95, 'brand' => 85],
         'stories_per_brand' => 2,
         // Deferred: overall ratings aren't designed yet, so upset_win is off.
         'upset_win_overall_margin' => null,

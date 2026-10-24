@@ -1,7 +1,10 @@
+import { X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { Panel } from '@/components/gm/panel';
+import { RivalryPicker, sortPair } from '@/components/gm/rivalry-picker';
+import type { RivalryOption } from '@/components/gm/rivalry-picker';
 import { WrestlerPicker } from '@/components/gm/wrestler-picker';
 import type { PickerOption } from '@/components/gm/wrestler-picker';
 import { formatMoney } from '@/lib/gm';
@@ -14,6 +17,8 @@ export type PromoTypeOption = {
     name: string;
     amount: number;
     success_rate: number;
+    /** Lowest and highest odds when they depend on a rolled tier (Merchandise). */
+    success_range?: [number, number] | null;
     needs_wrestler: boolean;
     needs_rival_pair: boolean;
     needs_diva_pair?: boolean;
@@ -76,10 +81,55 @@ export function PromoSlots({ slots, ...props }: Props) {
     return (
         <div className="grid gap-4 xl:grid-cols-2">
             {slots.map((slot) => (
-                <PromoEditor key={slot.position} slot={slot} {...props} />
+                <PromoEditor
+                    key={slot.position}
+                    slot={slot}
+                    taken={takenSpots(
+                        slots,
+                        slot.position,
+                        props.matchSlotCount,
+                    )}
+                    others={slots.filter(
+                        (s) =>
+                            s.position !== slot.position &&
+                            s.promo_type_id !== null,
+                    )}
+                    {...props}
+                />
             ))}
         </div>
     );
+}
+
+/**
+ * House rule: two promos can't air back to back, so each spot (the match a
+ * promo airs before) holds one promo. Maps each spot the other saved promos
+ * hold to the promo holding it.
+ */
+export function takenSpots(
+    slots: PromoSlotView[],
+    position: number,
+    matchSlotCount: number,
+): Map<number, number> {
+    return new Map(
+        slots
+            .filter((s) => s.position !== position && s.promo_type_id !== null)
+            .map((s) => [s.before_position ?? matchSlotCount, s.position]),
+    );
+}
+
+/** The main event's spot, or the latest one still free. */
+function defaultSpot(
+    taken: Map<number, number>,
+    matchSlotCount: number,
+): number {
+    for (let spot = matchSlotCount; spot >= 1; spot--) {
+        if (!taken.has(spot)) {
+            return spot;
+        }
+    }
+
+    return matchSlotCount;
 }
 
 function amountLabel(t: PromoTypeOption): string {
@@ -94,6 +144,15 @@ function amountLabel(t: PromoTypeOption): string {
     return `${t.amount > 0 ? '+' : '−'}${formatMoney(Math.abs(t.amount))}`;
 }
 
+export function successLabel(t: {
+    success_rate: number;
+    success_range?: [number, number] | null;
+}): string {
+    return t.success_range
+        ? `${Math.round(t.success_range[0] * 100)}–${Math.round(t.success_range[1] * 100)}%`
+        : `${Math.round(t.success_rate * 100)}%`;
+}
+
 export function airsLabel(before: number, matchSlotCount: number): string {
     return before === matchSlotCount
         ? 'Before main event'
@@ -102,6 +161,8 @@ export function airsLabel(before: number, matchSlotCount: number): string {
 
 function PromoEditor({
     slot,
+    taken,
+    others,
     types,
     eligibility,
     roster,
@@ -110,7 +171,12 @@ function PromoEditor({
     readOnly,
     onSave,
     onClear,
-}: { slot: PromoSlotView } & Omit<Props, 'slots'>) {
+}: {
+    slot: PromoSlotView;
+    taken: Map<number, number>;
+    /** The card's other saved promos. */
+    others: PromoSlotView[];
+} & Omit<Props, 'slots'>) {
     const [typeId, setTypeId] = useState<number | null>(slot.promo_type_id);
     const [a, setA] = useState<number | null>(slot.target_wrestler_id);
     const [b, setB] = useState<number | null>(slot.target_wrestler_b_id);
@@ -118,9 +184,9 @@ function PromoEditor({
         slot.target_championship_id ?? null,
     );
     const [confirmClear, setConfirmClear] = useState(false);
-    const [before, setBefore] = useState<number>(
-        slot.before_position ?? matchSlotCount,
-    );
+    const savedBefore =
+        slot.before_position ?? defaultSpot(taken, matchSlotCount);
+    const [before, setBefore] = useState<number>(savedBefore);
 
     const sorted = useMemo(
         () => [...types].sort((x, y) => x.name.localeCompare(y.name)),
@@ -132,12 +198,61 @@ function PromoEditor({
     const isContinue = type?.key === 'continue_rivalry';
     const rosterById = new Map(roster.map((w) => [w.id, w]));
 
+    // House rule: a wrestler gets one of each promo per card, so anyone in
+    // another saved promo of this type can't be picked again.
+    const twinOf = new Map<number, number>();
+
+    for (const other of others) {
+        if (other.promo_type_id === typeId) {
+            for (const id of [
+                other.target_wrestler_id,
+                other.target_wrestler_b_id,
+            ]) {
+                if (id !== null) {
+                    twinOf.set(id, other.position);
+                }
+            }
+        }
+    }
+
     const optionsFor = (ids: number[]): PickerOption[] =>
         ids
             .map((id) => rosterById.get(id))
             .filter((w): w is RosterEntry => w !== undefined)
             .sort((x, y) => x.name.localeCompare(y.name))
-            .map((w) => ({ wrestler: w }));
+            .map((w) => {
+                const twin = twinOf.get(w.id);
+
+                return twin === undefined
+                    ? { wrestler: w }
+                    : {
+                          wrestler: w,
+                          disabled: true,
+                          note: `In Promo ${twin}`,
+                      };
+            });
+
+    // Continue Rivalry picks one of the brand's rivalries, "A vs. B",
+    // alphabetically.
+    const rivalryOptions: RivalryOption[] = (rules?.pairs ?? [])
+        .map(([x, y]) => [rosterById.get(x), rosterById.get(y)] as const)
+        .filter(
+            (p): p is readonly [RosterEntry, RosterEntry] =>
+                p[0] !== undefined && p[1] !== undefined,
+        )
+        .map(([x, y]) => {
+            const pair = sortPair(x, y);
+            const twin = twinOf.get(x.id) ?? twinOf.get(y.id);
+
+            return twin === undefined
+                ? { pair }
+                : { pair, disabled: true, note: `In Promo ${twin}` };
+        })
+        .sort((p, q) =>
+            `${p.pair[0].name} ${p.pair[1].name}`.localeCompare(
+                `${q.pair[0].name} ${q.pair[1].name}`,
+            ),
+        );
 
     const firstIds = rules?.wrestler_ids ?? [];
     const secondIds = isContinue
@@ -151,7 +266,30 @@ function PromoEditor({
         (rules?.available ?? true) &&
         (!type.needs_wrestler || a !== null) &&
         (!pair || (a !== null && b !== null && a !== b)) &&
-        (!type.needs_championship || title !== null);
+        (!type.needs_championship || title !== null) &&
+        !taken.has(before) &&
+        (a === null || !twinOf.has(a)) &&
+        (b === null || !twinOf.has(b));
+
+    // Nothing changed since the last save: Save stays greyed out, like a
+    // saved match.
+    // Changed since the last save (or since the slot was empty): Save and
+    // Discard light up, like a match.
+    const dirty =
+        typeId !== slot.promo_type_id ||
+        a !== slot.target_wrestler_id ||
+        (pair && b !== slot.target_wrestler_b_id) ||
+        title !== (slot.target_championship_id ?? null) ||
+        before !== savedBefore;
+
+    // Back to what's saved.
+    const discard = () => {
+        setTypeId(slot.promo_type_id);
+        setA(slot.target_wrestler_id);
+        setB(slot.target_wrestler_b_id);
+        setTitle(slot.target_championship_id ?? null);
+        setBefore(savedBefore);
+    };
 
     const choose = (t: PromoTypeOption) => {
         setTypeId(t.id);
@@ -211,7 +349,7 @@ function PromoEditor({
                                 <span>
                                     Success Probability:{' '}
                                     <span className="gm-num text-ink">
-                                        {Math.round(t.success_rate * 100)}%
+                                        {successLabel(t)}
                                     </span>
                                 </span>
                                 {(t.recovery_bars ?? 0) > 0 && (
@@ -260,7 +398,23 @@ function PromoEditor({
                         )}
                     </div>
 
-                    {(type.needs_wrestler || pair) && (
+                    {isContinue && (
+                        <div>
+                            <div className="gm-label mb-1">Rivalry</div>
+                            <RivalryPicker
+                                label={`Promo ${slot.position} rivalry`}
+                                value={a !== null && b !== null ? [a, b] : null}
+                                options={rivalryOptions}
+                                disabled={readOnly}
+                                onChange={([x, y]) => {
+                                    setA(x);
+                                    setB(y);
+                                }}
+                            />
+                        </div>
+                    )}
+
+                    {(type.needs_wrestler || pair) && !isContinue && (
                         <div className="grid gap-2 sm:grid-cols-2">
                             <div>
                                 <div className="gm-label mb-1">
@@ -337,24 +491,47 @@ function PromoEditor({
                             {Array.from(
                                 { length: matchSlotCount },
                                 (_, i) => i + 1,
-                            ).map((position) => (
-                                <button
-                                    key={position}
-                                    type="button"
-                                    role="radio"
-                                    aria-checked={before === position}
-                                    disabled={readOnly}
-                                    onClick={() => setBefore(position)}
-                                    className={cn(
-                                        'px-2.5 py-1 font-condensed text-xs font-semibold tracking-wider uppercase',
-                                        before === position
-                                            ? 'bg-brand text-white'
-                                            : 'bg-white/5 text-ink-dim hover:text-ink',
-                                    )}
-                                >
-                                    {airsLabel(position, matchSlotCount)}
-                                </button>
-                            ))}
+                            ).map((position) => {
+                                const holder = taken.get(position);
+
+                                return (
+                                    <button
+                                        key={position}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={before === position}
+                                        disabled={
+                                            readOnly || holder !== undefined
+                                        }
+                                        data-taken={
+                                            holder !== undefined || undefined
+                                        }
+                                        title={
+                                            holder === undefined
+                                                ? undefined
+                                                : `Promo ${holder} already airs here`
+                                        }
+                                        onClick={() => setBefore(position)}
+                                        className={cn(
+                                            'inline-flex items-center gap-1 px-2.5 py-1 font-condensed text-xs font-semibold tracking-wider uppercase',
+                                            holder !== undefined
+                                                ? 'cursor-not-allowed bg-white/[0.02] text-ink-faint'
+                                                : before === position
+                                                  ? 'bg-brand text-white'
+                                                  : 'bg-white/5 text-ink-dim hover:text-ink',
+                                        )}
+                                    >
+                                        {holder !== undefined && (
+                                            <X
+                                                aria-hidden
+                                                strokeWidth={3}
+                                                className="size-3 text-zone-serious"
+                                            />
+                                        )}
+                                        {airsLabel(position, matchSlotCount)}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
@@ -371,11 +548,11 @@ function PromoEditor({
                 </p>
             )}
             {!readOnly && (
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                     <button
                         type="button"
                         className="gm-btn gm-btn-sm"
-                        disabled={!ready}
+                        disabled={!ready || !dirty}
                         onClick={() =>
                             type &&
                             onSave(slot.position, {
@@ -394,12 +571,26 @@ function PromoEditor({
                     </button>
                     <button
                         type="button"
+                        className="gm-btn gm-btn-ghost gm-btn-sm"
+                        disabled={!dirty}
+                        onClick={discard}
+                        aria-label={`Discard changes to promo ${slot.position}`}
+                    >
+                        Discard
+                    </button>
+                    <button
+                        type="button"
                         className="gm-btn gm-btn-danger gm-btn-sm"
                         disabled={slot.promo_type_id === null}
                         onClick={() => setConfirmClear(true)}
                     >
                         Clear
                     </button>
+                    {dirty && (
+                        <span className="ml-auto font-condensed text-xs font-semibold tracking-wider text-gm-orange uppercase">
+                            Unsaved changes
+                        </span>
+                    )}
                 </div>
             )}
             <ConfirmDialog

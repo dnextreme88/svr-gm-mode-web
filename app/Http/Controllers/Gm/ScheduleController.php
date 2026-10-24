@@ -72,7 +72,8 @@ class ScheduleController extends Controller
             && ($s->brand?->value === $brand || ($s->brand === null && $air['ppv']['key'] === 'wrestlemania')));
 
         $state = match (true) {
-            $show?->status === ShowStatus::Aired => 'aired',
+            // A show airing live opens its results, where its matches are decided.
+            in_array($show?->status, [ShowStatus::Aired, ShowStatus::Airing], true) => 'aired',
             $air['week'] < $save->current_week => 'past',
             $air['week'] > $save->current_week => 'upcoming',
             ! $mine => 'rival',

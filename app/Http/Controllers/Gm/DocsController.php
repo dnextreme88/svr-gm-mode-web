@@ -103,7 +103,7 @@ class DocsController extends Controller
                 'safe_max' => (int) config('gm.fatigue.safe_max'),
                 'serious_at' => (int) config('gm.fatigue.serious_at'),
                 'rest_recovery_bars' => (int) config('gm.fatigue.rest_recovery_bars'),
-                'minor_chance' => (float) config('gm.injuries.minor_chance'),
+                'serious_share' => (float) config('gm.injuries.serious_share'),
                 'escalation_chance' => (float) config('gm.injuries.escalation_chance'),
             ],
             'specialists' => $specialists,
@@ -127,12 +127,14 @@ class DocsController extends Controller
             ],
             'promos' => [
                 'slots' => (int) config('gm.card.weekly_promo_slots'),
+                'merchandise_tiers' => array_values((array) config('gm.promos.merchandise_tiers')),
                 'types' => PromoType::orderBy('name')->get()->map(fn (PromoType $t): array => [
                     'key' => $t->key->value,
                     'name' => $t->name,
                     'amount' => $t->base_amount,
                     'variable_amount' => $t->variable_amount,
                     'success_rate' => $t->successRate(),
+                    'success_range' => $t->successRange(),
                     'fatigue_bars' => $t->fatigue_bars,
                     'recovery_bars' => (int) config('gm.promos.recovery_bars.'.$t->key->value, 0),
                     'targets_rival' => $t->targets_rival,
@@ -156,6 +158,9 @@ class DocsController extends Controller
                 'events' => $catalog->entries(),
             ],
             'emails' => $this->emails(),
+            'results' => [
+                'booked_non_decisive_percent' => (int) round((float) config('gm.outcomes.booked_non_decisive_chance') * 100),
+            ],
             'calendar' => [
                 'weekly_show_days' => (array) config('gm.calendar.weekly_show_days'),
                 'weeks_per_season' => $calendar->weeksPerSeason(),
