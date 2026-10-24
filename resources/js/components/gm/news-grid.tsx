@@ -115,10 +115,10 @@ export function NewsGrid({ pages }: { pages: NewsPage[] }) {
                 <button
                     type="button"
                     className="gm-btn gm-btn-ghost gm-btn-sm"
-                    onClick={() => go(-1)}
-                    disabled={index === 0}
+                    onClick={() => go(1)}
+                    disabled={index === pages.length - 1}
                 >
-                    ◀ Newer
+                    ◀ Older
                 </button>
                 <div className="text-center" aria-live="polite">
                     <div className="gm-label">Season {page.season}</div>
@@ -132,10 +132,10 @@ export function NewsGrid({ pages }: { pages: NewsPage[] }) {
                 <button
                     type="button"
                     className="gm-btn gm-btn-ghost gm-btn-sm"
-                    onClick={() => go(1)}
-                    disabled={index === pages.length - 1}
+                    onClick={() => go(-1)}
+                    disabled={index === 0}
                 >
-                    Older ▶
+                    Newer ▶
                 </button>
             </div>
 

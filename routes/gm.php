@@ -56,6 +56,8 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::post('advance', [WeekController::class, 'advance'])->name('advance');
             Route::post('simulate', [WeekController::class, 'simulate'])->name('simulate');
             Route::get('results/{week}', ResultsController::class)->whereNumber('week')->name('results');
+            Route::post('results/{week}/decide', [WeekController::class, 'decide'])->whereNumber('week')->name('results.decide');
+            Route::post('results/{week}/simulate-all', [WeekController::class, 'simulateAll'])->whereNumber('week')->name('results.simulate-all');
 
             Route::get('shows/{show}', [CardController::class, 'show'])->name('card.show');
             Route::put('shows/{show}/slots/{position}', [CardController::class, 'book'])->whereNumber('position')->name('card.book');

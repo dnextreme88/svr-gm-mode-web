@@ -13,6 +13,7 @@ use App\Services\Injuries\InjuryStatus;
 use App\Services\Roster\RosterService;
 use App\Services\Roster\TradeService;
 use App\Services\Titles\TitleService;
+use App\Services\Week\WeekResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -62,6 +63,8 @@ class TradeController extends Controller
 
     public function store(Request $request, Save $save): RedirectResponse
     {
+        app(WeekResolver::class)->assertNotAiring($save);
+
         $data = $request->validate([
             'out' => ['array'],
             'out.*' => ['integer'],

@@ -116,8 +116,10 @@ return [
     ],
 
     'injuries' => [
-        // ASSUMPTION: minor-zone odds are TBD in the spec.
-        'minor_chance' => 0.15,
+        // House rule (2026-10-25): injuries are judged on fatigue right after
+        // the match. Ending at 80–100% always injures: this share is serious,
+        // the rest minor. Going over 100% is always serious.
+        'serious_share' => 0.20,
         // ASSUMPTION: escalation odds are TBD in the spec.
         'escalation_chance' => 0.20,
         'minor_max_weeks' => 4,
@@ -148,6 +150,10 @@ return [
         // ASSUMPTION: with rope breaks on, a wrestler can reach the ropes to
         // escape a hold, so clean submission finishes happen less often.
         'rope_break_submission_factor' => 0.6,
+        // House rule (2026-10-25): a match the player decides with Book to Win
+        // ends by DQ or count-out this often (where the type allows them).
+        // A booked title match always ends decisively.
+        'booked_non_decisive_chance' => 0.05,
     ],
 
     /*
@@ -381,6 +387,10 @@ return [
         'losing_streak_min' => 4,
         'reign_milestones' => [10, 25, 52],
         'ppv_upcoming_weeks' => [2, 1],
+        // House rule (2026-10-25): a PPV's main event takes the WWE headline
+        // that week. The interbrand card's (Survivor Series, WrestleMania)
+        // outranks a brand PPV's; the Royal Rumble result sits at 90.
+        'ppv_main_event_priority' => ['interbrand' => 95, 'brand' => 85],
         'stories_per_brand' => 2,
         // Deferred: overall ratings aren't designed yet, so upset_win is off.
         'upset_win_overall_margin' => null,

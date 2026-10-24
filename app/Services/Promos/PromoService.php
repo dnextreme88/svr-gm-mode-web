@@ -54,10 +54,20 @@ class PromoService
             throw new GameRuleException("{$show->name} has {$show->promoSlotCount()} promo slots.");
         }
 
-        $beforePosition ??= $show->matchSlotCount();
+        // House rule: two promos can't air back to back, so each spot before
+        // a match holds one promo. Without a pick, the promo takes the main
+        // event's spot, or the latest one still free.
+        $taken = $this->takenSpots($show, $position);
+        $beforePosition ??= max(array_diff(range(1, $show->matchSlotCount()), $taken) ?: [$show->matchSlotCount()]);
 
         if ($beforePosition < 1 || $beforePosition > $show->matchSlotCount()) {
             throw new GameRuleException('A promo has to air before one of the card’s matches.');
+        }
+
+        if (in_array($beforePosition, $taken, true)) {
+            $spot = $beforePosition === $show->matchSlotCount() ? 'the main event' : "match {$beforePosition}";
+
+            throw new GameRuleException("Another promo already airs before {$spot}. Two promos can't air back to back.");
         }
 
         $target = $targetId === null ? null : $this->rosterWrestler($show, $brand, $targetId);
@@ -104,6 +114,21 @@ class PromoService
         ]);
 
         return $slot;
+    }
+
+    /**
+     * The spots (the match a promo airs before) the show's other promos hold.
+     *
+     * @return list<int>
+     */
+    public function takenSpots(Show $show, int $exceptPosition): array
+    {
+        return array_values(PromoSlot::where('show_id', $show->id)
+            ->where('position', '!=', $exceptPosition)
+            ->whereNotNull('promo_type_id')
+            ->get()
+            ->map(fn (PromoSlot $s): int => $s->before_position ?? $show->matchSlotCount())
+            ->all());
     }
 
     public function clear(Show $show, int $position): void

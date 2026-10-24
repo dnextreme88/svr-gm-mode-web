@@ -227,7 +227,7 @@ it('dedupes title_change and streak_snapped from the same match, keeping the tit
         ->and($page['stories']['raw'][0]['tier'])->toBe('story');
 });
 
-it('renders the headline and its summary from the payload', function () {
+it('keeps the old wording for title changes recorded before they carried how they were won', function () {
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
     news($save, NewsEventType::TitleChange, NewsTier::Headline, NewsBrand::Raw, 100, payload: ['winner' => 'Edge', 'loser' => 'Cena', 'title' => 'WWE Championship', 'show' => 'Raw']);
 

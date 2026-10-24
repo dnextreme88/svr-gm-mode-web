@@ -137,9 +137,14 @@ class CardPresenter
         }
 
         return [
+            'id' => $slot->id,
+            'pending' => false,
             'position' => $slot->position,
             'match_type' => $slot->matchType?->name,
             'winners' => $winners,
+            'loser_sides' => array_values($losers),
+            'booked' => $result->booked,
+            'champions' => $result->championReign === null || $result->championReign->isVacant() ? [] : $result->championReign->holder_snapshot['names'],
             'losers' => array_values(array_map(fn (array $side): string => implode(' & ', $side), $losers)),
             'managers' => $managers,
             'referee' => $referee,
@@ -159,6 +164,46 @@ class CardPresenter
                 'role' => $p->role->value,
                 'side' => $p->side,
             ])->values()->all(),
+        ];
+    }
+
+    /**
+     * A match still to be decided on the live results screen.
+     *
+     * @param  list<string>  $champions  the current holders when a title is on the line
+     * @return array<string, mixed>
+     */
+    public static function pending(MatchSlot $slot, bool $isNext, array $champions): array
+    {
+        $sides = [];
+        $managers = [];
+        $referee = null;
+
+        foreach ($slot->participants as $p) {
+            $w = $p->saveWrestler->wrestler;
+
+            match (true) {
+                $p->role === ParticipantRole::Manager => $managers[] = $w->name,
+                $p->role === ParticipantRole::Referee => $referee = $w->name,
+                default => $sides[$p->side][] = ['id' => $p->save_wrestler_id, 'name' => $w->name, 'roster_type' => $w->roster_type->value, 'weight_class' => $w->weight_class->value],
+            };
+        }
+
+        ksort($sides);
+
+        return [
+            'id' => $slot->id,
+            'pending' => true,
+            'is_next' => $isNext,
+            'position' => $slot->position,
+            'match_type' => $slot->matchType?->name,
+            'win_condition' => $slot->matchType?->win_condition,
+            'sides' => array_map(fn (int $side, array $members): array => ['side' => $side, 'members' => $members], array_keys($sides), array_values($sides)),
+            'managers' => $managers,
+            'referee' => $referee,
+            'title' => $slot->titleChampionship?->name,
+            'stipulation' => $slot->stipulation?->value,
+            'champions' => $champions,
         ];
     }
 }

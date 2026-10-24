@@ -97,6 +97,7 @@ it('airs the Sunday PPV before the weekly show and lists its results first', fun
     $this->post(route('gm.card.confirm', [$save, $backlash]));
 
     $this->post(route('gm.advance', $save));
+    $this->post(route('gm.results.simulate-all', [$save, BACKLASH]));
 
     $ppvResult = MatchResult::whereHas('matchSlot', fn ($q) => $q->where('show_id', $backlash->id))->sole();
     $rawResult = MatchResult::whereHas('matchSlot', fn ($q) => $q->where('show_id', $raw->id))->sole();

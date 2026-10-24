@@ -1,34 +1,49 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Fragment, useState } from 'react';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
-import type {
-    Brand,
-    ReignEndReason,
-    TitleHolderType,
-    WonVia,
-} from '@/types/enums';
-import { ReignEndReasonLabels, WonViaLabels } from '@/types/enums';
+import type { Brand, ReignEndReason, TitleHolderType } from '@/types/enums';
+import { ReignEndReasonLabels } from '@/types/enums';
 import type { GamePageProps } from '@/types/gm';
+
+type ReignMatch = {
+    id: number;
+    /** The match the title was won in, or a defense. */
+    kind: 'won' | 'defense';
+    /** Defenses: 1 for the first defense of the reign. */
+    number: number | null;
+    opponents: string;
+    season: number;
+    season_week: number;
+    ppv: string | null;
+    match_type: string | null;
+    /** That match on its week's results. */
+    link: string;
+};
 
 type LineageRow = {
     id: number;
+    /** Position in the title's lineage. */
     reign_number: number | null;
     holder: string;
     holder_type: TitleHolderType;
+    /** The holder's Nth reign with this title. */
+    holder_reign: number | null;
     won_week: number;
     won_season: number;
     won_season_week: number;
-    won_show: string | null;
-    won_match_type: string | null;
-    won_via: WonVia | null;
-    lost_week: number | null;
-    lost_season_week: number | null;
+    won_ppv: string | null;
+    won_link: string | null;
+    /** "Awarded", or the match the title was won in. */
+    how: string | null;
+    /** Vacant rows: why the title was vacated. */
+    vacated_reason: ReignEndReason | null;
     weeks_held: number;
     defenses: number;
-    end_reason: ReignEndReason;
+    /** Newest first: the defenses, then the match the title was won in. */
+    matches: ReignMatch[];
     active: boolean;
 };
 
@@ -212,83 +227,15 @@ export default function TitleHistory() {
                                                 <th>#</th>
                                                 <th>Holder</th>
                                                 <th>Won</th>
-                                                <th>Event</th>
+                                                <th>Reign</th>
                                                 <th>How</th>
-                                                <th>Lost</th>
                                                 <th>Weeks</th>
-                                                <th>Def.</th>
-                                                <th>Ended</th>
+                                                <th>Defenses</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {title.lineage.map((r) => (
-                                                <tr
-                                                    key={r.id}
-                                                    className={cn(
-                                                        r.holder_type ===
-                                                            'vacant' &&
-                                                            'text-ink-faint italic',
-                                                    )}
-                                                >
-                                                    <td className="gm-num">
-                                                        {r.reign_number ?? '—'}
-                                                    </td>
-                                                    <td
-                                                        className={cn(
-                                                            'font-semibold',
-                                                            r.active &&
-                                                                r.holder_type !==
-                                                                    'vacant' &&
-                                                                'text-gold-hot',
-                                                        )}
-                                                    >
-                                                        {r.holder}
-                                                    </td>
-                                                    <td className="gm-num whitespace-nowrap">
-                                                        S{r.won_season} W
-                                                        {r.won_season_week}
-                                                    </td>
-                                                    <td className="text-ink-dim">
-                                                        {r.won_show ?? '—'}
-                                                    </td>
-                                                    <td className="text-ink-dim">
-                                                        {r.won_via
-                                                            ? WonViaLabels[
-                                                                  r.won_via
-                                                              ]
-                                                            : '—'}
-                                                        {r.won_match_type && (
-                                                            <div className="text-xs">
-                                                                {
-                                                                    r.won_match_type
-                                                                }
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                    <td className="gm-num">
-                                                        {r.lost_season_week
-                                                            ? `W${r.lost_season_week}`
-                                                            : '—'}
-                                                    </td>
-                                                    <td className="gm-num">
-                                                        {r.weeks_held}
-                                                    </td>
-                                                    <td className="gm-num">
-                                                        {r.holder_type ===
-                                                        'vacant'
-                                                            ? '—'
-                                                            : r.defenses}
-                                                    </td>
-                                                    <td className="text-ink-dim">
-                                                        {r.active &&
-                                                        r.holder_type !==
-                                                            'vacant'
-                                                            ? 'Current'
-                                                            : ReignEndReasonLabels[
-                                                                  r.end_reason
-                                                              ]}
-                                                    </td>
-                                                </tr>
+                                                <ReignRows key={r.id} r={r} />
                                             ))}
                                         </tbody>
                                     </table>
@@ -309,6 +256,123 @@ export default function TitleHistory() {
                     </div>
                 )}
             </div>
+        </>
+    );
+}
+
+function WonCell({
+    season,
+    week,
+    ppv,
+}: {
+    season: number;
+    week: number;
+    ppv: string | null;
+}) {
+    return (
+        <>
+            <span className="gm-num whitespace-nowrap">
+                S{season} W{week}
+            </span>
+            {ppv && <div className="text-xs text-gold">{ppv}</div>}
+        </>
+    );
+}
+
+/**
+ * One reign, then a row for each match it was defended in and the match it
+ * was won in (newest first), each linked to that match's results.
+ */
+function ReignRows({ r }: { r: LineageRow }) {
+    const vacant = r.holder_type === 'vacant';
+
+    return (
+        <>
+            <tr
+                data-testid={`reign-${r.id}`}
+                className={cn(vacant && 'text-ink-faint italic')}
+            >
+                <td className="gm-num">{r.reign_number ?? '—'}</td>
+                <td
+                    className={cn(
+                        'font-semibold',
+                        r.active && !vacant && 'text-gold-hot',
+                    )}
+                >
+                    {r.holder}
+                </td>
+                <td>
+                    {r.won_link ? (
+                        <Link
+                            href={r.won_link}
+                            className="hover:text-brand-hot"
+                        >
+                            <WonCell
+                                season={r.won_season}
+                                week={r.won_season_week}
+                                ppv={r.won_ppv}
+                            />
+                        </Link>
+                    ) : (
+                        <WonCell
+                            season={r.won_season}
+                            week={r.won_season_week}
+                            ppv={r.won_ppv}
+                        />
+                    )}
+                </td>
+                <td className="gm-num">{r.holder_reign ?? '—'}</td>
+                <td className="text-ink-dim">
+                    {vacant
+                        ? r.vacated_reason
+                            ? `Vacated: ${ReignEndReasonLabels[r.vacated_reason]}`
+                            : 'Vacant'
+                        : (r.how ?? '—')}
+                </td>
+                <td className="gm-num">{r.weeks_held}</td>
+                <td className="gm-num">{vacant ? '—' : r.defenses}</td>
+            </tr>
+            {r.matches.map((d) => (
+                <tr
+                    key={d.id}
+                    data-testid={`${d.kind}-${d.id}`}
+                    tabIndex={0}
+                    aria-label={
+                        d.kind === 'won'
+                            ? `Open the title win against ${d.opponents}`
+                            : `Open defense ${d.number} against ${d.opponents}`
+                    }
+                    className="group cursor-pointer text-sm transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.06] focus-visible:outline-none"
+                    onClick={() => router.visit(d.link)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            router.visit(d.link);
+                        }
+                    }}
+                >
+                    <td />
+                    <td className="pl-6 font-semibold group-hover:text-brand-hot">
+                        vs. {d.opponents}
+                    </td>
+                    <td>
+                        <WonCell
+                            season={d.season}
+                            week={d.season_week}
+                            ppv={d.ppv}
+                        />
+                    </td>
+                    <td className="text-ink-faint">—</td>
+                    <td className="text-ink-dim">{d.match_type ?? '—'}</td>
+                    <td className="text-ink-faint">—</td>
+                    <td className="gm-num">
+                        {d.kind === 'won' ? (
+                            <span className="gm-label text-gold">Won</span>
+                        ) : (
+                            d.number
+                        )}
+                    </td>
+                </tr>
+            ))}
         </>
     );
 }

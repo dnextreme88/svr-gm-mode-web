@@ -47,7 +47,7 @@ it('adds the match fatigue cost in bars and caps at 100%', function () {
     GameBuilder::wrestler($save, 'Edge')->update(['fatigue' => 90]);
     $show = Card::show($save);
     Card::book($save, $show, 1, Card::type('ladder', 'Single'), [['Edge'], ['Kane']]);
-    config(['gm.injuries.minor_chance' => 0.0, 'gm.injuries.escalation_chance' => 0.0]);
+    config(['gm.injuries.escalation_chance' => 0.0]);
 
     airWeek($save);
 
@@ -83,50 +83,67 @@ it('gives a guaranteed serious injury to a wrestler going in at 100% in a match 
         ->and($injury->durationWeeks() - 1)->toBeGreaterThanOrEqual(5)->toBeLessThanOrEqual(52);
 });
 
-it('checks fatigue going into the match: reaching 100% mid-match is safe, the next booking is not', function () {
-    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito'], smackdown: ['Batista']);
-    config(['gm.injuries.minor_chance' => 0.0]);
-    GameBuilder::wrestler($save, 'Edge')->update(['fatigue' => 70]);
-    $show = Card::show($save);
-    // 70% → 100% in a 3-bar ladder match: safe going in.
-    Card::book($save, $show, 1, Card::type('ladder', 'Single'), [['Edge'], ['Kane']]);
-    // Second match on the same card: Edge goes in at 100%.
-    Card::book($save, $show, 2, Card::singles(), [['Edge'], ['Carlito']]);
+it('judges injuries on the fatigue right after the match: ending at 80–100% always injures', function (int $goingIn, float $seriousShare, InjurySeverity $severity) {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+    config(['gm.injuries.serious_share' => $seriousShare]);
+    GameBuilder::wrestler($save, 'Edge')->update(['fatigue' => $goingIn]);
+    // A 3-bar ladder match.
+    Card::book($save, Card::show($save), 1, Card::type('ladder', 'Single'), [['Edge'], ['Kane']]);
 
     airWeek($save);
 
-    $injury = Injury::where('save_wrestler_id', GameBuilder::wrestler($save, 'Edge')->id)->firstOrFail();
+    $injury = Injury::where('save_wrestler_id', GameBuilder::wrestler($save, 'Edge')->id)->sole();
+
+    expect($injury->severity)->toBe($severity)
+        ->and($injury->fatigue_after)->toBe($goingIn + 30);
+})->with([
+    'safe going in, 80% after: minor' => [50, 0.0, InjurySeverity::Minor],
+    '60% → 90%: minor' => [60, 0.0, InjurySeverity::Minor],
+    '70% → 100%: the serious share' => [70, 1.0, InjurySeverity::Serious],
+]);
+
+it('gives a serious injury when a match would push fatigue over 100%, whatever the odds', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+    config(['gm.injuries.serious_share' => 0.0]);
+    GameBuilder::wrestler($save, 'Edge')->update(['fatigue' => 80]);
+    Card::book($save, Card::show($save), 1, Card::type('ladder', 'Single'), [['Edge'], ['Kane']]);
+
+    airWeek($save);
+
+    $injury = Injury::where('save_wrestler_id', GameBuilder::wrestler($save, 'Edge')->id)->sole();
 
     expect($injury->severity)->toBe(InjurySeverity::Serious)
-        ->and($injury->match_slot_id)->toBe($show->matchSlots()->where('position', 2)->value('id'));
+        ->and($injury->fatigue_after)->toBe(110)
+        // Fatigue itself still caps at 100%.
+        ->and(afterShows($save, 'Edge'))->toBe(100);
 });
 
-it('rolls for a minor injury in the 80–90% zone using the configured odds', function (float $chance, bool $injured) {
+it('never injures a wrestler who ends the match at 70% or less', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
-    config(['gm.injuries.minor_chance' => $chance]);
-    GameBuilder::wrestler($save, 'Edge')->update(['fatigue' => 80]);
-    Card::book($save, Card::show($save), 1, Card::singles(), [['Edge'], ['Kane']]);
-
-    airWeek($save);
-
-    $injury = Injury::where('save_wrestler_id', GameBuilder::wrestler($save, 'Edge')->id)->first();
-
-    expect($injury !== null)->toBe($injured);
-
-    if ($injured) {
-        expect($injury->severity)->toBe(InjurySeverity::Minor)
-            ->and($injury->durationWeeks() - 1)->toBeLessThanOrEqual(4);
-    }
-})->with([[1.0, true], [0.0, false]]);
-
-it('never injures wrestlers in the safe zone', function () {
-    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
-    config(['gm.injuries.minor_chance' => 1.0]);
+    config(['gm.injuries.serious_share' => 1.0]);
+    GameBuilder::wrestler($save, 'Edge')->update(['fatigue' => 60]);
     Card::book($save, Card::show($save), 1, Card::singles(), [['Edge'], ['Kane']]);
 
     airWeek($save);
 
     expect(Injury::count())->toBe(0);
+});
+
+it('shows the uncapped total and the injury on the results fatigue card', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+    GameBuilder::wrestler($save, 'Edge')->update(['fatigue' => 80]);
+    Card::book($save, Card::show($save), 1, Card::type('ladder', 'Single'), [['Edge'], ['Kane']]);
+
+    airWeek($save);
+
+    $label = Injury::with('type')->where('save_wrestler_id', GameBuilder::wrestler($save, 'Edge')->id)->sole()->type->label;
+
+    $this->get(route('gm.results', [$save, 1]))
+        ->assertInertia(fn ($page) => $page
+            ->where('shows.0.fatigue.0.name', 'Edge')
+            ->where('shows.0.fatigue.0.after_shows', 110)
+            ->where('shows.0.fatigue.0.injury', ['severity' => 'serious', 'label' => $label])
+            ->where('shows.0.fatigue.1.injury', null));
 });
 
 it('escalates a minor injury to its serious label with a fresh duration in that range', function () {

@@ -78,6 +78,22 @@ class PromoSlot extends Model
         return array_values(array_filter([$this->target_wrestler_id, $this->target_wrestler_b_id], fn (?int $id): bool => $id !== null));
     }
 
+    /**
+     * How the promo went on the results screen: succeeded, failed, fizzled
+     * (an Inactive Superstar target got booked, or the hyped title match is
+     * gone), backfired, or null before it airs.
+     */
+    public function status(): ?string
+    {
+        return match (true) {
+            $this->succeeded === null => null,
+            $this->succeeded => 'succeeded',
+            $this->backfired => 'backfired',
+            in_array($this->outcome_note, ['Booked on the card', 'No title match on the card'], true) => 'fizzled',
+            default => 'failed',
+        };
+    }
+
     protected function casts(): array
     {
         return [

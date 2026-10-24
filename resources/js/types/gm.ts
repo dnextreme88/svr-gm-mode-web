@@ -27,6 +27,8 @@ export type GameShell = {
     season: number;
     week: number;
     season_week: number;
+    /** The week is airing live: its matches are being decided on the results screen. */
+    airing: boolean;
     month: string;
     date: string;
     budget: number;
@@ -158,10 +160,18 @@ export type BookingPayload = {
 };
 
 export type MatchOutcome = {
+    id: number;
+    pending?: false;
     position: number;
     match_type: string | null;
     winners: string[];
     losers: string[];
+    /** Each losing side's names, for the (C) tag. */
+    loser_sides: string[][];
+    /** The player decided the winner with Book to Win. */
+    booked: boolean;
+    /** Who held the title on the line going into the match. */
+    champions: string[];
     managers: string[];
     referee?: string | null;
     method: import('./enums').MatchMethod;
@@ -175,6 +185,46 @@ export type MatchOutcome = {
     stipulation_outcome: string | null;
     rating: number | null;
     fan_delta: number | null;
+};
+
+/** A match still to be decided on the live results screen. */
+export type PendingMatch = {
+    id: number;
+    pending: true;
+    /** Up next: the only match that can be decided now. */
+    is_next: boolean;
+    position: number;
+    match_type: string | null;
+    win_condition: string | null;
+    sides: Array<{
+        side: number;
+        members: Array<{
+            id: number;
+            name: string;
+            roster_type: import('./enums').RosterType;
+            weight_class: import('./enums').WeightClass;
+        }>;
+    }>;
+    managers: string[];
+    referee: string | null;
+    title: string | null;
+    stipulation: import('./enums').Stipulation | null;
+    /** Who holds the title on the line. */
+    champions: string[];
+};
+
+/** A promo on the results screen, placed before the match it aired in front of. */
+export type ResultPromo = {
+    position: number;
+    before_position: number;
+    type: string | null;
+    status: 'succeeded' | 'failed' | 'fizzled' | 'backfired' | null;
+    targets: Array<{
+        id: number;
+        name: string;
+        roster_type: import('./enums').RosterType;
+        weight_class: import('./enums').WeightClass;
+    }>;
 };
 
 export type TitleOption = {

@@ -34,11 +34,15 @@ class FixedOutcomes extends MatchResolver
         return $fake;
     }
 
-    public function resolve(MatchSlot $slot, Rng $rng, Collection $activeRivalries): ResolvedMatch
+    public function resolve(MatchSlot $slot, Rng $rng, Collection $activeRivalries, ?int $bookedSide = null): ResolvedMatch
     {
         $sides = $slot->sides();
         $winnerSide = null;
         $next = null;
+
+        if ($bookedSide !== null) {
+            return parent::resolve($slot, $rng, $activeRivalries, $bookedSide);
+        }
 
         // Use the first scripted winner who is in this match; matches nobody
         // scripted (e.g. the AI's own card) resolve normally.
@@ -55,7 +59,7 @@ class FixedOutcomes extends MatchResolver
         }
 
         if ($next === null) {
-            return parent::resolve($slot, $rng, $activeRivalries);
+            return parent::resolve($slot, $rng, $activeRivalries, $bookedSide);
         }
 
         $others = array_values(array_diff(array_keys($sides), [$winnerSide]));

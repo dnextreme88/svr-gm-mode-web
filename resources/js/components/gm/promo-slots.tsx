@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
@@ -76,10 +77,50 @@ export function PromoSlots({ slots, ...props }: Props) {
     return (
         <div className="grid gap-4 xl:grid-cols-2">
             {slots.map((slot) => (
-                <PromoEditor key={slot.position} slot={slot} {...props} />
+                <PromoEditor
+                    key={slot.position}
+                    slot={slot}
+                    taken={takenSpots(
+                        slots,
+                        slot.position,
+                        props.matchSlotCount,
+                    )}
+                    {...props}
+                />
             ))}
         </div>
     );
+}
+
+/**
+ * House rule: two promos can't air back to back, so each spot (the match a
+ * promo airs before) holds one promo. Maps each spot the other saved promos
+ * hold to the promo holding it.
+ */
+export function takenSpots(
+    slots: PromoSlotView[],
+    position: number,
+    matchSlotCount: number,
+): Map<number, number> {
+    return new Map(
+        slots
+            .filter((s) => s.position !== position && s.promo_type_id !== null)
+            .map((s) => [s.before_position ?? matchSlotCount, s.position]),
+    );
+}
+
+/** The main event's spot, or the latest one still free. */
+function defaultSpot(
+    taken: Map<number, number>,
+    matchSlotCount: number,
+): number {
+    for (let spot = matchSlotCount; spot >= 1; spot--) {
+        if (!taken.has(spot)) {
+            return spot;
+        }
+    }
+
+    return matchSlotCount;
 }
 
 function amountLabel(t: PromoTypeOption): string {
@@ -102,6 +143,7 @@ export function airsLabel(before: number, matchSlotCount: number): string {
 
 function PromoEditor({
     slot,
+    taken,
     types,
     eligibility,
     roster,
@@ -110,7 +152,7 @@ function PromoEditor({
     readOnly,
     onSave,
     onClear,
-}: { slot: PromoSlotView } & Omit<Props, 'slots'>) {
+}: { slot: PromoSlotView; taken: Map<number, number> } & Omit<Props, 'slots'>) {
     const [typeId, setTypeId] = useState<number | null>(slot.promo_type_id);
     const [a, setA] = useState<number | null>(slot.target_wrestler_id);
     const [b, setB] = useState<number | null>(slot.target_wrestler_b_id);
@@ -119,7 +161,7 @@ function PromoEditor({
     );
     const [confirmClear, setConfirmClear] = useState(false);
     const [before, setBefore] = useState<number>(
-        slot.before_position ?? matchSlotCount,
+        slot.before_position ?? defaultSpot(taken, matchSlotCount),
     );
 
     const sorted = useMemo(
@@ -151,7 +193,8 @@ function PromoEditor({
         (rules?.available ?? true) &&
         (!type.needs_wrestler || a !== null) &&
         (!pair || (a !== null && b !== null && a !== b)) &&
-        (!type.needs_championship || title !== null);
+        (!type.needs_championship || title !== null) &&
+        !taken.has(before);
 
     const choose = (t: PromoTypeOption) => {
         setTypeId(t.id);
@@ -337,24 +380,47 @@ function PromoEditor({
                             {Array.from(
                                 { length: matchSlotCount },
                                 (_, i) => i + 1,
-                            ).map((position) => (
-                                <button
-                                    key={position}
-                                    type="button"
-                                    role="radio"
-                                    aria-checked={before === position}
-                                    disabled={readOnly}
-                                    onClick={() => setBefore(position)}
-                                    className={cn(
-                                        'px-2.5 py-1 font-condensed text-xs font-semibold tracking-wider uppercase',
-                                        before === position
-                                            ? 'bg-brand text-white'
-                                            : 'bg-white/5 text-ink-dim hover:text-ink',
-                                    )}
-                                >
-                                    {airsLabel(position, matchSlotCount)}
-                                </button>
-                            ))}
+                            ).map((position) => {
+                                const holder = taken.get(position);
+
+                                return (
+                                    <button
+                                        key={position}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={before === position}
+                                        disabled={
+                                            readOnly || holder !== undefined
+                                        }
+                                        data-taken={
+                                            holder !== undefined || undefined
+                                        }
+                                        title={
+                                            holder === undefined
+                                                ? undefined
+                                                : `Promo ${holder} already airs here`
+                                        }
+                                        onClick={() => setBefore(position)}
+                                        className={cn(
+                                            'inline-flex items-center gap-1 px-2.5 py-1 font-condensed text-xs font-semibold tracking-wider uppercase',
+                                            holder !== undefined
+                                                ? 'cursor-not-allowed bg-white/[0.02] text-ink-faint'
+                                                : before === position
+                                                  ? 'bg-brand text-white'
+                                                  : 'bg-white/5 text-ink-dim hover:text-ink',
+                                        )}
+                                    >
+                                        {holder !== undefined && (
+                                            <X
+                                                aria-hidden
+                                                strokeWidth={3}
+                                                className="size-3 text-zone-serious"
+                                            />
+                                        )}
+                                        {airsLabel(position, matchSlotCount)}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>

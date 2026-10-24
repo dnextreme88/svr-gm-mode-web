@@ -100,15 +100,15 @@ describe('NewsGrid', () => {
         render(<NewsGrid pages={[page(5), page(4), page(3)]} />);
 
         expect(screen.getByTestId('news-week')).toHaveTextContent('Week 5');
-        expect(screen.getByRole('button', { name: '◀ Newer' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Newer ▶' })).toBeDisabled();
 
-        await user.click(screen.getByRole('button', { name: 'Older ▶' }));
+        await user.click(screen.getByRole('button', { name: '◀ Older' }));
         expect(screen.getByTestId('news-week')).toHaveTextContent('Week 4');
         expect(screen.getByText('Raw headline 4')).toBeInTheDocument();
 
         fireEvent.keyDown(window, { key: 'ArrowRight' });
         expect(screen.getByTestId('news-week')).toHaveTextContent('Week 3');
-        expect(screen.getByRole('button', { name: 'Older ▶' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: '◀ Older' })).toBeDisabled();
 
         fireEvent.keyDown(window, { key: 'ArrowLeft' });
         expect(screen.getByTestId('news-week')).toHaveTextContent('Week 4');

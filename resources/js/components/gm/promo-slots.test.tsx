@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { PromoSlots } from '@/components/gm/promo-slots';
 import type {
     PromoEligibilityView,
+    PromoSlotView,
     PromoTypeOption,
 } from '@/components/gm/promo-slots';
 import type { RosterEntry } from '@/types/gm';
@@ -116,23 +117,23 @@ const roster = [
     wrestler(12, 'Carlito'),
 ];
 
-function setup() {
+const emptySlot = (position: number): PromoSlotView => ({
+    position,
+    promo_type_id: null,
+    target_wrestler_id: null,
+    target_wrestler_b_id: null,
+    succeeded: null,
+    backfired: false,
+    outcome_note: null,
+});
+
+function setup(slots: PromoSlotView[] = [emptySlot(1)]) {
     const onSave = vi.fn();
     const onClear = vi.fn();
 
     render(
         <PromoSlots
-            slots={[
-                {
-                    position: 1,
-                    promo_type_id: null,
-                    target_wrestler_id: null,
-                    target_wrestler_b_id: null,
-                    succeeded: null,
-                    backfired: false,
-                    outcome_note: null,
-                },
-            ]}
+            slots={slots}
             types={types}
             eligibility={eligibility}
             roster={roster}
@@ -150,6 +151,32 @@ function setup() {
 const grid = () => screen.getByRole('radiogroup', { name: 'Promo 1 type' });
 
 describe('PromoSlots', () => {
+    it('blocks the spot another promo already airs in, and defaults to the next free one', async () => {
+        const { user } = setup([
+            { ...emptySlot(1), promo_type_id: 1, before_position: 6 },
+            emptySlot(2),
+        ]);
+
+        await user.click(screen.getByTestId('promo-2-advertising'));
+        const group = screen.getByRole('radiogroup', { name: 'Promo 2 airs' });
+        const mainEvent = within(group).getByRole('radio', {
+            name: 'Before main event',
+        });
+
+        expect(mainEvent).toBeDisabled();
+        expect(mainEvent).toHaveAttribute('title', 'Promo 1 already airs here');
+        expect(mainEvent.className).toContain('cursor-not-allowed');
+        expect(mainEvent.querySelector('svg')?.getAttribute('class')).toContain(
+            'text-zone-serious',
+        );
+        expect(
+            within(group).getByRole('radio', { name: 'Before match 5' }),
+        ).toHaveAttribute('aria-checked', 'true');
+        expect(
+            screen.getByRole('button', { name: 'Save promo 2' }),
+        ).toBeEnabled();
+    });
+
     it('lists every promo alphabetically, left to right', () => {
         setup();
 

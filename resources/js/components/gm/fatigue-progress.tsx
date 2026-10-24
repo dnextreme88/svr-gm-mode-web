@@ -4,7 +4,7 @@ import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
-import type { RosterType, WeightClass } from '@/types/enums';
+import type { InjurySeverity, RosterType, WeightClass } from '@/types/enums';
 import type { FatigueConfig } from '@/types/gm';
 
 /** One wrestler's fatigue through a resolved week. */
@@ -19,9 +19,36 @@ export type FatigueStep = {
     recovered_bars: number;
     /** Got an Inactive Superstar promo's extra recovery. */
     rested: boolean;
+    /** Hurt this week: shown instead of the after-recovery fatigue. */
+    injury?: { severity: InjurySeverity; label: string } | null;
 };
 
 const STAGES = ['Going in', 'After the show', 'After recovery'] as const;
+
+const serious = (w: FatigueStep) => w.injury?.severity === 'serious';
+
+function InjuryNote({
+    injury,
+    id,
+}: {
+    injury: NonNullable<FatigueStep['injury']>;
+    id: number;
+}) {
+    return (
+        <span
+            data-testid={`injury-${id}`}
+            className={cn(
+                'font-condensed text-sm font-bold tracking-wide uppercase',
+                injury.severity === 'serious'
+                    ? 'text-zone-serious'
+                    : 'text-zone-minor',
+            )}
+        >
+            {injury.severity === 'serious' ? 'Serious Injury' : 'Minor Injury'}:{' '}
+            {injury.label}!
+        </span>
+    );
+}
 /** How long each stage stays on screen before the next one. */
 const STEP_MS = 1100;
 
@@ -107,14 +134,30 @@ export function FatigueProgress({
                                 className="truncate font-semibold"
                             />
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                <FatigueMeter
-                                    fatigue={valueAt(w)}
-                                    config={config}
-                                    showLabel
-                                />
+                                {/* A serious injury takes the place of the
+                                    after-recovery fatigue; a minor one still
+                                    recovers, with the injury beside it. */}
+                                {stage === 2 &&
+                                w.injury?.severity === 'serious' ? (
+                                    <InjuryNote injury={w.injury} id={w.id} />
+                                ) : (
+                                    <FatigueMeter
+                                        fatigue={valueAt(w)}
+                                        config={config}
+                                        showLabel
+                                    />
+                                )}
+                                {stage === 2 &&
+                                    w.injury?.severity === 'minor' && (
+                                        <InjuryNote
+                                            injury={w.injury}
+                                            id={w.id}
+                                        />
+                                    )}
                                 <span className="font-condensed text-sm tracking-wide text-ink-faint uppercase">
-                                    {w.start}% → {w.after_shows}% → {w.end}%
-                                    {stage === 2 && (
+                                    {w.start}% → {w.after_shows}% →{' '}
+                                    {serious(w) ? 'Injured' : `${w.end}%`}
+                                    {stage === 2 && !serious(w) && (
                                         <span
                                             className={cn(
                                                 'ml-2',

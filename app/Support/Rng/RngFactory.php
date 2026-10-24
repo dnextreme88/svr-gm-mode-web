@@ -17,6 +17,14 @@ class RngFactory
     }
 
     /**
+     * Resume a stream from `Rng::state()`.
+     */
+    public function restore(string $state): Rng
+    {
+        return SeededRng::fromState($state);
+    }
+
+    /**
      * A fresh random seed for a new save. The one place real entropy is used.
      */
     public function newSeed(): string

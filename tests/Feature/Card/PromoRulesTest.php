@@ -167,6 +167,18 @@ describe('booking', function () {
             ->and(promo($save, PromoTypeKey::Advertising, ['before' => 2])->before_position)->toBe(2)
             ->and(fn () => promo($save, PromoTypeKey::Advertising, ['before' => $show->matchSlotCount() + 1]))->toThrow(GameRuleException::class, 'before one of the card');
     });
+
+    it('never puts two promos back to back before the same match', function () {
+        $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+        $mainEvent = Card::show($save)->matchSlotCount();
+        promo($save, PromoTypeKey::Advertising, ['position' => 1]);
+
+        expect(fn () => promo($save, PromoTypeKey::PpvHype, ['position' => 2, 'before' => $mainEvent]))->toThrow(GameRuleException::class, "Two promos can't air back to back")
+            // Without a pick, the second promo takes the latest free spot.
+            ->and(promo($save, PromoTypeKey::PpvHype, ['position' => 2])->before_position)->toBe($mainEvent - 1)
+            // A promo can be saved again on its own spot.
+            ->and(promo($save, PromoTypeKey::Advertising, ['position' => 1, 'before' => $mainEvent])->before_position)->toBe($mainEvent);
+    });
 });
 
 describe('airing', function () {

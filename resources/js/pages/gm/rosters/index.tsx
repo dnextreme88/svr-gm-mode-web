@@ -15,7 +15,7 @@ import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { Brand } from '@/types/enums';
-import { RosterTypeLabels, WeightClassLabels } from '@/types/enums';
+import { RosterTypeLabels } from '@/types/enums';
 import type { GamePageProps, WrestlerRow } from '@/types/gm';
 
 type Props = GamePageProps & {
@@ -98,22 +98,21 @@ export default function Rosters() {
                             <thead>
                                 <tr>
                                     <th>Wrestler</th>
-                                    <th>Weight Class</th>
                                     <th>Fatigue</th>
                                     <th>Injury</th>
                                     <th>Morale</th>
                                     <th>Record (W-L)</th>
                                     <th>Streak</th>
+                                    <th>Specialties</th>
                                     <th>Contract</th>
                                     <th>Popularity</th>
-                                    <th>Specialties</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {visible.length === 0 && (
                                     <tr>
                                         <td
-                                            colSpan={10}
+                                            colSpan={9}
                                             className="text-center text-ink-faint"
                                         >
                                             No one matches “{search}”.
@@ -162,9 +161,6 @@ export default function Rosters() {
                                                 )}
                                             </div>
                                         </td>
-                                        <td className="text-ink-dim">
-                                            {WeightClassLabels[w.weight_class]}
-                                        </td>
                                         <td>
                                             <FatigueMeter
                                                 fatigue={w.fatigue}
@@ -187,6 +183,16 @@ export default function Rosters() {
                                                 losses={w.loss_streak}
                                                 size="sm"
                                             />
+                                        </td>
+                                        <td>
+                                            <div className="flex flex-wrap gap-1">
+                                                {w.specialties.map((s) => (
+                                                    <SpecialtyBadge
+                                                        key={s}
+                                                        family={s}
+                                                    />
+                                                ))}
+                                            </div>
                                         </td>
                                         <td className="whitespace-nowrap">
                                             {w.contract ? (
@@ -218,16 +224,6 @@ export default function Rosters() {
                                             title="Popularity system is deferred"
                                         >
                                             {w.popularity ?? '—'}
-                                        </td>
-                                        <td>
-                                            <div className="flex flex-wrap gap-1">
-                                                {w.specialties.map((s) => (
-                                                    <SpecialtyBadge
-                                                        key={s}
-                                                        family={s}
-                                                    />
-                                                ))}
-                                            </div>
                                         </td>
                                     </tr>
                                 ))}

@@ -20,7 +20,8 @@ use Illuminate\Support\Collection;
 class NewsComposer
 {
     /**
-     * Rival-targeting promo results always take the neutral headline (§5, §19).
+     * Rival-targeting promo results take the neutral headline (§5, §19),
+     * unless it's a PPV week: then the PPV's main event does.
      */
     private const FORCED_NEUTRAL = ['slander_result', 'interference_promo_result'];
 
@@ -72,7 +73,10 @@ class NewsComposer
 
         foreach (['raw', 'smackdown', 'neutral'] as $slot) {
             $pool = $rows->filter(fn (array $e): bool => $e['slot'] === $slot && $e['tier'] !== NewsTier::Ticker->value)->values();
-            $headline = $slot === 'neutral' ? $pool->first(fn (array $e): bool => in_array($e['type'], self::FORCED_NEUTRAL, true)) : null;
+            // House rule: in a PPV week the PPV wins the WWE headline: its main
+            // event (or the Royal Rumble), biggest first.
+            $headline = $slot === 'neutral' ? $pool->filter(fn (array $e): bool => $e['type'] === NewsEventType::PpvResults->value)->sortByDesc('priority')->first() : null;
+            $headline ??= $slot === 'neutral' ? $pool->first(fn (array $e): bool => in_array($e['type'], self::FORCED_NEUTRAL, true)) : null;
             // House rule: a title change always takes its card's headline.
             $headline ??= $pool->filter(fn (array $e): bool => $e['type'] === NewsEventType::TitleChange->value && $e['tier'] === NewsTier::Headline->value)
                 ->sortByDesc('priority')

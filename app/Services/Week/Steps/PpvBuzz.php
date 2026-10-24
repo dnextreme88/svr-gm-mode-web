@@ -11,7 +11,8 @@ use App\Services\Week\WeekContext;
 use App\Services\Week\WeekStep;
 
 /**
- * "{ppv} is {n} weeks away" news at 2 weeks (story) and 1 week (headline) out (§19).
+ * "{ppv} is {n} weeks away" news at 2 weeks (story) and 1 week (headline) out
+ * (§19), on the WWE card for every PPV (house rule, 2026-10-25).
  */
 class PpvBuzz implements WeekStep
 {
@@ -26,9 +27,7 @@ class PpvBuzz implements WeekStep
             $n = (int) $n;
 
             foreach ($this->calendar->ppvsForWeek($context->week + $n) as $ppv) {
-                $brand = $ppv->isShared() ? NewsBrand::Both : NewsBrand::from($ppv->brand_scope->value);
-
-                $this->news->record($context->save, NewsEventType::PpvUpcoming, $n === 1 ? NewsTier::Headline : NewsTier::Story, $brand, [
+                $this->news->record($context->save, NewsEventType::PpvUpcoming, $n === 1 ? NewsTier::Headline : NewsTier::Story, NewsBrand::Both, [
                     'ppv' => $ppv->name,
                     'n' => $n,
                 ], ['ppv_event_id' => $ppv->id], priority: $n === 1 ? 55 : 15, week: $context->week);

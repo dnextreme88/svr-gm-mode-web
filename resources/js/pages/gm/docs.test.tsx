@@ -83,7 +83,7 @@ const props = {
         safe_max: 70,
         serious_at: 100,
         rest_recovery_bars: 2,
-        minor_chance: 0.15,
+        serious_share: 0.2,
         escalation_chance: 0.2,
     },
     specialists: [],
@@ -241,6 +241,7 @@ const props = {
             },
         ],
     },
+    results: { booked_non_decisive_percent: 5 },
     calendar: {
         weekly_show_days: { raw: 'Monday', smackdown: 'Friday' },
         weeks_per_season: 52,
@@ -454,6 +455,31 @@ describe('Docs page', () => {
         expect(screen.getByTestId('ppv-summerslam')).toHaveTextContent(
             'Raw & Smackdown',
         );
+    });
+
+    it('explains live results, Book to Win, the results screen and Title History', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Results & titles' }));
+
+        for (const heading of [
+            'Live results',
+            'Book to Win',
+            'The results screen',
+            'Title History',
+        ]) {
+            expect(
+                screen.getByRole('heading', { name: heading }),
+            ).toBeInTheDocument();
+        }
+        expect(screen.getByTestId('booked-non-decisive')).toHaveTextContent(
+            '5%',
+        );
+        expect(
+            screen.getByText(/A booked title match always ends/),
+        ).toBeInTheDocument();
+        expect(screen.getByText('(C)').className).toContain('text-gold');
     });
 
     it('draws Inactive Superstar’s recovery as green bars', async () => {

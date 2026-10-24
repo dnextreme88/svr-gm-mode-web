@@ -72,7 +72,11 @@ class WeekSimulator
             $week = $save->current_week;
 
             try {
-                $this->bookWeek($save, $week);
+                // A week already airing live just finishes, as booked.
+                if ($this->resolver->airing($save, $week) === null) {
+                    $this->bookWeek($save, $week);
+                }
+
                 $this->resolver->resolveWeek($save, $week);
             } catch (GameRuleException $e) {
                 return ['weeks' => $aired, 'stopped' => $e->getMessage()];

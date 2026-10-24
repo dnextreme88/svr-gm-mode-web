@@ -103,7 +103,7 @@ type Props = {
         safe_max: number;
         serious_at: number;
         rest_recovery_bars: number;
-        minor_chance: number;
+        serious_share: number;
         escalation_chance: number;
     };
     specialists: Array<{
@@ -134,6 +134,7 @@ type Props = {
     promo_stories: StoryGroup[];
     quiet_stories: StoryGroup[];
     emails: GmEmail[];
+    results: { booked_non_decisive_percent: number };
     calendar: {
         weekly_show_days: Record<'raw' | 'smackdown', string>;
         weeks_per_season: number;
@@ -157,6 +158,7 @@ const tabs = [
     { key: 'promos', label: 'Promos' },
     { key: 'news', label: 'News & email' },
     { key: 'schedule', label: 'Schedule' },
+    { key: 'results', label: 'Results & titles' },
     { key: 'rosters', label: 'Rosters & draft' },
 ] as const;
 
@@ -512,33 +514,40 @@ function Injuries({ injuries, fatigue }: Pick<Props, 'injuries' | 'fatigue'>) {
                         Superstar promo adds 2 more for its target.
                     </li>
                     <li>
+                        Injuries are decided by the fatigue a superstar ends a
+                        match (or a tiring promo) on: fatigue going in plus the
+                        match’s cost, before it’s capped at {fatigue.max}%.
+                    </li>
+                    <li>
                         <ZoneMeter config={meterConfig} at={fatigue.safe_max} />
                         <span className="font-semibold text-gm-orange">
-                            Safe (0–{fatigue.safe_max}%)
+                            Ends at 0–{fatigue.safe_max}%
                         </span>
-                        : no injury risk.
+                        : no injury.
                     </li>
                     <li>
-                        <ZoneMeter
-                            config={meterConfig}
-                            at={fatigue.serious_at - fatigue.bar_size}
-                        />
+                        <ZoneMeter config={meterConfig} at={fatigue.max} />
                         <span className="font-semibold text-zone-minor">
-                            Minor risk ({fatigue.safe_max + fatigue.bar_size}–
-                            {fatigue.serious_at - fatigue.bar_size}%)
+                            Ends at {fatigue.safe_max + fatigue.bar_size}–
+                            {fatigue.max}%
                         </span>
-                        : a {percent(fatigue.minor_chance)} chance of a minor
-                        injury each match.
+                        : always an injury, {percent(1 - fatigue.serious_share)}{' '}
+                        minor and {percent(fatigue.serious_share)} serious.
                     </li>
                     <li>
-                        <ZoneMeter
-                            config={meterConfig}
-                            at={fatigue.serious_at}
-                        />
+                        <ZoneMeter config={meterConfig} at={fatigue.max} />
                         <span className="font-semibold text-zone-serious">
-                            Serious risk ({fatigue.serious_at}%)
-                        </span>
-                        : any match that adds fatigue causes a serious injury.
+                            Would end over {fatigue.max}%
+                        </span>{' '}
+                        (e.g. {fatigue.safe_max}% going into a 4-bar match):
+                        always a serious injury. The results show all bars full
+                        with the real total, like “110% Injury”.
+                    </li>
+                    <li>
+                        On the results, a seriously injured superstar shows the
+                        injury instead of their after-recovery fatigue, e.g.
+                        “Serious Injury: Torn ACL!”. A minor injury still
+                        recovers as usual, with “Minor Injury: …!” beside it.
                     </li>
                     <li>
                         A minor-injured wrestler who competes has a{' '}
@@ -653,7 +662,8 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                         </li>
                         <li>
                             Interference and Slander always make the neutral
-                            news headline, success or fail.
+                            news headline, success or fail, unless it’s a PPV
+                            week: then the PPV’s main event takes it.
                         </li>
                     </ul>
                 </Panel>
@@ -663,6 +673,12 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                             Each promo airs before a match you pick: Before
                             match 1 through Before main event. The default is
                             Before main event.
+                        </li>
+                        <li>
+                            Two promos can’t air back to back: each spot holds
+                            one promo. Once a promo is saved in a spot, the
+                            other promo slot shows that spot crossed out, and a
+                            new promo defaults to the latest spot still free.
                         </li>
                         <li>
                             Promos with a fatigue cost tire their wrestlers
@@ -965,8 +981,18 @@ function NewsAndEmail({
                         <li>
                             Three headlines: Raw, WWE and Smackdown. Each
                             brand’s card only shows that brand’s news. The WWE
-                            card only shows cross-brand news, and a Slander or
-                            Interference result always takes it.
+                            card shows cross-brand news, PPV news included.
+                        </li>
+                        <li>
+                            The WWE headline, in order: in a PPV week, the PPV’s
+                            main event (who won, any title on the line, and the
+                            gimmick, e.g. “Backlash main event: John Cena
+                            defeats Edge in a Ladder match to win the WWE
+                            Championship!”), or the Royal Rumble winner. Then a
+                            Slander or Interference result. Then other
+                            cross-brand news (trades, defections, the re-draft,
+                            “Backlash is 1 week away.”…). Last, tickets on sale
+                            for whatever airs next.
                         </li>
                         <li>
                             {news.stories_per_brand} stories per brand under the
@@ -981,8 +1007,8 @@ function NewsAndEmail({
                             why it happened. Click a story to read all of it.
                         </li>
                         <li>
-                            Whatever isn’t picked runs in the ticker. Newer and
-                            Older (or ← / →) step through every week played,
+                            Whatever isn’t picked runs in the ticker. Older and
+                            Newer (or ← / →) step through every week played,
                             quiet weeks included.
                         </li>
                     </ul>
@@ -1220,9 +1246,10 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                             Unlock it to make changes until the week airs.
                         </li>
                         <li>
-                            Air week on your weekly show airs every card of the
-                            week. The results list them in air order, PPV first,
-                            with the week’s fatigue.
+                            Air week on your weekly show starts the week’s live
+                            results, where you decide your matches (see Results
+                            &amp; titles). While the week airs the button reads
+                            Resume results.
                         </li>
                         <li>Both buttons ask you to confirm first.</li>
                     </ul>
@@ -1282,6 +1309,135 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                     </tbody>
                 </table>
             </Panel>
+        </div>
+    );
+}
+
+function ResultsDocs({ results }: Pick<Props, 'results'>) {
+    return (
+        <div className="space-y-6">
+            <div className="grid items-start gap-6 md:grid-cols-2">
+                <Panel title="Live results">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            Air week opens the results with your matches still
+                            to be decided. Shows air in order: PPVs, then the
+                            interbrand card, then the weekly shows.
+                        </li>
+                        <li>
+                            The rival GM’s own shows always simulate on their
+                            own when their turn comes. Your shows and the
+                            interbrand cards wait for you.
+                        </li>
+                        <li>
+                            Matches are decided one at a time, in card order.
+                            The next one has Manual book to win: its card lists
+                            each side with Book to Win, plus Simulate match.
+                            Later matches wait their turn.
+                        </li>
+                        <li>
+                            Simulate all, beside Continue, decides every match
+                            left. Promos air just before the match they were
+                            placed in front of.
+                        </li>
+                        <li>
+                            After the last match the rest of the week runs
+                            (recovery, contracts, morale, news, email) and
+                            Continue opens the News.
+                        </li>
+                        <li>
+                            Signings, releases and trades wait until the week’s
+                            results are in. Simulate to a date finishes a
+                            half-aired week as it stands.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel title="Book to Win">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>The side you book always wins.</li>
+                        <li>
+                            A booked title match always ends with a decisive
+                            finish: a pinfall, a submission or the match’s own
+                            win condition, never a DQ or count-out. The title
+                            changes hands when the challenger wins.
+                        </li>
+                        <li>
+                            Any other booked match ends by DQ or count-out{' '}
+                            <span data-testid="booked-non-decisive">
+                                {results.booked_non_decisive_percent}%
+                            </span>{' '}
+                            of the time, where the match type allows them.
+                            Otherwise it’s a decisive finish.
+                        </li>
+                        <li>
+                            Simulate match and Simulate all use the normal odds:
+                            weights, specialties and finish events.
+                        </li>
+                        <li>
+                            A booked result shows Booked to win on its card.
+                        </li>
+                    </ul>
+                </Panel>
+            </div>
+
+            <div className="grid items-start gap-6 md:grid-cols-2">
+                <Panel title="The results screen">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            Every result is listed in air order, and each opens
+                            its full outcome card, with arrows to step through.
+                        </li>
+                        <li>
+                            Promos sit before the match they aired in front of:
+                            Promo 1, Promo 2…, the promo and its wrestlers, with
+                            the result on the right.{' '}
+                            <span className="font-bold text-zone-safe">
+                                Succeeded
+                            </span>{' '}
+                            is green;{' '}
+                            <span className="font-bold text-zone-serious">
+                                Failed
+                            </span>
+                            , Fizzled and Backfired are red.
+                        </li>
+                        <li>
+                            In a title match the champion going in is tagged
+                            <span className="ml-1 text-sm text-gold">(C)</span>.
+                        </li>
+                        <li>
+                            The week’s fatigue (going in, after the show, after
+                            recovery) appears and plays once every match is
+                            decided.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel title="Title History">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            Every title keeps its full lineage across seasons,
+                            vacancies included, plus records.
+                        </li>
+                        <li>
+                            Won is the season and week, with the PPV’s name
+                            under it when the title changed hands at one.
+                        </li>
+                        <li>
+                            Reign counts the holder’s own reigns with that title
+                            (a third reign shows 3).
+                        </li>
+                        <li>
+                            How is Awarded, or the match the title was won in. A
+                            vacant row says why the title was vacated.
+                        </li>
+                        <li>
+                            Under each reign, every match it was defended in, a
+                            DQ or count-out loss included, newest first, then
+                            the match the title was won in (marked Won). Click
+                            one to open that match’s results.
+                        </li>
+                    </ul>
+                </Panel>
+            </div>
         </div>
     );
 }
@@ -1411,6 +1567,7 @@ export default function Docs() {
                 {tab === 'schedule' && (
                     <ScheduleDocs calendar={props.calendar} />
                 )}
+                {tab === 'results' && <ResultsDocs results={props.results} />}
                 {tab === 'rosters' && <RostersDocs rosters={props.rosters} />}
             </div>
         </>
