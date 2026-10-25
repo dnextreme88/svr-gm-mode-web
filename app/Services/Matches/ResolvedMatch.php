@@ -14,6 +14,7 @@ final readonly class ResolvedMatch
     /**
      * @param  list<int>  $winners
      * @param  list<int>  $losers
+     * @param  list<array{round: int, side_a: int, side_b: int, winner_side: int, method: MatchMethod, finish_event: FinishEvent|null, interferer_id: int|null, booked: bool, summary: string}>  $bouts  a Gauntlet's bouts, in order
      */
     public function __construct(
         public int $winnerSide,
@@ -25,6 +26,7 @@ final readonly class ResolvedMatch
         public ?int $interfererId,
         public string $summary,
         public int $rngSteps,
+        public array $bouts = [],
     ) {}
 
     public function isDecisive(): bool

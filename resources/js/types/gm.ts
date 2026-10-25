@@ -142,6 +142,8 @@ export type MatchTypeOption = {
     captain_fall: boolean;
     /** Needs a non-competing special referee from the roster (§10). */
     special_referee?: boolean;
+    /** House rule: false for the Gauntlet, which takes no stipulation. */
+    stipulations_allowed?: boolean;
 };
 
 export type RosterEntry = WrestlerRow & {
@@ -172,6 +174,8 @@ export type MatchOutcome = {
     booked: boolean;
     /** Who held the title on the line going into the match. */
     champions: string[];
+    /** Each side's captain in a Captain Fall match, for the (Cpt) tag. */
+    captains: string[];
     managers: string[];
     referee?: string | null;
     method: import('./enums').MatchMethod;
@@ -183,11 +187,22 @@ export type MatchOutcome = {
     title_banner: 'new_champion' | 'and_still' | null;
     stipulation: import('./enums').Stipulation | null;
     stipulation_outcome: string | null;
+    /** A Gauntlet's bouts, in order. */
+    bouts?: GauntletBout[];
     rating: number | null;
     fan_delta: number | null;
 };
 
 /** A match still to be decided on the live results screen. */
+export type GauntletBout = {
+    round: number;
+    winner: string;
+    loser: string;
+    method_label: string;
+    booked: boolean;
+    summary: string;
+};
+
 export type PendingMatch = {
     id: number;
     pending: true;
@@ -211,6 +226,10 @@ export type PendingMatch = {
     stipulation: import('./enums').Stipulation | null;
     /** Who holds the title on the line. */
     champions: string[];
+    /** Each side's captain in a Captain Fall match, for the (Cpt) tag. */
+    captains: string[];
+    /** A Gauntlet: the sides are the entrants in order, decided bout by bout. */
+    gauntlet?: boolean;
 };
 
 /** A promo on the results screen, placed before the match it aired in front of. */

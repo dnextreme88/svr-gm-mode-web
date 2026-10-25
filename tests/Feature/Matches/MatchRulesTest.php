@@ -39,14 +39,14 @@ describe('catalog', function () {
         expect($noRingOut)->toBe(['battle_royal', 'elimination_chamber', 'royal_rumble', 'steel_cage']);
     });
 
-    it('bars titles from 3 vs 3, handicap and Slobber Knocker matches', function () {
+    it('bars titles from 3 vs 3, handicap and Gauntlet matches', function () {
         $threeOnThree = MatchType::all()->filter(fn (MatchType $t): bool => $t->sides === [3, 3]);
 
         expect($threeOnThree)->not->toBeEmpty()
             ->and($threeOnThree->every(fn (MatchType $t): bool => ! $t->titles_allowed))->toBeTrue()
             ->and(MatchType::where('family', 'handicap')->where('titles_allowed', true)->count())->toBe(0)
             ->and(MatchType::where('family', 'handicap')->count())->toBe(5)
-            ->and(Card::type('slobber_knocker', 'No Limit')->titles_allowed)->toBeFalse()
+            ->and(Card::type('gauntlet', '6-Man Gauntlet')->titles_allowed)->toBeFalse()
             ->and(Card::type('tag_team', 'Tag vs Tag w/Manager')->titles_allowed)->toBeTrue();
     });
 
@@ -94,7 +94,7 @@ describe('catalog', function () {
         ['ladder', 'Money in the Bank', 4],
         ['tlc', 'Single', 3],
         ['table', 'Tornado 6-Man Tag', 4],
-        ['slobber_knocker', 'No Limit', 4],
+        ['gauntlet', '6-Man Gauntlet', 3],
         ['special_referee', 'Iron Man', 5],
         ['special_referee', 'Single', 2],
         ['steel_cage', 'Fatal 4-Way Pin & Give Up', 4],

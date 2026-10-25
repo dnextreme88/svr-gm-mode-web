@@ -3,6 +3,7 @@
 namespace App\Services\Matches;
 
 use App\Enums\FixedSlotKind;
+use App\Enums\InjurySeverity;
 use App\Enums\LedgerCategory;
 use App\Enums\MatchFamily;
 use App\Enums\NewsBrand;
@@ -10,13 +11,17 @@ use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
 use App\Enums\RosterType;
 use App\Enums\ShowStatus;
+use App\Models\GauntletBout;
+use App\Models\Injury;
 use App\Models\MatchResult;
 use App\Models\MatchSlot;
+use App\Models\NewsEvent;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Fatigue\FatigueZones;
 use App\Services\Finance\LedgerService;
 use App\Services\Injuries\InjuryService;
+use App\Services\Injuries\InjuryStatus;
 use App\Services\News\NewsRecorder;
 use App\Services\Promos\PromoService;
 use App\Services\Promos\PromoStoryWriter;
@@ -46,6 +51,7 @@ class ShowResolver
         private MatchOutcomeHandler $outcomes,
         private PromoService $promos,
         private PromoStoryWriter $promoStories,
+        private InjuryStatus $injuryStatus,
     ) {}
 
     public function air(Show $show, WeekContext $context): void
@@ -72,10 +78,12 @@ class ShowResolver
     /**
      * Airs the next match: first the promos placed in front of it (§5), so
      * their fatigue counts going into it, then the match itself. With a
-     * booked side, that side wins (Book to Win). Returns null when every
-     * match has aired.
+     * booked side, that side wins (Book to Win); a Gauntlet takes a booked
+     * side per bout instead. Returns null when every match has aired.
+     *
+     * @param  list<int|null>  $bookedBouts
      */
-    public function airNext(Show $show, WeekContext $context, ?int $bookedSide = null): ?MatchSlot
+    public function airNext(Show $show, WeekContext $context, ?int $bookedSide = null, array $bookedBouts = []): ?MatchSlot
     {
         $slots = $this->slots($show);
         $next = $slots->first(fn (MatchSlot $s): bool => $s->isBooked() && $s->result === null);
@@ -95,7 +103,7 @@ class ShowResolver
         }
 
         $mainEvent = $slots->filter(fn (MatchSlot $s): bool => $s->isBooked())->last();
-        $this->airMatch($next, $show, $context, $context->stream("show.{$show->streamKey()}"), $next->is($mainEvent), $bookedSide);
+        $this->airMatch($next, $show, $context, $context->stream("show.{$show->streamKey()}"), $next->is($mainEvent), $bookedSide, $bookedBouts);
 
         return $next;
     }
@@ -114,6 +122,7 @@ class ShowResolver
 
         $this->promos->resolve($show, $promoRng);
         $this->promoStories->write($show, $context->rng("promo-stories.{$show->streamKey()}"));
+        $this->confirmInjuredWins($show);
 
         $show->update(['status' => ShowStatus::Aired]);
     }
@@ -129,7 +138,10 @@ class ShowResolver
             ->get();
     }
 
-    private function airMatch(MatchSlot $slot, Show $show, WeekContext $context, Rng $rng, bool $mainEvent, ?int $bookedSide): void
+    /**
+     * @param  list<int|null>  $bookedBouts
+     */
+    private function airMatch(MatchSlot $slot, Show $show, WeekContext $context, Rng $rng, bool $mainEvent, ?int $bookedSide, array $bookedBouts = []): void
     {
         $week = $context->week;
         $type = $slot->matchType;
@@ -147,7 +159,13 @@ class ShowResolver
             $goingIn[$p->save_wrestler_id] = $wrestlers[$p->save_wrestler_id]->fatigue;
         }
 
-        $resolved = $this->matches->resolve($slot, $rng, $this->rivalries->active($context->save), $bookedSide);
+        // Who goes in with a minor injury, for the injured-win headline.
+        $minorGoingIn = array_keys(array_filter(
+            array_intersect_key($this->injuryStatus->activeByWrestler($context->save->id, $week), $goingIn),
+            fn (Injury $injury): bool => $injury->severity === InjurySeverity::Minor,
+        ));
+
+        $resolved = $this->matches->resolve($slot, $rng, $this->rivalries->active($context->save), $bookedSide, $bookedBouts);
 
         $result = MatchResult::create([
             'match_slot_id' => $slot->id,
@@ -155,10 +173,15 @@ class ShowResolver
             'method' => $resolved->method,
             'finish_event' => $resolved->finishEvent,
             'interferer_id' => $resolved->interfererId,
-            'booked' => $bookedSide !== null,
+            // A Gauntlet counts as booked when its deciding bout was.
+            'booked' => $resolved->bouts === [] ? $bookedSide !== null : $resolved->bouts[array_key_last($resolved->bouts)]['booked'],
             'summary' => $resolved->summary,
             'rng_seed_step' => $rng->steps(),
         ]);
+
+        foreach ($resolved->bouts as $bout) {
+            GauntletBout::create(['match_slot_id' => $slot->id, ...$bout]);
+        }
 
         foreach ($slot->participants as $p) {
             $context->data['used'][$p->save_wrestler_id] = true;
@@ -192,7 +215,15 @@ class ShowResolver
 
         $this->outcomes->apply($slot, $result, $resolved, $context);
 
-        if ($type->sides !== [] && max($type->sides) === 1) {
+        if ($resolved->bouts !== []) {
+            // A Gauntlet: each bout is its own meeting.
+            $sides = $slot->sides();
+
+            foreach ($resolved->bouts as $bout) {
+                $loser = $bout['winner_side'] === $bout['side_a'] ? $bout['side_b'] : $bout['side_a'];
+                $this->rivalries->recordMeeting($context->save, $slot, $sides[$bout['winner_side']][0], $sides[$loser][0], $week, $show->isPpv());
+            }
+        } elseif ($type->sides !== [] && max($type->sides) === 1) {
             foreach ($slot->sides()[$resolved->loserSide] ?? [] as $loserId) {
                 $this->rivalries->recordMeeting($context->save, $slot, $resolved->winners[0], $loserId, $week, $show->isPpv());
             }
@@ -207,7 +238,12 @@ class ShowResolver
             ], ['wrestler_ids' => [...$resolved->winners, ...$resolved->losers]], priority: 30, week: $week, dedupeKey: "slot:{$slot->id}");
         }
 
-        $this->announceResult($slot, $show, $resolved, $wrestlers, $week, $mainEvent);
+        $playedHurt = array_values(array_filter(
+            array_intersect($resolved->winners, $minorGoingIn),
+            fn (int $id): bool => ! $this->injuryStatus->isSeriouslyInjured($wrestlers[$id]->refresh(), $week),
+        ));
+
+        $this->announceResult($slot, $show, $resolved, $wrestlers, $week, $mainEvent, $playedHurt);
 
         if ($mainEvent && $show->isPpv() && $slot->fixed_kind !== FixedSlotKind::RoyalRumble) {
             $this->announcePpvMainEvent($slot, $show, $resolved, $result->refresh(), $wrestlers, $week);
@@ -225,9 +261,13 @@ class ShowResolver
      * (the last booked match) ranks higher. It gives way to bigger news from
      * the same match (title change, streak…).
      *
+     * A decisive win by someone who went in with a minor injury gets the
+     * injured-win headline (house rule).
+     *
      * @param  Collection<int, SaveWrestler>  $wrestlers
+     * @param  list<int>  $playedHurt  winners who went in with a minor injury that didn't turn serious
      */
-    private function announceResult(MatchSlot $slot, Show $show, ResolvedMatch $resolved, Collection $wrestlers, int $week, bool $mainEvent): void
+    private function announceResult(MatchSlot $slot, Show $show, ResolvedMatch $resolved, Collection $wrestlers, int $week, bool $mainEvent, array $playedHurt = []): void
     {
         $this->news->record(
             $show->game,
@@ -240,7 +280,12 @@ class ShowResolver
                 'loser' => $this->namesOf($resolved->losers, $wrestlers),
                 'by' => $resolved->isDecisive() ? '' : ' by '.mb_strtolower($resolved->method->label()),
                 'via' => $resolved->via($slot->matchType),
-                'outcome' => $resolved->isDecisive() ? 'decisive' : 'not_decisive',
+                'outcome' => match (true) {
+                    ! $resolved->isDecisive() => 'not_decisive',
+                    $playedHurt !== [] => 'injured',
+                    default => 'decisive',
+                },
+                'injured_winners' => $playedHurt,
                 'pronoun' => $this->pronoun($resolved->winners, $wrestlers),
                 'match_kind' => $this->matchKind($slot),
                 'match' => $slot->matchType?->name,
@@ -256,6 +301,32 @@ class ShowResolver
             week: $week,
             dedupeKey: "slot:{$slot->id}",
         );
+    }
+
+    /**
+     * House rule: the injured-win headline holds only if the minor injury is
+     * still minor once the show is over. A double-booked winner can see it
+     * turn serious in a later match, and then it's a plain decisive win.
+     */
+    private function confirmInjuredWins(Show $show): void
+    {
+        $slotKeys = MatchSlot::where('show_id', $show->id)->pluck('id')->map(fn (int $id): string => "slot:{$id}")->all();
+        $events = NewsEvent::where('save_id', $show->save_id)
+            ->where('type', NewsEventType::MatchResult)
+            ->whereIn('dedupe_key', $slotKeys)
+            ->get()
+            ->filter(fn (NewsEvent $e): bool => ($e->payload['outcome'] ?? null) === 'injured');
+
+        foreach ($events as $event) {
+            $still = array_values(array_filter(
+                (array) ($event->payload['injured_winners'] ?? []),
+                fn (int $id): bool => ($w = SaveWrestler::find($id)) !== null && ! $this->injuryStatus->isSeriouslyInjured($w, $show->week_number),
+            ));
+
+            if ($still === []) {
+                $this->news->rewrite($event, [...$event->payload, 'outcome' => 'decisive', 'injured_winners' => []]);
+            }
+        }
     }
 
     /**

@@ -288,7 +288,7 @@ const props = {
             },
         ],
     },
-    results: { booked_non_decisive_percent: 5 },
+    results: { booked_non_decisive_percent: 5, buried_alive_weeks: 4 },
     calendar: {
         weekly_show_days: { raw: 'Monday', smackdown: 'Friday' },
         weeks_per_season: 52,
@@ -527,6 +527,23 @@ describe('Docs page', () => {
             screen.getByText(/A booked title match always ends/),
         ).toBeInTheDocument();
         expect(screen.getByText('(C)').className).toContain('text-gold');
+        expect(screen.getByText('(Cpt)').className).toContain('text-gold');
+        expect(screen.getByText(/marked Pending Result/)).toBeInTheDocument();
+    });
+
+    it('explains the Gauntlet and how finishes read', () => {
+        render(<Docs />);
+
+        expect(screen.getByTestId('gauntlet-rules')).toHaveTextContent(
+            'Six entrants in one match slot, fought as five singles bouts',
+        );
+        expect(screen.getByTestId('gauntlet-rules')).toHaveTextContent(
+            'No titles and no stipulations.',
+        );
+        expect(
+            screen.getByRole('heading', { name: 'How finishes read' }),
+        ).toBeInTheDocument();
+        expect(screen.getByTestId('buried-weeks')).toHaveTextContent('4');
     });
 
     it('lists the Merchandise Sponsorship deals with their odds', async () => {

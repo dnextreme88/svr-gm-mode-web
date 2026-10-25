@@ -182,7 +182,8 @@ return [
         'iron_man' => ['bars' => 5, 'cost' => 37_000, 'dq' => true, 'countout' => false],
         'ladder' => ['bars' => 3, 'cost' => 12_000, 'dq' => false, 'countout' => false],
         'last_man_standing' => ['bars' => 4, 'cost' => 40_000, 'dq' => false, 'countout' => false],
-        'slobber_knocker' => ['bars' => 4, 'cost' => 5_000, 'dq' => false, 'countout' => false],
+        // House rule: five singles bouts; every entrant takes a flat 3 bars.
+        'gauntlet' => ['bars' => 3, 'cost' => 5_000, 'dq' => true, 'countout' => true],
         'special_referee' => ['bars' => 2, 'cost' => 0, 'dq' => true, 'countout' => true],
         'steel_cage' => ['bars' => 4, 'cost' => 25_000, 'dq' => false, 'countout' => false],
         'submission' => ['bars' => 2, 'cost' => 1_000, 'dq' => true, 'countout' => false],
@@ -198,12 +199,14 @@ return [
     | - Ring outs (the fight can leave the ring): off in these families.
     | - Titles can't be defended in these families, or with these side shapes
     |   (3 vs 3: six active competitors; managers don't count).
+    | - Stipulations can't be added in these families (the Gauntlet).
     */
     'match_rules' => [
         'no_rope_break_families' => ['hardcore', 'tlc', 'table', 'ladder', 'battle_royal', 'royal_rumble', 'hell_in_a_cell'],
         'no_ring_out_families' => ['steel_cage', 'battle_royal', 'royal_rumble', 'elimination_chamber'],
-        'no_titles_families' => ['handicap', 'slobber_knocker'],
+        'no_titles_families' => ['handicap', 'gauntlet'],
         'no_titles_sides' => [[3, 3]],
+        'no_stipulation_families' => ['gauntlet'],
         // Six-competitor variants of these families cost more fatigue.
         'six_competitor_bars' => ['hardcore' => 4, 'ladder' => 4, 'tlc' => 4, 'table' => 4],
     ],
@@ -463,6 +466,7 @@ return [
         'vince' => 'Vince McMahon',
         'trainer' => 'Trainer',
     ],
+
     /*
     | Rival GM strategy (house rules, 2026-10-25). Only the brand no human
     | runs books this way; the player's Randomize and Preset are unchanged.

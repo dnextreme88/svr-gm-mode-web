@@ -102,6 +102,11 @@ class TitleBookingRules
     private function validateStipulation(Show $show, Booking $booking, Collection $wrestlers): void
     {
         $type = $booking->matchType;
+
+        if ($booking->stipulation !== null && ! $type->allowsStipulations()) {
+            throw new GameRuleException("A {$type->family->label()} can't have a stipulation.");
+        }
+
         $oneOnOne = $type->isOneOnOne();
         $twoOnTwo = $type->isTwoOnTwo();
 

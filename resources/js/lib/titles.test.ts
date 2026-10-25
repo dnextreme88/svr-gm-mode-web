@@ -195,6 +195,25 @@ describe('stipulation options', () => {
         ).not.toContain('last_chance');
     });
 
+    it('offers nothing for a Gauntlet', () => {
+        const gauntlet = {
+            ...singles,
+            id: 3,
+            sides: [1, 1, 1, 1, 1, 1],
+            titles_allowed: false,
+            stipulations_allowed: false,
+        } as MatchTypeOption;
+
+        expect(
+            stipulationOptions(
+                draft([[1], [2], [3], [4], [5], [6]]),
+                gauntlet,
+                context,
+                roster,
+            ),
+        ).toEqual([]);
+    });
+
     it('offers nothing outside 1v1 and 2v2', () => {
         expect(
             stipulationOptions(

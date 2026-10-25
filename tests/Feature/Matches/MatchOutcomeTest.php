@@ -84,7 +84,7 @@ it('uses the match type’s own win condition on clean finishes', function () {
     $result = app(MatchResolver::class)->resolve($slot, new SeededRng('ladder'), collect());
 
     expect($result->method)->toBe(MatchMethod::MatchSpecific)
-        ->and($result->summary)->toContain('briefcase retrieval');
+        ->and($result->summary)->toContain('pulls down the briefcase');
 });
 
 it('produces the same results for the same seed', function () {

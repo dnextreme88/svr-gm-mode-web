@@ -42,10 +42,18 @@ class WeekController extends Controller
         $data = $request->validate([
             'slot_id' => ['required', 'integer'],
             'winner_side' => ['nullable', 'integer', 'min:0'],
+            // Gauntlet: the side booked to win each bout, null to simulate.
+            'bouts' => ['nullable', 'array', 'max:5'],
+            'bouts.*' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $this->assertAiring($save, $week, $resolver);
-        $resolver->decide($save, (int) $data['slot_id'], isset($data['winner_side']) ? (int) $data['winner_side'] : null);
+        $resolver->decide(
+            $save,
+            (int) $data['slot_id'],
+            isset($data['winner_side']) ? (int) $data['winner_side'] : null,
+            array_values(array_map(fn (mixed $side): ?int => $side === null ? null : (int) $side, (array) ($data['bouts'] ?? []))),
+        );
 
         return to_route('gm.results', [$save, $week]);
     }

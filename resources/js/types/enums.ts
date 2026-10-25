@@ -278,7 +278,7 @@ export const MatchFamily = {
     IronMan: 'iron_man',
     Ladder: 'ladder',
     LastManStanding: 'last_man_standing',
-    SlobberKnocker: 'slobber_knocker',
+    Gauntlet: 'gauntlet',
     SpecialReferee: 'special_referee',
     SteelCage: 'steel_cage',
     Submission: 'submission',
@@ -305,7 +305,7 @@ export const MatchFamilyLabels: Record<MatchFamily, string> = {
     'iron_man': 'Iron Man',
     'ladder': 'Ladder',
     'last_man_standing': 'Last Man Standing',
-    'slobber_knocker': 'Slobber Knocker',
+    'gauntlet': 'Gauntlet',
     'special_referee': 'Special Referee',
     'steel_cage': 'Steel Cage',
     'submission': 'Submission',
@@ -730,6 +730,20 @@ export const TradeStatusLabels: Record<TradeStatus, string> = {
     'accepted': 'Accepted',
     'rejected': 'Rejected',
     'invalid': 'Invalid',
+};
+
+export const Weapon = {
+    SteelChair: 'steel_chair',
+    Sledgehammer: 'sledgehammer',
+    RingBell: 'ring_bell',
+    SteelSteps: 'steel_steps',
+} as const;
+export type Weapon = (typeof Weapon)[keyof typeof Weapon];
+export const WeaponLabels: Record<Weapon, string> = {
+    'steel_chair': 'Steel Chair',
+    'sledgehammer': 'Sledgehammer',
+    'ring_bell': 'Ring Bell',
+    'steel_steps': 'Steel Steps',
 };
 
 export const WeightClass = {

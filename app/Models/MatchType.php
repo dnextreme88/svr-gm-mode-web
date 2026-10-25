@@ -101,6 +101,15 @@ class MatchType extends Model
         return $this->sides !== [] && max($this->sides) > 1;
     }
 
+    /**
+     * House rule: no stipulations in the families listed in
+     * `gm.match_rules.no_stipulation_families` (the Gauntlet).
+     */
+    public function allowsStipulations(): bool
+    {
+        return ! in_array($this->family->value, (array) config('gm.match_rules.no_stipulation_families', []), true);
+    }
+
     public function isMoneyInTheBank(): bool
     {
         return $this->family === MatchFamily::Ladder && $this->variant === self::MITB_VARIANT;
