@@ -70,6 +70,35 @@ describe('Randomize / Preset modal (§24)', () => {
         );
     });
 
+    it('rolls the die on the button before opening the modal', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <ProposalLauncher
+                label="Randomize"
+                mode="randomize"
+                fetchProposal={vi
+                    .fn()
+                    .mockResolvedValue(
+                        result([proposal(1, [['Edge'], ['Kane']])]),
+                    )}
+                onConfirm={vi.fn()}
+            />,
+        );
+        const button = screen.getByRole('button', { name: 'Randomize' });
+        await user.click(button);
+
+        expect(within(button).getByTestId('dice-icon')).toHaveClass(
+            'animate-gm-dice-tumble',
+        );
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+        await screen.findByRole('dialog', { name: 'Randomize match' });
+        expect(within(button).getByTestId('dice-icon')).not.toHaveClass(
+            'animate-gm-dice-tumble',
+        );
+    });
+
     it('Randomize opens the preview modal with the proposed booking', async () => {
         const user = userEvent.setup();
         const fetchProposal = vi
@@ -238,6 +267,46 @@ describe('Randomize / Preset modal (§24)', () => {
             'data-face',
             '2',
         );
+    });
+
+    it('shows a spinner and "Rolling match" while Re-roll loads', async () => {
+        const user = userEvent.setup();
+        let resolveNext: (r: ProposalResult) => void = () => {};
+        const fetchProposal = vi
+            .fn()
+            .mockResolvedValueOnce(result([proposal(1, [['Edge'], ['Kane']])]))
+            .mockImplementationOnce(
+                () =>
+                    new Promise<ProposalResult>((resolve) => {
+                        resolveNext = resolve;
+                    }),
+            );
+
+        render(
+            <ProposalLauncher
+                label="Randomize"
+                mode="randomize"
+                fetchProposal={fetchProposal}
+                onConfirm={vi.fn()}
+            />,
+        );
+        await user.click(screen.getByRole('button', { name: 'Randomize' }));
+        await screen.findByText('Edge vs Kane');
+        await user.click(screen.getByRole('button', { name: 'Re-roll' }));
+
+        const status = screen.getByRole('status');
+        expect(status).toHaveTextContent('Rolling match');
+        expect(status.querySelector('svg.animate-spin')).not.toBeNull();
+        // The old match stays behind the box, hidden, so the height holds.
+        const hidden = screen.getByText('Edge vs Kane').closest('ol');
+        expect(hidden).toHaveClass('invisible');
+        expect(hidden).toHaveAttribute('aria-hidden', 'true');
+
+        resolveNext(result([proposal(1, [['Carlito'], ['Big Show']])]));
+        expect(
+            await screen.findByText('Carlito vs Big Show'),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Rolling match')).not.toBeInTheDocument();
     });
 
     it('Preset lists unfilled slots and shows the cost warning', async () => {

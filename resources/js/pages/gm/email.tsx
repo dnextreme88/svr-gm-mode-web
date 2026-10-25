@@ -62,7 +62,7 @@ export default function Inbox() {
                 <EmptyState>Your inbox is empty.</EmptyState>
             ) : (
                 <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-                    <ul className="gm-panel gm-scroll max-h-[70vh] divide-y divide-white/5 overflow-y-auto">
+                    <ul className="gm-panel gm-scroll max-h-[70vh] divide-y divide-white/5 overflow-x-hidden overflow-y-auto">
                         {emails.map((email) => (
                             <li key={email.id}>
                                 <Link

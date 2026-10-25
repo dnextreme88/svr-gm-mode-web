@@ -194,6 +194,48 @@ describe('Results page', () => {
         expect(screen.queryByTestId('result-detail')).toBeNull();
     });
 
+    it('shows a stipulation below the match only when it has one', () => {
+        page.props = {
+            ...props,
+            shows: [
+                {
+                    ...props.shows[0],
+                    outcomes: [
+                        outcome(
+                            1,
+                            ['Booker T & JBL'],
+                            ['Randy Orton & Chavo Guerrero'],
+                            {
+                                stipulation: 'loser_leaves_show',
+                                stipulation_outcome:
+                                    'Randy Orton & Chavo Guerrero leaves Smackdown',
+                            },
+                        ),
+                        outcome(2, ['Kane'], ['Carlito']),
+                        pending(3, [['Edge'], ['John Cena']], {
+                            stipulation: 'last_chance',
+                        }),
+                    ],
+                },
+            ],
+        };
+        render(<Results />);
+
+        const decided = screen.getByTestId('stipulation-7-1');
+        expect(decided).toHaveTextContent(
+            'Loser Leaves ShowRandy Orton & Chavo Guerrero leaves Smackdown',
+        );
+        expect(
+            within(screen.getByTestId('result-7-1')).queryByText(/^·/),
+        ).toBeNull();
+
+        expect(screen.queryByTestId('stipulation-7-2')).toBeNull();
+
+        expect(screen.getByTestId('stipulation-7-3')).toHaveTextContent(
+            /^Last Chance Match$/,
+        );
+    });
+
     it('opens a result’s card from its chevron and steps through with the arrows', async () => {
         const user = userEvent.setup();
         render(<Results />);

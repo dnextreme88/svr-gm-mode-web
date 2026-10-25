@@ -41,7 +41,7 @@ const PIPS: Record<DiceFace, [number, number][]> = {
 const TUMBLE: DiceFace[] = [1, 4, 2, 6, 3, 5];
 const TUMBLE_MS = 90;
 
-function prefersReducedMotion(): boolean {
+export function prefersReducedMotion(): boolean {
     return (
         typeof window !== 'undefined' &&
         typeof window.matchMedia === 'function' &&

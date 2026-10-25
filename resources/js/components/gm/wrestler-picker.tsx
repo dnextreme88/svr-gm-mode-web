@@ -29,6 +29,8 @@ type Props = {
     emptyLabel?: string;
     /** The first row of the list, which clears the pick. */
     clearLabel?: string;
+    /** A slot that must be filled: the list has no row to clear it. */
+    required?: boolean;
     /** Name to show when the picked wrestler isn't in `options`. */
     fallbackName?: string;
     disabled?: boolean;
@@ -46,6 +48,7 @@ export function WrestlerPicker({
     label,
     emptyLabel = 'VACANT',
     clearLabel = 'Leave vacant',
+    required = false,
     fallbackName,
     disabled,
     className,
@@ -98,18 +101,20 @@ export function WrestlerPicker({
                     open={open}
                     role="listbox"
                     aria-label={label}
-                    // Tall enough for Leave vacant and 8 full wrestler rows.
+                    // Tall enough for the clear row and 8 full wrestler rows.
                     className="gm-scroll max-h-[330px] w-full min-w-56 overflow-x-hidden overflow-y-auto py-1"
                 >
-                    <button
-                        type="button"
-                        role="option"
-                        aria-selected={value === null}
-                        onClick={() => pick(null)}
-                        className="gm-label block w-full px-3 py-1.5 text-left text-ink-faint italic hover:bg-white/6"
-                    >
-                        {clearLabel}
-                    </button>
+                    {!required && (
+                        <button
+                            type="button"
+                            role="option"
+                            aria-selected={value === null}
+                            onClick={() => pick(null)}
+                            className="gm-label block w-full px-3 py-1.5 text-left text-ink-faint italic hover:bg-white/6"
+                        >
+                            {clearLabel}
+                        </button>
+                    )}
                     {options.map(
                         ({ wrestler, disabled: off, note, booked }) => (
                             <button

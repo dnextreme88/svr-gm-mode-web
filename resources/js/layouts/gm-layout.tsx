@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { UnreadPill } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { FloppyIcon } from '@/components/gm/floppy-icon';
-import { useFlashToast } from '@/hooks/use-flash-toast';
 import { formatMoney } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
@@ -212,7 +211,6 @@ function Nav({ game, url }: { game: GameShell; url: string }) {
 export default function GmLayout({ children }: { children: ReactNode }) {
     const page = usePage<{ game?: GameShell }>();
     const game = page.props.game;
-    useFlashToast();
 
     return (
         <div

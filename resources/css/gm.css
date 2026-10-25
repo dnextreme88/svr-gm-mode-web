@@ -285,6 +285,8 @@
             0 20px 40px -24px rgb(0 0 0 / 0.8);
     }
 
+    /* Overhangs the border by 1px, so a scrolling panel needs
+       overflow-x-hidden or it grows a horizontal scrollbar. */
     .gm-panel::before {
         content: '';
         position: absolute;
