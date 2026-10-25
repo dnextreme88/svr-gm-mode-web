@@ -2,12 +2,14 @@ import { X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
+import { FloppyIcon } from '@/components/gm/floppy-icon';
 import { Panel } from '@/components/gm/panel';
 import { RivalryPicker, sortPair } from '@/components/gm/rivalry-picker';
 import type { RivalryOption } from '@/components/gm/rivalry-picker';
 import { WrestlerPicker } from '@/components/gm/wrestler-picker';
 import type { PickerOption } from '@/components/gm/wrestler-picker';
 import { formatMoney } from '@/lib/gm';
+import { slotSaveKey, useSaveStatus } from '@/lib/save-status';
 import { cn } from '@/lib/utils';
 import type { RosterEntry } from '@/types/gm';
 
@@ -61,6 +63,8 @@ export type PromoPayload = {
 };
 
 type Props = {
+    /** The card's show, so each promo's save can be tracked (`lib/save-status`). */
+    showId: number;
     slots: PromoSlotView[];
     types: PromoTypeOption[];
     eligibility: Record<string, PromoEligibilityView>;
@@ -171,12 +175,16 @@ function PromoEditor({
     readOnly,
     onSave,
     onClear,
+    showId,
 }: {
     slot: PromoSlotView;
     taken: Map<number, number>;
     /** The card's other saved promos. */
     others: PromoSlotView[];
 } & Omit<Props, 'slots'>) {
+    const saveStatus = useSaveStatus(
+        slotSaveKey('promo', showId, slot.position),
+    );
     const [typeId, setTypeId] = useState<number | null>(slot.promo_type_id);
     const [a, setA] = useState<number | null>(slot.target_wrestler_id);
     const [b, setB] = useState<number | null>(slot.target_wrestler_b_id);
@@ -567,6 +575,7 @@ function PromoEditor({
                             })
                         }
                     >
+                        <FloppyIcon status={saveStatus} />
                         Save promo {slot.position}
                     </button>
                     <button

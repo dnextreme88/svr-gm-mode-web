@@ -257,7 +257,9 @@ describe('CardBuilder', () => {
         await pickType(1, 1);
         await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
         await pickWrestler('Match 1 side 2 wrestler 1', 'Kane');
-        await user.click(screen.getByRole('button', { name: 'Save match 1' }));
+        const save = screen.getByRole('button', { name: 'Save match 1' });
+        expect(within(save).getByTestId('floppy-icon')).toBeInTheDocument();
+        await user.click(save);
 
         expect(onSave).toHaveBeenCalledWith(1, {
             match_type_id: 1,

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { PromoSlots, successLabel } from '@/components/gm/promo-slots';
@@ -7,6 +7,7 @@ import type {
     PromoSlotView,
     PromoTypeOption,
 } from '@/components/gm/promo-slots';
+import { saveVisit } from '@/lib/save-status';
 import type { RosterEntry } from '@/types/gm';
 
 // The Clear confirmation reads the player's brand from the Inertia page.
@@ -137,6 +138,7 @@ function setup(slots: PromoSlotView[] = [emptySlot(1)]) {
 
     render(
         <PromoSlots
+            showId={1}
             slots={slots}
             types={types}
             eligibility={eligibility}
@@ -174,10 +176,31 @@ describe('PromoSlots', () => {
 
         const save = screen.getByRole('button', { name: 'Save promo 1' });
         expect(save).toBeDisabled();
+        expect(within(save).getByTestId('floppy-icon')).toHaveAttribute(
+            'data-status',
+            'idle',
+        );
 
         await user.click(screen.getByRole('radio', { name: 'Before match 2' }));
         expect(save).toBeEnabled();
         expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+    });
+
+    it('animates the floppy while the promo saves, then shows the check', () => {
+        setup();
+        const floppy = within(
+            screen.getByRole('button', { name: 'Save promo 1' }),
+        ).getByTestId('floppy-icon');
+        const visit = saveVisit('promo:1:1');
+
+        act(() => visit.onStart());
+        expect(floppy).toHaveAttribute('data-status', 'saving');
+
+        act(() => visit.onSuccess());
+        expect(floppy).toHaveAttribute('data-status', 'saved');
+
+        act(() => visit.onError());
+        expect(floppy).toHaveAttribute('data-status', 'idle');
     });
 
     it('discards unsaved changes back to the saved promo', async () => {
@@ -402,6 +425,7 @@ describe('PromoSlots', () => {
         const user = userEvent.setup();
         render(
             <PromoSlots
+                showId={1}
                 slots={[
                     {
                         position: 1,

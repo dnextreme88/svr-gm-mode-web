@@ -59,6 +59,50 @@
         cubic-bezier(0.2, 0.8, 0.2, 1) both;
     --animate-gm-pop-in: gm-pop-in 160ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
     --animate-gm-pop-out: gm-pop-out 160ms ease-in both;
+    --animate-gm-dice-tumble: gm-dice-tumble 360ms linear infinite;
+    --animate-gm-floppy-write: gm-floppy-write 350ms ease-in-out infinite
+        alternate;
+    --animate-gm-floppy-blink: gm-floppy-blink 350ms steps(2) infinite;
+    --animate-gm-check-pop: gm-check-pop 300ms ease-out both;
+
+    @keyframes gm-dice-tumble {
+        0% {
+            transform: rotate(0deg) scale(1);
+        }
+        50% {
+            transform: rotate(180deg) scale(0.85);
+        }
+        100% {
+            transform: rotate(360deg) scale(1);
+        }
+    }
+
+    @keyframes gm-floppy-write {
+        from {
+            transform: translateX(0);
+        }
+        to {
+            transform: translateX(-2.2px);
+        }
+    }
+
+    @keyframes gm-floppy-blink {
+        50% {
+            opacity: 0.35;
+        }
+    }
+
+    @keyframes gm-check-pop {
+        0% {
+            transform: scale(0);
+        }
+        70% {
+            transform: scale(1.25);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
 
     @keyframes gm-pop-in {
         from {
