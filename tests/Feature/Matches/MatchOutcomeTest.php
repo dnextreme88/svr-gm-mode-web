@@ -117,6 +117,7 @@ it('updates wins, losses and streaks after the show', function () {
 });
 
 it('starts a rivalry after repeated singles meetings', function () {
+    GameBuilder::passiveRival();
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
 
     foreach ([1, 2] as $week) {

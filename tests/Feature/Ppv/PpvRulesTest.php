@@ -107,6 +107,37 @@ describe('Royal Rumble', function () {
 
         expect(app(PpvCardService::class)->rumbleEntrantsFor(interbrandShow($save, RUMBLE_WEEK), Brand::Raw))->toBe(12);
     });
+
+    it('never picks a Diva as a random entrant and doesn’t count Divas toward the 15', function () {
+        $save = ppvSave(RUMBLE_WEEK, size: 12);
+
+        foreach (['Trish Stratus', 'Lita', 'Victoria'] as $diva) {
+            app(ContractService::class)->signDrafted($save, GameBuilder::wrestler($save, $diva), Brand::Raw, RUMBLE_WEEK);
+        }
+
+        $rumble = interbrandShow($save, RUMBLE_WEEK);
+        $cards = app(PpvCardService::class);
+
+        expect($cards->rumbleEntrantsFor($rumble, Brand::Raw))->toBe(12);
+
+        $cards->randomEntrants($rumble, Brand::Raw, $save->rng('test.entrants', RUMBLE_WEEK));
+
+        $entrants = MatchSlot::with('participants.saveWrestler.wrestler')->where('show_id', $rumble->id)->sole()->participants;
+
+        expect($entrants)->toHaveCount(12)
+            ->and($entrants->filter(fn ($p): bool => $p->saveWrestler->wrestler->roster_type === RosterType::Diva))->toBeEmpty();
+    });
+
+    it('refuses a Diva as a Royal Rumble entrant', function () {
+        $save = ppvSave(RUMBLE_WEEK);
+        $trish = GameBuilder::wrestler($save, 'Trish Stratus');
+        app(ContractService::class)->signDrafted($save, $trish, Brand::Raw, RUMBLE_WEEK);
+
+        $ids = [...rosterIds($save, Brand::Raw, 14), $trish->id];
+
+        expect(fn () => app(PpvCardService::class)->setEntrants(interbrandShow($save, RUMBLE_WEEK), Brand::Raw, $ids))
+            ->toThrow(GameRuleException::class, 'Royal Rumble entrants are Superstars and Legends.');
+    });
 });
 
 describe('Survivor Series', function () {

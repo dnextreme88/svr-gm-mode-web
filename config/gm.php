@@ -260,8 +260,7 @@ return [
     */
     'trades' => [
         'max_per_side' => 5,
-        // ASSUMPTION: no AI trade logic in the spec.
-        'ai_accept_chance' => 0.5,
+        // The rival GM's answers are in `ai.trades`.
     ],
 
     /*
@@ -463,5 +462,85 @@ return [
         ],
         'vince' => 'Vince McMahon',
         'trainer' => 'Trainer',
+    ],
+    /*
+    | Rival GM strategy (house rules, 2026-10-25). Only the brand no human
+    | runs books this way; the player's Randomize and Preset are unchanged.
+    | The low-cash mark is `emails.low_cash_threshold`.
+    */
+    'ai' => [
+        'booking' => [
+            // Each match rolls 95/5 for an intergender shape.
+            'intergender_chance' => 0.05,
+            // At least this many all-Diva matches per card, with 2+ bookable Divas.
+            'min_diva_matches' => 1,
+            // 85% careful (nobody ends the match above 70%), 15% aggressive (up to 110%).
+            'careful_chance' => 0.85,
+            'careful_max_fatigue' => 70,
+            'aggressive_max_fatigue' => 110,
+            // ASSUMPTION: aggressive slots prefer types costing at least this many bars.
+            'aggressive_min_bars' => 3,
+        ],
+        'titles' => [
+            // ASSUMPTION: the main event's chance of being a title match.
+            'main_event_chance' => ['weekly' => 0.6, 'ppv' => 0.9],
+            'other_slot_chance' => 0.35,
+            // ASSUMPTION
+            'champion_vs_contender_chance' => 0.1,
+        ],
+        'promos' => [
+            'interference_every_weeks' => 4,
+            // After each Slander, the gap to the next one (weeks => chance).
+            'slander_gap_weeks' => [3 => 0.10, 5 => 0.30, 6 => 0.60],
+            // PPV Hype for its own brand-only PPVs, rolled once per PPV.
+            'ppv_hype_weeks_before' => [1 => 0.5, 2 => 0.5],
+            'title_hype_weights' => ['world' => 60, 'second' => 30, 'other' => 10],
+            // ASSUMPTION: relative odds of the situational promos that fit a week.
+            'situational_weights' => [
+                'title_match_hype' => 20,
+                'new_superstar' => 15,
+                'comeback_reminder' => 10,
+                'inactive_superstar' => 10,
+                'continue_rivalry' => 20,
+                'main_event_hype' => 15,
+                'interview_space' => 10,
+                'diva_bikini_contest' => 10,
+            ],
+        ],
+        'rivalries' => [
+            'max_per_brand' => 7,
+            'refill_wait_weeks' => 2,
+            'reset_minimum' => 4,
+            // ASSUMPTION: each active rivalry's chance of a 1v1 on a card.
+            'rivalry_match_chance' => 0.5,
+        ],
+        'roster' => [
+            // ASSUMPTION: the four numbers below.
+            'renew_at_weeks_left' => 4,
+            'renew_length' => 52,
+            'target_size' => 28,
+            'cash_reserve' => 500_000,
+            // ASSUMPTION: money promos come first while the budget can't cover
+            // the renewals due within this many weeks (on top of renew_at_weeks_left).
+            'save_ahead_weeks' => 30,
+        ],
+        // ASSUMPTION: there's no Popularity yet, so this is the whole trade value model.
+        'trades' => [
+            'legend_value' => 2,
+            'champion_history_value' => 1,
+            'focus_value' => 1,
+            'fair_ratio' => 1.0,
+            'fair_accept' => 0.9,
+            'unfair_accept' => 0.05,
+        ],
+        // ASSUMPTION
+        'mitb' => [
+            'cash_in_champion_fatigue' => 60,
+            'cash_in_weeks_left' => 4,
+        ],
+        // ASSUMPTION: the draft stops chasing its focus class after this many picks.
+        'draft' => [
+            'max_focus_picks' => 12,
+        ],
     ],
 ];

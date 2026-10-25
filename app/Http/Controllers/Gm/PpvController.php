@@ -49,8 +49,9 @@ class PpvController extends Controller
             'booking_order' => BookingOrderPresenter::for($save, $show, $this->order),
             'mode' => $rumble ? 'rumble' : 'survivor_series',
             'needed' => $rumble ? $this->ppvCards->rumbleEntrantsFor($show, $brand) : (int) config('gm.ppv.survivor_series_team_size'),
+            // Divas are listed but greyed out: neither PPV takes them (house rule).
             'pool' => $this->randomizer->pool($show, $brand)
-                ->when(! $rumble, fn ($pool) => $pool->reject(fn (SaveWrestler $w): bool => $w->wrestler->isDiva()))
+                ->sortBy(fn (SaveWrestler $w): int => $w->wrestler->isDiva() ? 1 : 0)
                 ->map(fn (SaveWrestler $w): array => WrestlerPresenter::row($w->load('wrestler.specialties'), $week))
                 ->values(),
             'selected' => $chosen->filter(fn ($p): bool => $p->saveWrestler->brand === $brand)->pluck('save_wrestler_id')->values(),

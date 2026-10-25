@@ -155,6 +155,8 @@ it('sends the digest only when someone has 4 or fewer weeks left, listing all of
 });
 
 it('uses Tazz as the SmackDown sender', function () {
+    // The rival GM would renew Batista before the digest goes out.
+    config(['gm.ai.roster.renew_at_weeks_left' => 0]);
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
     Contract::where('save_wrestler_id', GameBuilder::wrestler($save, 'Batista')->id)->update(['weeks_remaining' => 3]);
 

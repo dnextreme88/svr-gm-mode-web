@@ -63,7 +63,8 @@ return [
     ['royal_rumble', '15-Man', $rumble(15), [], ['gm_bookable' => false, 'titles_allowed' => false, 'is_elimination' => true, 'win_condition' => 'Last one in the ring']],
     ['royal_rumble', '20-Man', $rumble(20), [], ['gm_bookable' => false, 'titles_allowed' => false, 'is_elimination' => true, 'win_condition' => 'Last one in the ring']],
     ['royal_rumble', '25-Man', $rumble(25), [], ['gm_bookable' => false, 'titles_allowed' => false, 'is_elimination' => true, 'win_condition' => 'Last one in the ring']],
-    ['royal_rumble', '30-Man', $rumble(30), [], ['ppv_exclusive' => 'royal_rumble', 'titles_allowed' => false, 'is_elimination' => true, 'win_condition' => 'Last one in the ring']],
+    // House rule: no Divas in the Royal Rumble or the Survivor Series main event.
+    ['royal_rumble', '30-Man', $rumble(30), [], ['ppv_exclusive' => 'royal_rumble', 'divas_allowed' => false, 'titles_allowed' => false, 'is_elimination' => true, 'win_condition' => 'Last one in the ring']],
 
     // Main events / gimmick matches
     ['three_stages_of_hell', 'Single', $one, [], ['gm_bookable' => false]],
@@ -159,5 +160,5 @@ return [
     ['tlc', 'Triple Threat Tornado Tag', $ttTag, [], ['cost' => 12_000]],
 
     // House rule: Survivor Series exclusive, always its main event, no titles.
-    ['survivor_series_elimination', 'Traditional 3 vs 3', $sixTag, [], ['ppv_exclusive' => 'survivor_series', 'is_elimination' => true, 'titles_allowed' => false]],
+    ['survivor_series_elimination', 'Traditional 3 vs 3', $sixTag, [], ['ppv_exclusive' => 'survivor_series', 'divas_allowed' => false, 'is_elimination' => true, 'titles_allowed' => false]],
 ];

@@ -101,7 +101,7 @@ describe('defection', function () {
 
 describe('trades', function () {
     it('allows uneven trades of up to 5 per side and swaps the wrestlers', function () {
-        config(['gm.trades.ai_accept_chance' => 1.0]);
+        config(['gm.ai.trades.fair_accept' => 1.0, 'gm.ai.trades.unfair_accept' => 1.0]);
         $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito'], smackdown: ['Batista']);
         $out = [GameBuilder::wrestler($save, 'Edge')->id, GameBuilder::wrestler($save, 'Kane')->id, GameBuilder::wrestler($save, 'Carlito')->id];
 
@@ -146,7 +146,7 @@ describe('trades', function () {
     });
 
     it('voids a traded briefcase holder’s Money in the Bank', function () {
-        config(['gm.trades.ai_accept_chance' => 1.0]);
+        config(['gm.ai.trades.fair_accept' => 1.0, 'gm.ai.trades.unfair_accept' => 1.0]);
         $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
         $briefcase = app(MitbService::class)->award($save, GameBuilder::wrestler($save, 'Edge'), 1);
 
@@ -156,7 +156,7 @@ describe('trades', function () {
     });
 
     it('leaves rosters alone when the AI declines', function () {
-        config(['gm.trades.ai_accept_chance' => 0.0]);
+        config(['gm.ai.trades.fair_accept' => 0.0, 'gm.ai.trades.unfair_accept' => 0.0]);
         $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
 
         $trade = app(TradeService::class)->propose($save, Brand::Raw, [GameBuilder::wrestler($save, 'Edge')->id], []);

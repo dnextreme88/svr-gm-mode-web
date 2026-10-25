@@ -139,7 +139,7 @@ class CardRandomizer
      * @param  Collection<int, SaveWrestler>  $pool
      * @param  list<list<int>>  $sides
      */
-    private function pickReferee(MatchType $type, Collection $pool, array $sides, Rng $rng): ?int
+    public function pickReferee(MatchType $type, Collection $pool, array $sides, Rng $rng): ?int
     {
         if (! $type->hasSpecialReferee()) {
             return null;
@@ -243,7 +243,7 @@ class CardRandomizer
      * @param  Collection<int, SaveWrestler>  $candidates
      * @return list<list<int>>
      */
-    private function fillSides(Show $show, MatchType $type, Collection $candidates, Rng $rng): array
+    public function fillSides(Show $show, MatchType $type, Collection $candidates, Rng $rng): array
     {
         $available = array_values(array_map('intval', $candidates->pluck('id')->all()));
         $available = $rng->shuffle($available);

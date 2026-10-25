@@ -157,6 +157,7 @@ export const EmailTemplate = {
     ContractReminder: 'contract_reminder',
     InjuryReturning: 'injury_returning',
     SlanderResult: 'slander_result',
+    RivalSlander: 'rival_slander',
 } as const;
 export type EmailTemplate = (typeof EmailTemplate)[keyof typeof EmailTemplate];
 export const EmailTemplateLabels: Record<EmailTemplate, string> = {
@@ -178,6 +179,7 @@ export const EmailTemplateLabels: Record<EmailTemplate, string> = {
     'contract_reminder': 'Contract Reminder',
     'injury_returning': 'Injury Returning',
     'slander_result': 'Slander Result',
+    'rival_slander': 'Rival Slander',
 };
 
 export const FinishEvent = {

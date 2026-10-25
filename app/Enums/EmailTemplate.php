@@ -29,4 +29,5 @@ enum EmailTemplate: string
     case ContractReminder = 'contract_reminder';
     case InjuryReturning = 'injury_returning';
     case SlanderResult = 'slander_result';
+    case RivalSlander = 'rival_slander';
 }

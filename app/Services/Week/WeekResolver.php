@@ -39,6 +39,8 @@ class WeekResolver
         Steps\InjuryReturns::class,
         Steps\TickContracts::class,
         Steps\UpdateMorale::class,
+        // After defections, so the rival GM can refill what it just lost.
+        Steps\RivalRosterUpkeep::class,
         Steps\ApplyPendingMoves::class,
         Steps\TitleUpkeep::class,
         Steps\TrackDeficit::class,

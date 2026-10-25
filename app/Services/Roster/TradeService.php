@@ -12,6 +12,7 @@ use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\Trade;
 use App\Models\TradeItem;
+use App\Services\Ai\AiTradeJudge;
 use App\Services\Calendar\CalendarService;
 use App\Services\Injuries\InjuryStatus;
 use App\Services\Mail\EmailService;
@@ -33,6 +34,7 @@ class TradeService
         private CalendarService $calendar,
         private EmailService $emails,
         private NewsRecorder $news,
+        private AiTradeJudge $judge,
     ) {}
 
     /**
@@ -113,7 +115,7 @@ class TradeService
     }
 
     /**
-     * Propose a trade. The AI answers right away using the seeded RNG.
+     * Propose a trade. The AI answers right away (`AiTradeJudge`).
      *
      * @param  list<int>  $outIds
      * @param  list<int>  $inIds
@@ -140,7 +142,7 @@ class TradeService
         }
 
         $tradeCount = Trade::where('save_id', $save->id)->count();
-        $accepts = $save->rng("ai.trade.{$tradeCount}", $week)->chance((float) config('gm.trades.ai_accept_chance'));
+        $accepts = $this->judge->accepts($save, $proposer, $outIds, $inIds, $save->rng("ai.trade.{$tradeCount}", $week));
 
         $trade->load('items.saveWrestler.wrestler');
 
