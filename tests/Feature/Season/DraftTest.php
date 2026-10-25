@@ -266,6 +266,8 @@ describe('Rival GM draft focus (house rule)', function () {
     });
 
     it('focuses on about the share of picks the roll range gives', function () {
+        // Nobody is signed here, so keep the end-of-draft title fill and the focus cap out of it.
+        config(['gm.initial_draft_max_picks' => 1000, 'gm.ai.draft.max_focus_picks' => 1000]);
         $save = GameBuilder::newSave();
         $ai = app(AiGm::class);
         $focus = collect(range(1, 300))->filter(fn (int $n) => AiGm::isDraftFocus(Brand::Raw, $ai->draftPick($save, Brand::Raw, $n)))->count();

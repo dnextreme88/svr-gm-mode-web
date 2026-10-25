@@ -130,6 +130,49 @@ type Props = {
             }>
         >;
     };
+    rival: {
+        booking: {
+            intergender_chance: number;
+            min_diva_matches: number;
+            careful_chance: number;
+            careful_max_fatigue: number;
+            aggressive_max_fatigue: number;
+            aggressive_min_bars: number;
+        };
+        titles: {
+            main_event_chance: { weekly: number; ppv: number };
+            other_slot_chance: number;
+            champion_vs_contender_chance: number;
+        };
+        promos: {
+            interference_every_weeks: number;
+            slander_gap_weeks: Record<string, number>;
+            title_hype_weights: Record<'world' | 'second' | 'other', number>;
+        };
+        rivalries: {
+            max_per_brand: number;
+            refill_wait_weeks: number;
+            reset_minimum: number;
+            rivalry_match_chance: number;
+        };
+        roster: {
+            renew_at_weeks_left: number;
+            renew_length: number;
+            target_size: number;
+            cash_reserve: number;
+            save_ahead_weeks: number;
+        };
+        trades: {
+            legend_value: number;
+            champion_history_value: number;
+            focus_value: number;
+            fair_accept: number;
+            unfair_accept: number;
+        };
+        mitb: { cash_in_champion_fatigue: number; cash_in_weeks_left: number };
+        max_focus_picks: number;
+        low_cash: number;
+    };
     stipulations: Array<{ value: Stipulation; label: string }>;
     promos: {
         slots: number;
@@ -1165,7 +1208,110 @@ const scopeLabel: Record<string, string> = {
     shared: 'Raw & Smackdown',
 };
 
-function RostersDocs({ rosters }: Pick<Props, 'rosters'>) {
+const pct = (n: number) => `${Math.round(n * 100)}%`;
+
+function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
+    const b = rival.booking;
+    const t = rival.titles;
+    const r = rival.rivalries;
+    const roster = rival.roster;
+    const gaps = Object.entries(rival.promos.slander_gap_weeks)
+        .map(([weeks, chance]) => `${weeks} weeks ${pct(chance)}`)
+        .join(', ');
+    const hype = rival.promos.title_hype_weights;
+
+    return (
+        <Panel title="Rival GM">
+            <p className="mb-3 text-sm text-ink-dim">
+                The brand you don’t run books with a plan. Simulate to here
+                still books your own cards with plain Preset rules.
+            </p>
+            <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                <li>
+                    <strong>Matches:</strong> each match is careful (
+                    {pct(b.careful_chance)}: nobody ends it above{' '}
+                    {b.careful_max_fatigue}%) or aggressive (
+                    {pct(1 - b.careful_chance)}: heavy gimmicks of{' '}
+                    {b.aggressive_min_bars}+ bars first, up to{' '}
+                    {b.aggressive_max_fatigue}%, so injuries can happen). A slot
+                    it can’t fill within those rules stays empty.
+                </li>
+                <li>
+                    <strong>Divas:</strong> at least {b.min_diva_matches}{' '}
+                    all-Diva match per card when it has 2 or more bookable
+                    Divas, on a random slot (match 5 or the main event when it’s
+                    for the Women’s title). Managers are the same gender as the
+                    competitors. {pct(b.intergender_chance)} of matches go
+                    intergender, in one of 7 shapes only: Diva managers for male
+                    competitors (1 vs 1 or 2 vs 2, one or both sides managed),
+                    mixed teams of one man and one Diva (2 vs 2 and 2 vs 2 vs
+                    2), or 3 vs 3 with the same number of Divas on each team.
+                </li>
+                <li>
+                    <strong>Titles:</strong> the main event goes for a title
+                    match first ({pct(t.main_event_chance.weekly)} on a weekly
+                    show, {pct(t.main_event_chance.ppv)} on a PPV), trying
+                    world, second tier, tag, then special. Other slots try{' '}
+                    {pct(t.other_slot_chance)}. A careful slot passes over a
+                    worn-out champion. A non-title match with a champion in it
+                    can become Champion vs. Contender (
+                    {pct(t.champion_vs_contender_chance)}).
+                </li>
+                <li>
+                    <strong>Promos:</strong> at or below{' '}
+                    {formatMoney(rival.low_cash)}, or when it’s saving for
+                    renewals due in the next{' '}
+                    {roster.save_ahead_weeks + roster.renew_at_weeks_left}{' '}
+                    weeks, Advertising and Merchandise come first. Otherwise:
+                    PPV Hype 1 or 2 weeks before its own brand PPVs,
+                    Interference every {rival.promos.interference_every_weeks}{' '}
+                    weeks, Slander after a rolled gap ({gaps}), Start a Rivalry
+                    when it needs one, one situational promo (Title Match Hype
+                    for a title on the card, weighted world {hype.world} /
+                    second tier {hype.second} / other {hype.other}, New
+                    Superstar, Comeback Reminder, Inactive Superstar, Continue
+                    Rivalry, Main Event Hype, Interview Space or Diva Bikini
+                    Contest), and money promos fill the rest. When it slanders
+                    you, your announcer emails you.
+                </li>
+                <li>
+                    <strong>Rivalries:</strong> at most {r.max_per_brand} on its
+                    brand. When one ends it waits {r.refill_wait_weeks} weeks,
+                    then starts one a week. With none left it starts at least{' '}
+                    {r.reset_minimum} at once. Each rivalry has a{' '}
+                    {pct(r.rivalry_match_chance)} chance of a 1 vs 1 on a card.
+                    Rivals are always the same gender.
+                </li>
+                <li>
+                    <strong>Contracts:</strong> it renews anyone with{' '}
+                    {roster.renew_at_weeks_left} or fewer weeks left for{' '}
+                    {roster.renew_length} weeks (champions first), taking a
+                    shorter deal if money is tight, and signs free agents up to{' '}
+                    {roster.target_size} while keeping{' '}
+                    {formatMoney(roster.cash_reserve)} in the bank.
+                </li>
+                <li>
+                    <strong>Trades:</strong> every superstar is worth 1, plus{' '}
+                    {rival.trades.legend_value} for a Legend,{' '}
+                    {rival.trades.champion_history_value} for a former champion
+                    and {rival.trades.focus_value} for its division. It takes a
+                    fair offer that leaves every title fillable{' '}
+                    {pct(rival.trades.fair_accept)} of the time, anything else{' '}
+                    {pct(rival.trades.unfair_accept)}.
+                </li>
+                <li>
+                    <strong>Money in the Bank:</strong> it cashes in when its
+                    world champion goes in at{' '}
+                    {rival.mitb.cash_in_champion_fatigue}%+ fatigue, or the
+                    briefcase has {rival.mitb.cash_in_weeks_left} weeks or fewer
+                    left.
+                </li>
+            </ul>
+        </Panel>
+    );
+}
+
+function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
     return (
         <div className="space-y-6">
             <p className="max-w-3xl text-sm text-ink-dim">
@@ -1206,7 +1352,10 @@ function RostersDocs({ rosters }: Pick<Props, 'rosters'>) {
                             <span className="gm-name-cruiser font-semibold">
                                 Cruiserweights and Light Heavyweights
                             </span>
-                            ), otherwise anyone affordable.
+                            ), otherwise anyone affordable. It stops chasing its
+                            division after {rival.max_focus_picks} of them, and
+                            its last picks fill any title nobody on its roster
+                            can hold.
                         </li>
                     </ul>
                 </Panel>
@@ -1250,6 +1399,8 @@ function RostersDocs({ rosters }: Pick<Props, 'rosters'>) {
                     </Panel>
                 ))}
             </div>
+
+            <RivalGmPanel rival={rival} />
         </div>
     );
 }
@@ -1285,7 +1436,8 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                             Cards are booked in date order: your PPV card first,
                             then the interbrand card (Royal Rumble or Survivor
                             Series entrants, or WrestleMania), then your weekly
-                            show.
+                            show. Divas can’t enter the Royal Rumble or a
+                            Survivor Series team.
                         </li>
                         <li>
                             “Continue to …” locks a card and opens the next one.
@@ -1312,8 +1464,8 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                     </li>
                     <li>
                         The computer books your cards for every week in between
-                        the way the rival GM does: Preset matches, random promos
-                        and random Royal Rumble entrants.
+                        with Preset matches, random promos and random Royal
+                        Rumble entrants (not the rival GM’s strategy).
                     </li>
                     <li>
                         Those weeks air for real: results, fatigue, injuries,
@@ -1614,7 +1766,9 @@ export default function Docs() {
                     <ScheduleDocs calendar={props.calendar} />
                 )}
                 {tab === 'results' && <ResultsDocs results={props.results} />}
-                {tab === 'rosters' && <RostersDocs rosters={props.rosters} />}
+                {tab === 'rosters' && (
+                    <RostersDocs rosters={props.rosters} rival={props.rival} />
+                )}
             </div>
         </>
     );

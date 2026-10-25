@@ -171,6 +171,49 @@ const props = {
             ],
         },
     },
+    rival: {
+        booking: {
+            intergender_chance: 0.05,
+            min_diva_matches: 1,
+            careful_chance: 0.85,
+            careful_max_fatigue: 70,
+            aggressive_max_fatigue: 110,
+            aggressive_min_bars: 3,
+        },
+        titles: {
+            main_event_chance: { weekly: 0.6, ppv: 0.9 },
+            other_slot_chance: 0.35,
+            champion_vs_contender_chance: 0.1,
+        },
+        promos: {
+            interference_every_weeks: 4,
+            slander_gap_weeks: { 3: 0.1, 5: 0.3, 6: 0.6 },
+            title_hype_weights: { world: 60, second: 30, other: 10 },
+        },
+        rivalries: {
+            max_per_brand: 7,
+            refill_wait_weeks: 2,
+            reset_minimum: 4,
+            rivalry_match_chance: 0.5,
+        },
+        roster: {
+            renew_at_weeks_left: 4,
+            renew_length: 52,
+            target_size: 28,
+            cash_reserve: 500000,
+            save_ahead_weeks: 30,
+        },
+        trades: {
+            legend_value: 2,
+            champion_history_value: 1,
+            focus_value: 1,
+            fair_accept: 0.9,
+            unfair_accept: 0.05,
+        },
+        mitb: { cash_in_champion_fatigue: 60, cash_in_weeks_left: 4 },
+        max_focus_picks: 12,
+        low_cash: 500000,
+    },
     stipulations: [],
     promos: {
         slots: 2,
@@ -539,6 +582,26 @@ describe('Docs page', () => {
             'data-tone',
             'cruiser',
         );
+    });
+
+    it('explains how the rival GM books, promotes, signs and trades', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Rosters & draft' }));
+
+        expect(screen.getByText('Rival GM')).toBeInTheDocument();
+        expect(
+            screen.getByText(/nobody ends it above 70%/),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/in one of 7 shapes only/)).toBeInTheDocument();
+        expect(
+            screen.getByText(/3 weeks 10%, 5 weeks 30%, 6 weeks 60%/),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/at most 7 on its/)).toBeInTheDocument();
+        expect(
+            screen.getByText(/stops chasing its division after 12/),
+        ).toBeInTheDocument();
     });
 
     it('lists every promo’s story situations and their variants', async () => {

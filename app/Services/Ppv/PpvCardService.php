@@ -94,12 +94,11 @@ class PpvCardService
             }
         }
 
-        if (! $rumble) {
-            $divas = SaveWrestler::with('wrestler')->whereIn('id', $ids)->get()->filter(fn (SaveWrestler $w): bool => $w->wrestler->roster_type === RosterType::Diva);
+        // House rule: Divas can enter neither the Royal Rumble nor Survivor Series.
+        $divas = SaveWrestler::with('wrestler')->whereIn('id', $ids)->get()->filter(fn (SaveWrestler $w): bool => $w->wrestler->roster_type === RosterType::Diva);
 
-            if ($divas->isNotEmpty()) {
-                throw new GameRuleException('The Survivor Series teams are Superstars and Legends.');
-            }
+        if ($divas->isNotEmpty()) {
+            throw new GameRuleException($rumble ? 'Royal Rumble entrants are Superstars and Legends.' : 'The Survivor Series teams are Superstars and Legends.');
         }
 
         $existing = $slot->participants()->with('saveWrestler')->get();
@@ -137,12 +136,7 @@ class PpvCardService
     {
         $slot = $this->mainEventSlot($show);
         $rumble = $slot->fixed_kind === FixedSlotKind::RoyalRumble;
-        $pool = $this->randomizer->pool($show, $brand);
-
-        if (! $rumble) {
-            $pool = $pool->reject(fn (SaveWrestler $w): bool => $w->wrestler->roster_type === RosterType::Diva)->values();
-        }
-
+        $pool = $this->entrantPool($show, $brand);
         $needed = $rumble ? $this->rumbleEntrantsFor($show, $brand) : (int) config('gm.ppv.survivor_series_team_size');
 
         if ($pool->count() < $needed) {
@@ -166,7 +160,20 @@ class PpvCardService
     {
         $wanted = (int) config('gm.ppv.royal_rumble_entrants_per_brand');
 
-        return min($wanted, $this->randomizer->pool($show, $brand)->count());
+        return min($wanted, $this->entrantPool($show, $brand)->count());
+    }
+
+    /**
+     * Bookable wrestlers who can enter the Royal Rumble or a Survivor Series
+     * team: never Divas (house rule).
+     *
+     * @return Collection<int, SaveWrestler>
+     */
+    public function entrantPool(Show $show, Brand $brand): Collection
+    {
+        return $this->randomizer->pool($show, $brand)
+            ->reject(fn (SaveWrestler $w): bool => $w->wrestler->roster_type === RosterType::Diva)
+            ->values();
     }
 
     public function mainEventSlot(Show $show): MatchSlot

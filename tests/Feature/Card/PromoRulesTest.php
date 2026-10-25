@@ -245,6 +245,7 @@ describe('airing', function () {
     });
 
     it('fizzles Title Match Hype when the title match is gone by air time, but still charges', function () {
+        GameBuilder::passiveRival();
         config(['gm.promos.success_rates.title_match_hype' => 1.0]);
         $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
         GameBuilder::giveTitle($save, 'wwe', ['Edge']);

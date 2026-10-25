@@ -253,6 +253,19 @@ class EmailService
     }
 
     /**
+     * JR / Tazz warn the player that the rival GM ran a Slander promo
+     * against their show (house rule).
+     */
+    public function rivalSlander(Save $save, Brand $target, Brand $slanderer, bool $succeeded, int $week): Email
+    {
+        [$subject, $body] = $succeeded
+            ? ["{$slanderer->label()} ran a smear campaign against us", "{$slanderer->label()} spent the week running a smear campaign against {$target->label()}, and it's getting traction. The fans are talking about it. We need a strong show to answer them."]
+            : ["{$slanderer->label()} tried to smear us", "{$slanderer->label()} ran a smear campaign against {$target->label()} this week. It fell flat: nobody bought it, and they paid good money for nothing."];
+
+        return $this->send($save, $target, EmailTemplate::RivalSlander, $subject, ['succeeded' => $succeeded, 'rival_brand' => $slanderer->value], $body, $week);
+    }
+
+    /**
      * Vince's reminder ahead of a shared (Raw and SmackDown) pay-per-view.
      */
     public function ppvReminder(Save $save, Brand $brand, PpvEvent $ppv, int $weeksOut, int $week): ?Email

@@ -204,6 +204,8 @@ it('renders the Title History screen', function () {
 });
 
 it('lists each reign’s defenses, newest first, linked to their results', function () {
+    // Keep the rival's card empty so only these two results exist.
+    config(['gm.ai.roster.target_size' => 0]);
     $save = GameBuilder::inSeason(raw: ['Edge', 'John Cena', 'Kane'], smackdown: ['Batista']);
     $reign = GameBuilder::giveTitle($save, 'wwe', ['Edge']);
 

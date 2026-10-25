@@ -8,6 +8,7 @@ import { PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
+import { RosterType } from '@/types/enums';
 import type { GamePageProps, WrestlerRow } from '@/types/gm';
 
 type Props = GamePageProps & {
@@ -109,15 +110,20 @@ export default function PpvEntrants() {
                     <ul className="gm-scroll max-h-[65vh] divide-y divide-white/5 overflow-y-auto">
                         {pool.map((w) => {
                             const checked = picked.includes(w.id);
+                            // House rule: Divas can't enter either PPV.
+                            const diva = w.roster_type === RosterType.Diva;
+                            const locked = readOnly || diva;
 
                             return (
                                 <li key={w.id}>
                                     <label
                                         className={cn(
                                             'flex items-center gap-3 px-4 py-2 text-sm',
-                                            readOnly
+                                            locked
                                                 ? ''
                                                 : 'cursor-pointer hover:bg-white/[0.03]',
+                                            diva &&
+                                                'cursor-not-allowed opacity-40',
                                             checked && 'bg-brand/12',
                                         )}
                                     >
@@ -125,7 +131,7 @@ export default function PpvEntrants() {
                                             type="checkbox"
                                             checked={checked}
                                             disabled={
-                                                readOnly ||
+                                                locked ||
                                                 (!checked &&
                                                     picked.length >= needed)
                                             }
@@ -134,6 +140,11 @@ export default function PpvEntrants() {
                                         />
                                         <span className="flex-1 font-medium">
                                             <WrestlerName wrestler={w} />
+                                            {diva && (
+                                                <span className="ml-2 text-xs text-ink-faint">
+                                                    No Divas
+                                                </span>
+                                            )}
                                         </span>
                                         <FatigueMeter
                                             fatigue={w.fatigue}

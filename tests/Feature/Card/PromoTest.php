@@ -145,6 +145,7 @@ it('backfires Slander automatically if used more than once in 4 weeks, and alway
 });
 
 it('reports Interference results as a neutral headline whether it succeeds or fails', function () {
+    GameBuilder::passiveRival();
     config(['gm.promos.success_rates.interference_promotion' => 0.0]);
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
     bookPromo($save, PromoTypeKey::InterferencePromotion, 1, 'Edge');
@@ -158,6 +159,7 @@ it('reports Interference results as a neutral headline whether it succeeds or fa
 });
 
 it('starts and continues rivalries', function () {
+    GameBuilder::passiveRival();
     config(['gm.promos.success_rates.start_rivalry' => 1.0, 'gm.promos.success_rates.continue_rivalry' => 1.0]);
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
 

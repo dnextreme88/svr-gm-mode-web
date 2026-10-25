@@ -30,21 +30,33 @@ class TitleMatchPlanner
      * on the card qualify; the champion(s) must be in the pool and every
      * challenger must be eligible and not locked out.
      *
+     * The rival GM passes `$force` (it rolls the chance itself) and an
+     * `$order` of championship ids to try, taking the first that fits
+     * instead of a random one.
+     *
      * @param  Collection<int, SaveWrestler>  $candidates
      * @param  list<int>  $titlesOnCard
+     * @param  list<int>|null  $order
      * @return array{championship_id: int, sides: list<list<int>>}|null
      */
-    public function plan(Show $show, Brand $brand, MatchType $type, Collection $candidates, array $titlesOnCard, Rng $rng): ?array
+    public function plan(Show $show, Brand $brand, MatchType $type, Collection $candidates, array $titlesOnCard, Rng $rng, bool $force = false, ?array $order = null): ?array
     {
-        if (! $type->titles_allowed || ! $rng->chance((float) config('gm.card.randomize_title_chance'))) {
+        if (! $type->titles_allowed || (! $force && ! $rng->chance((float) config('gm.card.randomize_title_chance')))) {
             return null;
         }
 
         $sizes = array_unique($type->sides);
         $ids = array_values(array_map('intval', $candidates->pluck('id')->all()));
         $options = [];
+        $championships = Championship::where('brand', $brand)->orderBy('sort_order')->get();
 
-        foreach (Championship::where('brand', $brand)->orderBy('sort_order')->get() as $championship) {
+        if ($order !== null) {
+            $championships = $championships->filter(fn (Championship $c): bool => in_array($c->id, $order, true))
+                ->sortBy(fn (Championship $c): int => (int) array_search($c->id, $order, true))
+                ->values();
+        }
+
+        foreach ($championships as $championship) {
             if (in_array($championship->id, $titlesOnCard, true) || ($championship->is_tag ? $sizes !== [2] : $sizes !== [1])) {
                 continue;
             }
@@ -75,7 +87,7 @@ class TitleMatchPlanner
             return null;
         }
 
-        $choice = $rng->pick($options);
+        $choice = $order !== null ? $options[0] : $rng->pick($options);
         $pool = $rng->shuffle($choice['challengers']);
         $sides = [$choice['holders']];
 

@@ -295,8 +295,12 @@ class PromoService
             'outcome_note' => $note,
         ]);
 
+        // The player's Slander gets the rival GM's reaction; the rival's
+        // Slander gets the player a heads-up from JR / Tazz.
         if ($type->key === PromoTypeKey::SlanderPromotion) {
-            $this->emails->slanderResult($save, $brand, $succeeded, $week);
+            $save->isHuman($brand)
+                ? $this->emails->slanderResult($save, $brand, $succeeded, $week)
+                : $this->emails->rivalSlander($save, $save->player_brand, $brand, $succeeded, $week);
         }
 
         // The news story is written once the show has aired, so it can tell

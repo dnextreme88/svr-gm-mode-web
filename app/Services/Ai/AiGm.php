@@ -8,6 +8,7 @@ use App\Enums\PromoTypeKey;
 use App\Enums\RosterType;
 use App\Enums\WeightClass;
 use App\Exceptions\GameRuleException;
+use App\Models\Championship;
 use App\Models\PromoSlot;
 use App\Models\PromoType;
 use App\Models\Save;
@@ -20,9 +21,12 @@ use App\Services\Promos\PromoService;
 use App\Services\Roster\RosterService;
 
 /**
- * Decisions for the brand no human runs. ASSUMPTION: the spec has no AI
- * rules and no overall/popularity data to rank on, so choices are random
- * through the save's seeded RNG.
+ * Decisions for the brand no human runs. Its cards follow the strategic
+ * house rules (`gm.ai`): `AiRivalryPlanner` decides which rivalries get
+ * matches or start, `AiBooker` books the matches and `AiPromoPlanner` the
+ * promos. When the simulator books the player's own cards (Simulate to
+ * here) it keeps the plain Preset rules. Choices that need luck go through
+ * the save's seeded RNG.
  */
 class AiGm
 {
@@ -32,10 +36,15 @@ class AiGm
         private CardRandomizer $randomizer,
         private CardService $cards,
         private PromoService $promos,
+        private AiBooker $booker,
+        private AiRivalryPlanner $rivalryPlanner,
+        private AiPromoPlanner $promoPlanner,
+        private AiRosterManager $rosterManager,
     ) {}
 
     /**
-     * Fill the AI brand's empty slots using the Preset rules (§24).
+     * Fill a brand's empty slots: strategically for the rival brand, with
+     * Preset (§24) for the player's cards during a simulation.
      */
     public function bookShow(Show $show, ?Brand $brand = null): void
     {
@@ -46,6 +55,22 @@ class AiGm
         }
 
         $this->cards->ensureSlots($show);
+
+        if ($brand !== $show->game->rivalBrand()) {
+            $this->bookPreset($show, $brand);
+
+            return;
+        }
+
+        $promos = $show->brand === $brand && $show->promoSlotCount() > 0 && ! $this->rosterManager->needsCash($show->game, $brand);
+        $plan = $this->rivalryPlanner->plan($show, $brand, $this->booker->plannedFatigue($show, $brand), $promos);
+
+        $this->booker->book($show, $brand, $plan['matches'], $plan['fresh']);
+        $this->promoPlanner->book($show, $brand, $plan['promo_starts']);
+    }
+
+    private function bookPreset(Show $show, Brand $brand): void
+    {
         $this->bookPromos($show);
 
         try {
@@ -86,7 +111,9 @@ class AiGm
      * to stop. House rule: a roll of 1..`ai_roll_max` at or above
      * `ai_focus_from` makes the pick come from the brand's focus class when
      * any are left (Raw: Divas, SmackDown: Cruiserweights and Light
-     * Heavyweights). Otherwise it's any wrestler at random.
+     * Heavyweights), up to `gm.ai.draft.max_focus_picks` of them. Otherwise
+     * it's any wrestler at random. Its last picks first fill any title the
+     * roster has no eligible holder for.
      */
     public function draftPick(Save $save, Brand $brand, int $pickNumber): ?SaveWrestler
     {
@@ -106,8 +133,25 @@ class AiGm
         }
 
         $rng = $save->rng("ai.draft.{$brand->value}.{$pickNumber}", 0);
+        $roster = SaveWrestler::with('wrestler')->where('save_id', $save->id)->where('brand', $brand)->get();
 
-        if ($rng->int(1, (int) config('gm.draft.ai_roll_max')) >= (int) config('gm.draft.ai_focus_from')) {
+        $uncovered = Championship::where('brand', $brand)->orderBy('sort_order')->get()
+            ->reject(fn (Championship $c): bool => $roster->contains(fn (SaveWrestler $w): bool => $c->allowsWrestler($w->wrestler)))
+            ->values();
+        $picksLeft = (int) config('gm.initial_draft_max_picks') - $pickNumber + 1;
+
+        if ($uncovered->isNotEmpty() && $picksLeft >= 1 && $picksLeft <= $uncovered->count()) {
+            $fillers = $pool->filter(fn (SaveWrestler $w): bool => $uncovered->contains(fn (Championship $c): bool => $c->allowsWrestler($w->wrestler)))->values();
+
+            if ($fillers->isNotEmpty()) {
+                return $rng->pick($fillers->all());
+            }
+        }
+
+        $focusTaken = $roster->filter(fn (SaveWrestler $w): bool => self::isDraftFocus($brand, $w))->count();
+
+        if ($rng->int(1, (int) config('gm.draft.ai_roll_max')) >= (int) config('gm.draft.ai_focus_from')
+            && $focusTaken < (int) config('gm.ai.draft.max_focus_picks')) {
             $focus = $pool->filter(fn (SaveWrestler $w): bool => self::isDraftFocus($brand, $w))->values();
 
             if ($focus->isNotEmpty()) {

@@ -65,6 +65,7 @@ it('starts the next week from the recovered fatigue', function () {
 });
 
 it('recovers wrestlers on both brands, booked or not', function () {
+    GameBuilder::passiveRival();
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
     GameBuilder::wrestler($save, 'Edge')->update(['fatigue' => 60]);
     GameBuilder::wrestler($save, 'Batista')->update(['fatigue' => 60]);
