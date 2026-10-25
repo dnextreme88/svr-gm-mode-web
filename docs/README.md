@@ -15,3 +15,4 @@ Dated implementation and upgrade plans for this site. Each plan is a Markdown fi
 | **2026-10-24** | [Promo Stories & Card Screen Polish](20261024-promo-stories.md) |
 | **2026-10-25** | [Live Results, Book to Win, Title Lineage, Injury & Promo Rules](20261025-live-results-and-title-lineage.md) |
 | **2026-10-25** | [Strategic Rival GM](20261025-strategic-rival-gm.md) |
+| **2026-10-25** | [Dice & Floppy Button Icons](20261025-dice-and-floppy-icons.md) |

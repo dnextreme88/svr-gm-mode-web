@@ -1,9 +1,9 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { Check, Save } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { UnreadPill } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
+import { FloppyIcon } from '@/components/gm/floppy-icon';
 import { useFlashToast } from '@/hooks/use-flash-toast';
 import { formatMoney } from '@/lib/gm';
 import { cn } from '@/lib/utils';
@@ -70,7 +70,7 @@ function SaveCareerButton({ game }: { game: GameShell }) {
                 title="Progress is saved automatically from here on"
                 data-testid="career-saved"
             >
-                <Check className="size-3.5" />
+                <FloppyIcon status="saved" />
                 Saved
             </span>
         );
@@ -91,7 +91,7 @@ function SaveCareerButton({ game }: { game: GameShell }) {
                 );
             }}
         >
-            <Save className="size-3.5" />
+            <FloppyIcon status={saving ? 'saving' : null} />
             {saving ? 'Saving…' : 'Save career'}
         </button>
     );

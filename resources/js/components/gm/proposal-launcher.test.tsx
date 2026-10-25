@@ -1,7 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { DiceIcon } from '@/components/gm/dice-icon';
 import { ProposalLauncher } from '@/components/gm/proposal-launcher';
 import type { ProposalResult } from '@/components/gm/proposal-launcher';
 import type { ProposalView } from '@/components/gm/proposal-modal';
@@ -43,16 +42,31 @@ describe('Randomize / Preset modal (§24)', () => {
             <ProposalLauncher
                 label="Randomize"
                 mode="randomize"
-                icon={<DiceIcon />}
                 fetchProposal={vi.fn()}
                 onConfirm={vi.fn()}
             />,
         );
 
         const button = screen.getByRole('button', { name: 'Randomize' });
+        const dice = within(button).getByTestId('dice-icon');
+        expect(dice).toHaveAttribute('aria-hidden', 'true');
+        expect(dice).toHaveAttribute('data-face', '5');
+    });
+
+    it('shows a six on the Preset card button', () => {
+        render(
+            <ProposalLauncher
+                label="Preset card"
+                mode="preset"
+                fetchProposal={vi.fn()}
+                onConfirm={vi.fn()}
+            />,
+        );
+
+        const button = screen.getByRole('button', { name: 'Preset card' });
         expect(within(button).getByTestId('dice-icon')).toHaveAttribute(
-            'aria-hidden',
-            'true',
+            'data-face',
+            '6',
         );
     });
 
@@ -209,12 +223,21 @@ describe('Randomize / Preset modal (§24)', () => {
         );
         await user.click(screen.getByRole('button', { name: 'Randomize' }));
         await screen.findByText('Edge vs Kane');
-        await user.click(screen.getByRole('button', { name: 'Re-roll' }));
+        const reroll = screen.getByRole('button', { name: 'Re-roll' });
+        expect(within(reroll).getByTestId('dice-icon')).toHaveAttribute(
+            'data-face',
+            '1',
+        );
+        await user.click(reroll);
 
         expect(
             await screen.findByText('Carlito vs Big Show'),
         ).toBeInTheDocument();
         expect(fetchProposal).toHaveBeenLastCalledWith(1);
+        expect(within(reroll).getByTestId('dice-icon')).toHaveAttribute(
+            'data-face',
+            '2',
+        );
     });
 
     it('Preset lists unfilled slots and shows the cost warning', async () => {

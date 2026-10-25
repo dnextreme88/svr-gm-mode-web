@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { Dice } from '@/components/gm/dice';
+import type { DiceFace } from '@/components/gm/dice';
 import { formatMoney } from '@/lib/gm';
 
 export type ProposalView = {
@@ -16,6 +18,8 @@ export type ProposalView = {
 type Props = {
     open: boolean;
     mode: 'randomize' | 'preset';
+    /** Which roll this is; picks the face Re-roll's die lands on. */
+    roll?: number;
     loading: boolean;
     error: string | null;
     proposals: ProposalView[];
@@ -35,6 +39,7 @@ type Props = {
 export function ProposalModal({
     open,
     mode,
+    roll = 0,
     loading,
     error,
     proposals,
@@ -188,6 +193,10 @@ export function ProposalModal({
                         onClick={onReroll}
                         disabled={loading}
                     >
+                        <Dice
+                            face={((roll % 6) + 1) as DiceFace}
+                            rolling={loading}
+                        />
                         Re-roll
                     </button>
                     <button
