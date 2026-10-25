@@ -61,7 +61,7 @@ class ResultsController extends Controller
             ->get()
             ->sortBy(fn (Show $s): int => $s->isInterbrand() ? 1 : ($s->isPpv() ? 0 : 2))
             ->map(function (Show $show) use ($save, $logs, $nextId): array {
-                $slots = MatchSlot::with(['matchType', 'participants.saveWrestler.wrestler', 'result.championReign', 'titleChampionship'])
+                $slots = MatchSlot::with(['matchType', 'participants.saveWrestler.wrestler', 'result.championReign', 'titleChampionship', 'gauntletBouts'])
                     ->where('show_id', $show->id)
                     ->orderBy('position')
                     ->get()

@@ -3,8 +3,10 @@
 namespace App\Http\Presenters;
 
 use App\Enums\Brand;
+use App\Enums\MatchFamily;
 use App\Enums\MatchMethod;
 use App\Enums\ParticipantRole;
+use App\Models\GauntletBout;
 use App\Models\MatchParticipant;
 use App\Models\MatchResult;
 use App\Models\MatchSlot;
@@ -108,6 +110,7 @@ class CardPresenter
             'ppv_only' => $type->ppv_only,
             'captain_fall' => $type->captain_fall,
             'special_referee' => $type->hasSpecialReferee(),
+            'stipulations_allowed' => $type->allowsStipulations(),
         ];
     }
 
@@ -145,6 +148,7 @@ class CardPresenter
             'loser_sides' => array_values($losers),
             'booked' => $result->booked,
             'champions' => $result->championReign === null || $result->championReign->isVacant() ? [] : $result->championReign->holder_snapshot['names'],
+            'captains' => self::captains($slot),
             'losers' => array_values(array_map(fn (array $side): string => implode(' & ', $side), $losers)),
             'managers' => $managers,
             'referee' => $referee,
@@ -157,6 +161,7 @@ class CardPresenter
             'title_banner' => $result->title_banner,
             'stipulation' => $slot->stipulation?->value,
             'stipulation_outcome' => $result->stipulation_outcome,
+            'bouts' => self::bouts($slot),
             'rating' => $slot->rating,
             'fan_delta' => $slot->fan_delta,
             'participants' => $slot->participants->map(fn (MatchParticipant $p): array => [
@@ -204,6 +209,48 @@ class CardPresenter
             'title' => $slot->titleChampionship?->name,
             'stipulation' => $slot->stipulation?->value,
             'champions' => $champions,
+            'captains' => self::captains($slot),
+            'gauntlet' => $slot->matchType?->family === MatchFamily::Gauntlet,
         ];
+    }
+
+    /**
+     * A Gauntlet's bouts, in order (house rule).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function bouts(MatchSlot $slot): array
+    {
+        if ($slot->matchType?->family !== MatchFamily::Gauntlet) {
+            return [];
+        }
+
+        $names = $slot->competitors()->mapWithKeys(fn (MatchParticipant $p): array => [$p->side => $p->saveWrestler->wrestler->name]);
+
+        return array_values($slot->gauntletBouts->map(fn (GauntletBout $bout): array => [
+            'round' => $bout->round,
+            'winner' => $names[$bout->winner_side] ?? '?',
+            'loser' => $names[$bout->winner_side === $bout->side_a ? $bout->side_b : $bout->side_a] ?? '?',
+            'method_label' => $bout->method->label(),
+            'booked' => $bout->booked,
+            'summary' => $bout->summary,
+        ])->all());
+    }
+
+    /**
+     * In a Captain Fall match, the first wrestler on each side, for the
+     * (Cpt) tag.
+     *
+     * @return list<string>
+     */
+    private static function captains(MatchSlot $slot): array
+    {
+        if (! $slot->matchType?->captain_fall) {
+            return [];
+        }
+
+        $names = $slot->competitors()->mapWithKeys(fn (MatchParticipant $p): array => [$p->save_wrestler_id => $p->saveWrestler->wrestler->name]);
+
+        return array_values(array_map(fn (array $ids): string => (string) $names[$ids[0]], $slot->sides()));
     }
 }

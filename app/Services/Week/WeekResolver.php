@@ -2,9 +2,11 @@
 
 namespace App\Services\Week;
 
+use App\Enums\MatchFamily;
 use App\Enums\SaveStage;
 use App\Enums\ShowStatus;
 use App\Exceptions\GameRuleException;
+use App\Models\MatchSlot;
 use App\Models\Save;
 use App\Models\Show;
 use App\Models\WeekAiring;
@@ -195,11 +197,15 @@ class WeekResolver
 
     /**
      * Air the player's next match: simulated, or won by `$bookedSide` (Book
-     * to Win). `$slotId` must be the match that is up next.
+     * to Win). `$slotId` must be the match that is up next. A Gauntlet
+     * takes `$bookedBouts` instead: the side booked to win each bout, in
+     * order, with null (and only nulls after it) to simulate the rest.
+     *
+     * @param  list<int|null>  $bookedBouts
      */
-    public function decide(Save $save, int $slotId, ?int $bookedSide = null): void
+    public function decide(Save $save, int $slotId, ?int $bookedSide = null, array $bookedBouts = []): void
     {
-        DB::transaction(function () use ($save, $slotId, $bookedSide): void {
+        DB::transaction(function () use ($save, $slotId, $bookedSide, $bookedBouts): void {
             [$airing, $context] = $this->resume($save);
             $show = $this->airShows()->current($context);
             $next = $show === null ? null : $this->shows()->nextMatch($show);
@@ -212,11 +218,49 @@ class WeekResolver
                 throw new GameRuleException('Pick one of the sides in this match.');
             }
 
-            $this->shows()->airNext($show, $context, $bookedSide);
+            if ($bookedBouts !== []) {
+                $this->assertGauntletPicks($next, $bookedBouts);
+            }
+
+            $this->shows()->airNext($show, $context, $bookedSide, $bookedBouts);
             $this->proceed($airing, $context);
         });
 
         $save->refresh();
+    }
+
+    /**
+     * Gauntlet picks follow the chain: bout 1 is entrants 1 and 2, and each
+     * booked winner meets the next entrant. Once a bout is simulated the
+     * next pairing isn't known, so the rest must be simulated too.
+     *
+     * @param  list<int|null>  $picks
+     */
+    private function assertGauntletPicks(MatchSlot $slot, array $picks): void
+    {
+        $order = array_keys($slot->sides());
+
+        if ($slot->matchType?->family !== MatchFamily::Gauntlet || count($picks) > count($order) - 1) {
+            throw new GameRuleException('Bout picks are only for a Gauntlet, one per bout.');
+        }
+
+        $holder = $order[0];
+
+        foreach ($picks as $round => $pick) {
+            if ($pick === null) {
+                if (array_filter(array_slice($picks, $round), fn (?int $p): bool => $p !== null) !== []) {
+                    throw new GameRuleException('After a simulated bout, the rest of the Gauntlet is simulated too.');
+                }
+
+                return;
+            }
+
+            if (! in_array($pick, [$holder, $order[$round + 1]], true)) {
+                throw new GameRuleException('Bout '.($round + 1).': pick one of the two wrestlers in it.');
+            }
+
+            $holder = $pick;
+        }
     }
 
     /**

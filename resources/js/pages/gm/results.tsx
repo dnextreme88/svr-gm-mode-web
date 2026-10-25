@@ -176,7 +176,10 @@ export default function Results() {
         setOpen((o) => (o === index ? null : index));
     };
 
-    const post = (url: string, data: Record<string, number | null> = {}) => {
+    const post = (
+        url: string,
+        data: Record<string, number | null | Array<number | null>> = {},
+    ) => {
         setBusy(true);
         router.post(url, data, {
             preserveScroll: true,
@@ -185,10 +188,15 @@ export default function Results() {
         });
     };
 
-    const decide = (match: PendingMatch, side: number | null) =>
+    const decide = (
+        match: PendingMatch,
+        side: number | null,
+        bouts: Array<number | null> = [],
+    ) =>
         post(gm.results.decide.url({ save: game.id, week: week_number }), {
             slot_id: match.id,
             winner_side: side,
+            ...(match.gauntlet ? { bouts } : {}),
         });
 
     return (
@@ -319,10 +327,11 @@ export default function Results() {
                                             showName={current.show.name}
                                             isMainEvent={current.isMainEvent}
                                             busy={busy}
-                                            onDecide={(side) =>
+                                            onDecide={(side, bouts) =>
                                                 decide(
                                                     current.outcome as PendingMatch,
                                                     side,
+                                                    bouts,
                                                 )
                                             }
                                         />
@@ -444,6 +453,7 @@ function MatchRow({
                                     <SideNames
                                         names={side.members.map((m) => m.name)}
                                         champions={o.champions}
+                                        captains={o.captains}
                                     />
                                 </Fragment>
                             ))
@@ -452,6 +462,7 @@ function MatchRow({
                                 <SideNames
                                     names={o.winners}
                                     champions={o.champions}
+                                    captains={o.captains}
                                 />
                                 <span className="mx-1.5 text-ink-faint group-hover:text-white/70">
                                     def.
@@ -462,6 +473,7 @@ function MatchRow({
                                         <SideNames
                                             names={side}
                                             champions={o.champions}
+                                            captains={o.captains}
                                         />
                                     </Fragment>
                                 ))}
@@ -472,7 +484,7 @@ function MatchRow({
                         {o.pending ? (
                             o.is_next ? (
                                 <span className="gm-btn gm-btn-gold gm-btn-sm">
-                                    Manual book to win
+                                    Pending Result
                                 </span>
                             ) : (
                                 <span className="gm-label text-ink-faint">

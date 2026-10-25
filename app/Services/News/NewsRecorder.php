@@ -22,6 +22,19 @@ class NewsRecorder
     ) {}
 
     /**
+     * Change an event's placeholders and render its text again.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function rewrite(NewsEvent $event, array $payload): void
+    {
+        $event->update([
+            'payload' => $payload,
+            'rendered_text' => $this->templates->render($event->type, $payload),
+        ]);
+    }
+
+    /**
      * @param  array<string, mixed>  $payload  template placeholders
      * @param  array<string, mixed>  $subjects  wrestler/title/show/PPV ids
      */

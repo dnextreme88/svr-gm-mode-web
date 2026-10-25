@@ -69,6 +69,9 @@ class NewsTemplates
         'season_reset' => 'A new year begins. Ratings reset and the re-draft opens.',
         'match_result' => '{winner} {defeats} {loser} in decisive fashion. {pronoun} made sure to get the win via {via}.',
         'match_result.not_decisive' => '{winner} {defeats} {loser} via {via}. Not the cleanest win, but a win is a win.',
+        // House rule: a decisive win by someone who went in with a minor injury
+        // that didn't turn serious by the end of the show.
+        'match_result.injured' => 'Handicapped and determined, {winner} {defeats} {loser} in a hard-hitting match via {via} despite suffering a minor injury. Remember, an injury is not a hindrance to winning the match!',
         'match_result.legacy' => '{winner} {defeats} {loser}{by} at {show}.',
         'main_event_hype_result' => "The hype was real: {winner} {defeats} {loser}{by} in {brand}'s main event!",
         'promo_result' => "{brand}'s {promo} promo {outcome}.",

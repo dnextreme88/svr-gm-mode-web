@@ -2,6 +2,7 @@
 
 namespace Tests\Support;
 
+use App\Enums\MatchFamily;
 use App\Enums\MatchMethod;
 use App\Models\MatchSlot;
 use App\Services\Matches\MatchResolver;
@@ -34,8 +35,12 @@ class FixedOutcomes extends MatchResolver
         return $fake;
     }
 
-    public function resolve(MatchSlot $slot, Rng $rng, Collection $activeRivalries, ?int $bookedSide = null): ResolvedMatch
+    public function resolve(MatchSlot $slot, Rng $rng, Collection $activeRivalries, ?int $bookedSide = null, array $bookedBouts = []): ResolvedMatch
     {
+        if ($slot->matchType?->family === MatchFamily::Gauntlet) {
+            return parent::resolve($slot, $rng, $activeRivalries, $bookedSide, $bookedBouts);
+        }
+
         $sides = $slot->sides();
         $winnerSide = null;
         $next = null;

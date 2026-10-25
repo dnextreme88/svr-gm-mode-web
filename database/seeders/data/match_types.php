@@ -124,9 +124,9 @@ return [
     ['last_man_standing', 'Single No Manager vs. w/Manager', $one, $noMgrVsMgr, ['win_condition' => '10-count']],
     ['last_man_standing', 'Single w/Manager vs. w/Manager', $one, $mgrVsMgr, ['win_condition' => '10-count']],
 
-    // ASSUMPTION: "No Limit" is booked as a 1-on-1 gauntlet within the 2–6 limit.
-    // Pending design (CLAUDE.md TODOS): really a 1 vs N gauntlet. No titles.
-    ['slobber_knocker', 'No Limit', $one, [], ['win_condition' => 'Most opponents beaten']],
+    // House rule (replaces Slobber Knocker): six entrants, five singles bouts.
+    // Entrants 1 and 2 open; each winner faces the next entrant. No titles or stipulations.
+    ['gauntlet', '6-Man Gauntlet', $six, []],
 
     ['special_referee', 'Single', $one, []],
     ['special_referee', 'Tag Match', $tag, []],

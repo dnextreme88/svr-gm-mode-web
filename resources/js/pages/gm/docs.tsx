@@ -183,7 +183,10 @@ type Props = {
     promo_stories: StoryGroup[];
     quiet_stories: StoryGroup[];
     emails: GmEmail[];
-    results: { booked_non_decisive_percent: number };
+    results: {
+        booked_non_decisive_percent: number;
+        buried_alive_weeks: number;
+    };
     calendar: {
         weekly_show_days: Record<'raw' | 'smackdown', string>;
         weeks_per_season: number;
@@ -322,7 +325,7 @@ const winConditions: Array<{ rule: string; detail: string }> = [
     },
     {
         rule: 'Captain fall',
-        detail: 'Pin, submit or count out the other team’s captain (the first wrestler on their side). Their whole team loses.',
+        detail: 'Pin, submit, disqualify or count out the other team’s captain (the first wrestler on their side, tagged (Cpt) on the results screen). Partners can be eliminated along the way, but only the captain’s fall ends it: their whole team loses.',
     },
     {
         rule: 'Table',
@@ -364,10 +367,6 @@ const winConditions: Array<{ rule: string; detail: string }> = [
         rule: '10-count',
         detail: 'Knock the opponent down so they can’t answer the referee’s 10-count.',
     },
-    {
-        rule: 'Most opponents beaten',
-        detail: 'Beat as many opponents in a row as possible before losing.',
-    },
 ];
 
 /** The ways a variant can be won, alphabetically. */
@@ -408,12 +407,81 @@ function RuleList({
     );
 }
 
-function MatchTypes({ families }: { families: Props['match_types'] }) {
+function MatchTypes({
+    families,
+    buriedWeeks,
+}: {
+    families: Props['match_types'];
+    buriedWeeks: number;
+}) {
     return (
         <div className="space-y-6">
             <div className="grid items-start gap-6 md:grid-cols-2">
                 <RuleList title="Match rules" rules={matchRules} />
                 <RuleList title="Win conditions" rules={winConditions} />
+            </div>
+            <div className="grid items-start gap-6 md:grid-cols-2">
+                <Panel title="Gauntlet">
+                    <ul
+                        data-testid="gauntlet-rules"
+                        className="list-disc space-y-2 pl-4 text-sm text-ink"
+                    >
+                        <li>
+                            Six entrants in one match slot, fought as five
+                            singles bouts. Entrants 1 and 2 open; each bout’s
+                            winner faces the next entrant, and whoever wins the
+                            fifth bout wins the Gauntlet.
+                        </li>
+                        <li>
+                            Each bout is a normal singles match: pinfall,
+                            submission, DQ or count-out.
+                        </li>
+                        <li>
+                            The record counts once: the winner gets one win, and
+                            the other five get one loss each. Every entrant
+                            takes a flat 3 fatigue bars.
+                        </li>
+                        <li>No titles and no stipulations.</li>
+                        <li>
+                            Book to Win goes bout by bout, in order: pick each
+                            bout’s winner, and the next entrant steps in.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel title="How finishes read">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            A finish follows the match’s win condition and names
+                            who it happened to: “Shelton Benjamin puts Rob Van
+                            Dam through a table”, “Undertaker pummels Batista so
+                            hard on the mat that he can’t answer the 10-count”.
+                        </li>
+                        <li>
+                            In a match with several opponents, the one who takes
+                            the finish is drawn at random; in a tag match, one
+                            member of the losing team.
+                        </li>
+                        <li>
+                            Battle Royals and elimination matches end with the
+                            last elimination: “Randy Orton last eliminates
+                            Triple H via pinfall”.
+                        </li>
+                        <li>
+                            A Foreign Object finish uses a steel chair, a
+                            sledgehammer, the ring bell or the steel steps. In a
+                            match without DQs it still has to end the match’s
+                            way: a weapon shot in a Table match ends with a
+                            table, not a cover.
+                        </li>
+                        <li>
+                            Buried Alive tells how long the loser is gone (
+                            <span data-testid="buried-weeks">
+                                {buriedWeeks}
+                            </span>{' '}
+                            weeks).
+                        </li>
+                    </ul>
+                </Panel>
             </div>
             {families.map((family) => (
                 <Panel
@@ -661,8 +729,8 @@ function Stipulations({ stipulations }: Pick<Props, 'stipulations'>) {
         <div className="space-y-6">
             <p className="max-w-3xl text-sm text-ink-dim">
                 A stipulation is an optional clause on a match. Max one per
-                match. A contender who wins by DQ or count-out counts as losing
-                to the champion(s).
+                match, and none in a Gauntlet. A contender who wins by DQ or
+                count-out counts as losing to the champion(s).
             </p>
             <div className="grid gap-6 lg:grid-cols-3">
                 {stipulations.map((s) => (
@@ -1529,9 +1597,9 @@ function ResultsDocs({ results }: Pick<Props, 'results'>) {
                         </li>
                         <li>
                             Matches are decided one at a time, in card order.
-                            The next one has Manual book to win: its card lists
-                            each side with Book to Win, plus Simulate match.
-                            Later matches wait their turn.
+                            The next one is marked Pending Result: its card
+                            lists each side with Book to Win, plus Simulate
+                            match. Later matches wait their turn.
                         </li>
                         <li>
                             Simulate all, beside Continue, decides every match
@@ -1574,6 +1642,11 @@ function ResultsDocs({ results }: Pick<Props, 'results'>) {
                         <li>
                             A booked result shows Booked to win on its card.
                         </li>
+                        <li>
+                            A Gauntlet is booked bout by bout. Back undoes the
+                            last pick, and Simulate the rest decides the bouts
+                            you haven’t booked.
+                        </li>
                     </ul>
                 </Panel>
             </div>
@@ -1601,6 +1674,16 @@ function ResultsDocs({ results }: Pick<Props, 'results'>) {
                         <li>
                             In a title match the champion going in is tagged
                             <span className="ml-1 text-sm text-gold">(C)</span>.
+                            In a Captain Fall match each team’s captain is
+                            tagged
+                            <span className="ml-1 text-sm text-gold">
+                                (Cpt)
+                            </span>
+                            .
+                        </li>
+                        <li>
+                            A Gauntlet’s outcome card lists all five bouts under
+                            the result.
                         </li>
                         <li>
                             The week’s fatigue (going in, after the show, after
@@ -1739,7 +1822,10 @@ export default function Docs() {
                 }
             >
                 {tab === 'matches' && (
-                    <MatchTypes families={props.match_types} />
+                    <MatchTypes
+                        families={props.match_types}
+                        buriedWeeks={props.results.buried_alive_weeks}
+                    />
                 )}
                 {tab === 'injuries' && (
                     <Injuries

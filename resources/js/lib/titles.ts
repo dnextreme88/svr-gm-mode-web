@@ -114,7 +114,8 @@ export function stipulationOptions(
     ctx: TitleContext,
     roster: Map<number, RosterEntry>,
 ): Array<{ value: Stipulation; label: string; championshipId?: number }> {
-    if (!type) {
+    // House rule: the Gauntlet takes no stipulation.
+    if (!type || type.stipulations_allowed === false) {
         return [];
     }
 

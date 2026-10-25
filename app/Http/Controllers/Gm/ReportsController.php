@@ -28,7 +28,7 @@ class ReportsController extends Controller
             ->get()
             ->map(fn (Show $show): array => [
                 ...CardPresenter::show($show),
-                'outcomes' => MatchSlot::with(['matchType', 'participants.saveWrestler.wrestler', 'result', 'titleChampionship'])
+                'outcomes' => MatchSlot::with(['matchType', 'participants.saveWrestler.wrestler', 'result', 'titleChampionship', 'gauntletBouts'])
                     ->where('show_id', $show->id)
                     ->whereHas('result')
                     ->orderBy('position')

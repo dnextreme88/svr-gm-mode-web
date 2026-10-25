@@ -29,7 +29,7 @@ enum MatchFamily: string
     case IronMan = 'iron_man';
     case Ladder = 'ladder';
     case LastManStanding = 'last_man_standing';
-    case SlobberKnocker = 'slobber_knocker';
+    case Gauntlet = 'gauntlet';
     case SpecialReferee = 'special_referee';
     case SteelCage = 'steel_cage';
     case Submission = 'submission';

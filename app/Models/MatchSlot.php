@@ -34,6 +34,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read Championship|null $stipulationChampionship
  * @property-read Collection<int, MatchParticipant> $participants
  * @property-read MatchResult|null $result
+ * @property-read Collection<int, GauntletBout> $gauntletBouts
  */
 #[Unguarded]
 class MatchSlot extends Model
@@ -84,6 +85,14 @@ class MatchSlot extends Model
     public function result(): HasOne
     {
         return $this->hasOne(MatchResult::class);
+    }
+
+    /**
+     * @return HasMany<GauntletBout, $this>
+     */
+    public function gauntletBouts(): HasMany
+    {
+        return $this->hasMany(GauntletBout::class)->orderBy('round');
     }
 
     public function isBooked(): bool

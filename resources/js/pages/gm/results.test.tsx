@@ -20,6 +20,7 @@ function outcome(
         loser_sides: losers.map((side) => side.split(' & ')),
         booked: false,
         champions: [],
+        captains: [],
         managers: [],
         method: 'pinfall',
         method_label: 'Pinfall',
@@ -125,6 +126,7 @@ function pending(
         title: null,
         stipulation: null,
         champions: [],
+        captains: [],
         ...overrides,
     };
 }
@@ -423,6 +425,34 @@ describe('Results page', () => {
         expect(tag.className).toContain('text-sm');
     });
 
+    it('tags each team captain in a Captain Fall match with (Cpt)', () => {
+        page.props = {
+            ...props,
+            shows: [
+                {
+                    ...props.shows[0],
+                    outcomes: [
+                        outcome(
+                            1,
+                            ['Tommy Dreamer', 'Kane', 'Kurt Angle'],
+                            ['Christian & Rhino & Spike Dudley'],
+                            { captains: ['Tommy Dreamer', 'Christian'] },
+                        ),
+                    ],
+                },
+            ],
+        };
+        render(<Results />);
+
+        const row = screen.getByTestId('result-7-1');
+        expect(row).toHaveTextContent(
+            'Tommy Dreamer(Cpt) & Kane & Kurt Angledef.Christian(Cpt) & Rhino & Spike Dudley',
+        );
+        for (const tag of within(row).getAllByText('(Cpt)')) {
+            expect(tag.className).toContain('text-gold');
+        }
+    });
+
     it('lists promos where they aired, with their result', () => {
         page.props = {
             ...props,
@@ -487,7 +517,7 @@ describe('Results page', () => {
 
             expect(
                 within(screen.getByTestId('result-7-2')).getByText(
-                    'Manual book to win',
+                    'Pending Result',
                 ),
             ).toBeInTheDocument();
             expect(screen.getByTestId('result-7-2')).toHaveTextContent(

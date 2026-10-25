@@ -54,6 +54,7 @@ export function OutcomeCard({
                     <SideNames
                         names={outcome.winners}
                         champions={outcome.champions}
+                        captains={outcome.captains}
                     />
                 </h2>
                 <div className="mt-4 font-condensed text-lg tracking-wide text-ink-dim uppercase">
@@ -64,6 +65,7 @@ export function OutcomeCard({
                             <SideNames
                                 names={side}
                                 champions={outcome.champions}
+                                captains={outcome.captains}
                             />
                         </Fragment>
                     ))}
@@ -88,6 +90,41 @@ export function OutcomeCard({
             <p className="mx-auto mt-4 max-w-2xl text-ink-dim">
                 {outcome.summary}
             </p>
+
+            {outcome.bouts && outcome.bouts.length > 0 && (
+                <ol
+                    data-testid="gauntlet-bouts"
+                    className="mx-auto mt-6 max-w-2xl divide-y divide-white/10 border-y border-white/10 text-left"
+                >
+                    {outcome.bouts.map((bout) => (
+                        <li key={bout.round} className="py-2">
+                            <div className="flex items-baseline justify-between gap-3">
+                                <span className="font-semibold text-ink">
+                                    <span className="gm-label mr-2 text-ink-dim">
+                                        Bout {bout.round}
+                                    </span>
+                                    {bout.winner}
+                                    <span className="mx-1.5 text-ink-faint">
+                                        def.
+                                    </span>
+                                    {bout.loser}
+                                </span>
+                                <span className="gm-label shrink-0">
+                                    {bout.method_label}
+                                    {bout.booked && (
+                                        <span className="ml-2 text-gold-hot">
+                                            Booked
+                                        </span>
+                                    )}
+                                </span>
+                            </div>
+                            <p className="mt-0.5 text-sm text-ink-dim">
+                                {bout.summary}
+                            </p>
+                        </li>
+                    ))}
+                </ol>
+            )}
 
             {outcome.stipulation_outcome && (
                 <p className="mx-auto mt-4 max-w-2xl font-condensed text-lg font-semibold tracking-wide text-brand-hot uppercase">
