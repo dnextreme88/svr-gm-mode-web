@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Dice } from '@/components/gm/dice';
 import { ProposalModal } from '@/components/gm/proposal-modal';
 import type { ProposalView } from '@/components/gm/proposal-modal';
 import { HttpError } from '@/lib/http';
@@ -18,8 +19,6 @@ type Props = {
     onConfirm: (proposals: ProposalView[]) => Promise<void> | void;
     titleNames?: Record<number, string>;
     disabled?: boolean;
-    /** Shown before the label, e.g. a dice for Randomize. */
-    icon?: React.ReactNode;
     className?: string;
 };
 
@@ -34,7 +33,6 @@ export function ProposalLauncher({
     onConfirm,
     titleNames,
     disabled,
-    icon,
     className,
 }: Props) {
     const [open, setOpen] = useState(false);
@@ -79,12 +77,13 @@ export function ProposalLauncher({
                     void load(roll);
                 }}
             >
-                {icon}
+                <Dice face={mode === 'preset' ? 6 : 5} rolling={loading} />
                 {label}
             </button>
             <ProposalModal
                 open={open}
                 mode={mode}
+                roll={roll}
                 loading={loading}
                 error={error}
                 proposals={result?.proposals ?? []}

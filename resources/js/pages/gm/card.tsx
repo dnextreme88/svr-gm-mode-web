@@ -4,7 +4,6 @@ import { BookingAction, BookingSteps } from '@/components/gm/booking-steps';
 import type { BookingOrder } from '@/components/gm/booking-steps';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { CardBuilder } from '@/components/gm/card-builder';
-import { DiceIcon } from '@/components/gm/dice-icon';
 import { PageTitle } from '@/components/gm/panel';
 import { PromoSlots } from '@/components/gm/promo-slots';
 import type {
@@ -18,6 +17,7 @@ import type { ProposalView } from '@/components/gm/proposal-modal';
 import { StipulationPicker, TitleCycler } from '@/components/gm/title-tools';
 import type { PromoFatigue } from '@/lib/card';
 import { requestJson } from '@/lib/http';
+import { saveVisit, slotSaveKey } from '@/lib/save-status';
 import gm from '@/routes/gm';
 import type {
     CardShow,
@@ -215,7 +215,12 @@ export default function CardPage() {
                     router.put(
                         gm.card.book.url({ ...ids, position }),
                         payload,
-                        { preserveScroll: true },
+                        {
+                            preserveScroll: true,
+                            ...saveVisit(
+                                slotSaveKey('match', show.id, position),
+                            ),
+                        },
                     )
                 }
                 onClear={(position) =>
@@ -248,7 +253,6 @@ export default function CardPage() {
                             <ProposalLauncher
                                 label="Randomize"
                                 mode="randomize"
-                                icon={<DiceIcon />}
                                 titleNames={titleNames}
                                 fetchProposal={async (roll) => {
                                     const { proposal } = await requestJson<{
@@ -295,6 +299,7 @@ export default function CardPage() {
                 <section className="mt-8">
                     <h2 className="gm-label mb-3">Promos</h2>
                     <PromoSlots
+                        showId={show.id}
                         slots={promo_slots}
                         types={promo_types}
                         eligibility={promo_eligibility}
@@ -306,7 +311,12 @@ export default function CardPage() {
                             router.put(
                                 gm.card.promo.book.url({ ...ids, position }),
                                 payload,
-                                { preserveScroll: true },
+                                {
+                                    preserveScroll: true,
+                                    ...saveVisit(
+                                        slotSaveKey('promo', show.id, position),
+                                    ),
+                                },
                             )
                         }
                         onClear={(position) =>
