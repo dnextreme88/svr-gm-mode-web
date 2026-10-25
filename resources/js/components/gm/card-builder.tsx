@@ -16,6 +16,7 @@ import {
 } from '@/lib/card';
 import type { PromoFatigue, SlotDraft } from '@/lib/card';
 import { fatigueZone, formatMoney, zoneLabel } from '@/lib/gm';
+import { slotSaveKey, useSaveStatus } from '@/lib/save-status';
 import { cn } from '@/lib/utils';
 import { MatchFamilyLabels } from '@/types/enums';
 import type {
@@ -258,6 +259,7 @@ export function CardBuilder({
                     readOnly={readOnly || draft.fixed}
                     canSave={!readOnly && !draft.fixed}
                     dirty={dirty.has(draft.position)}
+                    saveKey={slotSaveKey('match', show.id, draft.position)}
                     complete={complete(draft)}
                     onChange={update}
                     onSave={() => {
@@ -307,6 +309,8 @@ type SlotEditorProps = {
     readOnly: boolean;
     canSave: boolean;
     dirty: boolean;
+    /** Tracks this slot's save for the floppy (`lib/save-status`). */
+    saveKey: string;
     complete: boolean;
     onChange: (draft: SlotDraft) => void;
     onSave: () => void;
@@ -331,6 +335,7 @@ function SlotEditor({
     readOnly,
     canSave,
     dirty,
+    saveKey,
     complete,
     onChange,
     onSave,
@@ -342,6 +347,7 @@ function SlotEditor({
 }: SlotEditorProps) {
     const type = draft.matchTypeId ? types.get(draft.matchTypeId) : undefined;
     const label = `Match ${draft.position}`;
+    const saveStatus = useSaveStatus(saveKey);
     const everyone = participantIds(draft);
 
     const note = (w: RosterEntry) =>
@@ -599,7 +605,7 @@ function SlotEditor({
                                 disabled={!complete || !dirty}
                                 onClick={onSave}
                             >
-                                <FloppyIcon />
+                                <FloppyIcon status={saveStatus} />
                                 Save {label.toLowerCase()}
                             </button>
                             <button
