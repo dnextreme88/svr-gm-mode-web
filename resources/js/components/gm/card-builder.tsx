@@ -580,6 +580,7 @@ function SlotEditor({
                                 label={`${label} special referee`}
                                 value={draft.refereeId}
                                 options={helperOptions(draft.refereeId)}
+                                required
                                 fallbackName={names?.[draft.refereeId ?? '']}
                                 disabled={readOnly}
                                 onChange={(next) =>
@@ -906,6 +907,7 @@ function CompetitorSlot({
                 label={label}
                 value={id}
                 options={options}
+                required
                 fallbackName={fallbackName}
                 disabled={readOnly}
                 onChange={onChange}

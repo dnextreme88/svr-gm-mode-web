@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { Dice } from '@/components/gm/dice';
 import type { DiceFace } from '@/components/gm/dice';
+import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/gm';
+import { cn } from '@/lib/utils';
 
 export type ProposalView = {
     position: number;
@@ -30,6 +32,17 @@ type Props = {
     onConfirm: () => void;
     onCancel: () => void;
     onReroll: () => void;
+};
+
+/** Sizes the rolling box when there's no earlier proposal (after an error). */
+const PLACEHOLDER: ProposalView = {
+    position: 1,
+    match_type_id: 0,
+    match_type: '—',
+    cost: 0,
+    sides: [],
+    side_names: [['—']],
+    title_championship_id: null,
 };
 
 /**
@@ -79,18 +92,12 @@ export function ProposalModal({
                 aria-modal="true"
                 aria-label={title}
                 tabIndex={-1}
-                className="gm-panel max-h-[85vh] w-full max-w-2xl overflow-y-auto p-6 outline-none"
+                className="gm-panel max-h-[85vh] w-full max-w-2xl overflow-x-hidden overflow-y-auto p-6 outline-none"
             >
                 <h2 className="gm-heading text-3xl">{title}</h2>
                 <p className="mt-1 text-sm text-ink-dim">
                     Review the proposal. Nothing is booked until you confirm.
                 </p>
-
-                {loading && (
-                    <p className="mt-6 animate-gm-pulse text-sm text-ink-dim">
-                        Rolling…
-                    </p>
-                )}
 
                 {error && (
                     <p
@@ -101,13 +108,19 @@ export function ProposalModal({
                     </p>
                 )}
 
-                {!loading && !error && (
-                    <>
+                {(loading || !error) && (
+                    <div className="relative mt-6">
+                        {/* While rolling, the last proposal stays in place
+                            but hidden, so the box keeps its height. */}
                         <ol
-                            className="mt-6 space-y-3"
+                            className={cn('space-y-3', loading && 'invisible')}
                             aria-label="Proposed matches"
+                            aria-hidden={loading || undefined}
                         >
-                            {proposals.map((p) => (
+                            {(loading && proposals.length === 0
+                                ? [PLACEHOLDER]
+                                : proposals
+                            ).map((p) => (
                                 <li
                                     key={p.position}
                                     className="border border-white/8 bg-black/25 px-4 py-3"
@@ -147,6 +160,26 @@ export function ProposalModal({
                             ))}
                         </ol>
 
+                        {loading && (
+                            <div
+                                role="status"
+                                className="absolute inset-0 flex items-center justify-center gap-3 border border-white/8 bg-black/25 px-4 text-sm text-ink-dim"
+                            >
+                                <Spinner
+                                    role="presentation"
+                                    aria-hidden="true"
+                                    className="size-5"
+                                />
+                                {mode === 'preset'
+                                    ? 'Rolling card'
+                                    : 'Rolling match'}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {!loading && !error && (
+                    <>
                         {mode === 'preset' && unfilledSlots.length > 0 && (
                             <p className="mt-4 text-sm text-zone-minor">
                                 Couldn’t fill match

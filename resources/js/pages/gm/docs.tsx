@@ -1168,6 +1168,11 @@ function NewsAndEmail({
                             Newer (or ← / →) step through every week played,
                             quiet weeks included.
                         </li>
+                        <li>
+                            Only weeks that have fully aired are listed. News
+                            from the week you’re booking or airing (a signing, a
+                            trade) shows up once that whole week is over.
+                        </li>
                     </ul>
                 </Panel>
             </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dice } from '@/components/gm/dice';
+import { Dice, prefersReducedMotion } from '@/components/gm/dice';
 import { ProposalModal } from '@/components/gm/proposal-modal';
 import type { ProposalView } from '@/components/gm/proposal-modal';
 import { HttpError } from '@/lib/http';
@@ -22,9 +22,19 @@ type Props = {
     className?: string;
 };
 
+/** How long the die tumbles at least, so a fast fetch still shows the roll. */
+const MIN_ROLL_MS = 450;
+
+function minRoll(): Promise<void> {
+    return prefersReducedMotion()
+        ? Promise.resolve()
+        : new Promise((resolve) => window.setTimeout(resolve, MIN_ROLL_MS));
+}
+
 /**
- * A Randomize / Preset button and its preview modal (§24). Re-roll asks the
- * server for a new proposal; a 422 shows its message and changes nothing.
+ * A Randomize / Preset button and its preview modal (§24). The button's die
+ * rolls, then the modal opens. Re-roll asks the server for a new proposal;
+ * a 422 shows its message and changes nothing.
  */
 export function ProposalLauncher({
     label,
@@ -47,7 +57,11 @@ export function ProposalLauncher({
         setError(null);
 
         try {
-            setResult(await fetchProposal(nextRoll));
+            const [next] = await Promise.all([
+                fetchProposal(nextRoll),
+                minRoll(),
+            ]);
+            setResult(next);
         } catch (e) {
             setResult(null);
             setError(
@@ -71,10 +85,10 @@ export function ProposalLauncher({
             <button
                 type="button"
                 className={cn('gm-btn gm-btn-ghost gm-btn-sm', className)}
-                disabled={disabled}
-                onClick={() => {
+                disabled={disabled || (loading && !open)}
+                onClick={async () => {
+                    await load(roll);
                     setOpen(true);
-                    void load(roll);
                 }}
             >
                 <Dice face={mode === 'preset' ? 6 : 5} rolling={loading} />

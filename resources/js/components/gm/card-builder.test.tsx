@@ -653,7 +653,29 @@ describe('CardBuilder', () => {
             .getAllByRole('option')
             .map((o) => o.textContent);
 
-        expect(names).toEqual(['Leave vacant', 'Lita', 'Trish Stratus']);
+        expect(names).toEqual(['Lita', 'Trish Stratus']);
+    });
+
+    it('never offers to leave a competitor or the special referee vacant', async () => {
+        const { user, pickType } = setup();
+
+        await pickType(1, 6);
+
+        for (const name of [
+            'Match 1 side 1 wrestler 1',
+            'Match 1 side 2 wrestler 1',
+            'Match 1 special referee',
+        ]) {
+            await user.click(screen.getByRole('button', { name }));
+            const options = within(
+                screen.getByRole('listbox', { name }),
+            ).getAllByRole('option');
+            expect(options.length).toBeGreaterThan(0);
+            expect(options.map((o) => o.textContent).join('|')).not.toContain(
+                'Leave vacant',
+            );
+            await user.keyboard('{Escape}');
+        }
     });
 
     it('tracks booked matches on a progress bar', () => {

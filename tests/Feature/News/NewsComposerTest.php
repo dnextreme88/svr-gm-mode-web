@@ -1,14 +1,18 @@
 <?php
 
+use App\Enums\Brand;
+use App\Enums\ContractLength;
 use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
 use App\Models\NewsEvent;
+use App\Services\Contracts\ContractService;
 use App\Services\News\NewsCatalog;
 use App\Services\News\NewsComposer;
 use App\Services\News\NewsRecorder;
 use App\Services\News\NewsTemplates;
 use App\Services\Week\WeekResolver;
+use Tests\Support\Card;
 use Tests\Support\GameBuilder;
 
 /*
@@ -277,6 +281,37 @@ it('lists every played week, quiet ones included, newest first', function () {
     expect($composer->weeks($save))->toBe([3, 2, 1])
         ->and(collect($pages)->pluck('week')->all())->toBe([3, 2, 1])
         ->and($pages[2]['headlines'])->toBe(['raw' => null, 'smackdown' => null, 'neutral' => null]);
+});
+
+it('only shows weeks that have aired, even once news is recorded in the current one', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Christian'], smackdown: ['Batista']);
+    $composer = app(NewsComposer::class);
+
+    expect($composer->weeks($save))->toBe([]);
+
+    app(WeekResolver::class)->resolve($save->refresh());
+    $save->refresh();
+
+    // Week 2 is being booked: a signing records week 2 news straight away.
+    app(ContractService::class)->signFreeAgent($save, GameBuilder::wrestler($save, 'Kane'), Brand::Raw, ContractLength::OneYear, $save->current_week);
+
+    expect($save->current_week)->toBe(2)
+        ->and(NewsEvent::where('save_id', $save->id)->where('week_number', 2)->where('type', 'free_agent_signed')->exists())->toBeTrue()
+        ->and($composer->weeks($save))->toBe([1])
+        ->and(collect($composer->pages($save))->pluck('week')->all())->toBe([1]);
+
+    // Halfway through airing week 2 (Raw's match waits to be decided),
+    // it's still hidden.
+    Card::book($save, Card::show($save), 1, Card::singles(), [['Edge'], ['Christian']]);
+    app(WeekResolver::class)->begin($save);
+
+    expect($composer->weeks($save->refresh()))->toBe([1]);
+
+    app(WeekResolver::class)->simulateAll($save);
+    $pages = $composer->pages($save->refresh());
+
+    expect(collect($pages)->pluck('week')->all())->toBe([2, 1])
+        ->and(json_encode($pages[0]))->toContain('Kane');
 });
 
 it('announces the next PPV two weeks out as a story and one week out as a headline', function () {

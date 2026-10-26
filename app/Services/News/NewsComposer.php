@@ -31,15 +31,15 @@ class NewsComposer
     ) {}
 
     /**
-     * Every played week, newest first, whether or not it has news. The
-     * current week is included once something has been recorded in it.
+     * Every played week, newest first, whether or not it has news. House
+     * rule: only weeks that have aired. News recorded during the current
+     * week (a signing, a trade) waits until that week is over.
      *
      * @return list<int>
      */
     public function weeks(Save $save): array
     {
-        $latestNews = (int) NewsEvent::where('save_id', $save->id)->max('week_number');
-        $latest = max($save->current_week - 1, $latestNews);
+        $latest = $save->current_week - 1;
 
         return $latest < 1 ? [] : range($latest, 1);
     }

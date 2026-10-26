@@ -11,6 +11,7 @@ import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
 import { brandName } from '@/lib/gm';
 import gm from '@/routes/gm';
+import { StipulationLabels } from '@/types/enums';
 import type { Brand } from '@/types/enums';
 import type {
     CardShow,
@@ -519,10 +520,20 @@ function MatchRow({
                             NEW CHAMPION
                         </span>
                     )}
-                    {!o.pending && o.stipulation_outcome && (
-                        <span>· {o.stipulation_outcome}</span>
-                    )}
                 </span>
+                {o.stipulation && (
+                    <span
+                        data-testid={`stipulation-${show.id}-${o.position}`}
+                        className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-dim group-hover:text-white/85"
+                    >
+                        <span className="border border-brand-hot/70 px-2 py-px font-condensed text-xs font-bold tracking-[0.14em] text-brand-hot uppercase group-hover:border-white/80 group-hover:text-white">
+                            {StipulationLabels[o.stipulation]}
+                        </span>
+                        {!o.pending && o.stipulation_outcome && (
+                            <span>{o.stipulation_outcome}</span>
+                        )}
+                    </span>
+                )}
             </button>
         </li>
     );

@@ -67,7 +67,7 @@ describe('StipulationPicker', () => {
         expect(
             screen.getByRole('group', { name: 'Stipulation for match 1' }),
         ).toBeInTheDocument();
-        expect(chip).toHaveTextContent('No stipulation');
+        expect(chip).toHaveTextContent('Select stipulation');
         expect(chip.className).toContain('min-w-[250px]');
 
         await user.click(
@@ -79,7 +79,7 @@ describe('StipulationPicker', () => {
         await user.click(
             screen.getByRole('button', { name: 'Next stipulation' }),
         );
-        expect(chip).toHaveTextContent('No stipulation');
+        expect(chip).toHaveTextContent('Select stipulation');
 
         await user.click(
             screen.getByRole('button', { name: 'Previous stipulation' }),
@@ -93,5 +93,15 @@ describe('StipulationPicker', () => {
         expect(
             screen.getByRole('button', { name: 'Next stipulation' }),
         ).toBeDisabled();
+    });
+
+    it('only highlights the arrows on hover while they are enabled', () => {
+        render(<Harness readOnly />);
+
+        for (const name of ['Previous stipulation', 'Next stipulation']) {
+            const arrow = screen.getByRole('button', { name });
+            expect(arrow).toHaveClass('enabled:hover:text-ink');
+            expect(arrow).not.toHaveClass('hover:text-ink');
+        }
     });
 });

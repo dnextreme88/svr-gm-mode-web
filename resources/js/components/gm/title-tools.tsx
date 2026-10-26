@@ -62,7 +62,7 @@ export function TitleCycler({
         >
             <button
                 type="button"
-                className="px-2 py-1 text-ink-dim hover:text-ink disabled:opacity-30"
+                className="px-2 py-1 text-ink-dim enabled:hover:text-ink disabled:opacity-30"
                 onClick={() => step(-1)}
                 disabled={readOnly || titles.length === 0}
                 aria-label="Previous title"
@@ -81,12 +81,12 @@ export function TitleCycler({
                 {current
                     ? `◆ ${current.name}`
                     : titles.length > 0
-                      ? 'No title on the line'
+                      ? 'Select title'
                       : 'No title eligible'}
             </span>
             <button
                 type="button"
-                className="px-2 py-1 text-ink-dim hover:text-ink disabled:opacity-30"
+                className="px-2 py-1 text-ink-dim enabled:hover:text-ink disabled:opacity-30"
                 onClick={() => step(1)}
                 disabled={readOnly || titles.length === 0}
                 aria-label="Next title"
@@ -131,7 +131,6 @@ export function StipulationPicker({
 
     return (
         <div className="flex w-full items-center gap-2 text-sm sm:w-auto">
-            <span className="gm-label">Stipulation</span>
             <div
                 className="flex min-w-0 flex-1 items-center gap-1 sm:flex-none"
                 role="group"
@@ -139,7 +138,7 @@ export function StipulationPicker({
             >
                 <button
                     type="button"
-                    className="px-2 py-1 text-ink-dim hover:text-ink disabled:opacity-30"
+                    className="px-2 py-1 text-ink-dim enabled:hover:text-ink disabled:opacity-30"
                     onClick={() => step(-1)}
                     disabled={readOnly || stipulations.length === 0}
                     aria-label="Previous stipulation"
@@ -149,7 +148,7 @@ export function StipulationPicker({
                 <span
                     data-testid={`stipulation-${draft.position}`}
                     className={cn(
-                        'min-w-0 flex-1 px-3 py-1 text-center font-condensed text-xs font-bold tracking-[0.14em] uppercase sm:min-w-[250px] sm:flex-none',
+                        'min-w-0 flex-1 px-3 py-1 text-center font-condensed font-bold tracking-[0.14em] uppercase sm:min-w-[250px] sm:flex-none',
                         current
                             ? 'bg-gradient-to-b from-gold-hot to-gold text-arena'
                             : 'bg-white/5 text-ink-dim',
@@ -158,12 +157,12 @@ export function StipulationPicker({
                     {current
                         ? `◆ ${current.label}`
                         : stipulations.length > 0
-                          ? 'No stipulation'
+                          ? 'Select stipulation'
                           : 'No stipulation eligible'}
                 </span>
                 <button
                     type="button"
-                    className="px-2 py-1 text-ink-dim hover:text-ink disabled:opacity-30"
+                    className="px-2 py-1 text-ink-dim enabled:hover:text-ink disabled:opacity-30"
                     onClick={() => step(1)}
                     disabled={readOnly || stipulations.length === 0}
                     aria-label="Next stipulation"
