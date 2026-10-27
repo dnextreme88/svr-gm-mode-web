@@ -82,6 +82,13 @@ class NewsTemplates
         'injury_report' => '{brand} injury report: {count} in 6 months.',
         'locker_room_note' => 'News from the {brand} locker room.',
         'rivalry_milestone' => "{wrestler_a} vs {wrestler_b}: {weeks} weeks in, the fans can't get enough.",
+        // Factions (house rule).
+        'faction_formed' => 'A new force is born: {members} are now {faction}!',
+        'faction_member_added' => '{wrestler} joins {faction}!',
+        'faction_title_won' => 'NEW CHAMPIONS! {faction} defeat {loser} for the {title} via {via}!',
+        'faction_title_lost' => '{faction} lose the {title} to {winner}.',
+        'faction_interbrand_win' => '{faction} win one for {brand} at {ppv}!',
+        'faction_disbanded' => '{faction} have gone their separate ways.',
     ];
 
     /**
@@ -165,6 +172,12 @@ class NewsTemplates
         'superstar_recap' => "A look back at a {brand} superstar's last match.",
         'injury_report' => "How many {brand} superstars were hurt in the last 6 months, with advice when it's too many.",
         'locker_room_note' => 'Who is unhappy, whose contract is running out, or all quiet.',
+        'faction_formed' => '{members} won {wins} matches together and decided to make it official. From now on they compete as {faction}, a new {type} to watch.',
+        'faction_member_added' => '{faction} has a new member: {wrestler} now fights alongside them.',
+        'faction_title_won' => '{faction} beat {loser} via {via} and walk out with the {title}! The champions look forward to meeting new challengers that they will dethrone!',
+        'faction_title_lost' => '{faction} came into the night with the {title}, but {winner} took it from them via {via}.',
+        'faction_interbrand_win' => '{faction} stood up for {brand} at {ppv} and beat {loser} via {via}.',
+        'faction_disbanded' => '{members} are no longer {faction}. Each of them goes their own way from here.',
     ];
 
     public function template(NewsEventType $type): string

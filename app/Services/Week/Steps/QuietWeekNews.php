@@ -17,6 +17,7 @@ use App\Models\MatchSlot;
 use App\Models\SaveWrestler;
 use App\Models\TitleReign;
 use App\Services\Calendar\CalendarService;
+use App\Services\Factions\FactionNamer;
 use App\Services\News\FallbackStories;
 use App\Services\News\MatchFinish;
 use App\Services\News\NewsComposer;
@@ -45,6 +46,7 @@ class QuietWeekNews implements WeekStep
         private NewsRecorder $news,
         private CalendarService $calendar,
         private TitleService $titles,
+        private FactionNamer $factions,
     ) {}
 
     public function handle(WeekContext $context): void
@@ -234,10 +236,14 @@ class QuietWeekNews implements WeekStep
     {
         $won = $p->result === 'win';
 
-        return $slot->competitors()
+        $ids = $slot->competitors()
             ->filter(fn (MatchParticipant $o): bool => $won ? $o->side !== $p->side : $o->side === $slot->result?->winner_side)
-            ->map(fn (MatchParticipant $o): string => $o->saveWrestler->name())
-            ->implode(' & ');
+            ->map(fn (MatchParticipant $o): int => $o->save_wrestler_id)
+            ->values()
+            ->all();
+
+        // Factions are named as such (house rule).
+        return $this->factions->name($slot->show->save_id, $ids, $slot->show->week_number, $slot->sides());
     }
 
     /**

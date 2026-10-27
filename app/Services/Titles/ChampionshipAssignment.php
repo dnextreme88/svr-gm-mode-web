@@ -14,6 +14,7 @@ use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\TagTeam;
 use App\Models\TitleReign;
+use App\Services\Factions\FactionNamer;
 use App\Services\Injuries\InjuryStatus;
 use App\Services\Mail\EmailService;
 use App\Services\News\NewsRecorder;
@@ -32,6 +33,7 @@ class ChampionshipAssignment
         private NewsRecorder $news,
         private InjuryStatus $injuries,
         private EmailService $emails,
+        private FactionNamer $factions,
     ) {}
 
     /**
@@ -199,7 +201,8 @@ class ChampionshipAssignment
 
         $team = TagTeam::create([
             'save_id' => $save->id,
-            'name' => $members->map(fn (SaveWrestler $m): string => $m->name())->implode(' & '),
+            // A faction's name when the team is one (house rule).
+            'name' => $this->factions->name($save->id, array_map('intval', $members->pluck('id')->all()), $save->current_week),
             'brand' => $brand,
             'active' => true,
         ]);

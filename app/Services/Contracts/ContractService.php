@@ -39,10 +39,15 @@ class ContractService
     ) {}
 
     /**
-     * Sign a drafted wrestler immediately (§1 initial draft).
+     * Sign a drafted wrestler immediately (§1 initial draft). The roster cap
+     * holds here too, so nothing can put a brand over it.
      */
     public function signDrafted(Save $save, SaveWrestler $wrestler, Brand $brand, int $week, ?ContractLength $length = null): Contract
     {
+        if (! $this->roster->hasRoom($save, $brand)) {
+            throw new GameRuleException("The {$brand->label()} roster is full ({$this->roster->cap()}).");
+        }
+
         $length ??= ContractLength::from((int) config('gm.contracts.draft_default_length'));
         $contract = $this->createContract($save, $wrestler, $brand, $length, $week, $week);
 

@@ -37,6 +37,8 @@ class WeekResolver
     public const STEPS = [
         Steps\PrepareShows::class,
         AirShows::class,
+        // Right after the shows: teams that just won their 3rd match together.
+        Steps\FactionFormation::class,
         Steps\RecoverFatigue::class,
         Steps\InjuryReturns::class,
         Steps\TickContracts::class,

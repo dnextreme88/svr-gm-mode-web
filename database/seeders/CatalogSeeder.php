@@ -18,6 +18,7 @@ class CatalogSeeder extends Seeder
             MatchTypeSeeder::class,
             ChampionshipSeeder::class,
             PromoTypeSeeder::class,
+            FactionSeeder::class,
         ]);
     }
 }

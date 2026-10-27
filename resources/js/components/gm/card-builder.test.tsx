@@ -1,7 +1,8 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { CardBuilder } from '@/components/gm/card-builder';
+import { UnsavedChangesProvider } from '@/components/gm/unsaved-changes';
 import type {
     CardShow,
     CardSlot,
@@ -10,10 +11,42 @@ import type {
     RosterEntry,
 } from '@/types/gm';
 
-// The Clear confirmation reads the player's brand from the Inertia page.
+// The Clear confirmation reads the player's brand from the Inertia page; the
+// unsaved-changes guard listens for Inertia's `before` event.
+const inertia = vi.hoisted(() => ({
+    before: [] as Array<(event: { detail: { visit: unknown } }) => unknown>,
+    visit: vi.fn(),
+}));
+
 vi.mock('@inertiajs/react', () => ({
     usePage: () => ({ props: {} }),
+    router: {
+        on: (
+            name: string,
+            callback: (event: { detail: { visit: unknown } }) => unknown,
+        ) => {
+            inertia.before.push(callback);
+
+            return () => {
+                inertia.before = inertia.before.filter((c) => c !== callback);
+            };
+        },
+        visit: inertia.visit,
+    },
 }));
+
+/** Fire Inertia's `before` event for a visit; false means it was cancelled. */
+function navigate(path: string, method = 'get') {
+    const visit = {
+        url: new URL(path, window.location.origin),
+        method,
+        data: {},
+        headers: {},
+        prefetch: false,
+    };
+
+    return inertia.before.map((c) => c({ detail: { visit } }));
+}
 
 const config: FatigueConfig = {
     bar_size: 10,
@@ -195,16 +228,19 @@ function setup(slots: CardSlot[] = [emptySlot(1), emptySlot(2)]) {
     const onSave = vi.fn();
     const onClear = vi.fn();
 
+    // On the card page the builder sits in the unsaved-changes provider.
     render(
-        <CardBuilder
-            show={show}
-            slots={slots}
-            matchTypes={matchTypes}
-            roster={roster}
-            fatigueConfig={config}
-            onSave={onSave}
-            onClear={onClear}
-        />,
+        <UnsavedChangesProvider>
+            <CardBuilder
+                show={show}
+                slots={slots}
+                matchTypes={matchTypes}
+                roster={roster}
+                fatigueConfig={config}
+                onSave={onSave}
+                onClear={onClear}
+            />
+        </UnsavedChangesProvider>,
     );
 
     const user = userEvent.setup();
@@ -340,6 +376,60 @@ describe('CardBuilder', () => {
 
         expect(slot).not.toHaveAttribute('data-dirty');
         expect(within(slot).queryByText('Unsaved changes')).toBeNull();
+    });
+
+    it('asks before leaving the page with unsaved matches, naming them', async () => {
+        window.history.pushState({}, '', '/gm/saves/1/shows/3');
+        const { user, pickType } = setup();
+        inertia.visit.mockReset();
+
+        // Nothing unsaved: navigation goes through.
+        expect(navigate('/gm/saves/1/rosters')).not.toContain(false);
+
+        await pickType(1, 1);
+        await pickType(2, 1);
+
+        let results: unknown[] = [];
+        act(() => {
+            results = navigate('/gm/saves/1/rosters');
+        });
+
+        expect(results).toContain(false);
+        const dialog = screen.getByRole('dialog');
+        expect(dialog).toHaveTextContent(
+            'Matches 1 and 2 have unsaved changes. Leave this page and discard them?',
+        );
+
+        await user.click(within(dialog).getByRole('button', { name: 'Stay' }));
+        expect(inertia.visit).not.toHaveBeenCalled();
+
+        act(() => {
+            navigate('/gm/saves/1/rosters');
+        });
+        await user.click(
+            within(screen.getByRole('dialog')).getByRole('button', {
+                name: 'Discard and leave',
+            }),
+        );
+
+        expect(inertia.visit).toHaveBeenCalledWith(
+            new URL('/gm/saves/1/rosters', window.location.origin),
+            expect.objectContaining({ method: 'get' }),
+        );
+    });
+
+    it('lets visits to the card itself through, and warns on refresh', async () => {
+        window.history.pushState({}, '', '/gm/saves/1/shows/3');
+        const { pickType } = setup();
+        await pickType(1, 1);
+
+        expect(
+            navigate(`${window.location.pathname}/slots/1`, 'put'),
+        ).not.toContain(false);
+
+        const event = new Event('beforeunload', { cancelable: true });
+        window.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(true);
     });
 
     it('shows a floppy icon on Save', () => {

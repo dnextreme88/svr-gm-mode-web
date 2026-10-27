@@ -55,6 +55,7 @@ export function OutcomeCard({
                         names={outcome.winners}
                         champions={outcome.champions}
                         captains={outcome.captains}
+                        factions={outcome.factions}
                     />
                 </h2>
                 <div className="mt-4 font-condensed text-lg tracking-wide text-ink-dim uppercase">
@@ -66,6 +67,7 @@ export function OutcomeCard({
                                 names={side}
                                 champions={outcome.champions}
                                 captains={outcome.captains}
+                                factions={outcome.factions}
                             />
                         </Fragment>
                     ))}

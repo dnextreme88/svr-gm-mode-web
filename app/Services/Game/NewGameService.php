@@ -12,6 +12,7 @@ use App\Models\SaveWrestler;
 use App\Models\Season;
 use App\Models\Wrestler;
 use App\Services\Draft\DraftService;
+use App\Services\Factions\FactionService;
 use App\Services\Finance\LedgerService;
 use App\Support\Rng\RngFactory;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,7 @@ class NewGameService
         private RngFactory $rngFactory,
         private LedgerService $ledger,
         private DraftService $draft,
+        private FactionService $factions,
     ) {}
 
     public function create(string $name, Brand $playerBrand, ?string $seed = null, DraftMode $mode = DraftMode::Manual): Save
@@ -72,6 +74,8 @@ class NewGameService
                 'created_at' => $now,
                 'updated_at' => $now,
             ])->all());
+
+            $this->factions->seedSave($save);
 
             // §1: the $15M is granted once, at the initial draft of a new game.
             foreach (Brand::cases() as $brand) {

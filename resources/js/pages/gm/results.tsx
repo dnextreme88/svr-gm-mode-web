@@ -455,6 +455,7 @@ function MatchRow({
                                         names={side.members.map((m) => m.name)}
                                         champions={o.champions}
                                         captains={o.captains}
+                                        factions={o.factions}
                                     />
                                 </Fragment>
                             ))
@@ -464,6 +465,7 @@ function MatchRow({
                                     names={o.winners}
                                     champions={o.champions}
                                     captains={o.captains}
+                                    factions={o.factions}
                                 />
                                 <span className="mx-1.5 text-ink-faint group-hover:text-white/70">
                                     def.
@@ -475,6 +477,7 @@ function MatchRow({
                                             names={side}
                                             champions={o.champions}
                                             captains={o.captains}
+                                            factions={o.factions}
                                         />
                                     </Fragment>
                                 ))}

@@ -25,6 +25,7 @@ class NewsCatalog
         'Promos',
         'Injuries and morale',
         'Brand battle',
+        'Factions',
         'Quiet weeks',
     ];
 
@@ -95,6 +96,13 @@ class NewsCatalog
 
         'ratings_war' => ['group' => 'Brand battle', 'card' => 'brand', 'tier' => 'Story', 'active' => false],
         'ratings_streak' => ['group' => 'Brand battle', 'card' => 'brand', 'tier' => 'Story', 'active' => false],
+
+        'faction_formed' => ['group' => 'Factions', 'card' => 'brand', 'tier' => 'Headline, the week 2 or 3 superstars win together for the 3rd time and become a faction'],
+        'faction_member_added' => ['group' => 'Factions', 'card' => 'brand', 'tier' => 'Story (ready for when factions can grow; nothing adds members yet)'],
+        'faction_title_won' => ['group' => 'Factions', 'card' => 'brand', 'tier' => 'Headline: replaces the title change when the new tag champions are a faction'],
+        'faction_title_lost' => ['group' => 'Factions', 'card' => 'brand', 'tier' => 'Story, when tag champions who are a faction lose the title'],
+        'faction_interbrand_win' => ['group' => 'Factions', 'card' => 'wwe', 'tier' => 'Headline, when a faction wins a match on an interbrand card (Royal Rumble, Survivor Series, WrestleMania)'],
+        'faction_disbanded' => ['group' => 'Factions', 'card' => 'brand', 'tier' => 'Story, the week the GM disbands a faction'],
 
         'tickets_on_sale' => ['group' => 'Quiet weeks', 'card' => 'wwe', 'tier' => 'Headline, only when the WWE card has nothing else'],
         'brand_spotlight' => ['group' => 'Quiet weeks', 'card' => 'brand', 'tier' => 'Headline, only when a brand has nothing else'],

@@ -7,6 +7,7 @@ import { FloppyIcon } from '@/components/gm/floppy-icon';
 import { PopoverPanel, usePopover } from '@/components/gm/popover';
 import { WrestlerPicker } from '@/components/gm/wrestler-picker';
 import type { PickerOption } from '@/components/gm/wrestler-picker';
+import { useReportUnsaved } from '@/components/gm/unsaved-changes';
 import {
     bookingCounts,
     emptySides,
@@ -242,7 +243,6 @@ export function CardBuilder({
                     </span>
                 </span>
             </div>
-
             {drafts.map((draft) => (
                 <SlotEditor
                     key={draft.position}
@@ -275,7 +275,6 @@ export function CardBuilder({
                     }
                 />
             ))}
-
             <ConfirmDialog
                 open={confirmClear !== null}
                 title={`Clear match ${confirmClear ?? ''}?`}
@@ -290,7 +289,7 @@ export function CardBuilder({
 
                     setConfirmClear(null);
                 }}
-            />
+            />{' '}
         </div>
     );
 }
@@ -349,6 +348,7 @@ function SlotEditor({
     const label = `Match ${draft.position}`;
     const saveStatus = useSaveStatus(saveKey);
     const everyone = participantIds(draft);
+    useReportUnsaved(label, dirty);
 
     const note = (w: RosterEntry) =>
         w.blocked_reason ??

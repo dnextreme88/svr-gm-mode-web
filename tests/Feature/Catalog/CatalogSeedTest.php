@@ -28,15 +28,15 @@ function wrestler(string $name): Wrestler
 }
 
 describe('roster (§9)', function () {
-    it('seeds 158 wrestlers: the Nov 2005 brands, free agents and Legends', function () {
-        expect(Wrestler::count())->toBe(158)
+    it('seeds 159 wrestlers: the Nov 2005 brands, free agents and Legends', function () {
+        expect(Wrestler::count())->toBe(159)
             ->and(Wrestler::where('roster_type', RosterType::Superstar)->where('placeholder_brand', Brand::Raw)->count())->toBe(25)
             ->and(Wrestler::where('roster_type', RosterType::Superstar)->where('placeholder_brand', Brand::Smackdown)->count())->toBe(28)
             ->and(Wrestler::where('roster_type', RosterType::Superstar)->whereNull('placeholder_brand')->count())->toBe(48)
             ->and(Wrestler::where('roster_type', RosterType::Diva)->where('placeholder_brand', Brand::Raw)->count())->toBe(5)
             ->and(Wrestler::where('roster_type', RosterType::Diva)->where('placeholder_brand', Brand::Smackdown)->count())->toBe(2)
             ->and(Wrestler::where('roster_type', RosterType::Diva)->whereNull('placeholder_brand')->count())->toBe(16)
-            ->and(Wrestler::where('roster_type', RosterType::Legend)->count())->toBe(34);
+            ->and(Wrestler::where('roster_type', RosterType::Legend)->count())->toBe(35);
     });
 
     it('fills each brand to the 30-wrestler roster cap', function () {
@@ -87,7 +87,7 @@ describe('roster (§9)', function () {
     });
 
     it('has unique names', function () {
-        expect(Wrestler::distinct()->count('name'))->toBe(158);
+        expect(Wrestler::distinct()->count('name'))->toBe(159);
     });
 });
 
@@ -468,7 +468,7 @@ describe('promo types (§5)', function () {
 it('is safe to run the catalog seeder twice', function () {
     $this->seed(CatalogSeeder::class);
 
-    expect(Wrestler::count())->toBe(158)
+    expect(Wrestler::count())->toBe(159)
         ->and(MatchType::count())->toBe(97)
         ->and(WrestlerSpecialty::count())->toBe(37);
 });

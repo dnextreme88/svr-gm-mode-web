@@ -7,6 +7,7 @@ use App\Enums\InjurySeverity;
 use App\Enums\PromoTypeKey;
 use App\Enums\Stipulation;
 use App\Http\Controllers\Controller;
+use App\Models\Faction;
 use App\Models\InjuryType;
 use App\Models\MatchType;
 use App\Models\PpvEvent;
@@ -176,6 +177,25 @@ class DocsController extends Controller
             'results' => [
                 'booked_non_decisive_percent' => (int) round((float) config('gm.outcomes.booked_non_decisive_chance') * 100),
                 'buried_alive_weeks' => (int) config('gm.buried_alive.sit_out_weeks'),
+            ],
+            // Factions (house rule): the rules, and the seeded real-life ones
+            // only. Factions formed in a career aren't listed here.
+            'factions' => [
+                'min_members' => (int) config('gm.factions.min_members'),
+                'max_members' => (int) config('gm.factions.max_members'),
+                'formation_wins' => (int) config('gm.factions.formation_wins'),
+                'formation_max_size' => (int) config('gm.factions.formation_max_size'),
+                'seeded' => Faction::with('members')->orderBy('faction_name')->get()->map(fn (Faction $f): array => [
+                    'name' => $f->faction_name,
+                    'type' => $f->faction_type->value,
+                    'formed' => $f->date_formed->format('M j, Y'),
+                    'disbanded' => $f->date_disbanded?->format('M j, Y'),
+                    'members' => $f->members->map(fn (Wrestler $w): array => [
+                        'name' => $w->name,
+                        'roster_type' => $w->roster_type->value,
+                        'weight_class' => $w->weight_class->value,
+                    ])->values(),
+                ])->values(),
             ],
             'calendar' => [
                 'weekly_show_days' => (array) config('gm.calendar.weekly_show_days'),

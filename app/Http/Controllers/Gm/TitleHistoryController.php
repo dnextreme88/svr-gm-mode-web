@@ -15,6 +15,7 @@ use App\Models\Save;
 use App\Models\Show;
 use App\Models\TitleReign;
 use App\Services\Calendar\CalendarService;
+use App\Services\Factions\FactionNamer;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleRecords;
 use Illuminate\Support\Collection;
@@ -28,7 +29,10 @@ use Inertia\Response;
  */
 class TitleHistoryController extends Controller
 {
-    public function __construct(private CalendarService $calendar) {}
+    public function __construct(
+        private CalendarService $calendar,
+        private FactionNamer $factions,
+    ) {}
 
     public function __invoke(Save $save, TitleRecords $records, MitbService $mitb): Response
     {
@@ -168,10 +172,11 @@ class TitleHistoryController extends Controller
      */
     private function match(Save $save, TitleReign $reign, MatchSlot $slot, string $kind, ?int $number): array
     {
+        // Factions are named as such (house rule).
         $opponents = $slot->participants
             ->filter(fn (MatchParticipant $p): bool => $p->role === ParticipantRole::Competitor && ! in_array($p->save_wrestler_id, $reign->holderIds(), true))
             ->groupBy('side')
-            ->map(fn (Collection $side): string => $side->map(fn (MatchParticipant $p): string => $p->saveWrestler->wrestler->name)->implode(' & '))
+            ->map(fn (Collection $side): string => $this->factions->name($save->id, array_values(array_map('intval', $side->pluck('save_wrestler_id')->all())), $slot->show->week_number))
             ->values()
             ->implode(', ');
 

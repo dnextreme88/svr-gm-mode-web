@@ -1,6 +1,11 @@
 import { Fragment, useState } from 'react';
-import { CaptainTag, ChampionTag } from '@/components/gm/champion-tag';
+import {
+    CaptainTag,
+    ChampionTag,
+    FactionName,
+} from '@/components/gm/champion-tag';
 import { WrestlerName } from '@/components/gm/wrestler-name';
+import { groupSide } from '@/lib/factions';
 import type { PendingMatch } from '@/types/gm';
 
 type Side = PendingMatch['sides'][number];
@@ -113,14 +118,38 @@ export function BookToWinCard({
 function SideLabel({ match, side }: { match: PendingMatch; side: Side }) {
     return (
         <span className="text-lg font-semibold">
-            {side.members.map((m, i) => (
-                <Fragment key={m.id}>
-                    {i > 0 && ' & '}
-                    <WrestlerName wrestler={m} />
-                    {match.champions.includes(m.name) && <ChampionTag />}
-                    {match.captains.includes(m.name) && <CaptainTag />}
-                </Fragment>
-            ))}
+            {groupSide(side.members, (m) => m.name, match.factions).map(
+                (item, i) => {
+                    const members =
+                        item.kind === 'faction' ? item.members : [item.member];
+
+                    return (
+                        <Fragment
+                            key={
+                                item.kind === 'faction'
+                                    ? `f:${item.name}`
+                                    : item.member.id
+                            }
+                        >
+                            {i > 0 && ' & '}
+                            {item.kind === 'faction' ? (
+                                <FactionName
+                                    name={item.name}
+                                    members={item.members.map((m) => m.name)}
+                                />
+                            ) : (
+                                <WrestlerName wrestler={item.member} />
+                            )}
+                            {members.some((m) =>
+                                match.champions.includes(m.name),
+                            ) && <ChampionTag />}
+                            {members.some((m) =>
+                                match.captains.includes(m.name),
+                            ) && <CaptainTag />}
+                        </Fragment>
+                    );
+                },
+            )}
         </span>
     );
 }

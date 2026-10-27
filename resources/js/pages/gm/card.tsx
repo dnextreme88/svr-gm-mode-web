@@ -15,6 +15,7 @@ import { ProposalLauncher } from '@/components/gm/proposal-launcher';
 import type { ProposalResult } from '@/components/gm/proposal-launcher';
 import type { ProposalView } from '@/components/gm/proposal-modal';
 import { StipulationPicker, TitleCycler } from '@/components/gm/title-tools';
+import { UnsavedChangesProvider } from '@/components/gm/unsaved-changes';
 import type { PromoFatigue } from '@/lib/card';
 import { requestJson } from '@/lib/http';
 import { saveVisit, slotSaveKey } from '@/lib/save-status';
@@ -119,7 +120,7 @@ export default function CardPage() {
     };
 
     return (
-        <>
+        <UnsavedChangesProvider>
             <Head title={`${show.name} card`} />
             <PageTitle
                 kicker={`Week ${game.season_week} · ${show.show_type === 'ppv' ? 'PPV card' : 'Weekly show'}`}
@@ -328,6 +329,6 @@ export default function CardPage() {
                     />
                 </section>
             )}
-        </>
+        </UnsavedChangesProvider>
     );
 }

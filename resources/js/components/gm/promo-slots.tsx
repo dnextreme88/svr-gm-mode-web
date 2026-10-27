@@ -5,6 +5,7 @@ import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FloppyIcon } from '@/components/gm/floppy-icon';
 import { Panel } from '@/components/gm/panel';
 import { RivalryPicker, sortPair } from '@/components/gm/rivalry-picker';
+import { useReportUnsaved } from '@/components/gm/unsaved-changes';
 import type { RivalryOption } from '@/components/gm/rivalry-picker';
 import { WrestlerPicker } from '@/components/gm/wrestler-picker';
 import type { PickerOption } from '@/components/gm/wrestler-picker';
@@ -289,6 +290,7 @@ function PromoEditor({
         (pair && b !== slot.target_wrestler_b_id) ||
         title !== (slot.target_championship_id ?? null) ||
         before !== savedBefore;
+    useReportUnsaved(`Promo ${slot.position}`, dirty && !readOnly);
 
     // Back to what's saved.
     const discard = () => {

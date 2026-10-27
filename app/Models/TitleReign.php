@@ -7,6 +7,7 @@ use App\Enums\ReignEndReason;
 use App\Enums\TitleHolderType;
 use App\Enums\WonVia;
 use App\Models\Concerns\BelongsToGame;
+use App\Services\Factions\FactionNamer;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -103,9 +104,21 @@ class TitleReign extends Model
         return $this->holder_snapshot['ids'];
     }
 
+    /**
+     * The holder's name; tag champions who were a faction when they won it
+     * go by the faction (house rule).
+     */
     public function holderName(): string
     {
-        return $this->isVacant() ? 'Vacant' : implode(' & ', $this->holder_snapshot['names']);
+        if ($this->isVacant()) {
+            return 'Vacant';
+        }
+
+        $ids = $this->holderIds();
+
+        return count($ids) > 1
+            ? app(FactionNamer::class)->name($this->save_id, $ids, $this->won_week)
+            : implode(' & ', $this->holder_snapshot['names']);
     }
 
     /**

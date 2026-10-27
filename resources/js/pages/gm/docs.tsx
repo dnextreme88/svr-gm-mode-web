@@ -187,6 +187,13 @@ type Props = {
         booked_non_decisive_percent: number;
         buried_alive_weeks: number;
     };
+    factions: {
+        min_members: number;
+        max_members: number;
+        formation_wins: number;
+        formation_max_size: number;
+        seeded: SeededFaction[];
+    };
     calendar: {
         weekly_show_days: Record<'raw' | 'smackdown', string>;
         weeks_per_season: number;
@@ -212,6 +219,7 @@ const tabs = [
     { key: 'schedule', label: 'Schedule' },
     { key: 'results', label: 'Results & titles' },
     { key: 'rosters', label: 'Rosters & draft' },
+    { key: 'factions', label: 'Factions' },
 ] as const;
 
 type TabKey = (typeof tabs)[number]['key'];
@@ -1584,6 +1592,155 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
     );
 }
 
+type SeededFaction = {
+    name: string;
+    type: 'tag_team' | 'stable';
+    formed: string;
+    disbanded: string | null;
+    members: Array<{
+        name: string;
+        roster_type: RosterType;
+        weight_class: WeightClass;
+    }>;
+};
+
+/** Factions (house rule): naming, forming, disbanding and the seeded list. */
+function FactionsDocs({ factions }: Pick<Props, 'factions'>) {
+    return (
+        <div className="space-y-6">
+            <div className="grid items-start gap-6 md:grid-cols-2">
+                <Panel title="How factions work">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            A faction is a tag team or a stable of{' '}
+                            {factions.min_members} to {factions.max_members}{' '}
+                            members. Every real-life faction below is active in
+                            every career from week 1. Their real dates are for
+                            reference only.
+                        </li>
+                        <li>
+                            When 2 or more members of a faction team up on one
+                            side, they’re billed as the faction everywhere:
+                            results, outcome cards, news, title histories and
+                            reports. The rest of the side keeps their own names,
+                            e.g. “Evolution & Kane”.
+                        </li>
+                        <li>
+                            When a side fits more than one faction, the one
+                            covering the most of the side wins, then the
+                            smallest, then a tag team over a stable. Matt Hardy
+                            & Jeff Hardy are Team Xtreme; Edge & Christian are
+                            The Brood.
+                        </li>
+                        <li>
+                            Booking stays individual: the card screen and its
+                            pickers always list each wrestler by name.
+                        </li>
+                        <li>
+                            The Factions page opens on the factions created in
+                            your career, by either brand; All adds the real-life
+                            ones, and Status narrows it to active or disbanded.
+                            Each shows its members, dates, record (matches where
+                            2 or more members teamed) and the titles they won
+                            together.
+                        </li>
+                        <li>
+                            Factions don’t change match odds yet. Benefits are
+                            planned for later.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel title="Forming and disbanding">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            2 or {factions.formation_max_size} male superstars
+                            who win {factions.formation_wins} matches together,
+                            as the whole winning side, can become a new faction.
+                            Divas can’t form one this way, though some real-life
+                            factions include a Diva.
+                        </li>
+                        <li>
+                            Your teams: after win number{' '}
+                            {factions.formation_wins} a pop-up asks for a name
+                            and a type (tag team or stable), then asks you to
+                            confirm. Not now asks again after their next win
+                            together.
+                        </li>
+                        <li>
+                            The rival GM’s teams form on their own, with a name
+                            of its choosing.
+                        </li>
+                        <li>
+                            A new faction is dated from the show where it
+                            formed, and its record counts the wins that formed
+                            it.
+                        </li>
+                        <li>
+                            Disband any active faction from the Factions page.
+                            From that week on they go by their own names; past
+                            results keep the faction name. It can’t be undone.
+                        </li>
+                        <li>
+                            News: a faction forming (headline), a new member
+                            (story, once factions can grow), winning a tag title
+                            (headline in place of the title change), losing one
+                            (story), winning on an interbrand card (WWE card)
+                            and disbanding (story).
+                        </li>
+                    </ul>
+                </Panel>
+            </div>
+
+            <Panel
+                title={`Real-life factions (${factions.seeded.length})`}
+                bodyClassName="p-0"
+            >
+                <div className="gm-scroll overflow-x-auto">
+                    <table className="gm-table" data-testid="seeded-factions">
+                        <thead>
+                            <tr>
+                                <th>Faction</th>
+                                <th>Type</th>
+                                <th>Members</th>
+                                <th>Formed</th>
+                                <th>Disbanded</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {factions.seeded.map((f) => (
+                                <tr key={f.name}>
+                                    <td className="font-semibold whitespace-nowrap">
+                                        {f.name}
+                                    </td>
+                                    <td className="whitespace-nowrap text-ink-dim">
+                                        {f.type === 'tag_team'
+                                            ? 'Tag team'
+                                            : 'Stable'}
+                                    </td>
+                                    <td>
+                                        {f.members.map((m, i) => (
+                                            <span key={m.name}>
+                                                {i > 0 && ', '}
+                                                <WrestlerName wrestler={m} />
+                                            </span>
+                                        ))}
+                                    </td>
+                                    <td className="whitespace-nowrap text-ink-dim">
+                                        {f.formed}
+                                    </td>
+                                    <td className="whitespace-nowrap text-ink-dim">
+                                        {f.disbanded ?? '—'}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </Panel>
+        </div>
+    );
+}
+
 function ResultsDocs({ results }: Pick<Props, 'results'>) {
     return (
         <div className="space-y-6">
@@ -1859,6 +2016,9 @@ export default function Docs() {
                 {tab === 'results' && <ResultsDocs results={props.results} />}
                 {tab === 'rosters' && (
                     <RostersDocs rosters={props.rosters} rival={props.rival} />
+                )}
+                {tab === 'factions' && (
+                    <FactionsDocs factions={props.factions} />
                 )}
             </div>
         </>

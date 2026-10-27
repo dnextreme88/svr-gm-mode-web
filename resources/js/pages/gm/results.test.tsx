@@ -16,6 +16,7 @@ function outcome(
         position,
         match_type: 'Normal Matches — No Manager',
         winners,
+        winners_label: winners.join(' & '),
         losers,
         loser_sides: losers.map((side) => side.split(' & ')),
         booked: false,

@@ -21,6 +21,7 @@ use App\Models\Season;
 use App\Models\TagTeam;
 use App\Models\TitleReign;
 use App\Services\Contracts\ContractService;
+use App\Services\Factions\FactionNamer;
 use App\Services\Finance\LedgerService;
 use App\Services\News\NewsRecorder;
 use App\Services\Titles\ChampionshipAssignment;
@@ -47,13 +48,16 @@ class MatchOutcomeHandler
         private LedgerService $ledger,
         private NewsRecorder $news,
         private TitleRecords $records,
+        private FactionNamer $factions,
     ) {}
 
     public function apply(MatchSlot $slot, MatchResult $result, ResolvedMatch $resolved, WeekContext $context): void
     {
         $slot->loadMissing(['titleChampionship', 'stipulationChampionship', 'show', 'participants.saveWrestler.wrestler']);
-        $names = $slot->participants->mapWithKeys(fn ($p): array => [$p->save_wrestler_id => $p->saveWrestler->wrestler->name])->all();
-        $nameOf = fn (array $ids): string => implode(' & ', array_map(fn (int $id): string => $names[$id] ?? '?', $ids));
+        // Factions are named as such (house rule); they only form from one side.
+        $sides = $slot->sides();
+        /** @param array<int, int> $ids */
+        $nameOf = fn (array $ids): string => $this->factions->name($slot->show->save_id, $ids, $context->week, $sides);
 
         $titleChanged = false;
         $banner = null;
@@ -300,6 +304,10 @@ class MatchOutcomeHandler
         // The Women's title is the Divas' only title; tag titles have two champions.
         $tag = $championship->is_tag;
 
+        if ($tag && $this->announceFactionChange($new, $slot, $resolved, $nameOf, $week, $loser)) {
+            return;
+        }
+
         $this->news->record($new->game, NewsEventType::TitleChange, NewsTier::Headline, $new->brand, [
             'winner' => $new->holderName(),
             'loser' => $loser ?? $nameOf($resolved->losers),
@@ -311,6 +319,51 @@ class MatchOutcomeHandler
             'looks' => $tag ? 'look' : 'looks',
             'champion_pronoun' => $tag ? 'they' : ($championship->eligibility === ChampionshipEligibility::DivasOnly ? 'she' : 'he'),
         ], ['championship_id' => $new->championship_id, 'wrestler_ids' => [...$resolved->winners, ...$resolved->losers]], priority: 100, week: $week, dedupeKey: "slot:{$new->won_match_id}");
+    }
+
+    /**
+     * Tag titles and factions (house rule): new champions who are a faction
+     * get their own headline in place of the title change, and champions
+     * who were a faction a story about the loss. Returns whether the
+     * headline was written.
+     *
+     * @param  callable(list<int>): string  $nameOf
+     */
+    private function announceFactionChange(TitleReign $new, MatchSlot $slot, ResolvedMatch $resolved, callable $nameOf, int $week, ?string $loser): bool
+    {
+        $save = $new->game;
+        $championship = $new->championship;
+        $previous = TitleReign::where('save_id', $save->id)
+            ->where('championship_id', $championship->id)
+            ->where('id', '<', $new->id)
+            ->where('lost_match_id', $slot->id)
+            ->latest('id')
+            ->first();
+        $lostBy = $previous === null ? null : $this->factions->factionOf($save->id, $previous->holderIds(), $previous->won_week);
+
+        if ($lostBy !== null) {
+            $this->news->record($save, NewsEventType::FactionTitleLost, NewsTier::Story, $new->brand, [
+                'faction' => $lostBy->faction_name,
+                'title' => $championship->name,
+                'winner' => $new->holderName(),
+                'via' => $resolved->via($slot->matchType),
+            ], ['championship_id' => $championship->id, 'wrestler_ids' => $previous->holderIds(), 'faction_id' => $lostBy->id], priority: (int) config('gm.news.faction_priority.title_lost'), week: $week, dedupeKey: "faction-lost:{$slot->id}");
+        }
+
+        $wonBy = $this->factions->factionOf($save->id, $new->holderIds(), $week);
+
+        if ($wonBy === null) {
+            return false;
+        }
+
+        $this->news->record($save, NewsEventType::FactionTitleWon, NewsTier::Headline, $new->brand, [
+            'faction' => $wonBy->faction_name,
+            'loser' => $loser ?? $nameOf($resolved->losers),
+            'title' => $championship->name,
+            'via' => $resolved->via($slot->matchType),
+        ], ['championship_id' => $new->championship_id, 'wrestler_ids' => [...$resolved->winners, ...$resolved->losers], 'faction_id' => $wonBy->id], priority: (int) config('gm.news.faction_priority.title_won'), week: $week, dedupeKey: "slot:{$new->won_match_id}");
+
+        return true;
     }
 
     /**

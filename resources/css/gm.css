@@ -508,6 +508,13 @@
         color: #ff7d8c;
     }
 
+    /* A faction's name in place of its members' (house rule). */
+    .gm-faction-name {
+        cursor: help;
+        text-decoration: underline dotted rgb(255 255 255 / 0.35);
+        text-underline-offset: 4px;
+    }
+
     /* Email mentions: the wrestler's current brand. */
     .gm-name-raw {
         color: #ff6464;

@@ -117,6 +117,22 @@ class Save extends Model
         return $this->hasMany(DraftPick::class);
     }
 
+    /**
+     * @return HasMany<SaveFaction, $this>
+     */
+    public function saveFactions(): HasMany
+    {
+        return $this->hasMany(SaveFaction::class);
+    }
+
+    /**
+     * @return HasMany<FactionPrompt, $this>
+     */
+    public function factionPrompts(): HasMany
+    {
+        return $this->hasMany(FactionPrompt::class);
+    }
+
     public function brand(Brand $brand): SaveBrand
     {
         return $this->brands()->where('brand', $brand)->firstOrFail();

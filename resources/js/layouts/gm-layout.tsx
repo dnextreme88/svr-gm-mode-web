@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { UnreadPill } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
+import { FactionPromptModal } from '@/components/gm/faction-prompt-modal';
 import { FloppyIcon } from '@/components/gm/floppy-icon';
 import { formatMoney } from '@/lib/gm';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,11 @@ function navItems(game: GameShell): NavItem[] {
         },
         { label: 'Rivalry', href: gm.rivalries.url(id), match: '/rivalries' },
         {
+            label: 'Factions',
+            href: gm.factions.index.url(id),
+            match: '/factions',
+        },
+        {
             label: 'Propose Trade',
             href: gm.trade.show.url(id),
             match: '/trade',
@@ -65,7 +71,7 @@ function SaveCareerButton({ game }: { game: GameShell }) {
     if (game.saved) {
         return (
             <span
-                className="flex items-center gap-1.5 font-condensed text-xs tracking-[0.2em] text-zone-safe uppercase"
+                className="flex items-center gap-1.5 font-condensed tracking-[0.2em] text-zone-safe uppercase"
                 title="Progress is saved automatically from here on"
                 data-testid="career-saved"
             >
@@ -96,6 +102,47 @@ function SaveCareerButton({ game }: { game: GameShell }) {
     );
 }
 
+/**
+ * Season, week and date. Clicking it opens this week's card to book (the
+ * PPV first, then the interbrand card, then the weekly show), or the live
+ * results while the week airs.
+ */
+function WeekChip({ game }: { game: GameShell }) {
+    const chip =
+        'gm-chyron-both flex items-center gap-3 bg-white/6 py-1.5 font-condensed text-xl tracking-wider uppercase';
+    const content = (
+        <>
+            <span className="text-ink-dim">Season</span>
+            <span className="gm-num text-ink">{game.season}</span>
+            <span className="h-3 w-px bg-white/20" />
+            <span className="text-ink-dim">Week</span>
+            <span className="gm-num text-ink">{game.season_week}</span>
+            <span className="h-3 w-px bg-white/20" />
+            <span className="text-brand-hot">{game.month}</span>
+            <span className="text-ink-faint">{game.date}</span>
+        </>
+    );
+
+    if (!game.current_card_url) {
+        return <div className={chip}>{content}</div>;
+    }
+
+    return (
+        <Link
+            href={game.current_card_url}
+            className={cn(chip, 'transition-colors hover:bg-white/12')}
+            title={
+                game.airing
+                    ? "Back to this week's results"
+                    : "Go to this week's card"
+            }
+            data-testid="week-chip"
+        >
+            {content}
+        </Link>
+    );
+}
+
 function Header({ game }: { game: GameShell }) {
     return (
         <header className="relative z-10 border-b border-white/8 bg-arena/80 backdrop-blur">
@@ -106,27 +153,18 @@ function Header({ game }: { game: GameShell }) {
                     aria-label="All saves"
                 >
                     <BrandBug brand={game.player_brand} />
-                    <span className="hidden font-condensed text-xs tracking-[0.25em] text-ink-dim uppercase sm:inline">
+                    <span className="hidden font-condensed text-lg tracking-[0.25em] text-ink-dim uppercase sm:inline">
                         GM Mode
                     </span>
                 </Link>
 
-                <div className="gm-chyron-both flex items-center gap-3 bg-white/[0.06] py-1.5 font-condensed text-sm tracking-wider uppercase">
-                    <span className="text-ink-dim">Season</span>
-                    <span className="gm-num text-ink">{game.season}</span>
-                    <span className="h-3 w-px bg-white/20" />
-                    <span className="text-ink-dim">Week</span>
-                    <span className="gm-num text-ink">{game.season_week}</span>
-                    <span className="h-3 w-px bg-white/20" />
-                    <span className="text-brand-hot">{game.month}</span>
-                    <span className="text-ink-faint">{game.date}</span>
-                </div>
+                <WeekChip game={game} />
 
                 <div className="ml-auto flex flex-wrap items-center gap-5">
                     {game.next_ppv && (
                         <div className="text-right">
-                            <div className="gm-label">Next PPV</div>
-                            <div className="font-condensed text-sm font-semibold text-ink">
+                            <div className="gm-label text-xl">Next PPV</div>
+                            <div className="font-condensed text-lg font-semibold text-ink">
                                 {game.next_ppv.name}
                                 <span className="ml-1.5 text-ink-dim">
                                     {game.next_ppv.weeks_away === 0
@@ -137,8 +175,8 @@ function Header({ game }: { game: GameShell }) {
                         </div>
                     )}
                     <div className="text-right">
-                        <div className="gm-label">Roster</div>
-                        <div className="gm-num text-sm">
+                        <div className="gm-label text-xl">Roster</div>
+                        <div className="gm-num text-lg">
                             {game.roster_count}
                             <span className="text-ink-faint">
                                 /{game.roster_cap}
@@ -146,10 +184,10 @@ function Header({ game }: { game: GameShell }) {
                         </div>
                     </div>
                     <div className="text-right">
-                        <div className="gm-label">Budget</div>
+                        <div className="gm-label text-xl">Budget</div>
                         <div
                             className={cn(
-                                'gm-num text-lg leading-none',
+                                'gm-num text-lg',
                                 game.budget < 0
                                     ? 'text-zone-serious'
                                     : 'text-ink',
@@ -185,7 +223,7 @@ function Nav({ game, url }: { game: GameShell; url: string }) {
                             href={item.href}
                             prefetch
                             className={cn(
-                                'relative px-3 py-2.5 font-condensed text-sm font-semibold tracking-[0.12em] whitespace-nowrap uppercase transition-colors',
+                                'relative px-3 py-2.5 font-condensed font-semibold tracking-[0.12em] whitespace-nowrap uppercase transition-colors',
                                 active
                                     ? 'text-white'
                                     : 'text-ink-dim hover:text-ink',
@@ -235,6 +273,16 @@ export default function GmLayout({ children }: { children: ReactNode }) {
             <main className="relative z-10 mx-auto max-w-[1500px] px-4 py-8 md:px-6">
                 {children}
             </main>
+            {game?.faction_prompt &&
+                game.stage === 'in_season' &&
+                !game.airing && (
+                    <FactionPromptModal
+                        key={game.faction_prompt.id}
+                        saveId={game.id}
+                        prompt={game.faction_prompt}
+                        brand={game.player_brand}
+                    />
+                )}
         </div>
     );
 }

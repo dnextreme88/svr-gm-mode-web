@@ -169,6 +169,7 @@ describe('Gauntlet outcome', () => {
             position: 1,
             match_type: 'Gauntlet — 6-Man Gauntlet',
             winners: ['Matt Hardy'],
+            winners_label: 'Matt Hardy',
             losers: entrants.filter((n) => n !== 'Matt Hardy'),
             loser_sides: entrants
                 .filter((n) => n !== 'Matt Hardy')

@@ -161,6 +161,7 @@ $legends = [
     ['Pat Patterson', 'light_heavyweight', 237],
     ['Ricky Steamboat', 'light_heavyweight', 235],
     ['Superstar Billy Graham', 'heavyweight', 275],
+    ['Faarooq', 'heavyweight', 270],
 ];
 
 $rows = [];

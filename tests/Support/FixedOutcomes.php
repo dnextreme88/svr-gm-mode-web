@@ -5,6 +5,7 @@ namespace Tests\Support;
 use App\Enums\MatchFamily;
 use App\Enums\MatchMethod;
 use App\Models\MatchSlot;
+use App\Services\Factions\FactionNamer;
 use App\Services\Matches\MatchResolver;
 use App\Services\Matches\ResolvedMatch;
 use App\Support\Rng\Rng;
@@ -27,7 +28,7 @@ class FixedOutcomes extends MatchResolver
     {
         $fake = app()->bound(MatchResolver::class) && app(MatchResolver::class) instanceof self
             ? app(MatchResolver::class)
-            : new self;
+            : new self(app(FactionNamer::class));
 
         $fake->queue[] = ['winner' => $winner, 'method' => $method];
         app()->instance(MatchResolver::class, $fake);
