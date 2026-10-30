@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { SpecialtyBadge } from '@/components/gm/badges';
+import { GoldTag, SpecialtyBadge } from '@/components/gm/badges';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { PopoverPanel, usePopover } from '@/components/gm/popover';
@@ -26,6 +26,7 @@ import type {
     FatigueConfig,
     MatchTypeOption,
     RosterEntry,
+    TitleOption,
 } from '@/types/gm';
 
 type SlotTools = (
@@ -45,12 +46,16 @@ export type CardBuilderProps = {
     onClear: (position: number) => void;
     /** The title cycler, shown in each slot's header. */
     renderTitle?: SlotTools;
-    /** Extra controls on the slot's action row (stipulation, randomize). */
+    /** More buttons beside Save, Discard and Clear (Randomize). */
+    renderButtons?: SlotTools;
+    /** Extra controls on the slot's action row (the stipulation). */
     renderActions?: SlotTools;
     /** Saved promos that tire wrestlers before a given match (§5). */
     promoFatigue?: PromoFatigue[];
     /** Read-only because the week's booking order hasn't reached this card, or it's confirmed. */
     lockedByOrder?: boolean;
+    /** Every title with its holders, to tag the champions in a title match. */
+    championships?: TitleOption[];
 };
 
 export function toDraft(slot: CardSlot): SlotDraft {
@@ -149,9 +154,11 @@ export function CardBuilder({
     onSave,
     onClear,
     renderTitle,
+    renderButtons,
     renderActions,
     promoFatigue = [],
     lockedByOrder = false,
+    championships = [],
 }: CardBuilderProps) {
     const [drafts, setDrafts] = useState<SlotDraft[]>(() => slots.map(toDraft));
     const [dirty, setDirty] = useState<Set<number>>(new Set());
@@ -183,15 +190,15 @@ export function CardBuilder({
             current.map((d) =>
                 d.position === position
                     ? {
-                        ...d,
-                        matchTypeId: null,
-                        sides: [],
-                        managers: {},
-                        titleChampionshipId: null,
-                        stipulation: null,
-                        stipulationChampionshipId: null,
-                        refereeId: null,
-                    }
+                          ...d,
+                          matchTypeId: null,
+                          sides: [],
+                          managers: {},
+                          titleChampionshipId: null,
+                          stipulation: null,
+                          stipulationChampionshipId: null,
+                          refereeId: null,
+                      }
                     : d,
             ),
         );
@@ -254,6 +261,7 @@ export function CardBuilder({
                     counts={counts}
                     fatigueConfig={fatigueConfig}
                     promoFatigue={promoFatigue}
+                    championships={championships}
                     readOnly={readOnly || draft.fixed}
                     canSave={!readOnly && !draft.fixed}
                     dirty={dirty.has(draft.position)}
@@ -267,6 +275,7 @@ export function CardBuilder({
                     onDiscard={() => discard(draft.position)}
                     onClear={() => clearSlot(draft.position)}
                     title={renderTitle?.(draft, update, drafts)}
+                    buttons={renderButtons?.(draft, update, drafts)}
                     actions={renderActions?.(draft, update, drafts)}
                     names={
                         slots.find((s) => s.position === draft.position)?.names
@@ -288,6 +297,7 @@ type SlotEditorProps = {
     counts: Map<number, number>;
     fatigueConfig: FatigueConfig;
     promoFatigue: PromoFatigue[];
+    championships: TitleOption[];
     readOnly: boolean;
     canSave: boolean;
     dirty: boolean;
@@ -299,6 +309,7 @@ type SlotEditorProps = {
     onDiscard: () => void;
     onClear: () => void;
     title?: React.ReactNode;
+    buttons?: React.ReactNode;
     actions?: React.ReactNode;
     names?: Record<string, string>;
 };
@@ -314,6 +325,7 @@ function SlotEditor({
     counts,
     fatigueConfig,
     promoFatigue,
+    championships,
     readOnly,
     canSave,
     dirty,
@@ -324,6 +336,7 @@ function SlotEditor({
     onDiscard,
     onClear,
     title,
+    buttons,
     actions,
     names,
 }: SlotEditorProps) {
@@ -332,6 +345,10 @@ function SlotEditor({
     const saveStatus = useSaveStatus(saveKey);
     const everyone = participantIds(draft);
     useReportUnsaved(label, dirty);
+    // The holders of the title on the line, tagged "Champion" on their slots.
+    const champions =
+        championships.find((c) => c.id === draft.titleChampionshipId)
+            ?.holder_ids ?? [];
 
     const note = (w: RosterEntry) =>
         w.blocked_reason ??
@@ -423,6 +440,7 @@ function SlotEditor({
                                     )}
                                     config={fatigueConfig}
                                     matches={counts.get(id) ?? 0}
+                                    champion={champions.includes(id)}
                                 />
                             ) : null
                         }
@@ -520,25 +538,28 @@ function SlotEditor({
                         })
                     }
                 />
-                {type && (
-                    <span
-                        className="mt-1.5 flex w-full items-center justify-between gap-3 font-condensed tracking-wider text-ink-dim uppercase md:w-auto md:justify-start"
-                        data-testid={`type-info-${draft.position}`}
-                    >
-                        <span>
-                            Cost <MatchCost cost={type.cost} />
+                {/* md to lg: the cost line and the title share a row under the type picker. */}
+                <div className="contents md:flex md:w-full md:items-start md:justify-between md:gap-3 lg:contents">
+                    {type && (
+                        <span
+                            className="mt-1.5 flex w-full items-center justify-between gap-3 font-condensed tracking-wider text-ink-dim uppercase md:w-auto md:justify-start"
+                            data-testid={`type-info-${draft.position}`}
+                        >
+                            <span>
+                                Cost <MatchCost cost={type.cost} />
+                            </span>
+                            <span>
+                                Fatigue{' '}
+                                <FatigueCost bars={type.fatigue_cost_bars} />
+                            </span>
                         </span>
-                        <span>
-                            Fatigue{' '}
-                            <FatigueCost bars={type.fatigue_cost_bars} />
-                        </span>
-                    </span>
-                )}
-                {title && (
-                    <div className="mt-0.5 w-full sm:ml-auto md:w-auto">
-                        {title}
-                    </div>
-                )}
+                    )}
+                    {title && (
+                        <div className="mt-0.5 w-full sm:ml-auto md:w-auto">
+                            {title}
+                        </div>
+                    )}
+                </div>
             </header>
 
             {type ? (
@@ -583,7 +604,7 @@ function SlotEditor({
                 </p>
             )}
 
-            {(canSave || actions) && (
+            {(canSave || buttons || actions) && (
                 <SlotActions
                     name={label.toLowerCase()}
                     editable={canSave}
@@ -595,6 +616,7 @@ function SlotEditor({
                     onSave={onSave}
                     onDiscard={onDiscard}
                     onClear={onClear}
+                    buttons={buttons}
                     className="gap-3 border-t border-white/6 px-4 py-2.5"
                 >
                     {actions}
@@ -842,8 +864,8 @@ export function ordinal(n: number): string {
         tens >= 11 && tens <= 13
             ? 'th'
             : (({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[
-                n % 10
-            ] ?? 'th');
+                  n % 10
+              ] ?? 'th');
 
     return `${n}${suffix}`;
 }
@@ -933,12 +955,15 @@ function CompetitorDetails({
     fatigue,
     config,
     matches,
+    champion,
 }: {
     wrestler: RosterEntry;
     type: MatchTypeOption;
     fatigue: { goingIn: number; after: number };
     config: FatigueConfig;
     matches: number;
+    /** Defending the title on the line in this match. */
+    champion: boolean;
 }) {
     const goingInZone = fatigueZone(fatigue.goingIn, config);
 
@@ -959,12 +984,15 @@ function CompetitorDetails({
                     </span>
                 )}
             </div>
-            <FatigueMeter
-                fatigue={fatigue.goingIn}
-                projected={fatigue.after}
-                config={config}
-                showLabel
-            />
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <FatigueMeter
+                    fatigue={fatigue.goingIn}
+                    projected={fatigue.after}
+                    config={config}
+                    showLabel
+                />
+                {champion && <GoldTag className="ml-auto">Champion</GoldTag>}
+            </div>
             {goingInZone !== 'safe' && (
                 <p
                     className={cn(

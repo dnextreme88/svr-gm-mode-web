@@ -116,6 +116,8 @@ $freeAgents = [
     ['Goldust', 'light_heavyweight', 232],
     ['Jimmy Wang Yang', 'cruiserweight', 206],
     ['Mike Knox', 'heavyweight', 293],
+    ['Chuck Palumbo', 'heavyweight', null],
+    ['MVP', 'heavyweight', null],
 ];
 
 $rawDivas = ['Trish Stratus', 'Lita', 'Mickie James', 'Victoria', 'Torrie Wilson'];
@@ -162,6 +164,8 @@ $legends = [
     ['Ricky Steamboat', 'light_heavyweight', 235],
     ['Superstar Billy Graham', 'heavyweight', 275],
     ['Faarooq', 'heavyweight', 270],
+    ['Brutus Beefcake', 'heavyweight', null],
+    ['Bam Bam Bigelow', 'super_heavyweight', null],
 ];
 
 $rows = [];

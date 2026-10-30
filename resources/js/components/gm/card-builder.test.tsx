@@ -248,6 +248,16 @@ function setup(slots: CardSlot[] = [emptySlot(1), emptySlot(2)]) {
                 fatigueConfig={config}
                 onSave={onSave}
                 onClear={onClear}
+                championships={[
+                    {
+                        id: 1,
+                        name: 'Intercontinental Championship',
+                        is_tag: false,
+                        eligibility: 'open',
+                        holder_ids: [10],
+                        holder_name: 'Edge',
+                    },
+                ]}
             />
         </UnsavedChangesProvider>,
     );
@@ -953,6 +963,28 @@ describe('CardBuilder', () => {
         expect(
             screen.queryByRole('button', { name: /Save/ }),
         ).not.toBeInTheDocument();
+    });
+    it('tags the champion defending the title on the line', () => {
+        const titleMatch = (
+            position: number,
+            title: number | null,
+        ): CardSlot => ({
+            ...emptySlot(position),
+            match_type_id: 1,
+            sides: [[10], [11]],
+            title_championship_id: title,
+        });
+        setup([titleMatch(1, 1), titleMatch(2, null)]);
+
+        expect(screen.getByTestId('slot-1-side-0-0')).toHaveTextContent(
+            'Champion',
+        );
+        expect(screen.getByTestId('slot-1-side-1-0')).not.toHaveTextContent(
+            'Champion',
+        );
+        expect(screen.getByTestId('slot-2-side-0-0')).not.toHaveTextContent(
+            'Champion',
+        );
     });
 });
 

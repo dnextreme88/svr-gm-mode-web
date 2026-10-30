@@ -175,7 +175,7 @@ class FactionController extends Controller
     }
 
     /**
-     * "The Brood" sorts under B.
+     * "The Basham Brothers" sorts under B.
      */
     private function sortName(string $name): string
     {

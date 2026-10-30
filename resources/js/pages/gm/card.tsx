@@ -224,6 +224,7 @@ export default function CardPage() {
                     })
                 }
                 promoFatigue={promoFatigue}
+                championships={title_context.championships}
                 renderTitle={(draft, update, drafts) => (
                     <TitleCycler
                         takenTitleIds={drafts
@@ -242,51 +243,52 @@ export default function CardPage() {
                         onChange={update}
                     />
                 )}
-                renderActions={(draft, update) => (
-                    <>
-                        {booking && !draft.fixed && (
-                            <ProposalLauncher
-                                label="Randomize"
-                                mode="randomize"
-                                titleNames={titleNames}
-                                fetchProposal={async (roll) => {
-                                    const { proposal } = await requestJson<{
-                                        proposal: ProposalView;
-                                    }>(
-                                        'POST',
-                                        gm.card.randomize.url({
-                                            ...ids,
-                                            position: draft.position,
-                                        }),
-                                        {
-                                            match_type_id: draft.matchTypeId,
-                                            roll,
-                                        },
-                                    );
+                renderButtons={(draft) =>
+                    booking &&
+                    !draft.fixed && (
+                        <ProposalLauncher
+                            label="Randomize"
+                            mode="randomize"
+                            titleNames={titleNames}
+                            fetchProposal={async (roll) => {
+                                const { proposal } = await requestJson<{
+                                    proposal: ProposalView;
+                                }>(
+                                    'POST',
+                                    gm.card.randomize.url({
+                                        ...ids,
+                                        position: draft.position,
+                                    }),
+                                    {
+                                        match_type_id: draft.matchTypeId,
+                                        roll,
+                                    },
+                                );
 
-                                    return {
-                                        proposals: [proposal],
-                                        unfilled_slots: [],
-                                        total_cost: proposal.cost,
-                                        deficit_warning: false,
-                                    };
-                                }}
-                                onConfirm={saveProposals}
-                            />
-                        )}
-                        <StipulationPicker
-                            draft={draft}
-                            type={
-                                draft.matchTypeId
-                                    ? types.get(draft.matchTypeId)
-                                    : undefined
-                            }
-                            context={title_context}
-                            roster={rosterById}
-                            readOnly={!booking || draft.fixed}
-                            onChange={update}
+                                return {
+                                    proposals: [proposal],
+                                    unfilled_slots: [],
+                                    total_cost: proposal.cost,
+                                    deficit_warning: false,
+                                };
+                            }}
+                            onConfirm={saveProposals}
                         />
-                    </>
+                    )
+                }
+                renderActions={(draft, update) => (
+                    <StipulationPicker
+                        draft={draft}
+                        type={
+                            draft.matchTypeId
+                                ? types.get(draft.matchTypeId)
+                                : undefined
+                        }
+                        context={title_context}
+                        roster={rosterById}
+                        readOnly={!booking || draft.fixed}
+                        onChange={update}
+                    />
                 )}
             />
 

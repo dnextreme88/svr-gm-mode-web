@@ -228,7 +228,7 @@ describe('trades, briefcase and draft', function () {
     });
 
     it('stops chasing its focus class after max_focus_picks', function () {
-        config(['gm.draft.ai_focus_from' => 1]);
+        config(['gm.draft.ai_focus_from' => 1, 'gm.ai.draft.teammate_chance' => 0]);
 
         $draft = function (int $cap): int {
             config(['gm.ai.draft.max_focus_picks' => $cap]);
@@ -246,5 +246,40 @@ describe('trades, briefcase and draft', function () {
 
         expect($draft(100))->toBe(8)
             ->and($draft(3))->toBeLessThan(6);
+    });
+    it('drafts a teammate of someone it already has', function () {
+        config(['gm.ai.draft.teammate_chance' => 100]);
+
+        foreach (range(1, 5) as $seed) {
+            $save = GameBuilder::newSave(Brand::Smackdown, "draft-mate-{$seed}");
+            app(ContractService::class)->signDrafted($save, GameBuilder::wrestler($save, 'Jeff Hardy'), Brand::Raw, 0);
+
+            $pick = app(AiGm::class)->draftPick($save->refresh(), Brand::Raw, 2);
+
+            expect($pick->wrestler->name)->toBeIn(['Matt Hardy', 'Lita']);
+        }
+    });
+
+    it('falls back to anyone when every teammate is taken', function () {
+        config(['gm.ai.draft.teammate_chance' => 100]);
+        $save = GameBuilder::newSave(Brand::Smackdown, 'draft-mate-taken');
+        $contracts = app(ContractService::class);
+        $contracts->signDrafted($save, GameBuilder::wrestler($save, 'Jeff Hardy'), Brand::Raw, 0);
+        $contracts->signDrafted($save, GameBuilder::wrestler($save, 'Matt Hardy'), Brand::Smackdown, 0);
+        $contracts->signDrafted($save, GameBuilder::wrestler($save, 'Lita'), Brand::Smackdown, 0);
+
+        $pick = app(AiGm::class)->draftPick($save->refresh(), Brand::Raw, 2);
+
+        expect($pick)->not->toBeNull()
+            ->and($pick->brand)->toBeNull();
+    });
+
+    it('has no teammate to look for before its first pick', function () {
+        config(['gm.ai.draft.teammate_chance' => 100, 'gm.draft.ai_focus_from' => 1]);
+        $save = GameBuilder::newSave(Brand::Smackdown, 'draft-mate-first');
+
+        $pick = app(AiGm::class)->draftPick($save, Brand::Raw, 1);
+
+        expect($pick->wrestler->roster_type)->toBe(RosterType::Diva);
     });
 });

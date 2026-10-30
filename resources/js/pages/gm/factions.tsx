@@ -62,12 +62,19 @@ export default function Factions() {
     const { factions, formation_wins, game } = usePage<Props>().props;
     const [origin, setOrigin] = useState<OriginFilter>('created');
     const [status, setStatus] = useState<StatusFilter>('all');
+    const [search, setSearch] = useState('');
     const [disbanding, setDisbanding] = useState<FactionRow | null>(null);
     const byOrigin = factions.filter(
         (f) => origin === 'all' || f.origin !== 'seeded',
     );
-    const shown = byOrigin.filter(
+    const byStatus = byOrigin.filter(
         (f) => status === 'all' || f.active === (status === 'active'),
+    );
+    const query = search.trim().toLowerCase();
+    const shown = byStatus.filter(
+        (f) =>
+            query === '' ||
+            f.members.some((m) => m.name.toLowerCase().includes(query)),
     );
     const counts: Record<StatusFilter, number> = {
         all: byOrigin.length,
@@ -104,21 +111,33 @@ export default function Factions() {
                 />
             </PageTitle>
 
-            <p className="mb-6 max-w-3xl text-sm text-ink-dim">
-                When two or more members of a faction team up, they're billed as
-                the faction. Two or three male superstars who win{' '}
-                {formation_wins} matches together can become a new one.
-                Real-life factions show their real dates; they’re all active
-                from week 1. New ones show the night they formed.
-            </p>
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <p className="max-w-3xl text-sm text-ink-dim">
+                    When two or more members of a faction team up, they're
+                    billed as the faction. Two or three male superstars who win{' '}
+                    {formation_wins} matches together can become a new one.
+                    Real-life factions show their real dates; they’re all active
+                    from week 1. New ones show the night they formed.
+                </p>
+                <input
+                    type="search"
+                    className="gm-input w-full py-1 text-sm sm:ml-auto sm:w-56 sm:shrink-0"
+                    placeholder="Search superstars…"
+                    aria-label="Search members"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
+            </div>
 
             {shown.length === 0 ? (
                 <EmptyState>
                     {byOrigin.length === 0
                         ? `No faction has been created in this career yet. Two or three male superstars who win ${formation_wins} matches together can become one, on either brand.`
-                        : status === 'disbanded'
-                          ? 'No faction has disbanded in this career.'
-                          : 'No active factions.'}
+                        : byStatus.length > 0
+                          ? `No faction has a member matching “${search.trim()}”.`
+                          : status === 'disbanded'
+                            ? 'No faction has disbanded in this career.'
+                            : 'No active factions.'}
                 </EmptyState>
             ) : (
                 <div className="space-y-6">

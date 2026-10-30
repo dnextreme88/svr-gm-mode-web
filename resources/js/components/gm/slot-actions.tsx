@@ -36,7 +36,9 @@ type Props = {
     onDiscard: () => void;
     onClear: () => void;
     className?: string;
-    /** Extra controls after Clear (stipulation, Randomize). */
+    /** More buttons in the button group after Clear (Randomize). */
+    buttons?: ReactNode;
+    /** Controls after the buttons (the stipulation): their own row below `lg`. */
     children?: ReactNode;
 };
 
@@ -44,6 +46,10 @@ type Props = {
  * A card slot's action row, shared by matches and promos: Save (with the
  * floppy save status), Discard back to what's saved, Clear behind a danger
  * confirmation, any extra controls, and "Unsaved changes" while edited.
+ *
+ * The buttons stack one per row on phones, go two per row from `sm` (first
+ * on the left, second on the right), and share one row from `md`. The
+ * extra controls join that row from `lg`.
  */
 export function SlotActions({
     name,
@@ -57,44 +63,53 @@ export function SlotActions({
     onDiscard,
     onClear,
     className,
+    buttons,
     children,
 }: Props) {
     const [confirmClear, setConfirmClear] = useState(false);
 
     return (
         <div className={cn('flex flex-wrap items-center', className)}>
-            {editable && (
-                <>
-                    <button
-                        type="button"
-                        className="gm-btn gm-btn-sm"
-                        disabled={!ready || !dirty}
-                        onClick={onSave}
-                    >
-                        <FloppyIcon status={saveStatus} />
-                        Save {name}
-                    </button>
-                    <button
-                        type="button"
-                        className="gm-btn gm-btn-ghost gm-btn-sm"
-                        disabled={!dirty}
-                        onClick={onDiscard}
-                        aria-label={`Discard changes to ${name}`}
-                    >
-                        Discard
-                    </button>
-                    <button
-                        type="button"
-                        className="gm-btn gm-btn-danger gm-btn-sm"
-                        disabled={!filled}
-                        onClick={() => setConfirmClear(true)}
-                        aria-label={`Clear ${name}`}
-                    >
-                        Clear
-                    </button>
-                </>
+            {(editable || buttons) && (
+                <div
+                    className="grid w-full gap-2 sm:grid-cols-2 md:flex md:w-auto md:flex-wrap md:items-center [&>*]:w-full sm:[&>*]:w-auto sm:[&>*]:justify-self-start sm:[&>*:nth-child(even)]:justify-self-end"
+                    data-testid="slot-buttons"
+                >
+                    {editable && (
+                        <>
+                            <button
+                                type="button"
+                                className="gm-btn gm-btn-sm"
+                                disabled={!ready || !dirty}
+                                onClick={onSave}
+                            >
+                                <FloppyIcon status={saveStatus} />
+                                Save {name}
+                            </button>
+                            <button
+                                type="button"
+                                className="gm-btn gm-btn-ghost gm-btn-sm"
+                                disabled={!dirty}
+                                onClick={onDiscard}
+                                aria-label={`Discard changes to ${name}`}
+                            >
+                                Discard
+                            </button>
+                            <button
+                                type="button"
+                                className="gm-btn gm-btn-danger gm-btn-sm"
+                                disabled={!filled}
+                                onClick={() => setConfirmClear(true)}
+                                aria-label={`Clear ${name}`}
+                            >
+                                Clear
+                            </button>
+                        </>
+                    )}
+                    {buttons}
+                </div>
             )}
-            {children}
+            {children && <div className="w-full lg:w-auto">{children}</div>}
             {editable && dirty && <UnsavedBadge className="ml-auto" />}
 
             <ConfirmDialog

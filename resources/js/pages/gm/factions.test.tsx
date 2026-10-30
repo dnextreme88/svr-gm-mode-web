@@ -59,8 +59,8 @@ const props = {
         },
         {
             id: 3,
-            name: 'The Brood',
-            type: 'stable',
+            name: 'Edge & Christian',
+            type: 'tag_team',
             origin: 'seeded',
             active: false,
             members: [member(5, 'Edge'), member(6, 'Christian')],
@@ -133,15 +133,38 @@ describe('Factions page', () => {
         await user.click(screen.getByRole('tab', { name: 'All (4)' }));
         await user.click(screen.getByRole('tab', { name: 'Disbanded (1)' }));
 
-        const brood = screen.getByTestId('faction-3');
-        expect(brood).toHaveTextContent('Apr 10, 2005');
-        expect(within(brood).queryByRole('button')).not.toBeInTheDocument();
+        const edgeChristian = screen.getByTestId('faction-3');
+        expect(edgeChristian).toHaveTextContent('Apr 10, 2005');
+        expect(
+            within(edgeChristian).queryByRole('button'),
+        ).not.toBeInTheDocument();
         expect(screen.queryByTestId('faction-1')).not.toBeInTheDocument();
 
         await user.click(screen.getByRole('tab', { name: 'Created (2)' }));
 
         expect(
             screen.getByText(/No faction has disbanded in this career/),
+        ).toBeInTheDocument();
+    });
+
+    it('searches factions by member', async () => {
+        const user = userEvent.setup();
+        render(<Factions />);
+
+        await user.click(screen.getByRole('tab', { name: 'All (4)' }));
+        await user.type(
+            screen.getByRole('searchbox', { name: 'Search members' }),
+            'jeff',
+        );
+
+        expect(screen.getByTestId('faction-1')).toBeInTheDocument();
+        expect(screen.queryByTestId('faction-3')).not.toBeInTheDocument();
+
+        await user.clear(screen.getByRole('searchbox'));
+        await user.type(screen.getByRole('searchbox'), 'nobody');
+
+        expect(
+            screen.getByText('No faction has a member matching “nobody”.'),
         ).toBeInTheDocument();
     });
 

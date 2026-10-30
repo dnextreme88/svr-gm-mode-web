@@ -97,3 +97,23 @@ export function UnreadPill({ children }: { children: ReactNode }) {
         </span>
     );
 }
+
+/** Small gold caps beside a name: "Booked" in a picker, "Champion" on a card slot. */
+export function GoldTag({
+    children,
+    className,
+}: {
+    children: ReactNode;
+    className?: string;
+}) {
+    return (
+        <span
+            className={cn(
+                'font-condensed text-sm tracking-wide text-gold-hot/85 uppercase',
+                className,
+            )}
+        >
+            {children}
+        </span>
+    );
+}

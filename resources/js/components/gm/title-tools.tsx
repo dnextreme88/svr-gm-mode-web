@@ -41,7 +41,7 @@ export function TitleCycler({
             titleChampionshipId: id,
             stipulation:
                 draft.stipulation === 'champion_vs_contender' ||
-                    draft.stipulation === 'last_chance'
+                draft.stipulation === 'last_chance'
                     ? null
                     : draft.stipulation,
             stipulationChampionshipId: null,
@@ -75,14 +75,16 @@ export function TitleCycler({
                     'text-md mt-1 min-w-0 flex-1 px-3 py-1 text-center font-condensed font-bold tracking-[0.14em] uppercase sm:min-w-[300px] md:flex-none',
                     current
                         ? 'bg-gradient-to-b from-gold-hot to-gold text-arena'
-                        : 'bg-white/5 text-ink-dim',
+                        : titles.length > 0
+                          ? 'bg-white/5 text-white/80'
+                          : 'bg-white/5 text-white/20 hover:cursor-not-allowed',
                 )}
             >
                 {current
                     ? `◆ ${current.name}`
                     : titles.length > 0
-                        ? 'Select title'
-                        : 'No title eligible'}
+                      ? 'Select title'
+                      : 'No title eligible'}
             </span>
             <button
                 type="button"
@@ -151,14 +153,16 @@ export function StipulationPicker({
                         'min-w-0 flex-1 px-3 py-1 text-center font-condensed font-bold tracking-[0.14em] uppercase sm:min-w-[250px] sm:flex-none',
                         current
                             ? 'bg-gradient-to-b from-gold-hot to-gold text-arena'
-                            : 'bg-white/5 text-ink-dim',
+                            : stipulations.length > 0
+                              ? 'bg-white/5 text-white/80'
+                              : 'bg-white/5 text-white/20 hover:cursor-not-allowed',
                     )}
                 >
                     {current
                         ? `◆ ${current.label}`
                         : stipulations.length > 0
-                            ? 'Select stipulation'
-                            : 'No stipulation eligible'}
+                          ? 'Select stipulation'
+                          : 'No stipulation eligible'}
                 </span>
                 <button
                     type="button"

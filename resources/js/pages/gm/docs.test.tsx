@@ -213,6 +213,7 @@ const props = {
         },
         mitb: { cash_in_champion_fatigue: 60, cash_in_weeks_left: 4 },
         max_focus_picks: 12,
+        teammate_chance: 25,
         low_cash: 500000,
     },
     stipulations: [],
@@ -573,6 +574,17 @@ describe('Docs page', () => {
 
         expect(screen.getByTestId('weekly-show-income')).toHaveTextContent(
             '$250,000',
+        );
+    });
+
+    it('explains the rival drafting teammates, from config', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Rosters & draft' }));
+
+        expect(screen.getByTestId('draft-teammates')).toHaveTextContent(
+            '25% chance',
         );
     });
 

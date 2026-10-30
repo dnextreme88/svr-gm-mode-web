@@ -111,7 +111,7 @@ export function RivalryPicker({
                         >
                             <PairName pair={o.pair} />
                             {o.note && (
-                                <span className="shrink-0 font-condensed text-[12px] tracking-wide text-ink-faint uppercase">
+                                <span className="shrink-0 font-condensed text-sm tracking-wide text-ink-faint uppercase">
                                     {o.note}
                                 </span>
                             )}

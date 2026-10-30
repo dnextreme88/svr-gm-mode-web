@@ -140,6 +140,7 @@ class DocsController extends Controller
                 'trades' => (array) config('gm.ai.trades'),
                 'mitb' => (array) config('gm.ai.mitb'),
                 'max_focus_picks' => (int) config('gm.ai.draft.max_focus_picks'),
+                'teammate_chance' => (int) config('gm.ai.draft.teammate_chance'),
                 'low_cash' => (int) config('gm.emails.low_cash_threshold'),
             ],
             'promos' => [

@@ -578,6 +578,9 @@ return [
         // ASSUMPTION: the draft stops chasing its focus class after this many picks.
         'draft' => [
             'max_focus_picks' => 12,
+            // Once it has a member of a tag team or stable, each pick has
+            // this % chance (1-100) to go for a teammate who's still free.
+            'teammate_chance' => 25,
         ],
     ],
 ];

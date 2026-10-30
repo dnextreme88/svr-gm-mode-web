@@ -111,7 +111,7 @@ describe('naming', function () {
         $namer = app(FactionNamer::class);
 
         expect($namer->name($save->id, factionIds($save, ['Matt Hardy', 'Jeff Hardy']), 1))->toBe('Team Xtreme')
-            ->and($namer->name($save->id, factionIds($save, ['Edge', 'Christian']), 1))->toBe('The Brood')
+            ->and($namer->name($save->id, factionIds($save, ['Danny Basham', 'Doug Basham']), 1))->toBe('The Basham Brothers')
             ->and($namer->name($save->id, factionIds($save, ['Shelton Benjamin', 'Charlie Haas']), 1))->toBe("The World's Greatest Tag Team")
             ->and($namer->name($save->id, factionIds($save, ['Batista', 'Kane', 'Randy Orton']), 1))->toBe('Evolution & Kane')
             ->and($namer->name($save->id, factionIds($save, ['John Cena', 'Kane']), 1))->toBe('John Cena & Kane')
@@ -286,7 +286,7 @@ describe('disbanding', function () {
 
     it('lists active and disbanded factions on the Factions page', function () {
         $save = GameBuilder::inSeason(raw: ['Matt Hardy', 'Jeff Hardy'], smackdown: ['Batista']);
-        app(FactionService::class)->disband($save, factionNamed($save, 'The Brood'));
+        app(FactionService::class)->disband($save, factionNamed($save, 'Edge & Christian'));
 
         $this->get(route('gm.factions.index', $save))
             ->assertInertia(fn (Assert $page) => $page
@@ -294,7 +294,7 @@ describe('disbanding', function () {
                 ->has('factions', Faction::count())
                 ->where('factions', fn ($rows) => collect($rows)->firstWhere('name', 'Team Xtreme')['formed'] === 'Jan 17, 2000'
                     && collect($rows)->firstWhere('name', 'Team Xtreme')['members'][0]['brand'] === 'raw'
-                    && collect($rows)->firstWhere('name', 'The Brood')['active'] === false));
+                    && collect($rows)->firstWhere('name', 'Edge & Christian')['active'] === false));
     });
 });
 

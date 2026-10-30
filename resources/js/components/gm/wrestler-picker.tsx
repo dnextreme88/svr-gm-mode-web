@@ -1,4 +1,5 @@
 import { PopoverPanel, usePopover } from '@/components/gm/popover';
+import { GoldTag } from '@/components/gm/badges';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
 import type { RosterType, WeightClass } from '@/types/enums';
@@ -138,17 +139,13 @@ export function WrestlerPicker({
                                     className="truncate"
                                 />
                                 {(note || booked) && (
-                                    <span className="flex shrink-0 items-baseline gap-2 font-condensed text-[12px] tracking-wide uppercase">
+                                    <span className="flex shrink-0 items-baseline gap-2 font-condensed text-sm tracking-wide uppercase">
                                         {note && (
                                             <span className="text-ink-faint">
                                                 {note}
                                             </span>
                                         )}
-                                        {booked && (
-                                            <span className="text-gold-hot/85">
-                                                Booked
-                                            </span>
-                                        )}
+                                        {booked && <GoldTag>Booked</GoldTag>}
                                     </span>
                                 )}
                             </button>

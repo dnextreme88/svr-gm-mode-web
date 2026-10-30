@@ -172,6 +172,7 @@ type Props = {
         };
         mitb: { cash_in_champion_fatigue: number; cash_in_weeks_left: number };
         max_focus_picks: number;
+        teammate_chance: number;
         low_cash: number;
     };
     stipulations: Array<{ value: Stipulation; label: string }>;
@@ -1487,6 +1488,15 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
                             its last picks fill any title nobody on its roster
                             can hold.
                         </li>
+                        <li data-testid="draft-teammates">
+                            Once it has drafted a member of a tag team or
+                            stable, each pick first has a{' '}
+                            {rival.teammate_chance}% chance to go for one of
+                            their teammates you haven’t claimed (Jeff Hardy,
+                            then Matt Hardy or Lita). With none left it takes
+                            anyone affordable. Otherwise it makes the division
+                            roll above. Its first pick has no teammate roll.
+                        </li>
                     </ul>
                 </Panel>
                 <Panel title="Use WWE roster">
@@ -1678,8 +1688,8 @@ function FactionsDocs({ factions }: Pick<Props, 'factions'>) {
                             When a side fits more than one faction, the one
                             covering the most of the side wins, then the
                             smallest, then a tag team over a stable. Matt Hardy
-                            & Jeff Hardy are Team Xtreme; Edge & Christian are
-                            The Brood.
+                            & Jeff Hardy are Team Xtreme; Danny & Doug Basham
+                            are The Basham Brothers, not The Cabinet.
                         </li>
                         <li>
                             Booking stays individual: the card screen and its

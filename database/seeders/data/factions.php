@@ -31,6 +31,8 @@ return [
     ['The Brisco Brothers', 'tag_team', '1973-01-01', '1984-04-09', ['Jack Brisco', 'Gerald Brisco']],
     ['The Stooges', 'tag_team', '1998-02-01', '2000-12-01', ['Pat Patterson', 'Gerald Brisco']],
     ['Blue World Order', 'tag_team', '1996-08-03', '1997-10-01', ['Stevie Richards', 'The Blue Meanie']],
+    ['Edge & Christian', 'tag_team', '1998-06-22', '2001-04-30', ['Edge', 'Christian']],
+    ['Hassan & Daivari', 'tag_team', '2004-12-13', '2005-07-24', ['Muhammad Hassan', 'Daivari']],
 
     // Stables
     ['The Legion of Doom', 'stable', '1983-06-01', '2006-01-17', ['Road Warrior Hawk', 'Road Warrior Animal', 'Heidenreich']],
@@ -46,10 +48,9 @@ return [
     ["King Booker's Court", 'stable', '2006-05-26', '2007-04-06', ['Booker T', 'Fit Finlay', 'William Regal', 'Sharmell']],
     ['The Four Horsemen', 'stable', '1986-01-01', '1999-09-01', ['Ric Flair', 'Arn Anderson']],
     ['Nation of Domination', 'stable', '1996-11-17', '1998-11-28', ['The Rock', 'Mark Henry', 'Faarooq']],
-    ['The Brood', 'stable', '1998-10-26', '1999-10-18', ['Edge', 'Christian']],
     ['Filthy Animals', 'stable', '1999-08-16', '2001-03-26', ['Rey Mysterio', 'Billy Kidman', 'Eddie Guerrero', 'Juventud', 'Torrie Wilson']],
     ['The Cabinet', 'stable', '2004-08-12', '2006-05-26', ['JBL', 'Orlando Jordan', 'Danny Basham', 'Doug Basham', 'Jillian Hall']],
-    ['Full Blooded Italians', 'stable', '1995-06-01', '2006-04-01', ['Nunzio', 'Vito']],
+    ['Full Blooded Italians', 'stable', '1995-06-01', '2006-04-01', ['Nunzio', 'Vito', 'Chuck Palumbo']],
     ['The Mexicools', 'stable', '2005-06-23', '2006-11-01', ['Psicosis', 'Super Crazy', 'Juventud']],
     ["Vince's Devils", 'stable', '2005-08-22', '2006-03-06', ['Candice Michelle', 'Torrie Wilson', 'Victoria']],
 ];
