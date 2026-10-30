@@ -119,6 +119,23 @@ export default function CardPage() {
         router.reload();
     };
 
+    // Preset confirms the whole card at once, so a title or wrestler moving
+    // between slots can't trip over its old booking.
+    const applyPreset = async (proposals: ProposalView[]) => {
+        await requestJson('POST', gm.card.preset.apply.url(ids), {
+            proposals: proposals.map((p) => ({
+                position: p.position,
+                match_type_id: p.match_type_id,
+                sides: p.sides,
+                managers: p.managers ?? {},
+                title_championship_id: p.title_championship_id,
+                referee_id: p.referee_id ?? null,
+            })),
+        });
+
+        router.reload();
+    };
+
     return (
         <UnsavedChangesProvider>
             <Head title={`${show.name} card`} />
@@ -145,7 +162,7 @@ export default function CardPage() {
                                 { roll },
                             )
                         }
-                        onConfirm={saveProposals}
+                        onConfirm={applyPreset}
                     />
                 )}
                 {briefcase && booking && !briefcase.cashed_in_here && (

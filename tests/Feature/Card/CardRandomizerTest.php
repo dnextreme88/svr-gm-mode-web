@@ -2,6 +2,7 @@
 
 use App\Enums\Brand;
 use App\Enums\InjurySeverity;
+use App\Enums\PromoTypeKey;
 use App\Enums\RosterType;
 use App\Enums\ShowType;
 use App\Enums\TitleShotStatus;
@@ -9,6 +10,7 @@ use App\Exceptions\GameRuleException;
 use App\Models\Championship;
 use App\Models\LastChanceLockout;
 use App\Models\MatchSlot;
+use App\Models\PromoType;
 use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\Show;
@@ -17,6 +19,7 @@ use App\Services\Card\CardRandomizer;
 use App\Services\Card\Proposal;
 use App\Services\Contracts\ContractService;
 use App\Services\Injuries\InjuryService;
+use App\Services\Promos\PromoService;
 use App\Support\Rng\SeededRng;
 use Tests\Support\Card;
 use Tests\Support\GameBuilder;
@@ -310,4 +313,144 @@ it('answers a JSON confirm with 204 instead of a redirect', function () {
         'match_type_id' => Card::singles()->id,
         'sides' => [[GameBuilder::wrestler($save, 'Edge')->id], [GameBuilder::wrestler($save, 'Kane')->id]],
     ])->assertNoContent();
+});
+
+describe('Preset card button (house rule): rebooks every slot', function () {
+    it('rebooks booked slots too, but never fixed ones', function () {
+        $save = GameBuilder::inSeason(size: 14);
+        $show = Card::show($save);
+        Card::book($save, $show, 2, Card::singles(), [['Edge'], ['Kane']]);
+        MatchSlot::where('show_id', $show->id)->where('position', 4)->update(['fixed_kind' => 'royal_rumble']);
+
+        $positions = array_map(fn ($p) => $p->position, randomizer()->preset($show, new SeededRng('all'), replace: true)['proposals']);
+
+        expect($positions)->toContain(2)
+            ->and($positions)->not->toContain(4);
+    });
+
+    it('can reuse wrestlers from the bookings it replaces', function () {
+        config(['gm.card.randomize_title_chance' => 0.0]);
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+        $show = Card::show($save);
+        Card::book($save, $show, 1, Card::singles(), [['Edge'], ['Kane']]);
+
+        $result = randomizer()->preset($show, new SeededRng('reuse'), replace: true);
+
+        expect($result['proposals'])->toHaveCount(1)
+            ->and(proposedIds($result['proposals'][0]))->toEqualCanonicalizing([GameBuilder::wrestler($save, 'Edge')->id, GameBuilder::wrestler($save, 'Kane')->id]);
+    });
+
+    it('books an earned title shot first again, with a note saying why', function () {
+        $save = GameBuilder::inSeason(size: 12);
+        $reign = GameBuilder::giveTitle($save, 'wwe', ['Edge']);
+        $contender = GameBuilder::wrestler($save, 'Kane');
+        $show = Card::show($save);
+        $earned = MatchSlot::where('show_id', $show->id)->where('position', 6)->firstOrFail();
+        TitleShot::create([
+            'save_id' => $save->id, 'championship_id' => $reign->championship_id, 'brand' => Brand::Raw,
+            'contender_ids' => [$contender->id], 'champion_ids' => $reign->holderIds(), 'earned_match_id' => $earned->id,
+            'earned_week' => 0, 'due_week' => 1, 'status' => TitleShotStatus::Pending,
+        ]);
+        Card::book($save, $show, 3, Card::singles(), [['Edge'], ['Kane']], titleId: $reign->championship_id);
+
+        $first = randomizer()->preset($show, new SeededRng('shot-again'), replace: true)['proposals'][0];
+
+        expect($first->position)->toBe(1)
+            ->and($first->titleShot)->toBeTrue()
+            ->and($first->booking->titleChampionshipId)->toBe($reign->championship_id)
+            ->and($first->toArray([$contender->id => 'Kane'])['note'])->toContain('Kane earned this match by winning a Champion vs Contender match');
+    });
+
+    it('sends every slot through the endpoint, booked or not', function () {
+        $save = GameBuilder::inSeason(size: 14);
+        $show = Card::show($save);
+        Card::book($save, $show, 2, Card::singles(), [['Edge'], ['Kane']]);
+
+        $positions = array_column($this->postJson(route('gm.card.preset', [$save, $show]))->assertOk()->json('proposals'), 'position');
+
+        expect($positions)->toContain(2);
+    });
+});
+
+describe('Applying a Preset', function () {
+    it('books every slot at once, so a title can move between slots', function () {
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito', 'Big Show'], smackdown: ['Batista']);
+        $reign = GameBuilder::giveTitle($save, 'wwe', ['Edge']);
+        $show = Card::show($save);
+        Card::book($save, $show, 3, Card::singles(), [['Edge'], ['Kane']], titleId: $reign->championship_id);
+        $id = fn (string $name): int => GameBuilder::wrestler($save, $name)->id;
+
+        $this->postJson(route('gm.card.preset.apply', [$save, $show]), ['proposals' => [
+            ['position' => 1, 'match_type_id' => Card::singles()->id, 'sides' => [[$id('Edge')], [$id('Carlito')]], 'title_championship_id' => $reign->championship_id],
+            ['position' => 3, 'match_type_id' => Card::singles()->id, 'sides' => [[$id('Kane')], [$id('Big Show')]]],
+        ]])->assertNoContent();
+
+        $slots = MatchSlot::where('show_id', $show->id)->get()->keyBy('position');
+        expect($slots[1]->title_championship_id)->toBe($reign->championship_id)
+            ->and($slots[3]->title_championship_id)->toBeNull();
+    });
+
+    it('leaves the card as it was when a proposal is refused', function () {
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito'], smackdown: ['Batista']);
+        $show = Card::show($save);
+        Card::book($save, $show, 2, Card::singles(), [['Edge'], ['Kane']]);
+        $id = fn (string $name): int => GameBuilder::wrestler($save, $name)->id;
+
+        $this->postJson(route('gm.card.preset.apply', [$save, $show]), ['proposals' => [
+            ['position' => 2, 'match_type_id' => Card::singles()->id, 'sides' => [[$id('Carlito')], [$id('Kane')]]],
+            ['position' => 3, 'match_type_id' => Card::singles()->id, 'sides' => [[$id('Batista')], [$id('Edge')]]],
+        ]])->assertStatus(422);
+
+        expect(MatchSlot::where('show_id', $show->id)->where('position', 2)->first()->competitorIds())
+            ->toEqualCanonicalizing([$id('Edge'), $id('Kane')]);
+    });
+});
+
+describe('Randomize and Preset keep the roster healthy (house rule)', function () {
+    it('never picks someone the match would push past 70% fatigue', function () {
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito', 'Big Show'], smackdown: ['Batista']);
+        GameBuilder::wrestler($save, 'Edge')->update(['fatigue' => 60]);
+        $edge = GameBuilder::wrestler($save, 'Edge')->id;
+        $show = Card::show($save);
+
+        foreach (range(1, 30) as $seed) {
+            $proposal = randomizer()->proposeSlot($show, 1, null, new SeededRng("tired{$seed}"));
+            $cost = $proposal->booking->matchType->fatigueCost();
+
+            if (60 + $cost > 70) {
+                expect(proposedIds($proposal))->not->toContain($edge);
+            }
+        }
+    });
+
+    it('counts the tiring promos booked for this week', function () {
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito', 'Big Show'], smackdown: ['Batista']);
+        $show = Card::show($save);
+        $promo = PromoType::where('key', PromoTypeKey::InterferencePromotion)->firstOrFail();
+        // Fresh enough for a singles match on his own, not after the Interference promo's bars.
+        GameBuilder::wrestler($save, 'Edge')->update(['fatigue' => 70 - Card::singles()->fatigueCost()]);
+        app(PromoService::class)->book($show, 1, $promo, GameBuilder::wrestler($save, 'Edge')->id);
+        $edge = GameBuilder::wrestler($save, 'Edge')->id;
+
+        foreach (range(1, 20) as $seed) {
+            expect(proposedIds(randomizer()->proposeSlot($show, 1, Card::singles(), new SeededRng("week{$seed}"))))->not->toContain($edge);
+        }
+    });
+
+    it('says so when everyone left is too tired', function () {
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+        GameBuilder::wrestler($save, 'Kane')->update(['fatigue' => 70]);
+
+        randomizer()->proposeSlot(Card::show($save), 1, Card::singles(), new SeededRng('worn'));
+    })->throws(GameRuleException::class, 'without risking an injury');
+
+    it('leaves minor-injured wrestlers out while others can go', function () {
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito'], smackdown: ['Batista']);
+        app(InjuryService::class)->injure(GameBuilder::wrestler($save, 'Kane'), InjurySeverity::Minor, 1, $save->rng('t'));
+        $kane = GameBuilder::wrestler($save, 'Kane')->id;
+
+        foreach (range(1, 20) as $seed) {
+            expect(proposedIds(randomizer()->proposeSlot(Card::show($save), 1, Card::singles(), new SeededRng("m{$seed}"))))->not->toContain($kane);
+        }
+    });
 });

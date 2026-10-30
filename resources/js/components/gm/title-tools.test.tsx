@@ -68,7 +68,7 @@ describe('StipulationPicker', () => {
             screen.getByRole('group', { name: 'Stipulation for match 1' }),
         ).toBeInTheDocument();
         expect(chip).toHaveTextContent('Select stipulation');
-        expect(chip.className).toContain('min-w-[250px]');
+        expect(chip.className).toContain('min-w-[275px]');
 
         await user.click(
             screen.getByRole('button', { name: 'Next stipulation' }),

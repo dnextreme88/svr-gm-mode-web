@@ -132,9 +132,9 @@ export function StipulationPicker({
     };
 
     return (
-        <div className="flex w-full items-center gap-2 text-sm sm:w-auto">
+        <div className="flex w-full items-center gap-2 text-sm lg:w-auto">
             <div
-                className="flex min-w-0 flex-1 items-center gap-1 sm:flex-none"
+                className="flex min-w-0 flex-1 items-center gap-1 lg:flex-none"
                 role="group"
                 aria-label={`Stipulation for match ${draft.position}`}
             >
@@ -150,7 +150,7 @@ export function StipulationPicker({
                 <span
                     data-testid={`stipulation-${draft.position}`}
                     className={cn(
-                        'min-w-0 flex-1 px-3 py-1 text-center font-condensed font-bold tracking-[0.14em] uppercase sm:min-w-[250px] sm:flex-none',
+                        'min-w-0 flex-1 px-3 py-1 text-center font-condensed font-bold tracking-[0.14em] uppercase lg:min-w-[275px] lg:flex-none',
                         current
                             ? 'bg-gradient-to-b from-gold-hot to-gold text-arena'
                             : stipulations.length > 0

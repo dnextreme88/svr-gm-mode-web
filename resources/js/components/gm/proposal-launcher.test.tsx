@@ -157,6 +157,41 @@ describe('Randomize / Preset modal (§24)', () => {
         expect(within(list).getAllByRole('listitem')).toHaveLength(2);
     });
 
+    it('opens over the whole page and explains an earned title shot', async () => {
+        const user = userEvent.setup();
+        const fetchProposal = vi.fn().mockResolvedValue(
+            result([
+                {
+                    ...proposal(1, [['Edge'], ['Kane']], 0, 3),
+                    note: 'Title shot: Kane earned this match by winning a Champion vs Contender match, so it has to be booked.',
+                },
+                proposal(2, [['Carlito'], ['Big Show']]),
+            ]),
+        );
+
+        const { container } = render(
+            <main>
+                <ProposalLauncher
+                    label="Preset card"
+                    mode="preset"
+                    fetchProposal={fetchProposal}
+                    onConfirm={vi.fn()}
+                />
+            </main>,
+        );
+        await user.click(screen.getByRole('button', { name: 'Preset card' }));
+
+        const dialog = await screen.findByRole('dialog', {
+            name: 'Preset card',
+        });
+        // Rendered outside the page's <main>, so nothing on the page sits above it.
+        expect(container.contains(dialog)).toBe(false);
+        expect(screen.getByTestId('proposal-note-1')).toHaveTextContent(
+            'Kane earned this match by winning a Champion vs Contender match',
+        );
+        expect(screen.queryByTestId('proposal-note-2')).not.toBeInTheDocument();
+    });
+
     it('shows a 422 message in the modal and does not change the card', async () => {
         const user = userEvent.setup();
         const onConfirm = vi.fn();

@@ -97,7 +97,7 @@ export function MatchCost({ cost }: { cost: number }) {
     return (
         <span
             data-testid="match-cost"
-            className={cn('gm-num text-zone-safe', cost === 0 && 'italic')}
+            className={cn('gm-num ml-1 text-zone-safe', cost === 0 && 'italic')}
         >
             {cost > 0 ? formatMoney(cost) : 'Free'}
         </span>
@@ -542,13 +542,13 @@ function SlotEditor({
                 <div className="contents md:flex md:w-full md:items-start md:justify-between md:gap-3 lg:contents">
                     {type && (
                         <span
-                            className="mt-1.5 flex w-full items-center justify-between gap-3 font-condensed tracking-wider text-ink-dim uppercase md:w-auto md:justify-start"
+                            className="mt-1.5 flex w-full items-center justify-between gap-3 font-condensed tracking-wider text-ink-dim uppercase md:w-auto md:justify-start md:gap-10"
                             data-testid={`type-info-${draft.position}`}
                         >
-                            <span>
+                            <span className="flex items-center">
                                 Cost <MatchCost cost={type.cost} />
                             </span>
-                            <span>
+                            <span className="flex items-center">
                                 Fatigue{' '}
                                 <FatigueCost bars={type.fatigue_cost_bars} />
                             </span>

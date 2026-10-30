@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Dice } from '@/components/gm/dice';
 import type { DiceFace } from '@/components/gm/dice';
 import { Spinner } from '@/components/ui/spinner';
@@ -18,6 +19,8 @@ export type ProposalView = {
     /** w/Manager types: side index => manager id. */
     managers?: Record<number, number>;
     manager_names?: Record<number, string>;
+    /** Why Preset had to book this one (an earned title shot). */
+    note?: string | null;
 };
 
 type Props = {
@@ -50,7 +53,10 @@ const PLACEHOLDER: ProposalView = {
 
 /**
  * Preview for Randomize (one slot) and Preset (whole card) (§24). Nothing
- * is saved until the GM confirms.
+ * is saved until the GM confirms. Rendered at the layout's root (`.gm-root`,
+ * for its brand colour and font): inside the page's `<main>`, its own
+ * stacking context, the menu bar would sit above the overlay and stay
+ * clickable.
  */
 export function ProposalModal({
     open,
@@ -87,7 +93,7 @@ export function ProposalModal({
 
     const title = mode === 'preset' ? 'Preset card' : 'Randomize match';
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
             <div
                 ref={dialog}
@@ -163,6 +169,14 @@ export function ProposalModal({
                                             ] ?? 'Title match'}
                                         </div>
                                     )}
+                                    {p.note && (
+                                        <p
+                                            className="mt-2 border-l-2 border-gold/60 pl-2 text-xs text-ink-dim"
+                                            data-testid={`proposal-note-${p.position}`}
+                                        >
+                                            {p.note}
+                                        </p>
+                                    )}
                                 </li>
                             ))}
                         </ol>
@@ -192,7 +206,8 @@ export function ProposalModal({
                                 Couldn’t fill match
                                 {unfilledSlots.length > 1 ? 'es' : ''}{' '}
                                 {unfilledSlots.join(', ')}: not enough available
-                                wrestlers.
+                                wrestlers fresh enough to book without risking
+                                an injury.
                             </p>
                         )}
 
@@ -251,6 +266,7 @@ export function ProposalModal({
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.querySelector('.gm-root') ?? document.body,
     );
 }

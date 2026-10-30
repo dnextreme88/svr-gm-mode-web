@@ -70,6 +70,9 @@ return [
         'wrestlemania_brand_slots' => 3,
         // ASSUMPTION: how often Randomize/Preset try to make a slot a title match (§24).
         'randomize_title_chance' => 0.35,
+        // House rule: Randomize and Preset never pick a competitor the match
+        // would leave above this fatigue (%), so they don't risk injuries.
+        'randomize_max_fatigue' => 70,
     ],
 
     /*

@@ -11,7 +11,10 @@ import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 
 type Report = (key: string, dirty: boolean) => void;
 
-const UnsavedChangesContext = createContext<Report | null>(null);
+const UnsavedChangesContext = createContext<{
+    report: Report;
+    unsaved: string[];
+} | null>(null);
 
 /**
  * The card page's unsaved matches and promos. Each slot reports itself with
@@ -36,7 +39,7 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
     }, []);
 
     return (
-        <UnsavedChangesContext.Provider value={report}>
+        <UnsavedChangesContext.Provider value={{ report, unsaved }}>
             {children}
             <ConfirmDialog
                 open={guard.pending !== null && unsaved.length > 0}
@@ -58,7 +61,7 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
  * an `UnsavedChangesProvider`.
  */
 export function useReportUnsaved(key: string, dirty: boolean) {
-    const report = useContext(UnsavedChangesContext);
+    const report = useContext(UnsavedChangesContext)?.report;
 
     useEffect(() => {
         report?.(key, dirty);
@@ -66,6 +69,25 @@ export function useReportUnsaved(key: string, dirty: boolean) {
 
     // Unsaved work goes with the slot when it unmounts.
     useEffect(() => () => report?.(key, false), [report, key]);
+}
+
+/**
+ * The slots with unsaved changes right now, matches first, then promos
+ * ("Match 2", "Promo 1"). Empty outside an `UnsavedChangesProvider`.
+ */
+export function useUnsavedSlots(): string[] {
+    return sortUnsaved(useContext(UnsavedChangesContext)?.unsaved ?? []);
+}
+
+/** Matches first, then promos, each in order. */
+export function sortUnsaved(keys: string[]): string[] {
+    const rank = (key: string) => {
+        const [kind, n] = key.split(' ');
+
+        return (kind === 'Match' ? 0 : 1000) + Number(n);
+    };
+
+    return [...keys].sort((a, b) => rank(a) - rank(b));
 }
 
 /**

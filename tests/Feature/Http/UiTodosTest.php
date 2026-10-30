@@ -170,12 +170,13 @@ it('documents every news event and GM email on the docs page', function () {
                 && collect($emails)->contains(fn ($e) => $e['email'] === 'PPV reminder' && $e['from'] === 'Vince McMahon')));
 });
 
-it('documents the Book to Win DQ/count-out chance from config', function () {
+it('documents the Buried Alive weeks and Royal Rumble entrants from config', function () {
     GameBuilder::seedCatalog();
-    config(['gm.outcomes.booked_non_decisive_chance' => 0.05]);
 
     $this->get(route('gm.docs'))
-        ->assertInertia(fn (Assert $page) => $page->where('results.booked_non_decisive_percent', 5));
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('results.buried_alive_weeks', (int) config('gm.buried_alive.sit_out_weeks'))
+            ->where('results.rumble_entrants_per_brand', (int) config('gm.ppv.royal_rumble_entrants_per_brand')));
 });
 
 it('documents the season calendar with every PPV on its Sunday', function () {

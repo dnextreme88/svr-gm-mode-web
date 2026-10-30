@@ -27,7 +27,7 @@ export function FatigueCost({
             aria-label={label}
             title={label}
             className={cn(
-                'inline-flex h-3.5 gap-[3px] align-middle',
+                'ml-2 inline-flex h-3.5 gap-[3px] align-middle',
                 className,
             )}
         >

@@ -28,7 +28,8 @@ export function ConfirmDialog({
     message: ReactNode;
     confirmLabel?: string;
     cancelLabel?: string;
-    onConfirm: () => void;
+    /** Leave it out for a notice that can only be dismissed. */
+    onConfirm?: () => void;
     onCancel: () => void;
     /** Style the confirm button red, for destructive actions. */
     danger?: boolean;
@@ -44,8 +45,9 @@ export function ConfirmDialog({
                 <DialogTitle className="gm-heading text-2xl">
                     {title}
                 </DialogTitle>
-                <DialogDescription className="text-ink-dim">
-                    {message}
+                {/* A div, not a <p>: a message can hold a list. */}
+                <DialogDescription asChild className="text-ink-dim">
+                    <div>{message}</div>
                 </DialogDescription>
                 <DialogFooter className="gap-2">
                     <button
@@ -55,18 +57,20 @@ export function ConfirmDialog({
                     >
                         {cancelLabel}
                     </button>
-                    <button
-                        type="button"
-                        className={
-                            danger
-                                ? 'gm-btn gm-btn-danger gm-btn-sm'
-                                : 'gm-btn gm-btn-sm'
-                        }
-                        onClick={onConfirm}
-                        autoFocus
-                    >
-                        {confirmLabel}
-                    </button>
+                    {onConfirm && (
+                        <button
+                            type="button"
+                            className={
+                                danger
+                                    ? 'gm-btn gm-btn-danger gm-btn-sm'
+                                    : 'gm-btn gm-btn-sm'
+                            }
+                            onClick={onConfirm}
+                            autoFocus
+                        >
+                            {confirmLabel}
+                        </button>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>

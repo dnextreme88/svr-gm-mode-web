@@ -186,8 +186,8 @@ type Props = {
     quiet_stories: StoryGroup[];
     emails: GmEmail[];
     results: {
-        booked_non_decisive_percent: number;
         buried_alive_weeks: number;
+        rumble_entrants_per_brand: number;
     };
     factions: {
         min_members: number;
@@ -214,13 +214,12 @@ type Props = {
 const tabs = [
     { key: 'matches', label: 'Match types' },
     { key: 'injuries', label: 'Fatigue & injuries' },
-    { key: 'specialties', label: 'Specialties' },
     { key: 'stipulations', label: 'Stipulations' },
     { key: 'promos', label: 'Promos' },
     { key: 'news', label: 'News & email' },
-    { key: 'schedule', label: 'Schedule' },
-    { key: 'results', label: 'Results & titles' },
+    { key: 'schedule', label: 'Booking and Scheduling' },
     { key: 'rosters', label: 'Rosters & draft' },
+    { key: 'rival', label: 'Rival GM' },
     { key: 'factions', label: 'Factions' },
 ] as const;
 
@@ -420,9 +419,13 @@ function RuleList({
 function MatchTypes({
     families,
     buriedWeeks,
+    rumbleEntrants,
+    specialists,
 }: {
     families: Props['match_types'];
     buriedWeeks: number;
+    rumbleEntrants: number;
+    specialists: Props['specialists'];
 }) {
     return (
         <div className="space-y-6">
@@ -430,7 +433,60 @@ function MatchTypes({
                 <RuleList title="Match rules" rules={matchRules} />
                 <RuleList title="Win conditions" rules={winConditions} />
             </div>
-            <div className="grid items-start gap-6 md:grid-cols-2">
+            <div className="grid items-start gap-6 md:grid-cols-2 xl:grid-cols-3">
+                <Panel title="30-man Royal Rumble">
+                    <ul
+                        data-testid="royal-rumble-rules"
+                        className="list-disc space-y-2 pl-4 text-sm text-ink"
+                    >
+                        <li>
+                            Held only at the Royal Rumble PPV, an interbrand
+                            card: {rumbleEntrants} entrants from Raw and{' '}
+                            {rumbleEntrants} from Smackdown. You pick yours on
+                            the Royal Rumble entrants card.
+                        </li>
+                        <li>
+                            Wrestlers are thrown over the top rope; the last one
+                            left in the ring wins. No rope breaks, count-outs or
+                            ring outs.
+                        </li>
+                        <li>No titles on the line, and no Divas.</li>
+                        <li>
+                            The winner headlines that season’s WrestleMania: the
+                            main event is the winner against their own brand’s
+                            world champion, for the world title.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel title="Buried Alive">
+                    <ul
+                        data-testid="buried-alive-rules"
+                        className="list-disc space-y-2 pl-4 text-sm text-ink"
+                    >
+                        <li>Only at No Mercy, Smackdown’s PPV.</li>
+                        <li>
+                            Won by burying the opponent alive. No DQs and no
+                            count-outs.
+                        </li>
+                        <li>
+                            The loser is gone for{' '}
+                            <span data-testid="buried-weeks">
+                                {buriedWeeks}
+                            </span>{' '}
+                            weeks: they can’t be booked as anything (match,
+                            promo, manager or referee). The result reads “He is
+                            nowhere to be seen”.
+                        </li>
+                        <li>
+                            Their contract pauses for those weeks: it doesn’t
+                            count down and costs no upkeep.
+                        </li>
+                        <li>
+                            Being buried can’t injure the loser. The winner can
+                            still get hurt.
+                        </li>
+                    </ul>
+                </Panel>
                 <Panel title="Gauntlet">
                     <ul
                         data-testid="gauntlet-rules"
@@ -462,55 +518,6 @@ function MatchTypes({
                         </li>
                     </ul>
                 </Panel>
-                <Panel title="How finishes read">
-                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
-                        <li>
-                            A finish follows the match’s win condition and names
-                            who it happened to: “Shelton Benjamin puts Rob Van
-                            Dam through a table”, “Undertaker pummels Batista so
-                            hard on the mat that he can’t answer the 10-count”.
-                        </li>
-                        <li>
-                            In a match with several opponents, the one who takes
-                            the finish is drawn at random; in a tag match, one
-                            member of the losing team.
-                        </li>
-                        <li>
-                            One winner scores it, drawn with equal odds (two
-                            winners: half each; three: a third each): “Tajiri
-                            pins The Hurricane”, never the whole team. A Captain
-                            Fall DQ or count-out names the winning team by its
-                            captain: “Kane’s team wins…”.
-                        </li>
-                        <li>
-                            In the news, a match won the one way its type allows
-                            names the match: “…for the World Tag Team
-                            Championship in a Tables match!”, or a Ladder, Steel
-                            Cage, Last Man Standing, First Blood, Submission or
-                            Iron Man match. Pinfalls, DQs and count-outs say
-                            “via …”.
-                        </li>
-                        <li>
-                            Battle Royals and elimination matches end with the
-                            last elimination: “Randy Orton last eliminates
-                            Triple H via pinfall”.
-                        </li>
-                        <li>
-                            A Foreign Object finish uses a steel chair, a
-                            sledgehammer, the ring bell or the steel steps. In a
-                            match without DQs it still has to end the match’s
-                            way: a weapon shot in a Table match ends with a
-                            table, not a cover.
-                        </li>
-                        <li>
-                            Buried Alive tells how long the loser is gone (
-                            <span data-testid="buried-weeks">
-                                {buriedWeeks}
-                            </span>{' '}
-                            weeks).
-                        </li>
-                    </ul>
-                </Panel>
             </div>
             <Panel title="Managers">
                 <ul
@@ -535,6 +542,7 @@ function MatchTypes({
                     </li>
                 </ul>
             </Panel>
+            <Specialties specialists={specialists} />
             {families.map((family) => (
                 <Panel
                     key={family.family}
@@ -1539,8 +1547,6 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
                     </Panel>
                 ))}
             </div>
-
-            <RivalGmPanel rival={rival} />
         </div>
     );
 }
@@ -1585,8 +1591,8 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                         </li>
                         <li>
                             Air week on your weekly show starts the week’s live
-                            results, where you decide your matches (see Results
-                            &amp; titles). While the week airs the button reads
+                            results, where you decide your matches (see Live
+                            results below). While the week airs the button reads
                             Resume results.
                         </li>
                         <li>Both buttons ask you to confirm first.</li>
@@ -1800,7 +1806,7 @@ function FactionsDocs({ factions }: Pick<Props, 'factions'>) {
     );
 }
 
-function ResultsDocs({ results }: Pick<Props, 'results'>) {
+function ResultsDocs() {
     return (
         <div className="space-y-6">
             <div className="grid items-start gap-6 md:grid-cols-2">
@@ -1836,37 +1842,6 @@ function ResultsDocs({ results }: Pick<Props, 'results'>) {
                             Signings, releases and trades wait until the week’s
                             results are in. Simulate to a date finishes a
                             half-aired week as it stands.
-                        </li>
-                    </ul>
-                </Panel>
-                <Panel title="Book to Win">
-                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
-                        <li>The side you book always wins.</li>
-                        <li>
-                            A booked title match always ends with a decisive
-                            finish: a pinfall, a submission or the match’s own
-                            win condition, never a DQ or count-out. The title
-                            changes hands when the challenger wins.
-                        </li>
-                        <li>
-                            Any other booked match ends by DQ or count-out{' '}
-                            <span data-testid="booked-non-decisive">
-                                {results.booked_non_decisive_percent}%
-                            </span>{' '}
-                            of the time, where the match type allows them.
-                            Otherwise it’s a decisive finish.
-                        </li>
-                        <li>
-                            Simulate match and Simulate all use the normal odds:
-                            weights, specialties and finish events.
-                        </li>
-                        <li>
-                            A booked result shows Booked to win on its card.
-                        </li>
-                        <li>
-                            A Gauntlet is booked bout by bout. Back undoes the
-                            last pick, and Simulate the rest decides the bouts
-                            you haven’t booked.
                         </li>
                     </ul>
                 </Panel>
@@ -2054,6 +2029,8 @@ export default function Docs() {
                     <MatchTypes
                         families={props.match_types}
                         buriedWeeks={props.results.buried_alive_weeks}
+                        rumbleEntrants={props.results.rumble_entrants_per_brand}
+                        specialists={props.specialists}
                     />
                 )}
                 {tab === 'injuries' && (
@@ -2061,9 +2038,6 @@ export default function Docs() {
                         injuries={props.injuries}
                         fatigue={props.fatigue}
                     />
-                )}
-                {tab === 'specialties' && (
-                    <Specialties specialists={props.specialists} />
                 )}
                 {tab === 'stipulations' && (
                     <Stipulations stipulations={props.stipulations} />
@@ -2078,12 +2052,15 @@ export default function Docs() {
                     />
                 )}
                 {tab === 'schedule' && (
-                    <ScheduleDocs calendar={props.calendar} />
+                    <div className="space-y-6">
+                        <ScheduleDocs calendar={props.calendar} />
+                        <ResultsDocs />
+                    </div>
                 )}
-                {tab === 'results' && <ResultsDocs results={props.results} />}
                 {tab === 'rosters' && (
                     <RostersDocs rosters={props.rosters} rival={props.rival} />
                 )}
+                {tab === 'rival' && <RivalGmPanel rival={props.rival} />}
                 {tab === 'factions' && (
                     <FactionsDocs factions={props.factions} />
                 )}

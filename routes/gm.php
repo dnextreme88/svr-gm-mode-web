@@ -68,6 +68,7 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::post('shows/{show}/unlock', [CardController::class, 'unlock'])->name('card.unlock');
             Route::post('shows/{show}/slots/{position}/randomize', [CardToolsController::class, 'randomize'])->whereNumber('position')->name('card.randomize');
             Route::post('shows/{show}/preset', [CardToolsController::class, 'preset'])->name('card.preset');
+            Route::post('shows/{show}/preset/apply', [CardToolsController::class, 'applyPreset'])->name('card.preset.apply');
             Route::put('shows/{show}/promos/{position}', [CardToolsController::class, 'bookPromo'])->whereNumber('position')->name('card.promo.book');
             Route::delete('shows/{show}/promos/{position}', [CardToolsController::class, 'clearPromo'])->whereNumber('position')->name('card.promo.clear');
             Route::get('reports', ReportsController::class)->name('reports');

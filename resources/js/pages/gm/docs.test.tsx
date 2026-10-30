@@ -290,7 +290,7 @@ const props = {
             },
         ],
     },
-    results: { booked_non_decisive_percent: 5, buried_alive_weeks: 4 },
+    results: { buried_alive_weeks: 4, rumble_entrants_per_brand: 15 },
     calendar: {
         weekly_show_days: { raw: 'Monday', smackdown: 'Friday' },
         weeks_per_season: 52,
@@ -401,8 +401,8 @@ describe('Docs page', () => {
         expect(tab('Match types')).toHaveAttribute('aria-selected', 'true');
         expect(screen.getByTestId('tab-indicator')).toBeInTheDocument();
 
-        await user.click(tab('Specialties'));
-        expect(tab('Specialties')).toHaveAttribute('data-active', 'true');
+        await user.click(tab('Stipulations'));
+        expect(tab('Stipulations')).toHaveAttribute('data-active', 'true');
         expect(tab('Match types')).not.toHaveAttribute('data-active');
         expect(screen.getByRole('tabpanel')).toHaveClass(
             'animate-gm-slide-from-right',
@@ -484,7 +484,9 @@ describe('Docs page', () => {
         const user = userEvent.setup();
         render(<Docs />);
 
-        await user.click(screen.getByRole('tab', { name: 'Schedule' }));
+        await user.click(
+            screen.getByRole('tab', { name: 'Booking and Scheduling' }),
+        );
 
         expect(
             screen.getByText(/Raw on Monday and Smackdown on Friday/),
@@ -506,15 +508,20 @@ describe('Docs page', () => {
         );
     });
 
-    it('explains live results, Book to Win, the results screen and Title History', async () => {
+    it('explains live results, the results screen and Title History under Booking and Scheduling', async () => {
         const user = userEvent.setup();
         render(<Docs />);
 
-        await user.click(screen.getByRole('tab', { name: 'Results & titles' }));
+        expect(
+            screen.queryByRole('tab', { name: 'Results & titles' }),
+        ).toBeNull();
+        await user.click(
+            screen.getByRole('tab', { name: 'Booking and Scheduling' }),
+        );
 
         for (const heading of [
+            'Booking a week',
             'Live results',
-            'Book to Win',
             'The results screen',
             'Title History',
         ]) {
@@ -522,19 +529,39 @@ describe('Docs page', () => {
                 screen.getByRole('heading', { name: heading }),
             ).toBeInTheDocument();
         }
-        expect(screen.getByTestId('booked-non-decisive')).toHaveTextContent(
-            '5%',
-        );
         expect(
-            screen.getByText(/A booked title match always ends/),
-        ).toBeInTheDocument();
+            screen.queryByRole('heading', { name: 'Book to Win' }),
+        ).toBeNull();
         expect(screen.getByText('(C)').className).toContain('text-gold');
         expect(screen.getByText('(Cpt)').className).toContain('text-gold');
         expect(screen.getByText(/marked Pending Result/)).toBeInTheDocument();
     });
 
-    it('explains the Gauntlet and how finishes read', () => {
+    it('explains the Royal Rumble, Buried Alive and the Gauntlet, with specialties before the match tables', () => {
         render(<Docs />);
+
+        expect(screen.queryByRole('tab', { name: 'Specialties' })).toBeNull();
+        expect(
+            screen.queryByRole('heading', { name: 'How finishes read' }),
+        ).toBeNull();
+        expect(screen.getByTestId('royal-rumble-rules')).toHaveTextContent(
+            '15 entrants from Raw and 15 from Smackdown',
+        );
+        expect(screen.getByTestId('royal-rumble-rules')).toHaveTextContent(
+            'world champion, for the world title',
+        );
+        expect(screen.getByTestId('buried-alive-rules')).toHaveTextContent(
+            'can’t be booked as anything',
+        );
+        expect(screen.getByTestId('buried-alive-rules')).toHaveTextContent(
+            'Their contract pauses',
+        );
+        const headings = screen
+            .getAllByRole('heading')
+            .map((h) => h.textContent ?? '');
+        expect(
+            headings.findIndex((h) => h.startsWith('Match specialties')),
+        ).toBeLessThan(headings.findIndex((h) => h.startsWith('Normal')));
 
         expect(screen.getByTestId('gauntlet-rules')).toHaveTextContent(
             'Six entrants in one match slot, fought as five singles bouts',
@@ -542,17 +569,10 @@ describe('Docs page', () => {
         expect(screen.getByTestId('gauntlet-rules')).toHaveTextContent(
             'No titles and no stipulations.',
         );
-        expect(
-            screen.getByRole('heading', { name: 'How finishes read' }),
-        ).toBeInTheDocument();
         expect(screen.getByTestId('buried-weeks')).toHaveTextContent('4');
         expect(screen.getByTestId('gauntlet-rules')).toHaveTextContent(
             '1st Participant to 6th Participant',
         );
-        expect(screen.getByText(/One winner scores it/)).toBeInTheDocument();
-        expect(
-            screen.getByText(/in a Tables match!/, { exact: false }),
-        ).toBeInTheDocument();
     });
 
     it('explains managers: required, their record, and "w/" on results', () => {
@@ -647,9 +667,12 @@ describe('Docs page', () => {
         const user = userEvent.setup();
         render(<Docs />);
 
-        await user.click(screen.getByRole('tab', { name: 'Rosters & draft' }));
+        await user.click(screen.getByRole('tab', { name: 'Rival GM' }));
 
-        expect(screen.getByText('Rival GM')).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: 'Rival GM' })).toHaveAttribute(
+            'aria-selected',
+            'true',
+        );
         expect(
             screen.getByText(/nobody ends it above 70%/),
         ).toBeInTheDocument();
@@ -658,9 +681,14 @@ describe('Docs page', () => {
             screen.getByText(/3 weeks 10%, 5 weeks 30%, 6 weeks 60%/),
         ).toBeInTheDocument();
         expect(screen.getByText(/at most 7 on its/)).toBeInTheDocument();
+
+        // Its draft rules stay with the draft.
+        await user.click(screen.getByRole('tab', { name: 'Rosters & draft' }));
+
         expect(
             screen.getByText(/stops chasing its division after 12/),
         ).toBeInTheDocument();
+        expect(screen.queryByText(/nobody ends it above 70%/)).toBeNull();
     });
 
     it('lists every promo’s story situations and their variants', async () => {

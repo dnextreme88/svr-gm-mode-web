@@ -177,8 +177,8 @@ class DocsController extends Controller
             ],
             'emails' => $this->emails(),
             'results' => [
-                'booked_non_decisive_percent' => (int) round((float) config('gm.outcomes.booked_non_decisive_chance') * 100),
                 'buried_alive_weeks' => (int) config('gm.buried_alive.sit_out_weeks'),
+                'rumble_entrants_per_brand' => (int) config('gm.ppv.royal_rumble_entrants_per_brand'),
             ],
             // Factions (house rule): the rules, and the seeded real-life ones
             // only. Factions formed in a career aren't listed here.
