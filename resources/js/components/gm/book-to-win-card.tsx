@@ -3,6 +3,7 @@ import {
     CaptainTag,
     ChampionTag,
     FactionName,
+    ManagerTag,
 } from '@/components/gm/champion-tag';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { groupSide } from '@/lib/factions';
@@ -80,11 +81,6 @@ export function BookToWinCard({
                         ))}
                     </ul>
 
-                    {match.managers.length > 0 && (
-                        <p className="mt-3 text-sm text-ink-dim">
-                            Managers: {match.managers.join(', ')}
-                        </p>
-                    )}
                     {match.referee && (
                         <p className="mt-1 text-sm text-ink-dim">
                             Special referee: {match.referee}
@@ -150,6 +146,7 @@ function SideLabel({ match, side }: { match: PendingMatch; side: Side }) {
                     );
                 },
             )}
+            {side.manager && <ManagerTag name={side.manager} />}
         </span>
     );
 }

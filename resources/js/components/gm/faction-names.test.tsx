@@ -50,6 +50,17 @@ describe('SideNames', () => {
         );
     });
 
+    it('adds the side’s manager as "w/ Eugene"', () => {
+        const { container } = render(
+            <SideNames names={['Snitsky']} champions={[]} manager="Eugene" />,
+        );
+
+        expect(container.textContent).toBe('Snitskyw/Eugene');
+        expect(screen.getByTestId('side-manager')).toHaveTextContent(
+            'w/Eugene',
+        );
+    });
+
     it('joins plain names when no faction applies', () => {
         const { container } = render(
             <SideNames names={['Edge', 'Kane']} champions={[]} />,

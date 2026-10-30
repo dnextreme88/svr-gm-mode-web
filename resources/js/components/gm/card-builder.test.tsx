@@ -1,7 +1,7 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { CardBuilder } from '@/components/gm/card-builder';
+import { CardBuilder, ordinal } from '@/components/gm/card-builder';
 import { UnsavedChangesProvider } from '@/components/gm/unsaved-changes';
 import type {
     CardShow,
@@ -141,6 +141,14 @@ const matchTypes = [
         variant: 'Fatal 4-Way',
         sides: [1, 1, 1, 1],
     }),
+    type({
+        id: 9,
+        name: 'Gauntlet — 6-Man Gauntlet',
+        family: 'gauntlet',
+        variant: '6-Man Gauntlet',
+        sides: [1, 1, 1, 1, 1, 1],
+        titles_allowed: false,
+    }),
 ];
 
 function wrestler(
@@ -202,6 +210,7 @@ const familyLabel: Record<number, string> = {
     6: 'Special Referee',
     7: 'Hell In A Cell',
     8: 'Ladder',
+    9: 'Gauntlet',
 };
 
 function escapeRe(text: string): string {
@@ -489,6 +498,34 @@ describe('CardBuilder', () => {
         expect(screen.getAllByText('Captain')).toHaveLength(2);
     });
 
+    it('labels each Gauntlet entrant by their order, 1st and 2nd opening', async () => {
+        const { pickType } = setup();
+
+        await pickType(1, 9);
+
+        expect(
+            [0, 1, 2, 3, 4, 5].map(
+                (side) => screen.getByTestId(`entrant-1-${side}`).textContent,
+            ),
+        ).toEqual([
+            '1st Participant',
+            '2nd Participant',
+            '3rd Participant',
+            '4th Participant',
+            '5th Participant',
+            '6th Participant',
+        ]);
+        expect(screen.queryByText('Captain')).toBeNull();
+    });
+
+    it('labels no entrants outside a Gauntlet', async () => {
+        const { pickType } = setup();
+
+        await pickType(1, 7);
+
+        expect(screen.queryByText(/Participant/)).toBeNull();
+    });
+
     it('disables seriously injured wrestlers', async () => {
         const { user, pickType } = setup();
 
@@ -549,7 +586,7 @@ describe('CardBuilder', () => {
         const rows = [0, 1].map((r) => screen.getByTestId(`sides-1-row-${r}`));
         expect(rows.map((r) => r.style.gridTemplateColumns)).toEqual(
             Array(2).fill(
-                'minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr)',
+                'minmax(0,1fr) 2.5rem minmax(0,1fr) 2.5rem minmax(0,1fr)',
             ),
         );
         expect(
@@ -569,7 +606,7 @@ describe('CardBuilder', () => {
 
         expect(
             screen.getByTestId('sides-1-row-0').style.gridTemplateColumns,
-        ).toBe('minmax(0,1fr) auto minmax(0,1fr)');
+        ).toBe('minmax(0,1fr) 2.5rem minmax(0,1fr)');
         expect(screen.getByTestId('sides-1-row-1')).toBeInTheDocument();
     });
 
@@ -580,7 +617,7 @@ describe('CardBuilder', () => {
 
         const row = screen.getByTestId('sides-1-row-0');
         expect(row.style.gridTemplateColumns).toBe(
-            'minmax(0,1fr) auto minmax(0,1fr)',
+            'minmax(0,1fr) 2.5rem minmax(0,1fr)',
         );
         // Stacked on small screens: one dropdown per line, vs between.
         expect(row.className).toContain('flex-col');
@@ -916,5 +953,23 @@ describe('CardBuilder', () => {
         expect(
             screen.queryByRole('button', { name: /Save/ }),
         ).not.toBeInTheDocument();
+    });
+});
+
+describe('ordinal', () => {
+    it('writes 1st, 2nd, 3rd and the teens as th', () => {
+        expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101].map(ordinal)).toEqual([
+            '1st',
+            '2nd',
+            '3rd',
+            '4th',
+            '11th',
+            '12th',
+            '13th',
+            '21st',
+            '22nd',
+            '23rd',
+            '101st',
+        ]);
     });
 });

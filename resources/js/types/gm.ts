@@ -199,6 +199,10 @@ export type MatchOutcome = {
     factions?: MatchFaction[];
     /** Each losing side's names, for the (C) tag. */
     loser_sides: string[][];
+    /** The winning side's manager, for "Snitsky w/ Eugene". */
+    winner_manager?: string | null;
+    /** Each losing side's manager, in the order of `loser_sides`. */
+    loser_side_managers?: Array<string | null>;
     /** The player decided the winner with Book to Win. */
     booked: boolean;
     /** Who held the title on the line going into the match. */
@@ -248,6 +252,8 @@ export type PendingMatch = {
             roster_type: import('./enums').RosterType;
             weight_class: import('./enums').WeightClass;
         }>;
+        /** The side's manager in a w/Manager match. */
+        manager?: string | null;
     }>;
     managers: string[];
     referee: string | null;

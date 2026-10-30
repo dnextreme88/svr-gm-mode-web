@@ -213,7 +213,7 @@ function FilterGroup<T extends string>({
 }) {
     return (
         <div
-            className="flex items-center gap-1"
+            className="flex flex-wrap items-center gap-1"
             role="tablist"
             aria-label={label}
         >

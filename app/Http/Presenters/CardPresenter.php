@@ -133,12 +133,14 @@ class CardPresenter
             $name = $p->saveWrestler->wrestler->name;
 
             match (true) {
-                $p->role === ParticipantRole::Manager => $managers[] = $name,
+                $p->role === ParticipantRole::Manager => $managers[$p->side] = $name,
                 $p->role === ParticipantRole::Referee => $referee = $name,
                 $p->side === $result->winner_side => $winners[] = $name,
                 default => $losers[$p->side][] = $name,
             };
         }
+
+        ksort($losers);
 
         return [
             'id' => $slot->id,
@@ -153,7 +155,10 @@ class CardPresenter
             'factions' => self::factions($slot),
             'winners_label' => self::sideLabel($slot, $result->winner_side),
             'losers' => array_map(fn (int $side): string => self::sideLabel($slot, $side), array_keys($losers)),
-            'managers' => $managers,
+            'managers' => array_values($managers),
+            // Each side's manager, for "Snitsky w/ Eugene".
+            'winner_manager' => $managers[$result->winner_side] ?? null,
+            'loser_side_managers' => array_map(fn (int $side): ?string => $managers[$side] ?? null, array_keys($losers)),
             'referee' => $referee,
             'method' => $result->method->value,
             'method_label' => $result->method === MatchMethod::MatchSpecific && $slot->matchType?->win_condition !== null ? $slot->matchType->win_condition : $result->method->label(),
@@ -191,7 +196,7 @@ class CardPresenter
             $w = $p->saveWrestler->wrestler;
 
             match (true) {
-                $p->role === ParticipantRole::Manager => $managers[] = $w->name,
+                $p->role === ParticipantRole::Manager => $managers[$p->side] = $w->name,
                 $p->role === ParticipantRole::Referee => $referee = $w->name,
                 default => $sides[$p->side][] = ['id' => $p->save_wrestler_id, 'name' => $w->name, 'roster_type' => $w->roster_type->value, 'weight_class' => $w->weight_class->value],
             };
@@ -206,8 +211,8 @@ class CardPresenter
             'position' => $slot->position,
             'match_type' => $slot->matchType?->name,
             'win_condition' => $slot->matchType?->win_condition,
-            'sides' => array_map(fn (int $side, array $members): array => ['side' => $side, 'members' => $members], array_keys($sides), array_values($sides)),
-            'managers' => $managers,
+            'sides' => array_map(fn (int $side, array $members): array => ['side' => $side, 'members' => $members, 'manager' => $managers[$side] ?? null], array_keys($sides), array_values($sides)),
+            'managers' => array_values($managers),
             'referee' => $referee,
             'title' => $slot->titleChampionship?->name,
             'stipulation' => $slot->stipulation?->value,

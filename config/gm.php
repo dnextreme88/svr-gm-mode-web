@@ -96,7 +96,9 @@ return [
     | many consecutive weeks below $0.
     */
     'finances' => [
-        'base_show_income' => 0,
+        // House rule (2026-10-28): each brand's shows earn a flat amount once
+        // the week is done, until Popularity and ratings can drive income.
+        'weekly_show_income' => 250_000,
         'deficit_weeks_limit' => 4,
     ],
 

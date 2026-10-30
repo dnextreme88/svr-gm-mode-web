@@ -64,7 +64,7 @@ export function FactionPromptModal({
                     <DialogTitle className="gm-heading text-2xl">
                         A new faction?
                     </DialogTitle>
-                    <DialogDescription className="text-sm text-ink-dim">
+                    <DialogDescription className="text-ink-dim">
                         {names.length === 2
                             ? 'These two have'
                             : 'These three have'}{' '}

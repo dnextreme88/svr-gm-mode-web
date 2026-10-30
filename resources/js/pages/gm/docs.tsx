@@ -117,6 +117,7 @@ type Props = {
     rosters: {
         cap: number;
         starting_budget: number;
+        weekly_show_income: number;
         contract_weeks: number;
         legends_draftable: boolean;
         ai_roll_max: number;
@@ -454,6 +455,10 @@ function MatchTypes({
                             Book to Win goes bout by bout, in order: pick each
                             bout’s winner, and the next entrant steps in.
                         </li>
+                        <li>
+                            On the card each entrant is labelled in gold by
+                            their order, 1st Participant to 6th Participant.
+                        </li>
                     </ul>
                 </Panel>
                 <Panel title="How finishes read">
@@ -468,6 +473,21 @@ function MatchTypes({
                             In a match with several opponents, the one who takes
                             the finish is drawn at random; in a tag match, one
                             member of the losing team.
+                        </li>
+                        <li>
+                            One winner scores it, drawn with equal odds (two
+                            winners: half each; three: a third each): “Tajiri
+                            pins The Hurricane”, never the whole team. A Captain
+                            Fall DQ or count-out names the winning team by its
+                            captain: “Kane’s team wins…”.
+                        </li>
+                        <li>
+                            In the news, a match won the one way its type allows
+                            names the match: “…for the World Tag Team
+                            Championship in a Tables match!”, or a Ladder, Steel
+                            Cage, Last Man Standing, First Blood, Submission or
+                            Iron Man match. Pinfalls, DQs and count-outs say
+                            “via …”.
                         </li>
                         <li>
                             Battle Royals and elimination matches end with the
@@ -491,6 +511,29 @@ function MatchTypes({
                     </ul>
                 </Panel>
             </div>
+            <Panel title="Managers">
+                <ul
+                    data-testid="manager-rules"
+                    className="list-disc space-y-2 pl-4 text-sm text-ink"
+                >
+                    <li>
+                        Anyone on the roster can manage a w/Manager match they
+                        aren’t competing in. Every manager slot must be filled,
+                        like every competitor slot: Save stays greyed out until
+                        it is, and Randomize and Preset fill managers from
+                        wrestlers not on the card.
+                    </li>
+                    <li>
+                        A manager wins or loses with their side: a win or a loss
+                        on their record, but no fatigue and no winning or losing
+                        streak.
+                    </li>
+                    <li>
+                        Results, outcome cards and Book to Win name each side’s
+                        manager: “Shelton Benjamin def. Snitsky w/ Eugene”.
+                    </li>
+                </ul>
+            </Panel>
             {families.map((family) => (
                 <Panel
                     key={family.family}
@@ -1067,7 +1110,8 @@ function QuietWeekStoriesPanel({
                     <ul className="list-disc space-y-1 pl-4">
                         <li>
                             WWE headline: tickets on sale for whatever airs
-                            next, the PPV by name or the weekly show with its
+                            next, the PPV by name or, with no PPV next, both
+                            weekly shows (Raw and Smackdown), each with its
                             date.
                         </li>
                         <li>
@@ -1399,7 +1443,12 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
                 A new game picks how both rosters are built. Either way each
                 brand starts with a {formatMoney(rosters.starting_budget)}{' '}
                 budget, granted once, and can hold up to {rosters.cap} wrestlers
-                (Superstars, Divas and Legends all count).
+                (Superstars, Divas and Legends all count). Once each week is
+                done, both brands earn{' '}
+                <span data-testid="weekly-show-income">
+                    {formatMoney(rosters.weekly_show_income)}
+                </span>{' '}
+                for their shows.
             </p>
             <div className="grid items-start gap-6 md:grid-cols-2">
                 <Panel title="Manual draft pick">
@@ -1817,8 +1866,16 @@ function ResultsDocs({ results }: Pick<Props, 'results'>) {
                 <Panel title="The results screen">
                     <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
                         <li>
-                            Every result is listed in air order, and each opens
-                            its full outcome card, with arrows to step through.
+                            Every result is listed in air order. The outcome
+                            card beside the list always shows one match, with
+                            arrows to step through; clicking a match shows its
+                            card.
+                        </li>
+                        <li>
+                            While the week airs, the card opens on the match to
+                            decide. Once it’s decided, its result stays up for 5
+                            seconds, then the card moves on to the next match to
+                            decide (picking a match yourself cancels that).
                         </li>
                         <li>
                             Promos sit before the match they aired in front of:

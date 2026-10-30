@@ -145,6 +145,7 @@ const props = {
     rosters: {
         cap: 30,
         starting_budget: 15000000,
+        weekly_show_income: 250000,
         contract_weeks: 52,
         legends_draftable: false,
         ai_roll_max: 100,
@@ -544,6 +545,35 @@ describe('Docs page', () => {
             screen.getByRole('heading', { name: 'How finishes read' }),
         ).toBeInTheDocument();
         expect(screen.getByTestId('buried-weeks')).toHaveTextContent('4');
+        expect(screen.getByTestId('gauntlet-rules')).toHaveTextContent(
+            '1st Participant to 6th Participant',
+        );
+        expect(screen.getByText(/One winner scores it/)).toBeInTheDocument();
+        expect(
+            screen.getByText(/in a Tables match!/, { exact: false }),
+        ).toBeInTheDocument();
+    });
+
+    it('explains managers: required, their record, and "w/" on results', () => {
+        render(<Docs />);
+
+        const rules = screen.getByTestId('manager-rules');
+        expect(rules).toHaveTextContent('Every manager slot must be filled');
+        expect(rules).toHaveTextContent(
+            'A manager wins or loses with their side',
+        );
+        expect(rules).toHaveTextContent('Snitsky w/ Eugene');
+    });
+
+    it('states the weekly show income from config', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Rosters & draft' }));
+
+        expect(screen.getByTestId('weekly-show-income')).toHaveTextContent(
+            '$250,000',
+        );
     });
 
     it('lists the Merchandise Sponsorship deals with their odds', async () => {

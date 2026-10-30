@@ -111,6 +111,7 @@ class DocsController extends Controller
             'rosters' => [
                 'cap' => (int) config('gm.roster_cap'),
                 'starting_budget' => (int) config('gm.starting_budget'),
+                'weekly_show_income' => (int) config('gm.finances.weekly_show_income'),
                 'contract_weeks' => (int) config('gm.contracts.draft_default_length'),
                 'legends_draftable' => (bool) config('gm.draft.legends_draftable'),
                 'ai_roll_max' => (int) config('gm.draft.ai_roll_max'),

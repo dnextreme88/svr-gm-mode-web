@@ -65,7 +65,7 @@ export function SpecialtyBadge({
     return (
         <span
             className={cn(
-                'inline-flex items-center px-1.5 py-px font-condensed text-xs font-bold tracking-widest uppercase',
+                'inline-flex items-center px-1.5 py-px font-condensed text-sm font-bold tracking-widest uppercase',
                 active
                     ? 'bg-gold text-arena shadow-[0_0_12px_-2px_var(--color-gold)]'
                     : 'bg-white/6 text-ink-dim ring-1 ring-white/10',

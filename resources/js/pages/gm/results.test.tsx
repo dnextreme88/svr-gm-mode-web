@@ -2,7 +2,7 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import Results from '@/pages/gm/results';
+import Results, { NEXT_MATCH_DELAY_MS } from '@/pages/gm/results';
 import type { MatchOutcome, PendingMatch, ResultPromo } from '@/types/gm';
 
 function outcome(
@@ -192,7 +192,10 @@ describe('Results page', () => {
             screen.getByText('◆ World Tag Team Championship').className,
         ).toContain('from-gold-hot');
         expect(screen.queryByText(/press enter/i)).toBeNull();
-        expect(screen.queryByTestId('result-detail')).toBeNull();
+        // The card always shows a match: the first one here.
+        expect(
+            within(screen.getByTestId('result-detail')).getByText('1 / 2'),
+        ).toBeInTheDocument();
     });
 
     it('shows a stipulation below the match only when it has one', () => {
@@ -272,7 +275,7 @@ describe('Results page', () => {
         expect(within(detail).getByText('2 / 2')).toBeInTheDocument();
     });
 
-    it('steps with the arrow keys and closes from the same chevron', async () => {
+    it('steps with the arrow keys, and picking the open match again keeps it', async () => {
         const user = userEvent.setup();
         render(<Results />);
 
@@ -284,12 +287,78 @@ describe('Results page', () => {
         await user.keyboard('{ArrowRight}');
         expect(screen.getByText('2 / 2')).toBeInTheDocument();
 
-        await user.click(
-            screen.getByRole('button', {
-                name: 'Hide details for Monday Night Raw match 2',
-            }),
+        const row = screen.getByRole('button', {
+            name: 'Show details for Monday Night Raw match 2',
+        });
+        expect(row).toHaveAttribute('aria-current', 'true');
+
+        // No toggle: the card stays on match 2.
+        await user.click(row);
+        expect(
+            within(screen.getByTestId('result-detail')).getByText('2 / 2'),
+        ).toBeInTheDocument();
+    });
+
+    it('moves on to the next match 5 seconds after one is decided', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        const user = userEvent.setup({
+            advanceTimers: vi.advanceTimersByTime,
+        });
+        const live = (
+            first: MatchOutcome | PendingMatch,
+            nextIsNext: boolean,
+        ) => ({
+            ...props,
+            airing: true,
+            shows: [
+                {
+                    ...props.shows[0],
+                    outcomes: [
+                        first,
+                        pending(2, [['Edge'], ['John Cena']], {
+                            is_next: nextIsNext,
+                        }),
+                    ],
+                },
+            ],
+        });
+
+        page.props = live(
+            pending(1, [['Kane'], ['Carlito']], { is_next: true }),
+            false,
         );
-        expect(screen.queryByTestId('result-detail')).toBeNull();
+        const { rerender } = render(<Results />);
+        const detail = () => screen.getByTestId('result-detail');
+
+        // On air, the card opens on the match to decide.
+        expect(within(detail()).getByText(/Kane/)).toBeInTheDocument();
+        await user.click(
+            within(detail()).getByRole('button', { name: 'Simulate match' }),
+        );
+        expect(post).toHaveBeenCalledTimes(1);
+
+        // The result comes back: it stays up first…
+        page.props = live(outcome(1, ['Kane'], ['Carlito'], { id: 101 }), true);
+        rerender(<Results />);
+        expect(
+            within(detail()).getByRole('heading', { name: 'Kane' }),
+        ).toBeInTheDocument();
+
+        act(() => {
+            vi.advanceTimersByTime(NEXT_MATCH_DELAY_MS - 100);
+        });
+        expect(
+            within(detail()).getByRole('heading', { name: 'Kane' }),
+        ).toBeInTheDocument();
+
+        // …then the next match to decide takes its place.
+        act(() => {
+            vi.advanceTimersByTime(200);
+        });
+        expect(
+            within(detail()).getByRole('button', { name: 'Simulate match' }),
+        ).toBeInTheDocument();
+        expect(within(detail()).getByText(/John Cena/)).toBeInTheDocument();
     });
 
     it('continues to the News page', () => {

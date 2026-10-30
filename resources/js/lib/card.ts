@@ -123,6 +123,10 @@ export function isComplete(draft: SlotDraft, type?: MatchTypeOption): boolean {
         draft.matchTypeId !== null &&
         draft.sides.length > 0 &&
         draft.sides.every((side) => side.every((id) => id !== null)) &&
+        // Every manager slot of a w/Manager type is filled too.
+        (type?.manager_sides ?? []).every(
+            (side) => draft.managers[side] != null,
+        ) &&
         (!type?.special_referee || draft.refereeId != null)
     );
 }

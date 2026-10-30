@@ -34,21 +34,34 @@ export function FactionName({
     );
 }
 
+/** " w/ Eugene": the side's manager in a w/Manager match. */
+export function ManagerTag({ name }: { name: string }) {
+    return (
+        <span data-testid="side-manager">
+            <span className="mx-1 text-ink-faint">w/</span>
+            {name}
+        </span>
+    );
+}
+
 /**
  * One side's names joined with `&`, each champion tagged `(C)` and each
  * Captain Fall captain tagged `(Cpt)`. Factions teaming on the side show as
- * the faction, tagged when any of its members is.
+ * the faction, tagged when any of its members is. A side's manager follows
+ * as "w/ Eugene".
  */
 export function SideNames({
     names,
     champions,
     captains = [],
     factions = [],
+    manager = null,
 }: {
     names: string[];
     champions: string[];
     captains?: string[];
     factions?: MatchFaction[];
+    manager?: string | null;
 }) {
     return (
         <>
@@ -78,6 +91,7 @@ export function SideNames({
                     </Fragment>
                 );
             })}
+            {manager && <ManagerTag name={manager} />}
         </>
     );
 }

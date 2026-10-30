@@ -102,7 +102,7 @@ class CardRandomizer
         if ($type === null) {
             $fillable = $this->eligibleTypes($show, $brand)
                 ->filter(fn (MatchType $t): bool => $this->poolFor($t, $pool)->count() >= $t->competitorCount()
-                    && $pool->count() >= $t->competitorCount() + ($t->hasSpecialReferee() ? 1 : 0))
+                    && $pool->count() >= $t->competitorCount() + count($t->manager_sides) + ($t->hasSpecialReferee() ? 1 : 0))
                 ->values();
 
             if ($fillable->isEmpty()) {
@@ -123,14 +123,50 @@ class CardRandomizer
 
         if ($title !== null) {
             $referee = $this->pickReferee($type, $pool, $title['sides'], $rng);
+            $managers = $this->pickManagers($type, $pool, $title['sides'], $referee, $rng);
 
-            return new Proposal($position, new Booking($type, $title['sides'], [], $title['championship_id'], refereeId: $referee), $title['sides']);
+            return new Proposal($position, new Booking($type, $title['sides'], $managers, $title['championship_id'], refereeId: $referee), $title['sides']);
         }
 
         $sides = $this->fillSides($show, $type, $candidates, $rng);
         $referee = $this->pickReferee($type, $pool, $sides, $rng);
+        $managers = $this->pickManagers($type, $pool, $sides, $referee, $rng);
 
-        return new Proposal($position, new Booking($type, $sides, refereeId: $referee), $sides);
+        return new Proposal($position, new Booking($type, $sides, $managers, refereeId: $referee), $sides);
+    }
+
+    /**
+     * A w/Manager type's managers: random wrestlers left in the pool after
+     * the competitors and the referee, one per manager side. Every manager
+     * slot is filled, like every competitor slot.
+     *
+     * @param  Collection<int, SaveWrestler>  $pool
+     * @param  list<list<int>>  $sides
+     * @return array<int, int> side index => manager id
+     */
+    public function pickManagers(MatchType $type, Collection $pool, array $sides, ?int $refereeId, Rng $rng): array
+    {
+        if ($type->manager_sides === []) {
+            return [];
+        }
+
+        $left = $rng->shuffle(array_values(array_diff(
+            array_map('intval', $pool->pluck('id')->all()),
+            array_merge(...$sides),
+            $refereeId === null ? [] : [$refereeId],
+        )));
+
+        if (count($left) < count($type->manager_sides)) {
+            throw new GameRuleException("Not enough available wrestlers to book {$type->name} with its managers.");
+        }
+
+        $managers = [];
+
+        foreach ($type->manager_sides as $i => $side) {
+            $managers[(int) $side] = $left[$i];
+        }
+
+        return $managers;
     }
 
     /**

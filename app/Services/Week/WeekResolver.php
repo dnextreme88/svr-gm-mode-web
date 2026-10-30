@@ -54,6 +54,8 @@ class WeekResolver
         Steps\WrestleManiaWrapUp::class,
         // Last before the week ends: fills whatever the week's news left empty.
         Steps\QuietWeekNews::class,
+        // Once the week is done: each brand's shows earn their income.
+        Steps\PayShowIncome::class,
         Steps\AdvanceWeek::class,
     ];
 

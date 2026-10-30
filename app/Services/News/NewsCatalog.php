@@ -151,6 +151,6 @@ class NewsCatalog
      */
     private function readable(string $template): string
     {
-        return str_replace(['{defeats}', '{by}'], ['defeats', ''], $template);
+        return str_replace(['{defeats}', '{by}', '{ppv_how}'], ['defeats', '', ' {how}'], $template);
     }
 }

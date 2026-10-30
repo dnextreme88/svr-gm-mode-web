@@ -109,7 +109,7 @@ export default function CardPage() {
                 {
                     match_type_id: p.match_type_id,
                     sides: p.sides,
-                    managers: {},
+                    managers: p.managers ?? {},
                     title_championship_id: p.title_championship_id,
                     referee_id: p.referee_id ?? null,
                 },
@@ -170,12 +170,6 @@ export default function CardPage() {
                         💼 Cash in: {briefcase.holder}
                     </button>
                 )}
-                <Link
-                    href={gm.schedule.url(game.id)}
-                    className="gm-btn gm-btn-ghost gm-btn-sm"
-                >
-                    Schedule
-                </Link>
                 <BookingAction
                     game={game}
                     showId={show.id}

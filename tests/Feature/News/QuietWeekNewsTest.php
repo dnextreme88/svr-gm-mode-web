@@ -9,6 +9,7 @@ use App\Models\Save;
 use App\Models\SaveBrand;
 use App\Services\Injuries\InjuryService;
 use App\Services\News\NewsComposer;
+use App\Services\News\NewsTemplates;
 use App\Services\Week\Steps\QuietWeekNews;
 use App\Services\Week\WeekContext;
 use App\Services\Week\WeekResolver;
@@ -45,15 +46,22 @@ it('fills every card of an empty week', function () {
         ->and(collect($page['ticker'])->pluck('type')->unique()->all())->toBe(['locker_room_note']);
 });
 
-it('sells tickets for the next show, with its date', function () {
+it('sells tickets for both weekly shows, each with its date', function () {
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
 
     quietWeek($save);
     $tickets = quiet(NewsEventType::TicketsOnSale)->sole();
 
-    expect($tickets->payload['story'])->toBe('tickets.show')
-        ->and($tickets->payload['event'])->toBe('Monday Night Raw')
-        ->and($tickets->payload['date'])->toBe('Mon Apr 11, 2005');
+    expect($tickets->payload['story'])->toBe('tickets.shows')
+        ->and($tickets->rendered_text)->toBe('Tickets on sale for Raw and Smackdown')
+        ->and(app(NewsTemplates::class)->summary(NewsEventType::TicketsOnSale, $tickets->payload))
+        ->toBe("Monday Night Raw comes to town on April 11, 2005 and Smackdown on April 15, 2005. Buy your tickets for these shows and don't miss out on the action!");
+});
+
+it('keeps the wording of Raw-only ticket news already recorded', function () {
+    $payload = ['story' => 'tickets.show', 'variant' => 0, 'event' => 'Monday Night Raw', 'date' => 'Mon Apr 11, 2005'];
+
+    expect(app(NewsTemplates::class)->render(NewsEventType::TicketsOnSale, $payload))->toBe('Tickets on sale now for Monday Night Raw');
 });
 
 it('names the PPV when it airs next', function () {

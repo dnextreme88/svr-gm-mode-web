@@ -9,6 +9,7 @@ use App\Enums\MatchFamily;
 use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
+use App\Enums\ParticipantRole;
 use App\Enums\RosterType;
 use App\Enums\ShowStatus;
 use App\Models\GauntletBout;
@@ -188,6 +189,15 @@ class ShowResolver
         foreach ($slot->participants as $p) {
             $context->data['used'][$p->save_wrestler_id] = true;
 
+            // House rule (2026-10-30): a manager wins or loses with their
+            // side. The record only: no fatigue, and streaks are for those
+            // who wrestled.
+            if ($p->role === ParticipantRole::Manager) {
+                $wrestlers[$p->save_wrestler_id]->increment($p->side === $resolved->winnerSide ? 'wins' : 'losses');
+
+                continue;
+            }
+
             if ($p->role->value !== 'competitor') {
                 continue;
             }
@@ -286,6 +296,7 @@ class ShowResolver
                 'loser' => $this->namesOf($slot, $resolved->losers),
                 'by' => $resolved->isDecisive() ? '' : ' by '.mb_strtolower($resolved->method->label()),
                 'via' => $resolved->via($slot->matchType),
+                'how' => $resolved->how($slot->matchType),
                 'outcome' => match (true) {
                     ! $resolved->isDecisive() => 'not_decisive',
                     $playedHurt !== [] => 'injured',
@@ -363,6 +374,11 @@ class ShowResolver
             'defeats' => count($resolved->winners) > 1 ? 'defeat' : 'defeats',
             'loser' => $this->namesOf($slot, $resolved->losers),
             'via' => $resolved->via($slot->matchType),
+            // The gimmick already names the match, so a win by its own
+            // condition adds nothing after it.
+            'ppv_how' => $this->isGimmick($slot) && $slot->matchType !== null && $resolved->wonByOwnCondition($slot->matchType)
+                ? ''
+                : ' '.$resolved->how($slot->matchType),
             'title' => $title,
             'gimmick' => $this->isGimmick($slot) ? " in a {$this->matchKind($slot)} match" : '',
         ], ['wrestler_ids' => [...$resolved->winners, ...$resolved->losers]], priority: (int) config($show->isInterbrand() ? 'gm.news.ppv_main_event_priority.interbrand' : 'gm.news.ppv_main_event_priority.brand'), week: $week, dedupeKey: "ppv-main:{$slot->id}");
@@ -388,6 +404,7 @@ class ShowResolver
             'ppv' => $show->name,
             'loser' => $this->namesOf($slot, $resolved->losers),
             'via' => $resolved->via($slot->matchType),
+            'how' => $resolved->how($slot->matchType),
         ], ['wrestler_ids' => [...$resolved->winners, ...$resolved->losers], 'faction_id' => $faction->id], priority: (int) config('gm.news.faction_priority.interbrand_win'), week: $week, dedupeKey: "faction-interbrand:{$slot->id}");
     }
 

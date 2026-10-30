@@ -314,6 +314,7 @@ class MatchOutcomeHandler
             'title' => $championship->name,
             'show' => $showName,
             'via' => $resolved->via($slot->matchType),
+            'how' => $resolved->how($slot->matchType),
             'walks' => $tag ? 'walk' : 'walks',
             'the_champion' => $tag ? 'The champions' : 'The champion',
             'looks' => $tag ? 'look' : 'looks',
@@ -347,6 +348,7 @@ class MatchOutcomeHandler
                 'title' => $championship->name,
                 'winner' => $new->holderName(),
                 'via' => $resolved->via($slot->matchType),
+                'how' => $resolved->how($slot->matchType),
             ], ['championship_id' => $championship->id, 'wrestler_ids' => $previous->holderIds(), 'faction_id' => $lostBy->id], priority: (int) config('gm.news.faction_priority.title_lost'), week: $week, dedupeKey: "faction-lost:{$slot->id}");
         }
 
@@ -361,6 +363,7 @@ class MatchOutcomeHandler
             'loser' => $loser ?? $nameOf($resolved->losers),
             'title' => $championship->name,
             'via' => $resolved->via($slot->matchType),
+            'how' => $resolved->how($slot->matchType),
         ], ['championship_id' => $new->championship_id, 'wrestler_ids' => [...$resolved->winners, ...$resolved->losers], 'faction_id' => $wonBy->id], priority: (int) config('gm.news.faction_priority.title_won'), week: $week, dedupeKey: "slot:{$new->won_match_id}");
 
         return true;

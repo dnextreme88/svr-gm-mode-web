@@ -15,6 +15,9 @@ export type ProposalView = {
     title_championship_id: number | null;
     referee_id?: number | null;
     referee_name?: string | null;
+    /** w/Manager types: side index => manager id. */
+    managers?: Record<number, number>;
+    manager_names?: Record<number, string>;
 };
 
 type Props = {
@@ -92,10 +95,10 @@ export function ProposalModal({
                 aria-modal="true"
                 aria-label={title}
                 tabIndex={-1}
-                className="gm-panel max-h-[85vh] w-full max-w-2xl overflow-x-hidden overflow-y-auto p-6 outline-none"
+                className="gm-panel max-h-[85vh] w-full max-w-3xl overflow-x-hidden overflow-y-auto p-6 outline-none"
             >
                 <h2 className="gm-heading text-3xl">{title}</h2>
-                <p className="mt-1 text-sm text-ink-dim">
+                <p className="mt-1 text-ink-dim">
                     Review the proposal. Nothing is booked until you confirm.
                 </p>
 
@@ -140,7 +143,11 @@ export function ProposalModal({
                                     </div>
                                     <div className="mt-1 text-sm">
                                         {p.side_names
-                                            .map((side) => side.join(' & '))
+                                            .map((side, i) =>
+                                                p.manager_names?.[i]
+                                                    ? `${side.join(' & ')} w/ ${p.manager_names[i]}`
+                                                    : side.join(' & '),
+                                            )
                                             .join(' vs ')}
                                     </div>
                                     {p.referee_name && (

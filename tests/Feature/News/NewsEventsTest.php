@@ -71,7 +71,7 @@ it('sums up a match result with the match in a word, not its full type name', fu
     $event = newsOf(NewsEventType::MatchResult)->sole();
     $templates = app(NewsTemplates::class);
 
-    expect($templates->render(NewsEventType::MatchResult, $event->payload))->toBe('Edge defeats Kane in decisive fashion. He made sure to get the win via briefcase retrieval.')
+    expect($templates->render(NewsEventType::MatchResult, $event->payload))->toBe('Edge defeats Kane in decisive fashion. He made sure to get the win in a Ladder match.')
         ->and($templates->summary(NewsEventType::MatchResult, $event->payload))->toBe('In what was a thrilling match, Edge got the win over Kane as they competed in a thrilling Ladder match!');
 });
 

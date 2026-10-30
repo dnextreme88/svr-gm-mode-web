@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
 import { SpecialtyBadge } from '@/components/gm/badges';
-import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
-import { FloppyIcon } from '@/components/gm/floppy-icon';
 import { PopoverPanel, usePopover } from '@/components/gm/popover';
+import { SlotActions } from '@/components/gm/slot-actions';
 import { WrestlerPicker } from '@/components/gm/wrestler-picker';
 import type { PickerOption } from '@/components/gm/wrestler-picker';
 import { useReportUnsaved } from '@/components/gm/unsaved-changes';
@@ -156,7 +155,6 @@ export function CardBuilder({
 }: CardBuilderProps) {
     const [drafts, setDrafts] = useState<SlotDraft[]>(() => slots.map(toDraft));
     const [dirty, setDirty] = useState<Set<number>>(new Set());
-    const [confirmClear, setConfirmClear] = useState<number | null>(null);
 
     const types = useMemo(
         () => new Map(matchTypes.map((t) => [t.id, t])),
@@ -185,15 +183,15 @@ export function CardBuilder({
             current.map((d) =>
                 d.position === position
                     ? {
-                          ...d,
-                          matchTypeId: null,
-                          sides: [],
-                          managers: {},
-                          titleChampionshipId: null,
-                          stipulation: null,
-                          stipulationChampionshipId: null,
-                          refereeId: null,
-                      }
+                        ...d,
+                        matchTypeId: null,
+                        sides: [],
+                        managers: {},
+                        titleChampionshipId: null,
+                        stipulation: null,
+                        stipulationChampionshipId: null,
+                        refereeId: null,
+                    }
                     : d,
             ),
         );
@@ -267,7 +265,7 @@ export function CardBuilder({
                         markClean(draft.position);
                     }}
                     onDiscard={() => discard(draft.position)}
-                    onClear={() => setConfirmClear(draft.position)}
+                    onClear={() => clearSlot(draft.position)}
                     title={renderTitle?.(draft, update, drafts)}
                     actions={renderActions?.(draft, update, drafts)}
                     names={
@@ -275,21 +273,6 @@ export function CardBuilder({
                     }
                 />
             ))}
-            <ConfirmDialog
-                open={confirmClear !== null}
-                title={`Clear match ${confirmClear ?? ''}?`}
-                message="This removes the match type, every wrestler, the title and the stipulation from this slot."
-                confirmLabel="Yes, clear it"
-                danger
-                onCancel={() => setConfirmClear(null)}
-                onConfirm={() => {
-                    if (confirmClear !== null) {
-                        clearSlot(confirmClear);
-                    }
-
-                    setConfirmClear(null);
-                }}
-            />{' '}
         </div>
     );
 }
@@ -412,8 +395,12 @@ function SlotEditor({
                         testId={`slot-${draft.position}-side-${sideIndex}-${index}`}
                         label={`${label} side ${sideIndex + 1} wrestler ${index + 1}`}
                         id={id}
-                        captain={type.captain_fall && index === 0}
-                        captainTestId={`captain-${draft.position}-${sideIndex}`}
+                        heading={competitorHeading(
+                            type,
+                            draft.position,
+                            sideIndex,
+                            index,
+                        )}
                         options={competitorOptions(sideIndex, index)}
                         fallbackName={id !== null ? names?.[id] : undefined}
                         readOnly={readOnly}
@@ -451,8 +438,7 @@ function SlotEditor({
                             options={helperOptions(
                                 draft.managers[sideIndex] ?? null,
                             )}
-                            emptyLabel="No manager"
-                            clearLabel="No manager"
+                            required
                             fallbackName={
                                 names?.[draft.managers[sideIndex] ?? '']
                             }
@@ -501,7 +487,8 @@ function SlotEditor({
                 dirty && 'gm-panel-dirty',
             )}
         >
-            <header className="flex flex-wrap items-start gap-3 border-b border-white/6 px-4 py-2.5">
+            {/* A size container: the match type panel sizes to the card. */}
+            <header className="@container relative flex flex-wrap items-start gap-3 border-b border-white/6 px-4 py-2.5">
                 {/* Small screens: the label, the type picker and the cost line each get a line. */}
                 <div className="w-full sm:w-auto">
                     <span
@@ -535,7 +522,7 @@ function SlotEditor({
                 />
                 {type && (
                     <span
-                        className="mt-1.5 flex w-full items-center justify-between gap-3 font-condensed tracking-wider text-ink-dim uppercase sm:w-auto sm:justify-start"
+                        className="mt-1.5 flex w-full items-center justify-between gap-3 font-condensed tracking-wider text-ink-dim uppercase md:w-auto md:justify-start"
                         data-testid={`type-info-${draft.position}`}
                     >
                         <span>
@@ -548,7 +535,7 @@ function SlotEditor({
                     </span>
                 )}
                 {title && (
-                    <div className="mt-0.5 w-full sm:ml-auto sm:w-auto">
+                    <div className="mt-0.5 w-full sm:ml-auto md:w-auto">
                         {title}
                     </div>
                 )}
@@ -597,45 +584,21 @@ function SlotEditor({
             )}
 
             {(canSave || actions) && (
-                <div className="flex flex-wrap items-center gap-3 border-t border-white/6 px-4 py-2.5">
-                    {canSave && (
-                        <>
-                            <button
-                                type="button"
-                                className="gm-btn gm-btn-sm"
-                                disabled={!complete || !dirty}
-                                onClick={onSave}
-                            >
-                                <FloppyIcon status={saveStatus} />
-                                Save {label.toLowerCase()}
-                            </button>
-                            <button
-                                type="button"
-                                className="gm-btn gm-btn-ghost gm-btn-sm"
-                                disabled={!dirty}
-                                onClick={onDiscard}
-                                aria-label={`Discard changes to ${label.toLowerCase()}`}
-                            >
-                                Discard
-                            </button>
-                            <button
-                                type="button"
-                                className="gm-btn gm-btn-danger gm-btn-sm"
-                                disabled={draft.matchTypeId === null}
-                                onClick={onClear}
-                                aria-label={`Clear ${label.toLowerCase()}`}
-                            >
-                                Clear
-                            </button>
-                        </>
-                    )}
+                <SlotActions
+                    name={label.toLowerCase()}
+                    editable={canSave}
+                    dirty={dirty}
+                    ready={complete}
+                    filled={draft.matchTypeId !== null}
+                    saveStatus={saveStatus}
+                    clearMessage="This removes the match type, every wrestler, the title and the stipulation from this slot."
+                    onSave={onSave}
+                    onDiscard={onDiscard}
+                    onClear={onClear}
+                    className="gap-3 border-t border-white/6 px-4 py-2.5"
+                >
                     {actions}
-                    {dirty && (
-                        <span className="ml-auto font-condensed text-xs font-semibold tracking-wider text-gm-orange uppercase">
-                            Unsaved changes
-                        </span>
-                    )}
-                </div>
+                </SlotActions>
             )}
         </section>
     );
@@ -655,6 +618,9 @@ function sideColumns(sides: number): number {
 
     return sides === 4 ? 2 : 3;
 }
+
+/** Width of the "vs" column between two sides on the grid. */
+const VERSUS_WIDTH = '2.5rem';
 
 function Versus() {
     return (
@@ -691,11 +657,14 @@ function SideGrid({
         );
     }
 
-    // 1fr auto 1fr (auto 1fr)…: a column per side with a "vs" between them.
+    // 1fr vs 1fr (vs 1fr)…: a column per side with a "vs" between them. Each
+    // row is its own grid, so the "vs" columns get a fixed width: as `auto`,
+    // a short last row's missing "vs" collapsed to 0 and its sides grew wider
+    // than the full rows above.
     const template = Array.from(
         { length: columns },
         () => 'minmax(0,1fr)',
-    ).join(' auto ');
+    ).join(` ${VERSUS_WIDTH} `);
 
     return (
         <div className="space-y-3" data-testid={testId}>
@@ -746,9 +715,11 @@ function MatchTypePicker({
     const label = `Match type for match ${position}`;
 
     return (
+        // Below 56rem the panel is placed against the slot header (the size
+        // container) and spans it; from 56rem it hangs under this picker.
         <div
             ref={ref}
-            className="relative mt-[3px] min-w-64 flex-1 basis-full sm:basis-auto"
+            className="mt-0.75 min-w-64 flex-1 basis-full sm:basis-auto @4xl:relative"
         >
             <button
                 type="button"
@@ -761,7 +732,7 @@ function MatchTypePicker({
                     toggle();
                 }}
                 className={cn(
-                    'gm-input flex w-full items-center justify-between gap-2 py-1 text-left text-sm transition-colors',
+                    'gm-input flex w-full items-center justify-between gap-2 py-1 text-left transition-colors',
                     !disabled && 'hover:border-white/25',
                     disabled && 'cursor-default opacity-70',
                 )}
@@ -790,7 +761,7 @@ function MatchTypePicker({
                     open={open}
                     role="dialog"
                     aria-label={label}
-                    className="grid w-full grid-cols-[minmax(0,9rem)_minmax(0,1fr)] sm:w-[min(40rem,calc(100vw-2rem))] sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]"
+                    className="inset-x-4 grid grid-cols-[minmax(0,8rem)_minmax(0,1fr)] @md:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] @4xl:right-auto @4xl:left-0 @4xl:w-[40rem]"
                 >
                     <div
                         role="listbox"
@@ -836,8 +807,8 @@ function MatchTypePicker({
                                         close();
                                     }}
                                     className={cn(
-                                        // Small screens: the cost and fatigue go under the name.
-                                        'flex w-full flex-col items-start gap-1 px-3 py-1.5 text-left text-sm hover:bg-white/6 sm:flex-row sm:items-center sm:justify-between sm:gap-3',
+                                        // Narrow cards: the cost and fatigue go under the name.
+                                        'flex w-full flex-col items-start gap-1 px-3 py-1.5 text-left text-sm hover:bg-white/6 @xl:flex-row @xl:items-center @xl:justify-between @xl:gap-3',
                                         t.id === type?.id && 'bg-brand/20',
                                     )}
                                 >
@@ -862,12 +833,51 @@ function MatchTypePicker({
     );
 }
 
+type SlotHeading = { text: string; testId: string };
+
+/** "1st", "2nd", "3rd", "4th"… */
+export function ordinal(n: number): string {
+    const tens = n % 100;
+    const suffix =
+        tens >= 11 && tens <= 13
+            ? 'th'
+            : (({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[
+                n % 10
+            ] ?? 'th');
+
+    return `${n}${suffix}`;
+}
+
+/**
+ * The label over a competitor's picker: the captain (first on each side) in
+ * Captain Fall, or each entrant's order in a Gauntlet, where 1st and 2nd
+ * open and the winner of each bout meets the next.
+ */
+function competitorHeading(
+    type: MatchTypeOption,
+    position: number,
+    sideIndex: number,
+    index: number,
+): SlotHeading | undefined {
+    if (type.captain_fall && index === 0) {
+        return { text: 'Captain', testId: `captain-${position}-${sideIndex}` };
+    }
+
+    if (type.family === 'gauntlet') {
+        return {
+            text: `${ordinal(sideIndex + 1)} Participant`,
+            testId: `entrant-${position}-${sideIndex}`,
+        };
+    }
+
+    return undefined;
+}
+
 function CompetitorSlot({
     testId,
     label,
     id,
-    captain,
-    captainTestId,
+    heading,
     options,
     fallbackName,
     readOnly,
@@ -878,8 +888,8 @@ function CompetitorSlot({
     testId: string;
     label: string;
     id: number | null;
-    captain: boolean;
-    captainTestId: string;
+    /** A gold label above the picker: "Captain", "1st Participant"… */
+    heading?: SlotHeading;
     options: PickerOption[];
     fallbackName?: string;
     readOnly: boolean;
@@ -895,12 +905,12 @@ function CompetitorSlot({
                 multi && 'border-zone-minor/60 bg-zone-minor/[0.07]',
             )}
         >
-            {captain && (
+            {heading && (
                 <div
                     className="gm-label mb-1 text-gold"
-                    data-testid={captainTestId}
+                    data-testid={heading.testId}
                 >
-                    Captain
+                    {heading.text}
                 </div>
             )}
             <WrestlerPicker

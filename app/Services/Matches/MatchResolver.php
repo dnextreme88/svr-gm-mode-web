@@ -190,13 +190,22 @@ class MatchResolver
         $loserIds = $sides[$loserSide];
         $victimId = $captainFall || count($loserIds) === 1 ? $loserIds[0] : (int) $rng->pick($loserIds);
 
+        // House rule: one winner scores it, each with equal odds (2 winners
+        // 50% each, 3 a third each). Drawn after the victim, for the same reason.
+        $scorerId = count($winners) === 1 ? $winners[0] : (int) $rng->pick($winners);
+
         $names = $this->names($slot);
         $text = new FinishText(
-            $captainFall ? ($names[$winners[0]] ?? '?') : $this->sideName($slot, $winners),
-            ! $captainFall && count($winners) > 1,
+            $names[$scorerId] ?? '?',
+            false,
             $names[$victimId] ?? '?',
             $this->isDiva($slot, $victimId),
-            ['{weeks}' => (string) config('gm.buried_alive.sit_out_weeks')],
+            [
+                '{weeks}' => (string) config('gm.buried_alive.sit_out_weeks'),
+                // Captain Fall: a DQ or count-out has no scorer, so the winning
+                // team goes by its captain.
+                '{T}' => $names[$winners[0]] ?? '?',
+            ],
         );
 
         // House rule: a Submission specialist wins a clean finish by submission.
@@ -427,11 +436,11 @@ class MatchResolver
     private function captainFallEvent(FinishEvent $event, FinishText $text, bool $dq, Weapon $weapon): array
     {
         return match ($event) {
-            FinishEvent::RefereeAttacked => [MatchMethod::Dq, $text->render("{W}'s team wins because {L}, the captain of the opposing team, shoves the referee and is disqualified.")],
+            FinishEvent::RefereeAttacked => [MatchMethod::Dq, $text->render("{T}'s team wins because {L}, the captain of the opposing team, shoves the referee and is disqualified.")],
             FinishEvent::RivalInterference, FinishEvent::ForeignObject => $dq
-                ? [MatchMethod::Dq, $text->render("{W}'s team wins as {L}, the captain of the opposing team, causes a DQ by using {$weapon->noun()}.")]
+                ? [MatchMethod::Dq, $text->render("{T}'s team wins as {L}, the captain of the opposing team, causes a DQ by using {$weapon->noun()}.")]
                 : [MatchMethod::Pinfall, $text->render("{W} {$weapon->attack()} and pins {him}, the captain, to eliminate {his} team.")],
-            FinishEvent::Countout => [MatchMethod::Countout, $text->render("{W}'s team wins as {L}, the captain of the opposing team, deliberately gets counted-out.")],
+            FinishEvent::Countout => [MatchMethod::Countout, $text->render("{T}'s team wins as {L}, the captain of the opposing team, deliberately gets counted-out.")],
             FinishEvent::CheapRollup => [MatchMethod::Pinfall, $text->render('{W} steals it with a roll-up on {L}, the captain, and a handful of tights.')],
         };
     }

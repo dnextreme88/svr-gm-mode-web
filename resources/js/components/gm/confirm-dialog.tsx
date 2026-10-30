@@ -44,7 +44,7 @@ export function ConfirmDialog({
                 <DialogTitle className="gm-heading text-2xl">
                     {title}
                 </DialogTitle>
-                <DialogDescription className="text-sm text-ink-dim">
+                <DialogDescription className="text-ink-dim">
                     {message}
                 </DialogDescription>
                 <DialogFooter className="gap-2">

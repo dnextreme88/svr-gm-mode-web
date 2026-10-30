@@ -1,10 +1,12 @@
 import { Link, router, usePage } from '@inertiajs/react';
+import { Menu as MenuIcon, X } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { UnreadPill } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { FactionPromptModal } from '@/components/gm/faction-prompt-modal';
 import { FloppyIcon } from '@/components/gm/floppy-icon';
+import { PopoverPanel, usePopover } from '@/components/gm/popover';
 import { formatMoney } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
@@ -108,8 +110,9 @@ function SaveCareerButton({ game }: { game: GameShell }) {
  * results while the week airs.
  */
 function WeekChip({ game }: { game: GameShell }) {
+    // Container queries on the header (`@container` there): smaller on phones.
     const chip =
-        'gm-chyron-both flex items-center gap-3 bg-white/6 py-1.5 font-condensed text-xl tracking-wider uppercase';
+        'gm-chyron-both flex w-fit items-center gap-2 bg-white/6 py-1.5 font-condensed text-base tracking-wider whitespace-nowrap uppercase @md:gap-3 @md:text-xl';
     const content = (
         <>
             <span className="text-ink-dim">Season</span>
@@ -143,26 +146,45 @@ function WeekChip({ game }: { game: GameShell }) {
     );
 }
 
+/**
+ * The broadcast header. Sized by container queries on the header itself:
+ *
+ * - 72rem and up: one row (brand, week chip, then Next PPV, Roster, Budget
+ *   and Save on the right).
+ * - 42–72rem: two rows. Brand, week chip and Save on top; the stats
+ *   underneath, left-aligned.
+ * - Below 42rem: the week chip gets its own row under brand and Save.
+ */
 function Header({ game }: { game: GameShell }) {
+    const stat = 'text-left @6xl:text-right';
+
     return (
-        <header className="relative z-10 border-b border-white/8 bg-arena/80 backdrop-blur">
-            <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 md:px-6">
+        <header
+            className="@container relative z-10 border-b border-white/8 bg-arena/80 backdrop-blur"
+            data-testid="gm-header"
+        >
+            <div className="mx-auto grid max-w-[1600px] grid-cols-[auto_1fr_auto] items-center gap-x-6 gap-y-3 px-3 py-3 md:px-6 @6xl:flex">
                 <Link
                     href={gm.saves.index.url()}
-                    className="flex items-center gap-3"
+                    className="col-start-1 row-start-1 flex items-center gap-3"
                     aria-label="All saves"
                 >
                     <BrandBug brand={game.player_brand} />
-                    <span className="hidden font-condensed text-lg tracking-[0.25em] text-ink-dim uppercase sm:inline">
+                    <span className="hidden font-condensed text-lg tracking-[0.25em] text-ink-dim uppercase @3xl:inline">
                         GM Mode
                     </span>
                 </Link>
 
-                <WeekChip game={game} />
+                <div className="col-span-3 row-start-2 min-w-0 @2xl:col-span-1 @2xl:col-start-2 @2xl:row-start-1">
+                    <WeekChip game={game} />
+                </div>
 
-                <div className="ml-auto flex flex-wrap items-center gap-5">
+                <div
+                    className="col-span-3 row-start-3 flex flex-wrap items-center gap-x-8 gap-y-2 @2xl:row-start-2 @6xl:ml-auto @6xl:gap-5"
+                    data-testid="gm-header-stats"
+                >
                     {game.next_ppv && (
-                        <div className="text-right">
+                        <div className={stat}>
                             <div className="gm-label text-xl">Next PPV</div>
                             <div className="font-condensed text-lg font-semibold text-ink">
                                 {game.next_ppv.name}
@@ -174,7 +196,7 @@ function Header({ game }: { game: GameShell }) {
                             </div>
                         </div>
                     )}
-                    <div className="text-right">
+                    <div className={stat}>
                         <div className="gm-label text-xl">Roster</div>
                         <div className="gm-num text-lg">
                             {game.roster_count}
@@ -183,7 +205,7 @@ function Header({ game }: { game: GameShell }) {
                             </span>
                         </div>
                     </div>
-                    <div className="text-right">
+                    <div className={stat}>
                         <div className="gm-label text-xl">Budget</div>
                         <div
                             className={cn(
@@ -196,6 +218,9 @@ function Header({ game }: { game: GameShell }) {
                             {formatMoney(game.budget)}
                         </div>
                     </div>
+                </div>
+
+                <div className="col-start-3 row-start-1 justify-self-end">
                     <SaveCareerButton game={game} />
                 </div>
             </div>
@@ -203,44 +228,200 @@ function Header({ game }: { game: GameShell }) {
     );
 }
 
+const navLink =
+    'relative px-3 py-2.5 font-condensed font-semibold tracking-[0.12em] whitespace-nowrap uppercase transition-colors';
+
+function NavLabel({ item }: { item: NavItem }) {
+    return (
+        <>
+            {item.label}
+            {item.badge ? (
+                <span className="ml-1.5">
+                    <UnreadPill>{item.badge}</UnreadPill>
+                </span>
+            ) : null}
+        </>
+    );
+}
+
+/**
+ * Whether the menu bar's links fit on one line: a hidden copy of them is
+ * measured against the bar's width, again whenever either changes size.
+ * Container queries can't tell when content overflows, so this measures.
+ */
+function useFits() {
+    const bar = useRef<HTMLDivElement>(null);
+    const links = useRef<HTMLDivElement>(null);
+    const [fits, setFits] = useState(true);
+
+    useLayoutEffect(() => {
+        const outer = bar.current;
+        const inner = links.current;
+
+        if (!outer || !inner || typeof ResizeObserver === 'undefined') {
+            return;
+        }
+
+        const check = () => {
+            const style = getComputedStyle(outer);
+            const room =
+                outer.clientWidth -
+                (parseFloat(style.paddingLeft) || 0) -
+                (parseFloat(style.paddingRight) || 0);
+
+            setFits(inner.scrollWidth <= room);
+        };
+
+        check();
+        const observer = new ResizeObserver(check);
+        observer.observe(outer);
+        observer.observe(inner);
+        // Belt and braces: the first measure can run before the condensed
+        // webfont loads (the fallback is wider, so the bar folds), and a
+        // window resize must always get a fresh look.
+        window.addEventListener('resize', check);
+        let live = true;
+        void document.fonts?.ready.then(() => {
+            if (live) {
+                check();
+            }
+        });
+
+        return () => {
+            live = false;
+            observer.disconnect();
+            window.removeEventListener('resize', check);
+        };
+    }, []);
+
+    return { bar, links, fits };
+}
+
 function Nav({ game, url }: { game: GameShell; url: string }) {
     if (game.stage !== 'in_season') {
         return null;
     }
 
+    return <MenuBar items={navItems(game)} url={url} />;
+}
+
+/**
+ * The GM menus. When the links don't all fit on one line they fold into a
+ * Menu button that names the current page and opens the full list.
+ */
+function MenuBar({ items, url }: { items: NavItem[]; url: string }) {
+    const { bar, links, fits } = useFits();
+    const menu = usePopover();
+    const current = items.find((item) => url.includes(item.match));
+    const unread = items.reduce((sum, item) => sum + (item.badge ?? 0), 0);
+
     return (
         <nav
             aria-label="GM menus"
-            className="relative z-10 border-b border-white/6 bg-arena-1/70"
+            className="relative z-20 border-b border-white/6 bg-arena-1/70"
         >
-            <div className="gm-scroll mx-auto flex max-w-[1500px] gap-1 overflow-x-auto px-4 md:px-6">
-                {navItems(game).map((item) => {
-                    const active = url.includes(item.match);
+            <div
+                ref={bar}
+                className="relative mx-auto flex max-w-[1600px] gap-1 px-4 md:px-6"
+                data-testid="gm-menu-bar"
+            >
+                {/* What the links need, measured to pick the layout. Clipped,
+                    so the copy never widens the page. */}
+                <div
+                    aria-hidden
+                    className="pointer-events-none invisible absolute inset-0 overflow-hidden"
+                >
+                    <div ref={links} className="flex w-max gap-1">
+                        {items.map((item) => (
+                            <span key={item.label} className={navLink}>
+                                <NavLabel item={item} />
+                            </span>
+                        ))}
+                    </div>
+                </div>
 
-                    return (
-                        <Link
-                            key={item.label}
-                            href={item.href}
-                            prefetch
+                {fits ? (
+                    items.map((item) => {
+                        const active = item === current;
+
+                        return (
+                            <Link
+                                key={item.label}
+                                href={item.href}
+                                prefetch
+                                className={cn(
+                                    navLink,
+                                    active
+                                        ? 'text-white'
+                                        : 'text-ink-dim hover:text-ink',
+                                )}
+                            >
+                                <NavLabel item={item} />
+                                {active && (
+                                    <span className="absolute inset-x-2 bottom-0 h-[3px] -skew-x-12 bg-brand shadow-[0_0_12px_var(--gm-brand)]" />
+                                )}
+                            </Link>
+                        );
+                    })
+                ) : (
+                    <div ref={menu.ref} className="relative">
+                        <button
+                            type="button"
+                            aria-haspopup="menu"
+                            aria-expanded={menu.open}
+                            aria-label="Menu"
+                            onClick={menu.toggle}
                             className={cn(
-                                'relative px-3 py-2.5 font-condensed font-semibold tracking-[0.12em] whitespace-nowrap uppercase transition-colors',
-                                active
-                                    ? 'text-white'
-                                    : 'text-ink-dim hover:text-ink',
+                                navLink,
+                                'flex items-center gap-2 text-ink hover:text-white',
                             )}
                         >
-                            {item.label}
-                            {item.badge ? (
-                                <span className="ml-1.5">
-                                    <UnreadPill>{item.badge}</UnreadPill>
-                                </span>
-                            ) : null}
-                            {active && (
-                                <span className="absolute inset-x-2 bottom-0 h-[3px] -skew-x-12 bg-brand shadow-[0_0_12px_var(--gm-brand)]" />
+                            {menu.open ? (
+                                <X className="size-5" aria-hidden />
+                            ) : (
+                                <MenuIcon className="size-5" aria-hidden />
                             )}
-                        </Link>
-                    );
-                })}
+                            Menu
+                            {current && (
+                                <span className="text-brand-hot">
+                                    · {current.label}
+                                </span>
+                            )}
+                            {unread > 0 && <UnreadPill>{unread}</UnreadPill>}
+                        </button>
+                        {menu.mounted && (
+                            <PopoverPanel
+                                open={menu.open}
+                                role="menu"
+                                aria-label="GM menus"
+                                className="min-w-64 py-1"
+                            >
+                                {items.map((item) => {
+                                    const active = item === current;
+
+                                    return (
+                                        <Link
+                                            key={item.label}
+                                            href={item.href}
+                                            prefetch
+                                            role="menuitem"
+                                            onClick={menu.close}
+                                            className={cn(
+                                                navLink,
+                                                'flex items-center border-l-[3px]',
+                                                active
+                                                    ? 'border-brand bg-white/5 text-white'
+                                                    : 'border-transparent text-ink-dim hover:bg-white/5 hover:text-ink',
+                                            )}
+                                        >
+                                            <NavLabel item={item} />
+                                        </Link>
+                                    );
+                                })}
+                            </PopoverPanel>
+                        )}
+                    </div>
+                )}
             </div>
         </nav>
     );
@@ -270,7 +451,7 @@ export default function GmLayout({ children }: { children: ReactNode }) {
                     before the next show can air.
                 </div>
             )}
-            <main className="relative z-10 mx-auto max-w-[1500px] px-4 py-8 md:px-6">
+            <main className="relative z-10 mx-auto max-w-[1600px] px-3 py-8 md:px-6">
                 {children}
             </main>
             {game?.faction_prompt &&
