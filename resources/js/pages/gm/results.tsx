@@ -728,14 +728,26 @@ function PromoRow({
                     </span>
                 )}
             </span>
-            {promo.targets.length > 0 && (
-                <span className="mt-1 block text-sm text-ink-dim">
-                    {promo.targets.map((t, i) => (
-                        <Fragment key={t.id}>
-                            {i > 0 && ' & '}
-                            <WrestlerName wrestler={t} />
-                        </Fragment>
-                    ))}
+            {(promo.targets.length > 0 || promo.title) && (
+                <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-dim">
+                    {promo.targets.length > 0 && (
+                        <span>
+                            {promo.targets.map((t, i) => (
+                                <Fragment key={t.id}>
+                                    {i > 0 && ' & '}
+                                    <WrestlerName wrestler={t} />
+                                </Fragment>
+                            ))}
+                        </span>
+                    )}
+                    {promo.title && (
+                        <span
+                            data-testid={`promo-title-${showId}-${promo.position}`}
+                            className="bg-gradient-to-b from-gold-hot to-gold px-2 py-px font-condensed text-xs font-bold tracking-[0.14em] text-arena uppercase"
+                        >
+                            ◆ {promo.title}
+                        </span>
+                    )}
                 </span>
             )}
         </li>

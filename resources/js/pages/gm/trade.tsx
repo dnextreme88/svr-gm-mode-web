@@ -1,11 +1,12 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { InjuryChip, MoraleBadge, TitleBelt } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
+import { requestJson } from '@/lib/http';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { TradeStatus } from '@/types/enums';
@@ -19,11 +20,22 @@ import type { GamePageProps, WrestlerRow } from '@/types/gm';
 
 type TradeRow = WrestlerRow & { untradeable: string | null };
 
+type TradeJudge = {
+    legend_value: number;
+    champion_history_value: number;
+    focus_value: number;
+    fair_accept: number;
+    unfair_accept: number;
+    fair_ratio: number;
+};
+
 type Props = GamePageProps & {
     yours: TradeRow[];
     theirs: TradeRow[];
     roster_counts: Record<string, number>;
     max_per_side: number;
+    /** How the rival GM judges an offer (`gm.ai.trades`). */
+    judge?: TradeJudge;
     history: Array<{
         id: number;
         week_number: number;
@@ -34,7 +46,7 @@ type Props = GamePageProps & {
 };
 
 export default function ProposeTrade() {
-    const { game, yours, theirs, roster_counts, max_per_side, history } =
+    const { game, yours, theirs, roster_counts, max_per_side, history, judge } =
         usePage<Props>().props;
     const [out, setOut] = useState<number[]>([]);
     const [incoming, setIncoming] = useState<number[]>([]);
@@ -62,6 +74,30 @@ export default function ProposeTrade() {
           : theirSize > game.roster_cap
             ? `Their roster would end at ${theirSize}/${game.roster_cap}. Ask for more or send fewer.`
             : `${out.length} for ${incoming.length}. The rival GM answers by email.`;
+    // The rival's chance of accepting (AiTradeJudge::chance), refreshed as
+    // the offer changes. Null while there's nothing to judge.
+    const [chance, setChance] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (empty || overCap) {
+            setChance(null);
+
+            return;
+        }
+
+        let current = true;
+        requestJson<{ chance: number }>('POST', gm.trade.odds.url(game.id), {
+            out,
+            in: incoming,
+        })
+            .then((r) => current && setChance(r.chance))
+            .catch(() => current && setChance(null));
+
+        return () => {
+            current = false;
+        };
+    }, [out, incoming, empty, overCap, game.id]);
+
     const send = () =>
         router.post(
             gm.trade.store.url(game.id),
@@ -75,6 +111,13 @@ export default function ProposeTrade() {
             <PageTitle
                 kicker={`Up to ${max_per_side} for ${max_per_side}`}
                 title="Propose Trade"
+            />
+
+            <TradeRules
+                maxPerSide={max_per_side}
+                rosterCap={game.roster_cap}
+                rivalBrand={game.rival_brand}
+                judge={judge}
             />
 
             <div className="mb-6 grid gap-4 md:grid-cols-2" aria-live="polite">
@@ -116,7 +159,7 @@ export default function ProposeTrade() {
             {/* The offer stays in view while picking from either list. */}
             <section
                 aria-label="Your offer"
-                className="gm-panel sticky bottom-2 z-10 mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 !bg-arena-2 px-4 py-3 shadow-[0_-8px_24px_rgb(0_0_0/0.5)]"
+                className="gm-panel sticky bottom-0 z-10 mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 !bg-arena-2 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_24px_rgb(0_0_0/0.6)]"
             >
                 <div className="min-w-0 flex-1 space-y-1 text-sm">
                     <OfferLine
@@ -138,6 +181,21 @@ export default function ProposeTrade() {
                     >
                         {hint}
                     </p>
+                    {chance !== null && (
+                        <p data-testid="offer-chance" className="text-ink-dim">
+                            Chance the rival GM accepts:{' '}
+                            <span
+                                className={cn(
+                                    'gm-num font-semibold',
+                                    chance >= HIGH_CHANCE
+                                        ? 'text-zone-safe'
+                                        : 'text-gm-orange',
+                                )}
+                            >
+                                {percent(chance)}
+                            </span>
+                        </p>
+                    )}
                 </div>
                 <button
                     type="button"
@@ -186,6 +244,90 @@ export default function ProposeTrade() {
                 </Panel>
             )}
         </>
+    );
+}
+
+/** The rival's focus class, worth extra to it in a trade (AiGm::isDraftFocus). */
+const RIVAL_FOCUS: Record<'raw' | 'smackdown', string> = {
+    raw: 'a Diva',
+    smackdown: 'a Cruiserweight or Light Heavyweight',
+};
+
+const percent = (chance: number) => `${Math.round(chance * 100)}%`;
+
+/** Acceptance chances at or above this show green, anything lower orange. */
+const HIGH_CHANCE = 0.9;
+
+const points = (n: number) => `+${n} ${n === 1 ? 'point' : 'points'}`;
+
+/** The trade rules as the game applies them (TradeService, AiTradeJudge). */
+function TradeRules({
+    maxPerSide,
+    rosterCap,
+    rivalBrand,
+    judge,
+}: {
+    maxPerSide: number;
+    rosterCap: number;
+    rivalBrand: 'raw' | 'smackdown';
+    judge?: TradeJudge;
+}) {
+    return (
+        <Panel title="How trades work" className="mb-6">
+            <div className="grid gap-x-8 gap-y-4 text-sm md:grid-cols-2">
+                <ul className="list-disc space-y-1.5 pl-5 marker:text-ink-faint">
+                    <li>
+                        Up to {maxPerSide} wrestlers on each side. Uneven trades
+                        are fine, even someone for nobody.
+                    </li>
+                    <li>
+                        Champions and seriously injured superstars can’t be
+                        traded.
+                    </li>
+                    <li>Neither roster can end up over {rosterCap}.</li>
+                    <li>You can’t trade while a week is airing.</li>
+                    <li>
+                        The rival GM answers by email straight away. An accepted
+                        trade moves everyone at once, and their contracts go
+                        with them.
+                    </li>
+                    <li>
+                        A traded Money in the Bank holder loses the briefcase,
+                        and a traded #1 contender loses the title shot.
+                    </li>
+                </ul>
+                {judge && (
+                    <div data-testid="trade-judge">
+                        <p className="mb-1.5 text-ink-dim">
+                            How the rival GM weighs an offer:
+                        </p>
+                        <ul className="list-disc space-y-1.5 pl-5 marker:text-ink-faint">
+                            <li>
+                                Every wrestler is worth 1 point;{' '}
+                                {points(judge.legend_value)} for a Legend,{' '}
+                                {points(judge.champion_history_value)} for
+                                anyone who has held a title, and{' '}
+                                {points(judge.focus_value)} for{' '}
+                                {RIVAL_FOCUS[rivalBrand]}.
+                            </li>
+                            <li>
+                                An offer is fair when they get{' '}
+                                {judge.fair_ratio === 1
+                                    ? 'at least as many points as they give'
+                                    : `at least ${judge.fair_ratio} times the points they give`}{' '}
+                                and can still book every title match they could
+                                before.
+                            </li>
+                            <li>
+                                They accept a fair offer{' '}
+                                {percent(judge.fair_accept)} of the time, and
+                                anything else {percent(judge.unfair_accept)}.
+                            </li>
+                        </ul>
+                    </div>
+                )}
+            </div>
+        </Panel>
     );
 }
 

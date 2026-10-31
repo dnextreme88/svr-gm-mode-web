@@ -193,6 +193,17 @@ type Props = {
         slots: number;
         types: Promo[];
         merchandise_tiers: Array<{ amount: number; chance: number }>;
+        rivalry_heat?: {
+            auto_create_meetings: number;
+            auto_create_window_weeks: number;
+            start_heat: number;
+            heat_per_meeting: number;
+            heat_per_promo: number;
+            idle_decay: number;
+            heating_up_threshold: number;
+            blowoff_min_heat: number;
+            max_heat: number;
+        };
     };
     news: { stories_per_brand: number; groups: string[]; events: NewsEvent[] };
     promo_stories: StoryGroup[];
@@ -934,6 +945,29 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                             fatigue bar. Rivalries are always one on one and
                             named alphabetically, here and on the Rivalry page.
                         </li>
+                        {promos.rivalry_heat && (
+                            <li data-testid="rivalry-heat">
+                                Rivalries also start when the same two wrestlers
+                                meet {promos.rivalry_heat.auto_create_meetings}{' '}
+                                times within{' '}
+                                {promos.rivalry_heat.auto_create_window_weeks}{' '}
+                                weeks in matches where every side is one
+                                wrestler. Heat runs 0 to{' '}
+                                {promos.rivalry_heat.max_heat}: it starts at{' '}
+                                {promos.rivalry_heat.start_heat}, each meeting
+                                adds {promos.rivalry_heat.heat_per_meeting} and
+                                Continue Rivalry{' '}
+                                {promos.rivalry_heat.heat_per_promo}, and a week
+                                with neither loses{' '}
+                                {promos.rivalry_heat.idle_decay}; at 0 it’s
+                                over. At{' '}
+                                {promos.rivalry_heat.heating_up_threshold} it’s
+                                heating up, and rivals meeting at a PPV with{' '}
+                                {promos.rivalry_heat.blowoff_min_heat}+ heat end
+                                it in a blow-off. The Rivalry page lists all of
+                                this.
+                            </li>
+                        )}
                         <li>
                             Save promo greys out once the promo is saved, and
                             lights up again when you change something, with

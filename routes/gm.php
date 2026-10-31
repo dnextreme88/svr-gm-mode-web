@@ -92,6 +92,7 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::post('notices/seen', [TitlePromptController::class, 'seen'])->name('notices.seen');
             Route::get('trade', [TradeController::class, 'show'])->name('trade.show');
             Route::post('trade', [TradeController::class, 'store'])->name('trade.store');
+            Route::post('trade/odds', [TradeController::class, 'odds'])->name('trade.odds');
 
             Route::get('email', [EmailController::class, 'index'])->name('email');
             Route::get('docs', DocsController::class)->name('saves.docs');

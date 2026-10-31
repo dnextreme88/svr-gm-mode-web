@@ -17,6 +17,21 @@ describe('Active Effects (house rule)', () => {
 
         const box = screen.getByRole('region', { name: 'Active Effects' });
         expect(box).toHaveTextContent('No active effects at the moment');
+        // Gold only while something is in play.
+        expect(box.className).not.toContain('border-gold');
+    });
+
+    it('turns gold while something is in play', () => {
+        render(
+            <ActiveEffects
+                context={empty}
+                buriedAlive={[{ id: 1, name: 'Kane', weeks_left: 2 }]}
+            />,
+        );
+
+        expect(
+            screen.getByRole('region', { name: 'Active Effects' }).className,
+        ).toContain('border-gold');
     });
 
     it('lists every effect in play', () => {

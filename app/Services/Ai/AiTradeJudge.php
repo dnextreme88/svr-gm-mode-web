@@ -25,14 +25,25 @@ class AiTradeJudge
      */
     public function accepts(Save $save, Brand $proposer, array $outIds, array $inIds, Rng $rng): bool
     {
+        return $rng->chance($this->chance($save, $proposer, $outIds, $inIds));
+    }
+
+    /**
+     * The chance the rival accepts this offer: only the dice roll is left to
+     * luck, so the Trade screen can show it before the offer is sent.
+     *
+     * @param  list<int>  $outIds  what the proposer gives (the rival gets)
+     * @param  list<int>  $inIds  what the proposer asks for (the rival gives)
+     */
+    public function chance(Save $save, Brand $proposer, array $outIds, array $inIds): float
+    {
         $rival = $proposer === Brand::Raw ? Brand::Smackdown : Brand::Raw;
         $gets = $this->value($save, $rival, $outIds);
         $gives = $this->value($save, $rival, $inIds);
-
         $fair = $gets >= (float) config('gm.ai.trades.fair_ratio') * $gives
             && ! $this->breaksATitle($save, $rival, $outIds, $inIds);
 
-        return $rng->chance((float) config($fair ? 'gm.ai.trades.fair_accept' : 'gm.ai.trades.unfair_accept'));
+        return (float) config($fair ? 'gm.ai.trades.fair_accept' : 'gm.ai.trades.unfair_accept');
     }
 
     /**

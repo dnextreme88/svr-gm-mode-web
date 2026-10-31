@@ -147,7 +147,7 @@ class ResultsController extends Controller
     {
         $mainEvent = $show->matchSlotCount();
 
-        return PromoSlot::with(['promoType', 'target.wrestler', 'targetB.wrestler'])
+        return PromoSlot::with(['promoType', 'target.wrestler', 'targetB.wrestler', 'targetChampionship'])
             ->where('show_id', $show->id)
             ->whereNotNull('promo_type_id')
             ->orderBy('position')
@@ -157,6 +157,8 @@ class ResultsController extends Controller
                 'before_position' => $promo->before_position ?? $mainEvent,
                 'type' => $promo->promoType?->name,
                 'status' => $promo->status(),
+                // Title Match Hype: the title it hyped.
+                'title' => $promo->targetChampionship?->name,
                 'targets' => collect([$promo->target, $promo->targetB])->filter()->map(fn (SaveWrestler $w): array => [
                     'id' => $w->id,
                     'name' => $w->name(),

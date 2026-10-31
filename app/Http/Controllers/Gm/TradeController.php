@@ -9,11 +9,13 @@ use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\Trade;
 use App\Models\TradeItem;
+use App\Services\Ai\AiTradeJudge;
 use App\Services\Injuries\InjuryStatus;
 use App\Services\Roster\RosterService;
 use App\Services\Roster\TradeService;
 use App\Services\Titles\TitleService;
 use App\Services\Week\WeekResolver;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +53,15 @@ class TradeController extends Controller
                 $save->rivalBrand()->value => $this->roster->rosterCount($save, $save->rivalBrand()),
             ],
             'max_per_side' => (int) config('gm.trades.max_per_side'),
+            // How the rival GM judges an offer (AiTradeJudge), shown as the page's rules.
+            'judge' => [
+                'legend_value' => (float) config('gm.ai.trades.legend_value'),
+                'champion_history_value' => (float) config('gm.ai.trades.champion_history_value'),
+                'focus_value' => (float) config('gm.ai.trades.focus_value'),
+                'fair_accept' => (float) config('gm.ai.trades.fair_accept'),
+                'unfair_accept' => (float) config('gm.ai.trades.unfair_accept'),
+                'fair_ratio' => (float) config('gm.ai.trades.fair_ratio'),
+            ],
             'history' => $this->trades->history($save)->map(fn (Trade $t): array => [
                 'id' => $t->id,
                 'week_number' => $t->week_number,
@@ -58,6 +69,29 @@ class TradeController extends Controller
                 'out' => $t->items->where('direction', 'out')->map(fn (TradeItem $i): string => $i->saveWrestler->name())->values(),
                 'in' => $t->items->where('direction', 'in')->map(fn (TradeItem $i): string => $i->saveWrestler->name())->values(),
             ])->values(),
+        ]);
+    }
+
+    /**
+     * The chance the rival GM accepts the offer being built (shown in the
+     * offer bar before it's sent).
+     */
+    public function odds(Request $request, Save $save, AiTradeJudge $judge): JsonResponse
+    {
+        $data = $request->validate([
+            'out' => ['array'],
+            'out.*' => ['integer'],
+            'in' => ['array'],
+            'in.*' => ['integer'],
+        ]);
+
+        return response()->json([
+            'chance' => $judge->chance(
+                $save,
+                $save->player_brand,
+                array_values(array_map('intval', $data['out'] ?? [])),
+                array_values(array_map('intval', $data['in'] ?? [])),
+            ),
         ]);
     }
 

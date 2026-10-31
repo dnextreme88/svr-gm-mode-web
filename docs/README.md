@@ -22,3 +22,4 @@ Dated implementation and upgrade plans for this site. Each plan is a Markdown fi
 | **2026-10-31** | [Match Stipulations & Title Contention](20261031-match-stipulations-and-title-contention.md) |
 | **2026-10-31** | [Active Effects, Money in the Bank Cash-in Timing & Balance Tweaks](20261031-active-effects-and-mitb-cash-ins.md) |
 | **2026-10-31** | [Rosters & Title History UI/UX Audit Fixes](20261031-rosters-and-title-history-ux.md) |
+| **2026-10-31** | [Page UX Fixes, Trade Rules & Faction Updates](20261031-page-ux-trade-rules-and-faction-updates.md) |

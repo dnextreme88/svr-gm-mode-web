@@ -176,3 +176,30 @@ it('renders the Propose Trade, Rivalry and News screens', function (string $rout
     ['gm.rivalries', 'gm/rivalries'],
     ['gm.news', 'gm/news'],
 ]);
+
+it('sends the rival GM’s trade numbers for the rules on the trade screen', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+
+    $this->get(route('gm.trade.show', $save))
+        ->assertInertia(fn ($page) => $page
+            ->where('max_per_side', config('gm.trades.max_per_side'))
+            ->where('judge.legend_value', fn ($v): bool => (float) $v === (float) config('gm.ai.trades.legend_value'))
+            ->where('judge.fair_accept', fn ($v): bool => (float) $v === (float) config('gm.ai.trades.fair_accept'))
+            ->where('judge.unfair_accept', fn ($v): bool => (float) $v === (float) config('gm.ai.trades.unfair_accept'))
+            ->where('judge.fair_ratio', fn ($v): bool => (float) $v === (float) config('gm.ai.trades.fair_ratio')));
+});
+
+it('works out the rival GM’s chance of accepting before the offer is sent', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista', 'Rey Mysterio'], player: Brand::Smackdown);
+    $ids = fn (string ...$names): array => array_map(fn (string $n): int => GameBuilder::wrestler($save, $n)->id, $names);
+
+    // One plain superstar for another is fair.
+    $this->postJson(route('gm.trade.odds', $save), ['out' => $ids('Batista'), 'in' => $ids('Edge')])
+        ->assertOk()
+        ->assertJson(['chance' => config('gm.ai.trades.fair_accept')]);
+
+    // Asking for someone and giving nothing isn't.
+    $this->postJson(route('gm.trade.odds', $save), ['out' => [], 'in' => $ids('Edge')])
+        ->assertOk()
+        ->assertJson(['chance' => config('gm.ai.trades.unfair_accept')]);
+});

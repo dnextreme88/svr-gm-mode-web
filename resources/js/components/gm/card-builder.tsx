@@ -574,7 +574,7 @@ function SlotEditor({
                     }
                 />
                 {/* md to lg: the cost line and the title share a row under the type picker. */}
-                <div className="contents md:flex md:w-full md:items-start md:justify-between md:gap-3 lg:contents">
+                <div className="contents md:flex md:w-full md:items-start md:justify-between md:gap-3 xl:contents">
                     {type && (
                         <span
                             className="mt-1.5 flex w-full items-center justify-between gap-3 font-condensed tracking-wider text-ink-dim uppercase md:w-auto md:justify-start md:gap-10"
@@ -633,13 +633,26 @@ function SlotEditor({
                         </div>
                     )}
                 </div>
+            ) : !dirty ? (
+                // An empty slot: the hint and Randomize share one row.
+                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                    <p className="text-sm text-ink-faint">
+                        Choose a match type to start booking.
+                    </p>
+                    {(buttons || actions) && (
+                        <div className="flex flex-wrap items-center gap-2">
+                            {buttons}
+                            {actions}
+                        </div>
+                    )}
+                </div>
             ) : (
                 <p className="px-4 py-5 text-sm text-ink-faint">
                     Choose a match type to start booking.
                 </p>
             )}
 
-            {(canSave || buttons || actions) && (
+            {(type || dirty) && (canSave || buttons || actions) && (
                 <SlotActions
                     name={label.toLowerCase()}
                     editable={canSave}

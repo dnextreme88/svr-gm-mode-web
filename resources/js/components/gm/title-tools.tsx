@@ -186,7 +186,7 @@ export function StipulationPicker({
             <div
                 data-testid={`stipulation-${draft.position}`}
                 aria-label={label}
-                className="w-full bg-white/5 px-3 py-1 text-center font-condensed text-sm font-bold tracking-[0.14em] text-white/20 uppercase hover:cursor-not-allowed lg:w-auto lg:min-w-[275px]"
+                className="w-full bg-white/5 px-3 py-1 text-center font-condensed text-sm font-bold tracking-[0.14em] text-white/20 uppercase hover:cursor-not-allowed lg:w-auto lg:min-w-[300px]"
             >
                 No stipulation eligible
             </div>
@@ -196,7 +196,7 @@ export function StipulationPicker({
     return (
         <div
             ref={ref}
-            className="relative w-full lg:w-auto lg:min-w-[275px]"
+            className="relative w-full lg:w-auto lg:min-w-[300px]"
             data-testid={`stipulation-${draft.position}`}
         >
             <PickerButton

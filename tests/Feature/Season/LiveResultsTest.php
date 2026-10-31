@@ -261,3 +261,18 @@ it('tags the champion going into a title match and lists promos with their resul
             ->where('shows.0.outcomes.0.title_banner', 'new_champion')
             ->where('shows.0.promos.0.status', fn (?string $status) => in_array($status, ['succeeded', 'failed'], true)));
 });
+
+it('names the title a Title Match Hype promo hyped', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'John Cena'], smackdown: ['Batista']);
+    GameBuilder::giveTitle($save, 'wwe', ['Edge']);
+    $raw = Card::show($save);
+    $wwe = Championship::where('key', 'wwe')->value('id');
+    Card::book($save, $raw, 1, Card::singles(), [['Edge'], ['John Cena']], [], $wwe);
+    app(PromoService::class)->book($raw, 1, PromoType::where('key', PromoTypeKey::TitleMatchHype)->firstOrFail(), championshipId: $wwe, beforePosition: 1);
+    live()->begin($save);
+
+    $this->get(route('gm.results', [$save, 1]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('shows.0.promos.0.type', 'Title Match Hype')
+            ->where('shows.0.promos.0.title', 'WWE Championship'));
+});

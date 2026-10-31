@@ -159,6 +159,8 @@ class DocsController extends Controller
             'promos' => [
                 'slots' => (int) config('gm.card.weekly_promo_slots'),
                 'merchandise_tiers' => array_values((array) config('gm.promos.merchandise_tiers')),
+                // Rivalry heat (RivalryService), explained beside the rivalry promos.
+                'rivalry_heat' => (array) config('gm.rivalries'),
                 'types' => PromoType::orderBy('name')->get()->map(fn (PromoType $t): array => [
                     'key' => $t->key->value,
                     'name' => $t->name,

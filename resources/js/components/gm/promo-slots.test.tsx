@@ -187,7 +187,14 @@ describe('PromoSlots', () => {
     });
 
     it('animates the floppy while the promo saves, then shows the check', () => {
-        setup();
+        setup([
+            {
+                ...emptySlot(1),
+                promo_type_id: 3,
+                target_wrestler_id: 10,
+                before_position: 6,
+            },
+        ]);
         const floppy = within(
             screen.getByRole('button', { name: 'Save promo 1' }),
         ).getByTestId('floppy-icon');
@@ -412,8 +419,26 @@ describe('PromoSlots', () => {
         );
     });
 
-    it('uses a red Clear button', () => {
+    it('has no Save, Discard or Clear on an empty promo', () => {
         setup();
+
+        expect(
+            screen.queryByRole('button', { name: 'Save promo 1' }),
+        ).toBeNull();
+        expect(
+            screen.queryByRole('button', { name: 'Clear promo 1' }),
+        ).toBeNull();
+    });
+
+    it('uses a red Clear button', () => {
+        setup([
+            {
+                ...emptySlot(1),
+                promo_type_id: 3,
+                target_wrestler_id: 10,
+                before_position: 6,
+            },
+        ]);
 
         expect(
             screen.getByRole('button', { name: 'Clear promo 1' }).className,

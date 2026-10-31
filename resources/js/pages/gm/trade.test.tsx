@@ -47,8 +47,22 @@ const props = {
     ],
     roster_counts: { smackdown: 30, raw: 30 },
     max_per_side: 5,
+    judge: {
+        legend_value: 2,
+        champion_history_value: 1,
+        focus_value: 1,
+        fair_accept: 0.9,
+        unfair_accept: 0.05,
+        fair_ratio: 1,
+    },
     history: [],
 };
+
+const requestJson = vi.fn(async () => ({ chance: 0.9 }));
+
+vi.mock('@/lib/http', () => ({
+    requestJson: (...args: unknown[]) => requestJson(...(args as [])),
+}));
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
@@ -127,5 +141,61 @@ describe('Propose Trade', () => {
         expect(screen.queryByTestId('trade-row-1')).toBeNull();
         expect(screen.getByTestId('trade-row-2')).toBeInTheDocument();
         expect(screen.getByTestId('trade-row-4')).toBeInTheDocument();
+    });
+
+    it('lists the trade rules under the heading, with the rival’s numbers', () => {
+        render(<ProposeTrade />);
+
+        const rules = screen
+            .getByRole('heading', { name: 'How trades work' })
+            .closest('section') as HTMLElement;
+        expect(rules).toHaveTextContent('Up to 5 wrestlers on each side');
+        expect(rules).toHaveTextContent('Neither roster can end up over 30');
+        expect(rules).toHaveTextContent(
+            'Champions and seriously injured superstars can’t be traded',
+        );
+
+        const judge = within(rules).getByTestId('trade-judge');
+        expect(judge).toHaveTextContent('+2 points for a Legend');
+        expect(judge).toHaveTextContent('+1 point for a Diva');
+        expect(judge).toHaveTextContent('at least as many points as they give');
+        expect(judge).toHaveTextContent(
+            '90% of the time, and anything else 5%',
+        );
+    });
+
+    it('shows the rival’s chance of accepting, green at 90% and orange below', async () => {
+        const user = userEvent.setup();
+        render(<ProposeTrade />);
+
+        expect(screen.queryByTestId('offer-chance')).toBeNull();
+
+        await user.click(
+            within(screen.getByTestId('trade-row-1')).getByRole('checkbox'),
+        );
+        await user.click(
+            within(screen.getByTestId('trade-row-4')).getByRole('checkbox'),
+        );
+
+        const chance = await screen.findByTestId('offer-chance');
+        expect(chance).toHaveTextContent('Chance the rival GM accepts: 90%');
+        expect(within(chance).getByText('90%').className).toContain(
+            'text-zone-safe',
+        );
+        expect(requestJson).toHaveBeenLastCalledWith(
+            'POST',
+            '/gm/saves/1/trade/odds',
+            { out: [1], in: [4] },
+        );
+
+        requestJson.mockResolvedValueOnce({ chance: 0.05 });
+        await user.click(
+            within(screen.getByTestId('trade-row-4')).getByRole('checkbox'),
+        );
+        await user.click(
+            within(screen.getByTestId('trade-row-2')).getByRole('checkbox'),
+        );
+        // 2 for 0 is over their cap, so there's no chance to show.
+        expect(screen.queryByTestId('offer-chance')).toBeNull();
     });
 });

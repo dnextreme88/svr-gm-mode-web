@@ -754,4 +754,28 @@ describe('Results page', () => {
         expect(screen.getByTestId('promo-7-2')).toHaveTextContent('Promo 1');
         expect(screen.getByTestId('promo-7-1')).toHaveTextContent('Promo 2');
     });
+
+    it('shows the title a Title Match Hype promo hyped', () => {
+        page.props = {
+            ...props,
+            shows: [
+                {
+                    ...props.shows[0],
+                    promos: [
+                        {
+                            ...promo(1, 2, 'succeeded'),
+                            type: 'Title Match Hype',
+                            targets: [],
+                            title: 'WWE Championship',
+                        },
+                    ],
+                },
+            ],
+        };
+        render(<Results />);
+
+        expect(screen.getByTestId('promo-title-7-1')).toHaveTextContent(
+            '◆ WWE Championship',
+        );
+    });
 });

@@ -555,7 +555,8 @@ function PromoEditor({
                     {slot.outcome_note}
                 </p>
             )}
-            {!readOnly && (
+            {/* An empty promo has nothing to save, discard or clear. */}
+            {!readOnly && (typeId !== null || slot.promo_type_id !== null) && (
                 <SlotActions
                     name={`promo ${slot.position}`}
                     dirty={dirty}
