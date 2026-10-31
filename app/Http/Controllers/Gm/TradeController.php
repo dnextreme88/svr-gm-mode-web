@@ -9,11 +9,13 @@ use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\Trade;
 use App\Models\TradeItem;
+use App\Services\Ai\AiTradeJudge;
 use App\Services\Injuries\InjuryStatus;
 use App\Services\Roster\RosterService;
 use App\Services\Roster\TradeService;
 use App\Services\Titles\TitleService;
 use App\Services\Week\WeekResolver;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +53,8 @@ class TradeController extends Controller
                 $save->rivalBrand()->value => $this->roster->rosterCount($save, $save->rivalBrand()),
             ],
             'max_per_side' => (int) config('gm.trades.max_per_side'),
+            // How the rival GM judges an offer (AiTradeJudge), shown as the page's rules.
+            'judge' => (array) config('gm.ai.trades'),
             'history' => $this->trades->history($save)->map(fn (Trade $t): array => [
                 'id' => $t->id,
                 'week_number' => $t->week_number,
@@ -59,6 +63,27 @@ class TradeController extends Controller
                 'in' => $t->items->where('direction', 'in')->map(fn (TradeItem $i): string => $i->saveWrestler->name())->values(),
             ])->values(),
         ]);
+    }
+
+    /**
+     * The rival GM's judgement of the offer being built: its chance of
+     * accepting and what each side is worth to it (the offer bar).
+     */
+    public function odds(Request $request, Save $save, AiTradeJudge $judge): JsonResponse
+    {
+        $data = $request->validate([
+            'out' => ['array'],
+            'out.*' => ['integer'],
+            'in' => ['array'],
+            'in.*' => ['integer'],
+        ]);
+
+        return response()->json($judge->assess(
+            $save,
+            $save->player_brand,
+            array_values(array_map('intval', $data['out'] ?? [])),
+            array_values(array_map('intval', $data['in'] ?? [])),
+        ));
     }
 
     public function store(Request $request, Save $save): RedirectResponse

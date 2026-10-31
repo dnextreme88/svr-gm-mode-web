@@ -26,7 +26,7 @@ function Chip({
             onClick={onClick}
             aria-pressed={pressed}
             className={cn(
-                'px-2 py-1 font-condensed text-xs font-semibold tracking-wider uppercase',
+                'inline-flex min-h-11 items-center px-2 py-1 font-condensed text-xs font-semibold tracking-wider uppercase sm:min-h-0',
                 active ? 'bg-brand text-white' : 'text-ink-dim hover:text-ink',
             )}
         >
@@ -36,9 +36,8 @@ function Chip({
 }
 
 /**
- * Filters for a wrestler pool (draft room, Free Agency): roster type,
- * Cruiserweights / Light Heavyweights, wrestlers with match specialties,
- * and a name search.
+ * Filters for a wrestler pool (draft room, Free Agency, rosters): roster
+ * type, wrestlers with match specialties, and a name search.
  */
 export function PoolFilters({
     value,
@@ -68,14 +67,6 @@ export function PoolFilters({
             ))}
             <span className="h-4 w-px bg-white/15" aria-hidden />
             <Chip
-                active={value.cruisers}
-                pressed={value.cruisers}
-                disabled={disabled}
-                onClick={() => set({ cruisers: !value.cruisers })}
-            >
-                Cruisers / Light Heavy
-            </Chip>
-            <Chip
                 active={value.specialists}
                 pressed={value.specialists}
                 disabled={disabled}
@@ -84,7 +75,8 @@ export function PoolFilters({
                 Specialists
             </Chip>
             <input
-                className="gm-input w-40 py-1 text-sm"
+                type="search"
+                className="gm-input min-h-11 w-40 py-1 text-sm sm:min-h-0"
                 placeholder="Search…"
                 aria-label="Search wrestlers"
                 value={value.search}

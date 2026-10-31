@@ -1,12 +1,18 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Fragment, useState } from 'react';
+import type { MouseEvent } from 'react';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
+import type { Named } from '@/components/gm/wrestler-name';
+import { WrestlerNames } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { Brand, ReignEndReason, TitleHolderType } from '@/types/enums';
 import { ReignEndReasonLabels } from '@/types/enums';
 import type { GamePageProps } from '@/types/gm';
+
+/** A name split for colour coding (a faction's name is one plain part). */
+type NamePart = Named & { name: string };
 
 type ReignMatch = {
     id: number;
@@ -15,6 +21,8 @@ type ReignMatch = {
     /** Defenses: 1 for the first defense of the reign. */
     number: number | null;
     opponents: string;
+    /** Each opposing side, split for colour coding. */
+    opponent_sides?: NamePart[][];
     season: number;
     season_week: number;
     ppv: string | null;
@@ -28,6 +36,7 @@ type LineageRow = {
     /** Position in the title's lineage. */
     reign_number: number | null;
     holder: string;
+    holder_parts?: NamePart[];
     holder_type: TitleHolderType;
     /** The holder's Nth reign with this title. */
     holder_reign: number | null;
@@ -58,11 +67,17 @@ type TitleRow = {
     lineage: LineageRow[];
 };
 
+type HolderRecord = {
+    holder: string;
+    holder_parts?: NamePart[];
+    value: number;
+};
+
 type RecordSet = {
-    longest: { holder: string; championship: string; value: number } | null;
-    shortest: { holder: string; championship: string; value: number } | null;
-    most_reigns: { holder: string; value: number } | null;
-    most_defenses: { holder: string; value: number } | null;
+    longest: (HolderRecord & { championship: string }) | null;
+    shortest: (HolderRecord & { championship: string }) | null;
+    most_reigns: HolderRecord | null;
+    most_defenses: HolderRecord | null;
 };
 
 type Props = GamePageProps & {
@@ -70,15 +85,32 @@ type Props = GamePageProps & {
     hall: Record<
         Brand,
         Array<{
+            id?: number;
             name: string;
             holder: string | null;
+            holder_parts?: NamePart[] | null;
             weeks_held: number | null;
             defenses: number | null;
         }>
     >;
     records: { overall: RecordSet; per_title: Record<string, RecordSet> };
-    briefcases: Array<{ holder: string; brand: Brand; expires_week: number }>;
+    briefcases: Array<{
+        holder: string;
+        holder_parts?: NamePart[];
+        brand: Brand;
+        expires_week: number;
+        expires_season?: number;
+        expires_season_week?: number;
+    }>;
 };
+
+const plural = (n: number, one: string, many = `${one}s`) =>
+    `${n} ${n === 1 ? one : many}`;
+
+/** A holder or side, colour-coded when the parts are there. */
+function Holder({ name, parts }: { name: string; parts?: NamePart[] | null }) {
+    return parts && parts.length > 0 ? <WrestlerNames names={parts} /> : name;
+}
 
 export default function TitleHistory() {
     const page = usePage<Props>();
@@ -95,6 +127,26 @@ export default function TitleHistory() {
     const ownVacant = titles.some(
         (t) => t.vacant && t.brand === game.player_brand,
     );
+
+    // Keep the selection in the URL so refresh, Back and links keep it.
+    const select = (id: number, scroll = false) => {
+        setSelected(id);
+        const key = titles.find((t) => t.id === id)?.key;
+
+        if (key) {
+            router.replace({
+                url: gm.titles.history.url(game.id, { query: { title: key } }),
+                preserveState: true,
+                preserveScroll: true,
+            });
+        }
+
+        if (scroll) {
+            document
+                .getElementById('lineage')
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
 
     return (
         <>
@@ -124,29 +176,48 @@ export default function TitleHistory() {
                             <BrandBug brand={brand} size="sm" />
                             <ul className="mt-3 grid grid-cols-2 gap-3">
                                 {(hall[brand] ?? []).map((h) => (
-                                    <li
-                                        key={h.name}
-                                        className="border-l-2 border-gold/60 bg-white/[0.03] px-3 py-2"
-                                    >
-                                        <div className="font-condensed text-xl tracking-[0.14em] text-gold uppercase">
-                                            {h.name.replace(
-                                                ' Championship',
-                                                '',
-                                            )}
-                                        </div>
-                                        <div className="gm-heading mt-0.5 text-lg">
-                                            {h.holder ?? (
-                                                <span className="text-ink-faint">
-                                                    Vacant
+                                    <li key={h.name} className="min-w-0">
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                h.id !== undefined &&
+                                                select(h.id, true)
+                                            }
+                                            aria-label={`${h.name}: ${h.holder ?? 'Vacant'}. Show lineage`}
+                                            className="gm-row-link block h-full w-full border-l-2 border-gold/60 bg-white/[0.03] px-3 py-2 text-left transition-colors hover:bg-white/[0.07]"
+                                        >
+                                            <span className="block font-condensed text-sm tracking-[0.04em] break-words text-gold uppercase sm:text-xl sm:tracking-[0.14em]">
+                                                {h.name.replace(
+                                                    ' Championship',
+                                                    '',
+                                                )}
+                                            </span>
+                                            <span className="gm-heading mt-0.5 block text-base sm:text-lg">
+                                                {h.holder ? (
+                                                    <Holder
+                                                        name={h.holder}
+                                                        parts={h.holder_parts}
+                                                    />
+                                                ) : (
+                                                    <span className="text-ink-faint">
+                                                        Vacant
+                                                    </span>
+                                                )}
+                                            </span>
+                                            {h.holder && (
+                                                <span className="block text-sm text-ink-dim">
+                                                    {plural(
+                                                        h.weeks_held ?? 0,
+                                                        'week',
+                                                    )}{' '}
+                                                    ·{' '}
+                                                    {plural(
+                                                        h.defenses ?? 0,
+                                                        'defense',
+                                                    )}
                                                 </span>
                                             )}
-                                        </div>
-                                        {h.holder && (
-                                            <div className="text-sm text-ink-dim">
-                                                {h.weeks_held} wk · {h.defenses}{' '}
-                                                def.
-                                            </div>
-                                        )}
+                                        </button>
                                     </li>
                                 ))}
                             </ul>
@@ -154,27 +225,45 @@ export default function TitleHistory() {
                     ))}
                 </div>
                 {briefcases.length > 0 && (
-                    <p className="mt-3 text-sm text-ink-dim">
-                        Money in the Bank:{' '}
-                        {briefcases
-                            .map(
-                                (b) => `${b.holder} (until W${b.expires_week})`,
-                            )
-                            .join(', ')}
-                    </p>
+                    <div className="mt-4">
+                        <h3 className="gm-label mb-2">Money in the Bank</h3>
+                        <ul className="flex flex-wrap gap-3">
+                            {briefcases.map((b) => (
+                                <li
+                                    key={`${b.brand}-${b.holder}`}
+                                    data-brand-tint={b.brand}
+                                    className="gm-panel flex items-center gap-3 px-3 py-2"
+                                >
+                                    <BrandBug brand={b.brand} size="sm" />
+                                    <span className="gm-heading">
+                                        <Holder
+                                            name={b.holder}
+                                            parts={b.holder_parts}
+                                        />
+                                    </span>
+                                    <span className="text-sm text-ink-dim">
+                                        until{' '}
+                                        {b.expires_season !== undefined
+                                            ? `S${b.expires_season} W${b.expires_season_week}`
+                                            : `W${b.expires_week}`}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
                 )}
             </section>
 
-            <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_1fr]">
                 <nav
                     aria-label="Championships"
-                    className="gm-panel self-start p-1"
+                    className="gm-panel gm-scroll flex min-w-0 items-center gap-1 self-start overflow-x-auto p-1 lg:block lg:overflow-visible"
                 >
                     {(['raw', 'smackdown'] as const).map((brand, i) => (
                         <Fragment key={brand}>
                             {i > 0 && (
                                 <hr
-                                    className="my-2 border-white/15"
+                                    className="mx-1 h-8 shrink-0 border-0 border-l border-white/15 lg:mx-0 lg:my-2 lg:h-0 lg:border-t lg:border-l-0"
                                     data-testid="brand-divider"
                                 />
                             )}
@@ -182,8 +271,9 @@ export default function TitleHistory() {
                                 role="group"
                                 aria-label={`${brand === 'raw' ? 'Raw' : 'Smackdown'} titles`}
                                 data-brand-tint={brand}
+                                className="flex shrink-0 items-center gap-1 lg:block"
                             >
-                                <div className="px-3 pt-2 pb-1.5">
+                                <div className="px-2 lg:px-3 lg:pt-2 lg:pb-1.5">
                                     <BrandBug brand={brand} size="sm" />
                                 </div>
                                 {titles
@@ -192,12 +282,12 @@ export default function TitleHistory() {
                                         <button
                                             key={t.id}
                                             type="button"
-                                            onClick={() => setSelected(t.id)}
+                                            onClick={() => select(t.id)}
                                             aria-pressed={t.id === title?.id}
                                             className={cn(
-                                                'block w-full px-3 py-2 text-left text-sm transition-colors',
+                                                'gm-row-link block min-h-11 shrink-0 px-3 py-2 text-left text-sm whitespace-nowrap transition-colors lg:min-h-0 lg:w-full lg:whitespace-normal',
                                                 t.id === title?.id
-                                                    ? 'bg-brand/15 text-ink shadow-[inset_3px_0_0_var(--gm-brand)]'
+                                                    ? 'bg-brand/15 text-ink shadow-[inset_0_-3px_0_var(--gm-brand)] lg:shadow-[inset_3px_0_0_var(--gm-brand)]'
                                                     : 'text-ink-dim hover:text-ink',
                                             )}
                                         >
@@ -210,7 +300,7 @@ export default function TitleHistory() {
                 </nav>
 
                 {title && (
-                    <div className="space-y-6">
+                    <div id="lineage" className="min-w-0 scroll-mt-4 space-y-6">
                         <Panel
                             title={`${title.name} lineage`}
                             bodyClassName="p-0"
@@ -224,13 +314,21 @@ export default function TitleHistory() {
                                     <table className="gm-table">
                                         <thead>
                                             <tr>
-                                                <th>#</th>
+                                                <th className="text-right">
+                                                    #
+                                                </th>
                                                 <th>Holder</th>
                                                 <th>Won</th>
-                                                <th>Reign</th>
+                                                <th className="text-right">
+                                                    Reign
+                                                </th>
                                                 <th>How</th>
-                                                <th>Weeks</th>
-                                                <th>Defenses</th>
+                                                <th className="text-right">
+                                                    Weeks
+                                                </th>
+                                                <th className="text-right">
+                                                    Defenses
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -285,27 +383,40 @@ function WonCell({
  */
 function ReignRows({ r }: { r: LineageRow }) {
     const vacant = r.holder_type === 'vacant';
+    // The opponent cell is the real link; a click anywhere else on the row
+    // opens the same results.
+    const openRow = (e: MouseEvent, link: string) => {
+        if ((e.target as HTMLElement).closest('a')) {
+            return;
+        }
+
+        router.visit(link);
+    };
 
     return (
         <>
             <tr
                 data-testid={`reign-${r.id}`}
-                className={cn(vacant && 'text-ink-faint italic')}
+                className={cn(vacant && 'text-ink-dim italic')}
             >
-                <td className="gm-num">{r.reign_number ?? '—'}</td>
+                <td className="gm-num text-right">{r.reign_number ?? '—'}</td>
                 <td
                     className={cn(
                         'font-semibold',
                         r.active && !vacant && 'text-gold-hot',
                     )}
                 >
-                    {r.holder}
+                    {vacant ? (
+                        r.holder
+                    ) : (
+                        <Holder name={r.holder} parts={r.holder_parts} />
+                    )}
                 </td>
                 <td>
                     {r.won_link ? (
                         <Link
                             href={r.won_link}
-                            className="hover:text-brand-hot"
+                            className="gm-row-link hover:text-brand-hot"
                         >
                             <WonCell
                                 season={r.won_season}
@@ -321,7 +432,7 @@ function ReignRows({ r }: { r: LineageRow }) {
                         />
                     )}
                 </td>
-                <td className="gm-num">{r.holder_reign ?? '—'}</td>
+                <td className="gm-num text-right">{r.holder_reign ?? '—'}</td>
                 <td className="text-ink-dim">
                     {vacant
                         ? r.vacated_reason
@@ -329,30 +440,39 @@ function ReignRows({ r }: { r: LineageRow }) {
                             : 'Vacant'
                         : (r.how ?? '—')}
                 </td>
-                <td className="gm-num">{r.weeks_held}</td>
-                <td className="gm-num">{vacant ? '—' : r.defenses}</td>
+                <td className="gm-num text-right">{r.weeks_held}</td>
+                <td className="gm-num text-right">
+                    {vacant ? '—' : r.defenses}
+                </td>
             </tr>
             {r.matches.map((d) => (
                 <tr
                     key={d.id}
                     data-testid={`${d.kind}-${d.id}`}
-                    tabIndex={0}
-                    aria-label={
-                        d.kind === 'won'
-                            ? `Open the title win against ${d.opponents}`
-                            : `Open defense ${d.number} against ${d.opponents}`
-                    }
-                    className="group cursor-pointer text-sm transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.06] focus-visible:outline-none"
-                    onClick={() => router.visit(d.link)}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                            router.visit(d.link);
-                        }
-                    }}
+                    className="group cursor-pointer text-sm transition-colors hover:bg-white/[0.04]"
+                    onClick={(e) => openRow(e, d.link)}
                 >
                     <td />
-                    <td className="pl-6 font-semibold group-hover:text-brand-hot">
-                        vs. {d.opponents}
+                    <td className="pl-6 font-semibold">
+                        <Link
+                            href={d.link}
+                            className="gm-row-link group-hover:text-brand-hot"
+                            aria-label={
+                                d.kind === 'won'
+                                    ? `Title win against ${d.opponents}`
+                                    : `Defense ${d.number} against ${d.opponents}`
+                            }
+                        >
+                            vs.{' '}
+                            {d.opponent_sides && d.opponent_sides.length > 0
+                                ? d.opponent_sides.map((side, i) => (
+                                      <Fragment key={i}>
+                                          {i > 0 && ', '}
+                                          <WrestlerNames names={side} />
+                                      </Fragment>
+                                  ))
+                                : d.opponents}
+                        </Link>
                     </td>
                     <td>
                         <WonCell
@@ -361,10 +481,10 @@ function ReignRows({ r }: { r: LineageRow }) {
                             ppv={d.ppv}
                         />
                     </td>
-                    <td className="text-ink-faint">—</td>
+                    <td />
                     <td className="text-ink-dim">{d.match_type ?? '—'}</td>
-                    <td className="text-ink-faint">—</td>
-                    <td className="gm-num">
+                    <td />
+                    <td className="gm-num text-right">
                         {d.kind === 'won' ? (
                             <span className="gm-label text-gold">Won</span>
                         ) : (
@@ -384,41 +504,33 @@ function RecordsPanel({
     title: string;
     records: RecordSet | undefined;
 }) {
-    const rows: Array<[string, string | null]> = [
-        [
-            'Longest reign',
-            records?.longest
-                ? `${records.longest.holder} · ${records.longest.value} wk`
-                : null,
-        ],
-        [
-            'Most reigns',
-            records?.most_reigns
-                ? `${records.most_reigns.holder} · ${records.most_reigns.value}`
-                : null,
-        ],
-        [
-            'Most defenses',
-            records?.most_defenses
-                ? `${records.most_defenses.holder} · ${records.most_defenses.value}`
-                : null,
-        ],
-        [
-            'Shortest reign',
-            records?.shortest
-                ? `${records.shortest.holder} · ${records.shortest.value} wk`
-                : null,
-        ],
+    const rows: Array<[string, HolderRecord | null | undefined, string]> = [
+        ['Longest reign', records?.longest, 'week'],
+        ['Most reigns', records?.most_reigns, 'reign'],
+        ['Most defenses', records?.most_defenses, 'defense'],
+        ['Shortest reign', records?.shortest, 'week'],
     ];
 
     return (
         <Panel title={title}>
             <dl className="space-y-2 text-sm">
-                {rows.map(([label, value]) => (
+                {rows.map(([label, record, unit]) => (
                     <div key={label} className="flex justify-between gap-3">
                         <dt className="text-ink-dim">{label}</dt>
                         <dd className="text-right font-semibold">
-                            {value ?? '—'}
+                            {record ? (
+                                <>
+                                    <Holder
+                                        name={record.holder}
+                                        parts={record.holder_parts}
+                                    />
+                                    <span className="ml-2 font-normal text-ink-dim">
+                                        {plural(record.value, unit)}
+                                    </span>
+                                </>
+                            ) : (
+                                '—'
+                            )}
                         </dd>
                     </div>
                 ))}

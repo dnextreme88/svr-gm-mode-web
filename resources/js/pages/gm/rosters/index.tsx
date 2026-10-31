@@ -1,5 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { TriangleAlert } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import {
     InjuryChip,
     MoraleBadge,
@@ -9,8 +11,11 @@ import {
 import { BrandBug } from '@/components/gm/brand-bug';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
+import { PoolFilters } from '@/components/gm/pool-filters';
+import { ariaSort, nextSort, SortHeader } from '@/components/gm/sort-header';
 import { StreakMeter } from '@/components/gm/streak-meter';
-import { formatMoney } from '@/lib/gm';
+import type { PoolFilter, RosterSort, RosterSortKey } from '@/lib/gm';
+import { emptyPoolFilter, filterPool, formatMoney, sortRoster } from '@/lib/gm';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
@@ -24,17 +29,42 @@ type Props = GamePageProps & {
     pending: number;
 };
 
+/** Contracts with this many weeks or fewer left are flagged as expiring. */
+const EXPIRING_WEEKS = 4;
+
 export default function Rosters() {
     const { game, brand, wrestlers, pending } = usePage<Props>().props;
     const own = brand === game.player_brand;
-    const [search, setSearch] = useState('');
-    const visible = useMemo(() => {
-        const q = search.trim().toLowerCase();
+    const [filter, setFilter] = useState<PoolFilter>(emptyPoolFilter);
+    const [sort, setSort] = useState<RosterSort>(null);
+    const visible = useMemo(
+        () => sortRoster(filterPool(wrestlers, filter), sort),
+        [wrestlers, filter, sort],
+    );
+    const url = (id: number) =>
+        gm.rosters.show.url({ save: game.id, saveWrestler: id });
+    // The name is the real link; a click anywhere else on the row opens the
+    // same page.
+    const openRow = (e: MouseEvent, id: number) => {
+        if ((e.target as HTMLElement).closest('a')) {
+            return;
+        }
 
-        return wrestlers.filter((w) => w.name.toLowerCase().includes(q));
-    }, [wrestlers, search]);
-    const open = (id: number) =>
-        router.visit(gm.rosters.show.url({ save: game.id, saveWrestler: id }));
+        router.visit(url(id));
+    };
+    const toggleSort = (key: RosterSortKey) => setSort((s) => nextSort(s, key));
+    const sortHeader = (
+        key: RosterSortKey,
+        label: ReactNode,
+        right = false,
+    ) => (
+        <SortHeader
+            label={label}
+            active={sort?.key === key ? sort.dir : null}
+            onClick={() => toggleSort(key)}
+            right={right}
+        />
+    );
 
     return (
         <>
@@ -58,6 +88,7 @@ export default function Rosters() {
                             href={gm.rosters.index.url(game.id, {
                                 query: { brand: b },
                             })}
+                            aria-current={b === brand ? 'page' : undefined}
                             className={cn(
                                 'gm-btn gm-btn-sm',
                                 b !== brand && 'gm-btn-ghost',
@@ -82,84 +113,112 @@ export default function Rosters() {
                 <Panel
                     bodyClassName="p-0"
                     title={`${visible.length} of ${wrestlers.length}`}
-                    actions={
-                        <input
-                            type="search"
-                            className="gm-input w-56 py-1 text-sm"
-                            placeholder="Search superstars…"
-                            aria-label="Search superstars"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                    }
                 >
-                    <div className="gm-scroll overflow-x-auto">
-                        <table className="gm-table">
+                    <div className="border-b border-white/6 px-4 py-2">
+                        <PoolFilters
+                            value={filter}
+                            onChange={setFilter}
+                            types={['all', 'superstar', 'diva', 'legend']}
+                        />
+                    </div>
+                    <div className="gm-scroll max-h-[75vh] overflow-auto">
+                        <table className="gm-table gm-table-sticky">
                             <thead>
                                 <tr>
-                                    <th>Wrestler</th>
-                                    <th>Fatigue</th>
+                                    <th aria-sort={ariaSort(sort, 'name')}>
+                                        {sortHeader('name', 'Wrestler')}
+                                    </th>
+                                    <th aria-sort={ariaSort(sort, 'fatigue')}>
+                                        {sortHeader('fatigue', 'Fatigue')}
+                                    </th>
                                     <th>Injury</th>
-                                    <th>Morale</th>
-                                    <th>Record (W-L)</th>
+                                    <th aria-sort={ariaSort(sort, 'morale')}>
+                                        {sortHeader('morale', 'Morale')}
+                                    </th>
+                                    <th
+                                        className="text-right"
+                                        aria-sort={ariaSort(sort, 'record')}
+                                    >
+                                        {sortHeader(
+                                            'record',
+                                            <abbr
+                                                title="Wins–losses"
+                                                className="no-underline"
+                                            >
+                                                W–L
+                                            </abbr>,
+                                            true,
+                                        )}
+                                    </th>
                                     <th>Streak</th>
                                     <th>Specialties</th>
-                                    <th>Contract</th>
-                                    <th>Popularity</th>
+                                    <th
+                                        className="text-right"
+                                        aria-sort={ariaSort(sort, 'contract')}
+                                    >
+                                        {sortHeader(
+                                            'contract',
+                                            'Contract',
+                                            true,
+                                        )}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {visible.length === 0 && (
                                     <tr>
                                         <td
-                                            colSpan={9}
+                                            colSpan={8}
                                             className="text-center text-ink-faint"
                                         >
-                                            No one matches “{search}”.
+                                            {filter.search.trim()
+                                                ? `No one matches “${filter.search}”.`
+                                                : 'No one matches these filters.'}
                                         </td>
                                     </tr>
                                 )}
                                 {visible.map((w) => (
                                     <tr
                                         key={w.id}
-                                        tabIndex={0}
-                                        aria-label={`Open ${w.name}`}
                                         data-testid="roster-row"
-                                        className="group cursor-pointer transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.06] focus-visible:outline-none"
-                                        onClick={() => open(w.id)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                open(w.id);
-                                            }
-                                        }}
+                                        className="group cursor-pointer transition-colors hover:bg-white/[0.04]"
+                                        onClick={(e) => openRow(e, w.id)}
                                     >
-                                        <td>
-                                            <span className="font-semibold group-hover:text-brand-hot">
+                                        <td className="max-w-36 sm:max-w-none">
+                                            <Link
+                                                href={url(w.id)}
+                                                className="gm-row-link font-semibold group-hover:text-brand-hot sm:whitespace-nowrap"
+                                            >
                                                 <WrestlerName wrestler={w} />
-                                            </span>
-                                            <div className="mt-0.5 flex flex-wrap gap-1">
-                                                {w.roster_type !==
-                                                    'superstar' && (
-                                                    <span className="font-condensed text-xs tracking-widest text-ink-faint uppercase">
-                                                        {
-                                                            RosterTypeLabels[
-                                                                w.roster_type
-                                                            ]
-                                                        }
-                                                    </span>
-                                                )}
-                                                {w.titles.map((t) => (
-                                                    <TitleBelt
-                                                        key={t}
-                                                        name={t}
-                                                    />
-                                                ))}
-                                                {w.sitting_out && (
-                                                    <span className="font-condensed text-xs font-bold tracking-widest text-zone-minor uppercase">
-                                                        Sitting out
-                                                    </span>
-                                                )}
-                                            </div>
+                                            </Link>
+                                            {(w.roster_type !== 'superstar' ||
+                                                w.titles.length > 0 ||
+                                                w.sitting_out) && (
+                                                <div className="mt-0.5 flex flex-wrap gap-1 sm:flex-nowrap sm:whitespace-nowrap">
+                                                    {w.roster_type !==
+                                                        'superstar' && (
+                                                        <span className="font-condensed text-xs tracking-widest text-ink-faint uppercase">
+                                                            {
+                                                                RosterTypeLabels[
+                                                                    w
+                                                                        .roster_type
+                                                                ]
+                                                            }
+                                                        </span>
+                                                    )}
+                                                    {w.titles.map((t) => (
+                                                        <TitleBelt
+                                                            key={t}
+                                                            name={t}
+                                                        />
+                                                    ))}
+                                                    {w.sitting_out && (
+                                                        <span className="font-condensed text-xs font-bold tracking-widest text-zone-minor uppercase">
+                                                            Sitting out
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </td>
                                         <td>
                                             <FatigueMeter
@@ -174,7 +233,7 @@ export default function Rosters() {
                                         <td>
                                             <MoraleBadge morale={w.morale} />
                                         </td>
-                                        <td className="gm-num whitespace-nowrap">
+                                        <td className="gm-num text-right whitespace-nowrap">
                                             {w.wins}–{w.losses}
                                         </td>
                                         <td>
@@ -194,36 +253,20 @@ export default function Rosters() {
                                                 ))}
                                             </div>
                                         </td>
-                                        <td className="whitespace-nowrap">
+                                        <td className="text-right whitespace-nowrap">
                                             {w.contract ? (
-                                                <span
-                                                    className={cn(
-                                                        'gm-num',
+                                                <ContractCell
+                                                    weeks={
                                                         w.contract
-                                                            .weeks_remaining <=
-                                                            4 &&
-                                                            'text-zone-serious',
-                                                    )}
-                                                >
-                                                    {w.contract.weeks_remaining}
-                                                    w
-                                                    <span className="ml-1.5 text-xs text-ink-faint">
-                                                        {formatMoney(
-                                                            w.contract
-                                                                .weekly_cost,
-                                                        )}
-                                                        /wk
-                                                    </span>
-                                                </span>
+                                                            .weeks_remaining
+                                                    }
+                                                    weekly={
+                                                        w.contract.weekly_cost
+                                                    }
+                                                />
                                             ) : (
                                                 '—'
                                             )}
-                                        </td>
-                                        <td
-                                            className="text-ink-faint"
-                                            title="Popularity system is deferred"
-                                        >
-                                            {w.popularity ?? '—'}
                                         </td>
                                     </tr>
                                 ))}
@@ -233,5 +276,27 @@ export default function Rosters() {
                 </Panel>
             )}
         </>
+    );
+}
+
+function ContractCell({ weeks, weekly }: { weeks: number; weekly: number }) {
+    const expiring = weeks <= EXPIRING_WEEKS;
+
+    return (
+        <span className={cn('gm-num', expiring && 'text-zone-serious')}>
+            {expiring && (
+                <>
+                    <TriangleAlert
+                        aria-hidden
+                        className="mr-1 inline size-3.5 align-[-2px]"
+                    />
+                    <span className="sr-only">Expiring: </span>
+                </>
+            )}
+            {weeks}w
+            <span className="ml-1.5 text-xs text-ink-faint">
+                {formatMoney(weekly)}/wk
+            </span>
+        </span>
     );
 }

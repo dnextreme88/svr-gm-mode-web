@@ -22,6 +22,8 @@ export function ConfirmDialog({
     onConfirm,
     onCancel,
     danger = false,
+    footer,
+    confirmDisabled = false,
 }: {
     open: boolean;
     title: string;
@@ -33,6 +35,9 @@ export function ConfirmDialog({
     onCancel: () => void;
     /** Style the confirm button red, for destructive actions. */
     danger?: boolean;
+    /** Shown just above the buttons (e.g. a progress bar). */
+    footer?: ReactNode;
+    confirmDisabled?: boolean;
 }) {
     const brand = usePage<{ game?: GameShell }>().props.game?.player_brand;
 
@@ -49,6 +54,7 @@ export function ConfirmDialog({
                 <DialogDescription asChild className="text-ink-dim">
                     <div>{message}</div>
                 </DialogDescription>
+                {footer}
                 <DialogFooter className="gap-2">
                     <button
                         type="button"
@@ -66,6 +72,7 @@ export function ConfirmDialog({
                                     : 'gm-btn gm-btn-sm'
                             }
                             onClick={onConfirm}
+                            disabled={confirmDisabled}
                             autoFocus
                         >
                             {confirmLabel}

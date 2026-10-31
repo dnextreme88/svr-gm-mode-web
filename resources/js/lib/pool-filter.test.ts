@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyPoolFilter, filterPool, isCruiser } from '@/lib/gm';
+import { emptyPoolFilter, filterPool } from '@/lib/gm';
 import type { MatchFamily, RosterType, WeightClass } from '@/types/enums';
 
 const row = (
@@ -23,12 +23,6 @@ describe('filterPool', () => {
         expect(filterPool(pool, emptyPoolFilter)).toHaveLength(4);
     });
 
-    it('filters to Cruiserweights and Light Heavyweights', () => {
-        expect(
-            names(filterPool(pool, { ...emptyPoolFilter, cruisers: true })),
-        ).toEqual(['Rey Mysterio', 'Chris Benoit']);
-    });
-
     it('filters to wrestlers with match specialties', () => {
         expect(
             names(filterPool(pool, { ...emptyPoolFilter, specialists: true })),
@@ -40,7 +34,6 @@ describe('filterPool', () => {
             names(
                 filterPool(pool, {
                     type: 'superstar',
-                    cruisers: true,
                     specialists: true,
                     search: ' BEN',
                 }),
@@ -49,14 +42,5 @@ describe('filterPool', () => {
         expect(
             names(filterPool(pool, { ...emptyPoolFilter, type: 'diva' })),
         ).toEqual(['Trish Stratus']);
-    });
-});
-
-describe('isCruiser', () => {
-    it('matches only the two blue-name weight classes', () => {
-        expect(isCruiser('cruiserweight')).toBe(true);
-        expect(isCruiser('light_heavyweight')).toBe(true);
-        expect(isCruiser('heavyweight')).toBe(false);
-        expect(isCruiser(null)).toBe(false);
     });
 });

@@ -53,6 +53,7 @@ export function BookToWinCard({
                     {match.title && (
                         <span className="ml-2 text-gold-hot">
                             · {match.title}
+                            {!match.champions?.length && ' (vacant)'}
                         </span>
                     )}
                 </div>

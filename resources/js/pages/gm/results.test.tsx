@@ -69,6 +69,7 @@ const props = {
                     {
                         method_label: 'Count-out',
                         title: 'World Tag Team Championship',
+                        champions: ['Big Show', 'Danny Basham'],
                     },
                 ),
                 outcome(2, ['Kane'], ['Carlito']),
@@ -712,5 +713,69 @@ describe('Results page', () => {
             expect(screen.getByTestId('fatigue-pending')).toBeInTheDocument();
             expect(screen.queryByTestId(/^fatigue-\d+$/)).toBeNull();
         });
+    });
+
+    it('marks a title match for an empty title as vacant', () => {
+        page.props = {
+            ...props,
+            shows: [
+                {
+                    ...props.shows[0],
+                    outcomes: [
+                        outcome(1, ['Kane'], ['Carlito'], {
+                            title: 'United States Championship',
+                            champions: [],
+                        }),
+                    ],
+                },
+            ],
+        };
+        render(<Results />);
+
+        expect(
+            within(screen.getByTestId('result-7-1')).getByText(
+                '◆ United States Championship (vacant)',
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('numbers promos in the order they air', () => {
+        page.props = {
+            ...props,
+            shows: [
+                {
+                    ...props.shows[0],
+                    promos: [promo(1, 2, 'succeeded'), promo(2, 1, 'failed')],
+                },
+            ],
+        };
+        render(<Results />);
+
+        expect(screen.getByTestId('promo-7-2')).toHaveTextContent('Promo 1');
+        expect(screen.getByTestId('promo-7-1')).toHaveTextContent('Promo 2');
+    });
+
+    it('shows the title a Title Match Hype promo hyped', () => {
+        page.props = {
+            ...props,
+            shows: [
+                {
+                    ...props.shows[0],
+                    promos: [
+                        {
+                            ...promo(1, 2, 'succeeded'),
+                            type: 'Title Match Hype',
+                            targets: [],
+                            title: 'WWE Championship',
+                        },
+                    ],
+                },
+            ],
+        };
+        render(<Results />);
+
+        expect(screen.getByTestId('promo-title-7-1')).toHaveTextContent(
+            '◆ WWE Championship',
+        );
     });
 });

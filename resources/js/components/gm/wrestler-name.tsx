@@ -1,7 +1,8 @@
+import { Fragment } from 'react';
 import { cn } from '@/lib/utils';
 import type { RosterType, WeightClass } from '@/types/enums';
 
-type Named = {
+export type Named = {
     name: string | null;
     roster_type: RosterType | null;
     weight_class: WeightClass | null;
@@ -46,5 +47,28 @@ export function WrestlerName({
         >
             {wrestler.name}
         </span>
+    );
+}
+
+/**
+ * Several names joined by `separator`, each colour-coded. A faction or team
+ * name comes as one part with no roster type, so it stays uncoloured.
+ */
+export function WrestlerNames({
+    names,
+    separator = ' & ',
+}: {
+    names: Named[];
+    separator?: string;
+}) {
+    return (
+        <>
+            {names.map((n, i) => (
+                <Fragment key={i}>
+                    {i > 0 && separator}
+                    <WrestlerName wrestler={n} />
+                </Fragment>
+            ))}
+        </>
     );
 }

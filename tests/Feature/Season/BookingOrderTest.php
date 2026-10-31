@@ -236,6 +236,38 @@ describe('simulate to a date', function () {
             ->and(WeekResolution::where('save_id', $save->id)->where('week_number', 2)->exists())->toBeFalse();
     });
 
+    it('steps one week at a time so the schedule can show progress, then reports like a full run', function () {
+        $save = GameBuilder::inSeason();
+        $steps = [];
+
+        do {
+            $step = $this->postJson(route('gm.simulate.step', $save), ['week' => BACKLASH])->assertOk()->json();
+            $steps[] = $step;
+        } while (! $step['done']);
+
+        expect(array_column($steps, 'week'))->toBe([1, 2, 3])
+            ->and(array_column($steps, 'done'))->toBe([false, false, true])
+            ->and(array_column($steps, 'stopped'))->toBe([null, null, null])
+            ->and($save->refresh()->current_week)->toBe(BACKLASH)
+            ->and(WeekResolution::where('save_id', $save->id)->pluck('week_number')->all())->toBe([1, 2, 3]);
+
+        // Once there, a further step does nothing.
+        $this->postJson(route('gm.simulate.step', $save), ['week' => BACKLASH])
+            ->assertJson(['week' => null, 'done' => true]);
+
+        $this->post(route('gm.simulate.finish', $save), ['week' => BACKLASH, 'weeks' => [1, 2, 3]])
+            ->assertRedirect(route('gm.schedule', $save));
+        expect(session('inertia.flash_data.toast.message') ?? '')->toContain('Simulated weeks 1–3.');
+    });
+
+    it('refuses a step backwards or past the season, as JSON', function () {
+        $save = GameBuilder::inSeason();
+        $save->update(['current_week' => 3]);
+
+        $this->postJson(route('gm.simulate.step', $save), ['week' => 53])->assertStatus(422);
+        expect(WeekResolution::count())->toBe(0);
+    });
+
     it('only simulates forward, within the season', function (int $target) {
         $save = GameBuilder::inSeason();
         $save->update(['current_week' => 3]);

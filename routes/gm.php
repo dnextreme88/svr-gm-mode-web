@@ -57,6 +57,8 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::get('schedule', ScheduleController::class)->name('schedule');
             Route::post('advance', [WeekController::class, 'advance'])->name('advance');
             Route::post('simulate', [WeekController::class, 'simulate'])->name('simulate');
+            Route::post('simulate/step', [WeekController::class, 'simulateStep'])->name('simulate.step');
+            Route::post('simulate/finish', [WeekController::class, 'simulateFinish'])->name('simulate.finish');
             Route::get('results/{week}', ResultsController::class)->whereNumber('week')->name('results');
             Route::post('results/{week}/decide', [WeekController::class, 'decide'])->whereNumber('week')->name('results.decide');
             Route::post('results/{week}/simulate-all', [WeekController::class, 'simulateAll'])->whereNumber('week')->name('results.simulate-all');
@@ -92,6 +94,7 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::post('notices/seen', [TitlePromptController::class, 'seen'])->name('notices.seen');
             Route::get('trade', [TradeController::class, 'show'])->name('trade.show');
             Route::post('trade', [TradeController::class, 'store'])->name('trade.store');
+            Route::post('trade/odds', [TradeController::class, 'odds'])->name('trade.odds');
 
             Route::get('email', [EmailController::class, 'index'])->name('email');
             Route::get('docs', DocsController::class)->name('saves.docs');

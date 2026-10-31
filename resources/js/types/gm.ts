@@ -293,6 +293,8 @@ export type ResultPromo = {
     before_position: number;
     type: string | null;
     status: 'succeeded' | 'failed' | 'fizzled' | 'backfired' | null;
+    /** Title Match Hype: the title it hyped. */
+    title?: string | null;
     targets: Array<{
         id: number;
         name: string;

@@ -464,8 +464,10 @@ describe('CardBuilder', () => {
         expect(event.defaultPrevented).toBe(true);
     });
 
-    it('shows a floppy icon on Save', () => {
-        setup();
+    it('shows a floppy icon on Save', async () => {
+        const { pickType } = setup();
+
+        await pickType(1, 1);
 
         expect(
             within(
@@ -887,16 +889,26 @@ describe('CardBuilder', () => {
         );
     });
 
-    it('only enables Discard when a slot has unsaved changes', async () => {
+    it('shows only Randomize on an empty slot, and Discard once it has changes', async () => {
         const { pickType } = setup();
-        const discard = screen.getByRole('button', {
-            name: 'Discard changes to match 1',
-        });
-        expect(discard).toBeDisabled();
+
+        expect(
+            screen.queryByRole('button', { name: 'Save match 1' }),
+        ).toBeNull();
+        expect(
+            screen.queryByRole('button', { name: 'Clear match 1' }),
+        ).toBeNull();
+        expect(
+            screen.queryByRole('button', {
+                name: 'Discard changes to match 1',
+            }),
+        ).toBeNull();
 
         await pickType(1, 1);
 
-        expect(discard).toBeEnabled();
+        expect(
+            screen.getByRole('button', { name: 'Discard changes to match 1' }),
+        ).toBeEnabled();
     });
 
     it('discards unsaved changes back to the saved booking', async () => {

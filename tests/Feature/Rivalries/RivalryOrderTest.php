@@ -40,3 +40,16 @@ it('lists every rivalry alphabetically on the Rivalry page, older ones included'
             ->where('rivalries.0.wrestler_a', 'Jeff Hardy')
             ->where('rivalries.0.wrestler_b', 'Rob Van Dam'));
 });
+
+it('sends the rivalry rules’ numbers from config', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+
+    $this->get(route('gm.rivalries', $save))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('rules.meetings', config('gm.rivalries.auto_create_meetings'))
+            ->where('rules.window_weeks', config('gm.rivalries.auto_create_window_weeks'))
+            ->where('rules.idle_decay', config('gm.rivalries.idle_decay'))
+            ->where('rules.blowoff_min_heat', config('gm.rivalries.blowoff_min_heat'))
+            ->where('rules.start_promo_bars', config('gm.promos.fatigue_bars.start_rivalry'))
+            ->where('rules.continue_promo_cost', abs(config('gm.promos.amounts.continue_rivalry'))));
+});

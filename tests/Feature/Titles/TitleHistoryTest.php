@@ -16,6 +16,7 @@ use App\Models\Show;
 use App\Models\TitleReign;
 use App\Services\Contracts\ContractService;
 use App\Services\Titles\ChampionshipAssignment;
+use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleRecords;
 use App\Services\Week\WeekResolver;
 use Tests\Support\Card;
@@ -189,7 +190,7 @@ it('keeps title records per title and overall', function () {
 
     $records = app(TitleRecords::class)->records($save->refresh(), wwe());
 
-    expect($records['most_reigns'])->toBe(['holder' => 'Edge', 'value' => 2])
+    expect($records['most_reigns'])->toBe(['holder' => 'Edge', 'holder_ids' => [GameBuilder::wrestler($save, 'Edge')->id], 'value' => 2])
         ->and($records['longest']['holder'])->not->toBeNull()
         ->and($records['shortest'])->not->toBeNull()
         ->and(app(TitleRecords::class)->records($save)['most_reigns']['value'])->toBe(2);
@@ -269,4 +270,49 @@ it('counts the holder’s own reigns, names the winning match and the vacancy re
             ->where('titles.0.lineage.1.matches.0.opponents', 'John Cena')
             ->where('titles.0.lineage.2.holder_reign', 1)
             ->where('titles.0.lineage.3.holder_reign', 1));
+});
+
+it('sends holders and opponents split for name colour coding', function () {
+    config(['gm.ai.roster.target_size' => 0]);
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Trish Stratus', 'Lita'], smackdown: ['Rey Mysterio', 'Batista']);
+    GameBuilder::giveTitle($save, 'womens', ['Trish Stratus']);
+    GameBuilder::giveTitle($save, 'cruiserweight', ['Rey Mysterio']);
+    titleMatch($save, 'Trish Stratus', 'Lita', 'womens');
+    FixedOutcomes::queue('Trish Stratus');
+    air($save);
+
+    $this->get(route('gm.titles.history', $save))
+        ->assertInertia(function ($page) {
+            $titles = collect($page->toArray()['props']['titles']);
+            $womens = $titles->firstWhere('key', 'womens');
+            $cruiser = $titles->firstWhere('key', 'cruiserweight');
+
+            expect($womens['lineage'][0]['holder_parts'])->toBe([['name' => 'Trish Stratus', 'roster_type' => 'diva', 'weight_class' => $womens['lineage'][0]['holder_parts'][0]['weight_class']]])
+                ->and($womens['lineage'][0]['matches'][0]['opponent_sides'][0][0]['name'])->toBe('Lita')
+                ->and($womens['lineage'][0]['matches'][0]['opponent_sides'][0][0]['roster_type'])->toBe('diva')
+                ->and($cruiser['lineage'][0]['holder_parts'][0]['weight_class'])->toBe('cruiserweight')
+                ->and($page->toArray()['props']['hall']['smackdown'])->toContain([
+                    'id' => $cruiser['id'],
+                    'name' => $cruiser['name'],
+                    'holder' => 'Rey Mysterio',
+                    'holder_parts' => $cruiser['lineage'][0]['holder_parts'],
+                    'weeks_held' => 1,
+                    'defenses' => 0,
+                ])
+                ->and($page->toArray()['props']['records']['overall']['longest']['holder_parts'][0]['name'])->toBeString();
+
+            return $page;
+        });
+});
+
+it('gives a briefcase’s expiry in season weeks', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+    app(MitbService::class)->award($save, GameBuilder::wrestler($save, 'Kane'), 60);
+
+    $this->get(route('gm.titles.history', $save))
+        ->assertInertia(fn ($page) => $page
+            ->where('briefcases.0.holder', 'Kane')
+            ->where('briefcases.0.expires_season', 2)
+            ->where('briefcases.0.expires_season_week', 52)
+            ->where('briefcases.0.holder_parts.0.name', 'Kane'));
 });

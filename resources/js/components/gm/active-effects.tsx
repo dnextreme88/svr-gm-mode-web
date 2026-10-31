@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import type { TitleContext } from '@/types/gm';
 
 export type BuriedAlive = { id: number; name: string; weeks_left: number };
@@ -30,9 +31,22 @@ export function ActiveEffects({
         <section
             aria-label="Active Effects"
             data-testid="active-effects"
-            className="mb-4 border-l-4 border-gold bg-gold/10 px-4 py-3 text-sm"
+            // Gold only while something is in play; quiet otherwise.
+            className={cn(
+                'mb-4 border-l-4 px-4 py-3 text-sm',
+                count === 0
+                    ? 'border-white/15 bg-white/[0.03]'
+                    : 'border-gold bg-gold/10',
+            )}
         >
-            <h2 className="gm-label text-gold-hot">Active Effects</h2>
+            <h2
+                className={cn(
+                    'gm-label',
+                    count === 0 ? 'text-ink-dim' : 'text-gold-hot',
+                )}
+            >
+                Active Effects
+            </h2>
             {count === 0 ? (
                 <p className="mt-1 text-ink-dim">
                     No active effects at the moment

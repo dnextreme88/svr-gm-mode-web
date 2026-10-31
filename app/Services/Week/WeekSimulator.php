@@ -68,28 +68,56 @@ class WeekSimulator
         $this->assertCanSimulateTo($save, $target);
         $aired = [];
 
-        while ($save->refresh()->current_week < $target) {
-            $week = $save->current_week;
+        while (true) {
+            $step = $this->simulateNext($save, $target);
 
-            try {
-                // A week already airing live just finishes, as booked.
-                if ($this->resolver->airing($save, $week) === null) {
-                    $this->bookWeek($save, $week);
-                }
-
-                $this->resolver->resolveWeek($save, $week);
-            } catch (GameRuleException $e) {
-                return ['weeks' => $aired, 'stopped' => $e->getMessage()];
+            if ($step['week'] !== null) {
+                $aired[] = $step['week'];
             }
 
-            $aired[] = $week;
+            if ($step['stopped'] !== null) {
+                return ['weeks' => $aired, 'stopped' => $step['stopped']];
+            }
 
-            if ($save->refresh()->stage !== SaveStage::InSeason) {
-                break;
+            if ($step['done']) {
+                return ['weeks' => $aired, 'stopped' => null];
             }
         }
+    }
 
-        return ['weeks' => $aired, 'stopped' => null];
+    /**
+     * Air the next week on the way to `$target`: one step of Simulate to
+     * here, so the schedule can show progress week by week. `done` once the
+     * save reaches `$target` (or leaves the season).
+     *
+     * @return array{week: int|null, done: bool, stopped: string|null}
+     */
+    public function simulateNext(Save $save, int $target): array
+    {
+        if ($save->refresh()->current_week >= $target || $save->stage !== SaveStage::InSeason) {
+            return ['week' => null, 'done' => true, 'stopped' => null];
+        }
+
+        $week = $save->current_week;
+
+        try {
+            // A week already airing live just finishes, as booked.
+            if ($this->resolver->airing($save, $week) === null) {
+                $this->bookWeek($save, $week);
+            }
+
+            $this->resolver->resolveWeek($save, $week);
+        } catch (GameRuleException $e) {
+            return ['week' => null, 'done' => true, 'stopped' => $e->getMessage()];
+        }
+
+        $save->refresh();
+
+        return [
+            'week' => $week,
+            'done' => $save->current_week >= $target || $save->stage !== SaveStage::InSeason,
+            'stopped' => null,
+        ];
     }
 
     /**

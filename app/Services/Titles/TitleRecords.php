@@ -38,8 +38,8 @@ class TitleRecords
         return [
             'longest' => $longest === null ? null : $this->reignRow($longest, $week),
             'shortest' => $shortest === null ? null : $this->reignRow($shortest, $week),
-            'most_reigns' => $mostReigns === null ? null : ['holder' => $mostReigns->first()->holderName(), 'value' => $mostReigns->count()],
-            'most_defenses' => $mostDefenses === null || (int) $mostDefenses->sum('defenses') === 0 ? null : ['holder' => $mostDefenses->first()->holderName(), 'value' => (int) $mostDefenses->sum('defenses')],
+            'most_reigns' => $mostReigns === null ? null : ['holder' => $mostReigns->first()->holderName(), 'holder_ids' => $mostReigns->first()->holderIds(), 'value' => $mostReigns->count()],
+            'most_defenses' => $mostDefenses === null || (int) $mostDefenses->sum('defenses') === 0 ? null : ['holder' => $mostDefenses->first()->holderName(), 'holder_ids' => $mostDefenses->first()->holderIds(), 'value' => (int) $mostDefenses->sum('defenses')],
         ];
     }
 
@@ -99,6 +99,7 @@ class TitleRecords
     {
         return [
             'holder' => $reign->holderName(),
+            'holder_ids' => $reign->holderIds(),
             'championship' => $reign->championship->name,
             'value' => $reign->weeksHeld($week),
             'won_week' => $reign->won_week,

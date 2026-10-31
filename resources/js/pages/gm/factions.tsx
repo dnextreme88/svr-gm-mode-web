@@ -3,7 +3,7 @@ import { Fragment, useState } from 'react';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
-import { brandName } from '@/lib/gm';
+import { brandName, readPreference, writePreference } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type {
@@ -49,6 +49,14 @@ type Props = GamePageProps & {
 type OriginFilter = 'created' | 'all';
 type StatusFilter = 'all' | 'active' | 'disbanded';
 
+const ORIGINS = ['created', 'all'] as const;
+const STATUSES = ['all', 'active', 'disbanded'] as const;
+const STATUS_LABELS: Record<StatusFilter, string> = {
+    all: 'Any status',
+    active: 'Active',
+    disbanded: 'Disbanded',
+};
+
 const SECTIONS: Array<{ type: FactionType; title: string }> = [
     { type: 'tag_team', title: 'Tag teams' },
     { type: 'stable', title: 'Stables' },
@@ -60,8 +68,27 @@ const SECTIONS: Array<{ type: FactionType; title: string }> = [
  */
 export default function Factions() {
     const { factions, formation_wins, game } = usePage<Props>().props;
-    const [origin, setOrigin] = useState<OriginFilter>('created');
-    const [status, setStatus] = useState<StatusFilter>('all');
+    const createdCount = factions.filter((f) => f.origin !== 'seeded').length;
+    // Opens on this career's factions, or on all of them while there are
+    // none yet; the last choice is remembered.
+    const [origin, setOriginState] = useState<OriginFilter>(() =>
+        readPreference(
+            'gm.factions.origin',
+            createdCount > 0 ? 'created' : 'all',
+            ORIGINS,
+        ),
+    );
+    const [status, setStatusState] = useState<StatusFilter>(() =>
+        readPreference('gm.factions.status', 'all', STATUSES),
+    );
+    const setOrigin = (value: OriginFilter) => {
+        setOriginState(value);
+        writePreference('gm.factions.origin', value);
+    };
+    const setStatus = (value: StatusFilter) => {
+        setStatusState(value);
+        writePreference('gm.factions.status', value);
+    };
     const [search, setSearch] = useState('');
     const [disbanding, setDisbanding] = useState<FactionRow | null>(null);
     const byOrigin = factions.filter(
@@ -91,33 +118,33 @@ export default function Factions() {
                     options={[
                         {
                             value: 'created',
-                            label: `Created (${factions.filter((f) => f.origin !== 'seeded').length})`,
+                            label: `Created this career (${createdCount})`,
                         },
-                        { value: 'all', label: `All (${factions.length})` },
+                        {
+                            value: 'all',
+                            label: `All factions (${factions.length})`,
+                        },
                     ]}
                     value={origin}
                     onChange={setOrigin}
                 />
                 <FilterGroup
                     label="Status"
-                    options={(['all', 'active', 'disbanded'] as const).map(
-                        (v) => ({
-                            value: v,
-                            label: `${v[0].toUpperCase()}${v.slice(1)} (${counts[v]})`,
-                        }),
-                    )}
+                    options={STATUSES.map((v) => ({
+                        value: v,
+                        label: `${STATUS_LABELS[v]} (${counts[v]})`,
+                    }))}
                     value={status}
                     onChange={setStatus}
                 />
             </PageTitle>
 
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <p className="max-w-3xl text-sm text-ink-dim">
-                    When two or more members of a faction team up, they're
-                    billed as the faction. Two or three male superstars who win{' '}
-                    {formation_wins} matches together can become a new one.
-                    Real-life factions show their real dates; they’re all active
-                    from week 1. New ones show the night they formed.
+                <p className="max-w-2xl text-sm text-ink-dim">
+                    Two or more members teaming up are billed as their faction.
+                    Two or three male superstars who win {formation_wins}{' '}
+                    matches together can form a new one. Real-life factions
+                    start the game together, whatever their real dates.
                 </p>
                 <input
                     type="search"
@@ -160,8 +187,8 @@ export default function Factions() {
                                             <tr>
                                                 <th>Faction</th>
                                                 <th>Members</th>
-                                                <th>Formed</th>
-                                                <th>Disbanded</th>
+                                                <th>In game</th>
+                                                <th>Real life</th>
                                                 <th className="text-right">
                                                     Record
                                                 </th>
@@ -233,7 +260,7 @@ function FilterGroup<T extends string>({
     return (
         <div
             className="flex flex-wrap items-center gap-1"
-            role="tablist"
+            role="radiogroup"
             aria-label={label}
         >
             <span className="gm-label mr-1">{label}</span>
@@ -241,8 +268,8 @@ function FilterGroup<T extends string>({
                 <button
                     key={o.value}
                     type="button"
-                    role="tab"
-                    aria-selected={value === o.value}
+                    role="radio"
+                    aria-checked={value === o.value}
                     className={cn(
                         'gm-btn gm-btn-sm whitespace-nowrap',
                         value !== o.value && 'gm-btn-ghost',
@@ -269,7 +296,7 @@ function FactionTableRow({
     const seeded = f.origin === 'seeded';
 
     return (
-        <tr data-testid={`faction-${f.id}`}>
+        <tr data-testid={`faction-${f.id}`} className="group">
             <td className="font-semibold whitespace-nowrap">
                 {f.name}
                 {!seeded && (
@@ -292,26 +319,21 @@ function FactionTableRow({
                 ))}
             </td>
             <td className="whitespace-nowrap text-ink-dim">
-                {f.formed ?? '—'}
-                {f.formed_week && (
+                {/* In this career: real-life factions start at week 1. */}
+                {seeded ? 'Week 1' : (f.formed ?? '—')}
+                {f.disbanded ? ` – ${f.disbanded}` : ' – now'}
+                {(f.formed_week || f.disbanded_week) && (
                     <div className="text-xs text-ink-faint">
-                        {f.formed_week}
+                        {[f.formed_week, f.disbanded_week]
+                            .filter(Boolean)
+                            .join(' – ')}
                     </div>
                 )}
             </td>
             <td className="whitespace-nowrap text-ink-dim">
-                {f.disbanded ? (
-                    <>
-                        {f.disbanded}
-                        <div className="text-xs text-ink-faint">
-                            {f.disbanded_week}
-                        </div>
-                    </>
-                ) : seeded && f.real_disbanded ? (
-                    f.real_disbanded
-                ) : (
-                    '—'
-                )}
+                {seeded
+                    ? `${f.formed ?? '?'} – ${f.real_disbanded ?? 'present'}`
+                    : '—'}
             </td>
             <td className="gm-num text-right whitespace-nowrap">
                 {f.wins}–{f.losses}
@@ -336,9 +358,12 @@ function FactionTableRow({
             {actions && (
                 <td className="text-right">
                     {f.active && (
+                        // Shown on row hover or focus where there's a mouse,
+                        // so 40 red buttons don't shout over the table.
                         <button
                             type="button"
-                            className="gm-btn gm-btn-danger gm-btn-sm"
+                            className="gm-btn gm-btn-danger gm-btn-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0"
+                            aria-label={`Disband ${f.name}`}
                             onClick={() => onDisband(f)}
                         >
                             Disband

@@ -2,8 +2,8 @@ import type {
     Brand,
     InjuryZone,
     MatchFamily,
+    Morale,
     RosterType,
-    WeightClass,
 } from '@/types/enums';
 import type { FatigueConfig } from '@/types/gm';
 
@@ -97,23 +97,14 @@ export function writePreference(key: string, value: string): void {
     }
 }
 
-/** Cruiserweights and Light Heavyweights (the blue names). */
-export function isCruiser(weightClass: WeightClass | null): boolean {
-    return (
-        weightClass === 'cruiserweight' || weightClass === 'light_heavyweight'
-    );
-}
-
 export type PoolFilter = {
     type: RosterType | 'all';
-    cruisers: boolean;
     specialists: boolean;
     search: string;
 };
 
 export const emptyPoolFilter: PoolFilter = {
     type: 'all',
-    cruisers: false,
     specialists: false,
     search: '',
 };
@@ -121,7 +112,6 @@ export const emptyPoolFilter: PoolFilter = {
 type Filterable = {
     name: string;
     roster_type: RosterType;
-    weight_class: WeightClass;
     specialties: MatchFamily[];
 };
 
@@ -134,8 +124,64 @@ export function filterPool<T extends Filterable>(
     return rows.filter(
         (w) =>
             (filter.type === 'all' || w.roster_type === filter.type) &&
-            (!filter.cruisers || isCruiser(w.weight_class)) &&
             (!filter.specialists || w.specialties.length > 0) &&
             w.name.toLowerCase().includes(search),
     );
+}
+
+export type RosterSortKey =
+    | 'name'
+    | 'fatigue'
+    | 'morale'
+    | 'record'
+    | 'contract';
+export type RosterSort = { key: RosterSortKey; dir: 'asc' | 'desc' } | null;
+
+type Sortable = {
+    name: string;
+    fatigue: number;
+    morale: Morale;
+    wins: number;
+    losses: number;
+    contract: { weeks_remaining: number } | null;
+};
+
+const moraleRank: Record<Morale, number> = {
+    happy: 0,
+    content: 1,
+    unsatisfied: 2,
+    upset: 3,
+};
+
+/**
+ * Roster table sort. Ascending is A–Z, freshest first, happiest first, most
+ * wins first (then fewest losses) and fewest contract weeks left first;
+ * wrestlers without a contract always go last. Ties keep the given order.
+ */
+export function sortRoster<T extends Sortable>(
+    rows: T[],
+    sort: RosterSort,
+): T[] {
+    if (sort === null) {
+        return rows;
+    }
+
+    const flip = sort.dir === 'asc' ? 1 : -1;
+    const compare: Record<RosterSortKey, (a: T, b: T) => number> = {
+        name: (a, b) => a.name.localeCompare(b.name),
+        fatigue: (a, b) => a.fatigue - b.fatigue,
+        morale: (a, b) => moraleRank[a.morale] - moraleRank[b.morale],
+        record: (a, b) => b.wins - a.wins || a.losses - b.losses,
+        contract: (a, b) =>
+            (a.contract?.weeks_remaining ?? 0) -
+            (b.contract?.weeks_remaining ?? 0),
+    };
+
+    return [...rows].sort((a, b) => {
+        if (sort.key === 'contract' && (!a.contract || !b.contract)) {
+            return Number(!a.contract) - Number(!b.contract);
+        }
+
+        return compare[sort.key](a, b) * flip;
+    });
 }
