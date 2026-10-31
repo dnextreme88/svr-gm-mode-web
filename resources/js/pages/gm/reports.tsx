@@ -60,7 +60,7 @@ export default function Reports() {
                                                 </td>
                                                 <td>
                                                     <span className="font-semibold">
-                                                        {o.winners.join(' & ')}
+                                                        {o.winners_label}
                                                     </span>
                                                     <span className="mx-1.5 text-ink-faint">
                                                         def.

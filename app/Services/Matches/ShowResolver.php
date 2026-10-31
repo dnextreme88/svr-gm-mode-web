@@ -9,6 +9,7 @@ use App\Enums\MatchFamily;
 use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
+use App\Enums\ParticipantRole;
 use App\Enums\RosterType;
 use App\Enums\ShowStatus;
 use App\Models\GauntletBout;
@@ -18,6 +19,7 @@ use App\Models\MatchSlot;
 use App\Models\NewsEvent;
 use App\Models\SaveWrestler;
 use App\Models\Show;
+use App\Services\Factions\FactionNamer;
 use App\Services\Fatigue\FatigueZones;
 use App\Services\Finance\LedgerService;
 use App\Services\Injuries\InjuryService;
@@ -52,6 +54,7 @@ class ShowResolver
         private PromoService $promos,
         private PromoStoryWriter $promoStories,
         private InjuryStatus $injuryStatus,
+        private FactionNamer $factions,
     ) {}
 
     public function air(Show $show, WeekContext $context): void
@@ -186,6 +189,15 @@ class ShowResolver
         foreach ($slot->participants as $p) {
             $context->data['used'][$p->save_wrestler_id] = true;
 
+            // House rule (2026-10-30): a manager wins or loses with their
+            // side. The record only: no fatigue, and streaks are for those
+            // who wrestled.
+            if ($p->role === ParticipantRole::Manager) {
+                $wrestlers[$p->save_wrestler_id]->increment($p->side === $resolved->winnerSide ? 'wins' : 'losses');
+
+                continue;
+            }
+
             if ($p->role->value !== 'competitor') {
                 continue;
             }
@@ -233,8 +245,8 @@ class ShowResolver
             $interferer = SaveWrestler::with('wrestler')->find($resolved->interfererId);
             $this->news->record($context->save, NewsEventType::InterferenceFinish, NewsTier::Story, $show->brand ?? NewsBrand::Both, [
                 'interferer' => $interferer?->name(),
-                'loser' => $this->namesOf($resolved->losers, $wrestlers),
-                'winner' => $this->namesOf($resolved->winners, $wrestlers),
+                'loser' => $this->namesOf($slot, $resolved->losers),
+                'winner' => $this->namesOf($slot, $resolved->winners),
             ], ['wrestler_ids' => [...$resolved->winners, ...$resolved->losers]], priority: 30, week: $week, dedupeKey: "slot:{$slot->id}");
         }
 
@@ -247,6 +259,10 @@ class ShowResolver
 
         if ($mainEvent && $show->isPpv() && $slot->fixed_kind !== FixedSlotKind::RoyalRumble) {
             $this->announcePpvMainEvent($slot, $show, $resolved, $result->refresh(), $wrestlers, $week);
+        }
+
+        if ($show->isInterbrand() && $resolved->isDecisive()) {
+            $this->announceFactionInterbrandWin($slot, $show, $resolved, $week);
         }
 
         $brand = $slot->owner_brand ?? $show->brand;
@@ -275,11 +291,12 @@ class ShowResolver
             NewsTier::Story,
             $slot->owner_brand ?? $show->brand ?? NewsBrand::Both,
             [
-                'winner' => $this->namesOf($resolved->winners, $wrestlers),
+                'winner' => $this->namesOf($slot, $resolved->winners),
                 'defeats' => count($resolved->winners) > 1 ? 'defeat' : 'defeats',
-                'loser' => $this->namesOf($resolved->losers, $wrestlers),
+                'loser' => $this->namesOf($slot, $resolved->losers),
                 'by' => $resolved->isDecisive() ? '' : ' by '.mb_strtolower($resolved->method->label()),
                 'via' => $resolved->via($slot->matchType),
+                'how' => $resolved->how($slot->matchType),
                 'outcome' => match (true) {
                     ! $resolved->isDecisive() => 'not_decisive',
                     $playedHurt !== [] => 'injured',
@@ -353,13 +370,42 @@ class ShowResolver
         $this->news->record($show->game, NewsEventType::PpvResults, NewsTier::Headline, NewsBrand::Both, [
             'ppv' => $show->name,
             'outcome' => $outcome,
-            'winner' => $this->namesOf($resolved->winners, $wrestlers),
+            'winner' => $this->namesOf($slot, $resolved->winners),
             'defeats' => count($resolved->winners) > 1 ? 'defeat' : 'defeats',
-            'loser' => $this->namesOf($resolved->losers, $wrestlers),
+            'loser' => $this->namesOf($slot, $resolved->losers),
             'via' => $resolved->via($slot->matchType),
+            // The gimmick already names the match, so a win by its own
+            // condition adds nothing after it.
+            'ppv_how' => $this->isGimmick($slot) && $slot->matchType !== null && $resolved->wonByOwnCondition($slot->matchType)
+                ? ''
+                : ' '.$resolved->how($slot->matchType),
             'title' => $title,
             'gimmick' => $this->isGimmick($slot) ? " in a {$this->matchKind($slot)} match" : '',
         ], ['wrestler_ids' => [...$resolved->winners, ...$resolved->losers]], priority: (int) config($show->isInterbrand() ? 'gm.news.ppv_main_event_priority.interbrand' : 'gm.news.ppv_main_event_priority.brand'), week: $week, dedupeKey: "ppv-main:{$slot->id}");
+    }
+
+    /**
+     * A faction that wins on an interbrand card (Royal Rumble, Survivor
+     * Series, WrestleMania) makes the WWE card (house rule).
+     */
+    private function announceFactionInterbrandWin(MatchSlot $slot, Show $show, ResolvedMatch $resolved, int $week): void
+    {
+        $faction = $this->factions->factionsOn($show->save_id, $resolved->winners, $week)[0] ?? null;
+
+        if ($faction === null) {
+            return;
+        }
+
+        $brand = SaveWrestler::find($faction->memberIds()[0] ?? 0)->brand ?? $slot->owner_brand;
+
+        $this->news->record($show->game, NewsEventType::FactionInterbrandWin, NewsTier::Headline, NewsBrand::Both, [
+            'faction' => $faction->faction_name,
+            'brand' => $brand?->label() ?? 'their brand',
+            'ppv' => $show->name,
+            'loser' => $this->namesOf($slot, $resolved->losers),
+            'via' => $resolved->via($slot->matchType),
+            'how' => $resolved->how($slot->matchType),
+        ], ['wrestler_ids' => [...$resolved->winners, ...$resolved->losers], 'faction_id' => $faction->id], priority: (int) config('gm.news.faction_priority.interbrand_win'), week: $week, dedupeKey: "faction-interbrand:{$slot->id}");
     }
 
     /**
@@ -487,7 +533,7 @@ class ShowResolver
             $this->news->record($save, NewsEventType::StreakSnapped, NewsTier::Headline, $brand, [
                 'loser' => $wrestler->name(),
                 'n' => $previousWinStreak,
-                'winner' => $this->namesOf($resolved->winners, $all),
+                'winner' => $this->namesOf($slot, $resolved->winners),
                 'show' => $slot->show->name,
             ], ['wrestler_ids' => [$wrestler->id, ...$resolved->winners]], priority: 60, week: $week, dedupeKey: "slot:{$slot->id}");
         }
@@ -501,11 +547,13 @@ class ShowResolver
     }
 
     /**
+     * Names for the news, side by side, with factions named as such (house
+     * rule): "Evolution & Kane".
+     *
      * @param  list<int>  $ids
-     * @param  Collection<int, SaveWrestler>  $all
      */
-    private function namesOf(array $ids, Collection $all): string
+    private function namesOf(MatchSlot $slot, array $ids): string
     {
-        return implode(' & ', array_map(fn (int $id): string => $all->get($id)?->name() ?? '?', $ids));
+        return $this->factions->name($slot->show->save_id, $ids, $slot->show->week_number, $slot->sides());
     }
 }

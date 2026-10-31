@@ -70,6 +70,9 @@ return [
         'wrestlemania_brand_slots' => 3,
         // ASSUMPTION: how often Randomize/Preset try to make a slot a title match (§24).
         'randomize_title_chance' => 0.35,
+        // House rule: Randomize and Preset never pick a competitor the match
+        // would leave above this fatigue (%), so they don't risk injuries.
+        'randomize_max_fatigue' => 70,
     ],
 
     /*
@@ -96,7 +99,9 @@ return [
     | many consecutive weeks below $0.
     */
     'finances' => [
-        'base_show_income' => 0,
+        // House rule (2026-10-28): each brand's shows earn a flat amount once
+        // the week is done, until Popularity and ratings can drive income.
+        'weekly_show_income' => 250_000,
         'deficit_weeks_limit' => 4,
     ],
 
@@ -388,6 +393,27 @@ return [
     /*
     | §19 News thresholds.
     */
+    /*
+    | Factions (house rule): named tag teams and stables. Any 2+ members of an
+    | active faction on one side are named as the faction. 2 or 3 male
+    | wrestlers who win `formation_wins` times together as the whole winning
+    | side form a new one: the player names theirs, the rival GM draws a name.
+    */
+    'factions' => [
+        'min_members' => 2,
+        'max_members' => 5,
+        'formation_wins' => 3,
+        'formation_max_size' => 3,
+        'name_max_length' => 40,
+        // ASSUMPTION: the rival GM's names for the factions it forms.
+        'ai_names' => [
+            'The Enforcers', 'The Dynasty', 'The Syndicate', 'Brute Force', 'The Outlaws',
+            'The Wrecking Crew', 'The Regime', 'Thunder & Lightning', 'The Vanguard', 'The Hitmen',
+            'The Renegades', 'The Iron Brigade', 'The Collective', 'Black Label', 'The Bruisers',
+            'The Mavericks', 'The Elite Guard', 'Fire & Ice', 'The Crusaders', 'The Order',
+        ],
+    ],
+
     'news' => [
         'win_streaks' => [3, 5, 10],
         'win_streak_headline_at' => 10,
@@ -433,6 +459,16 @@ return [
         // ASSUMPTION: "great fan feedback" is heat at or above
         // rivalries.heating_up_threshold until Popularity exists.
         'rivalry_milestone_weeks' => 10,
+        // Factions (house rule). A faction's tag title win takes its brand's
+        // headline like any title change (100).
+        'faction_priority' => [
+            'formed' => 70,
+            'member_added' => 40,
+            'title_won' => 100,
+            'title_lost' => 45,
+            'interbrand_win' => 60,
+            'disbanded' => 55,
+        ],
     ],
 
     /*
@@ -545,6 +581,9 @@ return [
         // ASSUMPTION: the draft stops chasing its focus class after this many picks.
         'draft' => [
             'max_focus_picks' => 12,
+            // Once it has a member of a tag team or stable, each pick has
+            // this % chance (1-100) to go for a teammate who's still free.
+            'teammate_chance' => 25,
         ],
     ],
 ];

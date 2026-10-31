@@ -1,4 +1,4 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { BookingAction, BookingSteps } from '@/components/gm/booking-steps';
 import type { BookingOrder } from '@/components/gm/booking-steps';
@@ -15,6 +15,7 @@ import { ProposalLauncher } from '@/components/gm/proposal-launcher';
 import type { ProposalResult } from '@/components/gm/proposal-launcher';
 import type { ProposalView } from '@/components/gm/proposal-modal';
 import { StipulationPicker, TitleCycler } from '@/components/gm/title-tools';
+import { UnsavedChangesProvider } from '@/components/gm/unsaved-changes';
 import type { PromoFatigue } from '@/lib/card';
 import { requestJson } from '@/lib/http';
 import { saveVisit, slotSaveKey } from '@/lib/save-status';
@@ -108,7 +109,7 @@ export default function CardPage() {
                 {
                     match_type_id: p.match_type_id,
                     sides: p.sides,
-                    managers: {},
+                    managers: p.managers ?? {},
                     title_championship_id: p.title_championship_id,
                     referee_id: p.referee_id ?? null,
                 },
@@ -118,8 +119,25 @@ export default function CardPage() {
         router.reload();
     };
 
+    // Preset confirms the whole card at once, so a title or wrestler moving
+    // between slots can't trip over its old booking.
+    const applyPreset = async (proposals: ProposalView[]) => {
+        await requestJson('POST', gm.card.preset.apply.url(ids), {
+            proposals: proposals.map((p) => ({
+                position: p.position,
+                match_type_id: p.match_type_id,
+                sides: p.sides,
+                managers: p.managers ?? {},
+                title_championship_id: p.title_championship_id,
+                referee_id: p.referee_id ?? null,
+            })),
+        });
+
+        router.reload();
+    };
+
     return (
-        <>
+        <UnsavedChangesProvider>
             <Head title={`${show.name} card`} />
             <PageTitle
                 kicker={`Week ${game.season_week} · ${show.show_type === 'ppv' ? 'PPV card' : 'Weekly show'}`}
@@ -144,7 +162,7 @@ export default function CardPage() {
                                 { roll },
                             )
                         }
-                        onConfirm={saveProposals}
+                        onConfirm={applyPreset}
                     />
                 )}
                 {briefcase && booking && !briefcase.cashed_in_here && (
@@ -169,12 +187,6 @@ export default function CardPage() {
                         💼 Cash in: {briefcase.holder}
                     </button>
                 )}
-                <Link
-                    href={gm.schedule.url(game.id)}
-                    className="gm-btn gm-btn-ghost gm-btn-sm"
-                >
-                    Schedule
-                </Link>
                 <BookingAction
                     game={game}
                     showId={show.id}
@@ -229,6 +241,7 @@ export default function CardPage() {
                     })
                 }
                 promoFatigue={promoFatigue}
+                championships={title_context.championships}
                 renderTitle={(draft, update, drafts) => (
                     <TitleCycler
                         takenTitleIds={drafts
@@ -247,51 +260,52 @@ export default function CardPage() {
                         onChange={update}
                     />
                 )}
-                renderActions={(draft, update) => (
-                    <>
-                        {booking && !draft.fixed && (
-                            <ProposalLauncher
-                                label="Randomize"
-                                mode="randomize"
-                                titleNames={titleNames}
-                                fetchProposal={async (roll) => {
-                                    const { proposal } = await requestJson<{
-                                        proposal: ProposalView;
-                                    }>(
-                                        'POST',
-                                        gm.card.randomize.url({
-                                            ...ids,
-                                            position: draft.position,
-                                        }),
-                                        {
-                                            match_type_id: draft.matchTypeId,
-                                            roll,
-                                        },
-                                    );
+                renderButtons={(draft) =>
+                    booking &&
+                    !draft.fixed && (
+                        <ProposalLauncher
+                            label="Randomize"
+                            mode="randomize"
+                            titleNames={titleNames}
+                            fetchProposal={async (roll) => {
+                                const { proposal } = await requestJson<{
+                                    proposal: ProposalView;
+                                }>(
+                                    'POST',
+                                    gm.card.randomize.url({
+                                        ...ids,
+                                        position: draft.position,
+                                    }),
+                                    {
+                                        match_type_id: draft.matchTypeId,
+                                        roll,
+                                    },
+                                );
 
-                                    return {
-                                        proposals: [proposal],
-                                        unfilled_slots: [],
-                                        total_cost: proposal.cost,
-                                        deficit_warning: false,
-                                    };
-                                }}
-                                onConfirm={saveProposals}
-                            />
-                        )}
-                        <StipulationPicker
-                            draft={draft}
-                            type={
-                                draft.matchTypeId
-                                    ? types.get(draft.matchTypeId)
-                                    : undefined
-                            }
-                            context={title_context}
-                            roster={rosterById}
-                            readOnly={!booking || draft.fixed}
-                            onChange={update}
+                                return {
+                                    proposals: [proposal],
+                                    unfilled_slots: [],
+                                    total_cost: proposal.cost,
+                                    deficit_warning: false,
+                                };
+                            }}
+                            onConfirm={saveProposals}
                         />
-                    </>
+                    )
+                }
+                renderActions={(draft, update) => (
+                    <StipulationPicker
+                        draft={draft}
+                        type={
+                            draft.matchTypeId
+                                ? types.get(draft.matchTypeId)
+                                : undefined
+                        }
+                        context={title_context}
+                        roster={rosterById}
+                        readOnly={!booking || draft.fixed}
+                        onChange={update}
+                    />
                 )}
             />
 
@@ -328,6 +342,6 @@ export default function CardPage() {
                     />
                 </section>
             )}
-        </>
+        </UnsavedChangesProvider>
     );
 }

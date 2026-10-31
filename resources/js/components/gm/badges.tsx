@@ -65,7 +65,7 @@ export function SpecialtyBadge({
     return (
         <span
             className={cn(
-                'inline-flex items-center px-1.5 py-px font-condensed text-xs font-bold tracking-widest uppercase',
+                'inline-flex items-center px-1.5 py-px font-condensed text-sm font-bold tracking-widest uppercase',
                 active
                     ? 'bg-gold text-arena shadow-[0_0_12px_-2px_var(--color-gold)]'
                     : 'bg-white/6 text-ink-dim ring-1 ring-white/10',
@@ -93,6 +93,26 @@ export function TitleBelt({ name }: { name: string }) {
 export function UnreadPill({ children }: { children: ReactNode }) {
     return (
         <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gm-red-deep px-2 py-px font-condensed text-xs font-bold tracking-wider text-white uppercase">
+            {children}
+        </span>
+    );
+}
+
+/** Small gold caps beside a name: "Booked" in a picker, "Champion" on a card slot. */
+export function GoldTag({
+    children,
+    className,
+}: {
+    children: ReactNode;
+    className?: string;
+}) {
+    return (
+        <span
+            className={cn(
+                'font-condensed text-sm tracking-wide text-gold-hot/85 uppercase',
+                className,
+            )}
+        >
             {children}
         </span>
     );

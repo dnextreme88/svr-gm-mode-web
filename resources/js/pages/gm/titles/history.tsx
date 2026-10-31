@@ -128,7 +128,7 @@ export default function TitleHistory() {
                                         key={h.name}
                                         className="border-l-2 border-gold/60 bg-white/[0.03] px-3 py-2"
                                     >
-                                        <div className="font-condensed text-xs tracking-[0.14em] text-gold uppercase">
+                                        <div className="font-condensed text-xl tracking-[0.14em] text-gold uppercase">
                                             {h.name.replace(
                                                 ' Championship',
                                                 '',
@@ -142,7 +142,7 @@ export default function TitleHistory() {
                                             )}
                                         </div>
                                         {h.holder && (
-                                            <div className="text-xs text-ink-dim">
+                                            <div className="text-sm text-ink-dim">
                                                 {h.weeks_held} wk · {h.defenses}{' '}
                                                 def.
                                             </div>

@@ -27,6 +27,9 @@ type ShowResult = CardShow & {
     fatigue: FatigueStep[];
 };
 
+/** How long a decided match's result stays up before the next match shows. */
+export const NEXT_MATCH_DELAY_MS = 5000;
+
 type Props = GamePageProps & {
     week_number: number;
     season_week?: number;
@@ -132,7 +135,13 @@ export default function Results() {
             ),
         [shows],
     );
+    // The card on the right always shows a match: the one asked for, else
+    // the next to decide while the week airs, else the first.
     const [open, setOpen] = useState<number | null>(() => {
+        if (reel.length === 0) {
+            return null;
+        }
+
         const index = reel.findIndex((r) =>
             focus_match_id
                 ? r.outcome.id === focus_match_id
@@ -141,8 +150,11 @@ export default function Results() {
                   : r.outcome.pending === true && r.outcome.is_next,
         );
 
-        return index === -1 ? null : index;
+        return index === -1 ? 0 : index;
     });
+    // The match just decided: once its result is in, the card moves on to
+    // the next match to decide after a short look at the result.
+    const [decided, setDecided] = useState<number | null>(null);
     const [direction, setDirection] = useState<'left' | 'right'>('right');
     const current = open === null ? undefined : reel[open];
 
@@ -172,9 +184,38 @@ export default function Results() {
         return () => window.removeEventListener('keydown', onKey);
     }, [go]);
 
-    const toggle = (index: number) => {
-        setDirection('right');
-        setOpen((o) => (o === index ? null : index));
+    useEffect(() => {
+        const result = reel.find((r) => r.outcome.id === decided);
+
+        if (decided === null || !result || result.outcome.pending) {
+            return;
+        }
+
+        const next = reel.findIndex(
+            (r) => r.outcome.pending === true && r.outcome.is_next,
+        );
+
+        if (next === -1) {
+            setDecided(null);
+
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setDirection('right');
+            setOpen(next);
+            setDecided(null);
+        }, NEXT_MATCH_DELAY_MS);
+
+        return () => clearTimeout(timer);
+    }, [decided, reel]);
+
+    // Picking a match shows it; there's nothing to close. It also cancels
+    // the move to the next match.
+    const select = (index: number) => {
+        setDecided(null);
+        setDirection(open !== null && index < open ? 'left' : 'right');
+        setOpen(index);
     };
 
     const post = (
@@ -193,12 +234,14 @@ export default function Results() {
         match: PendingMatch,
         side: number | null,
         bouts: Array<number | null> = [],
-    ) =>
+    ) => {
+        setDecided(match.id);
         post(gm.results.decide.url({ save: game.id, week: week_number }), {
             slot_id: match.id,
             winner_side: side,
             ...(match.gauntlet ? { bouts } : {}),
         });
+    };
 
     return (
         <>
@@ -290,7 +333,7 @@ export default function Results() {
                                                 show={show}
                                                 outcome={o}
                                                 selected={index === open}
-                                                onToggle={() => toggle(index)}
+                                                onSelect={() => select(index)}
                                             />
                                         );
                                     })}
@@ -408,23 +451,23 @@ function MatchRow({
     show,
     outcome: o,
     selected,
-    onToggle,
+    onSelect,
 }: {
     show: ShowResult;
     outcome: MatchOutcome | PendingMatch;
     selected: boolean;
-    onToggle: () => void;
+    onSelect: () => void;
 }) {
     const mainEvent = o.position === show.match_slot_count;
 
     return (
         <li data-testid={`result-${show.id}-${o.position}`}>
-            {/* The whole row opens the result's card. */}
+            {/* The whole row shows the result's card; picking it again keeps it. */}
             <button
                 type="button"
-                onClick={onToggle}
-                aria-expanded={selected}
-                aria-label={`${selected ? 'Hide' : 'Show'} details for ${show.name} match ${o.position}`}
+                onClick={onSelect}
+                aria-current={selected || undefined}
+                aria-label={`Show details for ${show.name} match ${o.position}`}
                 className={cn(
                     'group block w-full border-l-2 px-4 py-3 text-left transition-colors hover:bg-brand',
                     selected ? 'border-brand bg-white/5' : 'border-transparent',
@@ -455,6 +498,8 @@ function MatchRow({
                                         names={side.members.map((m) => m.name)}
                                         champions={o.champions}
                                         captains={o.captains}
+                                        factions={o.factions}
+                                        manager={side.manager}
                                     />
                                 </Fragment>
                             ))
@@ -464,6 +509,8 @@ function MatchRow({
                                     names={o.winners}
                                     champions={o.champions}
                                     captains={o.captains}
+                                    factions={o.factions}
+                                    manager={o.winner_manager}
                                 />
                                 <span className="mx-1.5 text-ink-faint group-hover:text-white/70">
                                     def.
@@ -475,6 +522,8 @@ function MatchRow({
                                             names={side}
                                             champions={o.champions}
                                             captains={o.captains}
+                                            factions={o.factions}
+                                            manager={o.loser_side_managers?.[i]}
                                         />
                                     </Fragment>
                                 ))}

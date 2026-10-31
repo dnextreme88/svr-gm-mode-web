@@ -3,6 +3,7 @@
 namespace App\Services\Card;
 
 use App\Enums\Brand;
+use App\Enums\InjurySeverity;
 use App\Enums\RosterType;
 use App\Exceptions\GameRuleException;
 use App\Models\MatchSlot;
@@ -19,12 +20,18 @@ use Illuminate\Database\Eloquent\Collection;
 /**
  * Randomize (one slot) and Preset (whole card) proposals (§24). Both only
  * propose; saving goes through CardService so the normal rules apply.
+ *
+ * Both keep the roster healthy (house rule): nobody is picked to compete
+ * if the match would leave them above `gm.card.randomize_max_fatigue`
+ * (counting this week's other bookings and tiring promos), and wrestlers
+ * carrying a minor injury are only picked when nobody else is left.
  */
 class CardRandomizer
 {
     public function __construct(
         private InjuryStatus $injuries,
         private TitleMatchPlanner $titles,
+        private PlannedFatigue $plannedFatigue,
     ) {}
 
     /**
@@ -71,13 +78,16 @@ class CardRandomizer
     /**
      * Ids already on the card, as competitor or manager.
      *
+     * @param  int|list<int>|null  $exceptPositions  slots being rebooked, left out
      * @return list<int>
      */
-    public function bookedIds(Show $show, ?int $exceptPosition = null): array
+    public function bookedIds(Show $show, int|array|null $exceptPositions = null): array
     {
+        $except = $exceptPositions === null ? [] : (array) $exceptPositions;
+
         return array_values(array_unique(MatchSlot::with('participants')
             ->where('show_id', $show->id)
-            ->when($exceptPosition !== null, fn ($q) => $q->where('position', '!=', $exceptPosition))
+            ->when($except !== [], fn ($q) => $q->whereNotIn('position', $except))
             ->get()
             ->flatMap(fn (MatchSlot $s): array => $s->participantIds())
             ->map(fn ($id): int => (int) $id)
@@ -89,48 +99,150 @@ class CardRandomizer
      *
      * @param  list<int>  $exclude  extra ids to leave out (Preset's running pool)
      * @param  list<int>  $titlesOnCard  championship ids already defended on the card
+     * @param  list<int>  $replacing  other slots rebooked along with this one (Preset), whose bookings don't count
      */
-    public function proposeSlot(Show $show, int $position, ?MatchType $type, Rng $rng, array $exclude = [], array $titlesOnCard = [], ?Brand $brand = null): Proposal
+    public function proposeSlot(Show $show, int $position, ?MatchType $type, Rng $rng, array $exclude = [], array $titlesOnCard = [], ?Brand $brand = null, array $replacing = []): Proposal
     {
         $brand ??= $show->brand ?? throw new GameRuleException('This slot has no brand to book from.');
-        $pool = $this->pool($show, $brand, array_values(array_unique([...$this->bookedIds($show, $position), ...$exclude])));
+        $rebooked = array_values(array_unique([$position, ...$replacing]));
+        $pool = $this->pool($show, $brand, array_values(array_unique([...$this->bookedIds($show, $rebooked), ...$exclude])));
 
         if ($pool->count() < 2) {
             throw new GameRuleException("Not enough available wrestlers to book this match (need 2, have {$pool->count()}).");
         }
 
+        $fatigue = $this->plannedFatigue->forWeek($show, $brand, $this->slotIds($show, $rebooked));
+        $minor = $this->minorInjuredIds($show);
+
         if ($type === null) {
-            $fillable = $this->eligibleTypes($show, $brand)
+            $roomy = $this->eligibleTypes($show, $brand)
                 ->filter(fn (MatchType $t): bool => $this->poolFor($t, $pool)->count() >= $t->competitorCount()
-                    && $pool->count() >= $t->competitorCount() + ($t->hasSpecialReferee() ? 1 : 0))
+                    && $pool->count() >= $t->competitorCount() + count($t->manager_sides) + ($t->hasSpecialReferee() ? 1 : 0))
                 ->values();
 
-            if ($fillable->isEmpty()) {
+            if ($roomy->isEmpty()) {
                 throw new GameRuleException("Not enough available wrestlers to book this match (need 2, have {$pool->count()}).");
+            }
+
+            $fillable = $roomy->filter(fn (MatchType $t): bool => $this->healthyFor($t, $pool, $fatigue, $minor)->count() >= $t->competitorCount())->values();
+
+            if ($fillable->isEmpty()) {
+                throw new GameRuleException('Everyone available is too tired to book a match without risking an injury.');
             }
 
             $type = $rng->pick($fillable->all());
         }
 
-        $candidates = $this->poolFor($type, $pool);
         $need = $type->competitorCount();
+        $eligible = $this->poolFor($type, $pool)->count();
+
+        if ($eligible < $need) {
+            throw new GameRuleException("Not enough available wrestlers to book {$type->name} (need {$need}, have {$eligible}).");
+        }
+
+        $candidates = $this->healthyFor($type, $pool, $fatigue, $minor);
 
         if ($candidates->count() < $need) {
-            throw new GameRuleException("Not enough available wrestlers to book {$type->name} (need {$need}, have {$candidates->count()}).");
+            $max = (int) config('gm.card.randomize_max_fatigue');
+
+            throw new GameRuleException("Not enough fresh wrestlers to book {$type->name} without risking an injury: it would push the others past {$max}% fatigue (need {$need}, have {$candidates->count()}).");
         }
 
         $title = $this->titles->plan($show, $brand, $type, $candidates, $titlesOnCard, $rng);
 
         if ($title !== null) {
             $referee = $this->pickReferee($type, $pool, $title['sides'], $rng);
+            $managers = $this->pickManagers($type, $pool, $title['sides'], $referee, $rng);
 
-            return new Proposal($position, new Booking($type, $title['sides'], [], $title['championship_id'], refereeId: $referee), $title['sides']);
+            return new Proposal($position, new Booking($type, $title['sides'], $managers, $title['championship_id'], refereeId: $referee), $title['sides']);
         }
 
         $sides = $this->fillSides($show, $type, $candidates, $rng);
         $referee = $this->pickReferee($type, $pool, $sides, $rng);
+        $managers = $this->pickManagers($type, $pool, $sides, $referee, $rng);
 
-        return new Proposal($position, new Booking($type, $sides, refereeId: $referee), $sides);
+        return new Proposal($position, new Booking($type, $sides, $managers, refereeId: $referee), $sides);
+    }
+
+    /**
+     * Who can compete in a type without risking an injury: nobody the match
+     * would leave above `gm.card.randomize_max_fatigue`, and wrestlers with
+     * a minor injury (it can turn serious) only when there aren't enough
+     * others.
+     *
+     * @param  Collection<int, SaveWrestler>  $pool
+     * @param  array<int, int>  $fatigue  save-wrestler id => fatigue going in
+     * @param  list<int>  $minor  ids carrying a minor injury
+     * @return Collection<int, SaveWrestler>
+     */
+    public function healthyFor(MatchType $type, Collection $pool, array $fatigue, array $minor): Collection
+    {
+        $max = (int) config('gm.card.randomize_max_fatigue');
+        $fresh = $this->poolFor($type, $pool)
+            ->filter(fn (SaveWrestler $w): bool => ($fatigue[$w->id] ?? $w->fatigue) + $type->fatigueCost() <= $max)
+            ->values();
+        $uninjured = $fresh->reject(fn (SaveWrestler $w): bool => in_array($w->id, $minor, true))->values();
+
+        return $uninjured->count() >= $type->competitorCount() ? $uninjured : $fresh;
+    }
+
+    /**
+     * @param  list<int>  $positions
+     * @return list<int>
+     */
+    private function slotIds(Show $show, array $positions): array
+    {
+        return array_values(array_map('intval', MatchSlot::where('show_id', $show->id)->whereIn('position', $positions)->pluck('id')->all()));
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function minorInjuredIds(Show $show): array
+    {
+        $ids = [];
+
+        foreach ($this->injuries->activeByWrestler($show->save_id, $show->week_number) as $id => $injury) {
+            if ($injury->severity === InjurySeverity::Minor) {
+                $ids[] = (int) $id;
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
+     * A w/Manager type's managers: random wrestlers left in the pool after
+     * the competitors and the referee, one per manager side. Every manager
+     * slot is filled, like every competitor slot.
+     *
+     * @param  Collection<int, SaveWrestler>  $pool
+     * @param  list<list<int>>  $sides
+     * @return array<int, int> side index => manager id
+     */
+    public function pickManagers(MatchType $type, Collection $pool, array $sides, ?int $refereeId, Rng $rng): array
+    {
+        if ($type->manager_sides === []) {
+            return [];
+        }
+
+        $left = $rng->shuffle(array_values(array_diff(
+            array_map('intval', $pool->pluck('id')->all()),
+            array_merge(...$sides),
+            $refereeId === null ? [] : [$refereeId],
+        )));
+
+        if (count($left) < count($type->manager_sides)) {
+            throw new GameRuleException("Not enough available wrestlers to book {$type->name} with its managers.");
+        }
+
+        $managers = [];
+
+        foreach ($type->manager_sides as $i => $side) {
+            $managers[(int) $side] = $left[$i];
+        }
+
+        return $managers;
     }
 
     /**
@@ -155,45 +267,51 @@ class CardRandomizer
     }
 
     /**
-     * Preset (§24): fill only empty, non-fixed slots in card order, removing
-     * each slot's wrestlers from the pool and never repeating a title.
+     * Preset (§24): book the card's slots in card order, removing each
+     * slot's wrestlers from the pool and never repeating a title. Earned
+     * title shots come first. Fixed slots and the other brand's slots are
+     * never touched. By default only empty slots are filled (Simulate to
+     * here); with `$replace` (the Preset card button, house rule) every
+     * other slot is rebooked too, its current booking ignored.
      *
      * @return array{proposals: list<Proposal>, unfilled_slots: list<int>, total_cost: int, deficit_warning: bool, errors: array<int, string>}
      */
-    public function preset(Show $show, Rng $rng, ?Brand $brand = null): array
+    public function preset(Show $show, Rng $rng, ?Brand $brand = null, bool $replace = false): array
     {
         $brand ??= $show->brand;
         $slots = MatchSlot::with('participants')->where('show_id', $show->id)->orderBy('position')->get();
+        $open = $slots->filter(fn (MatchSlot $s): bool => ! $s->isFixed() && ($replace || ! $s->isBooked())
+            && ($brand === null || $s->owner_brand === null || $s->owner_brand === $brand))->values();
+        $replacing = $replace ? array_values(array_map('intval', $open->pluck('position')->all())) : [];
         $taken = [];
-        $titles = array_values($slots->pluck('title_championship_id')->filter()->map(fn ($id): int => (int) $id)->all());
+        $titles = array_values($slots->reject(fn (MatchSlot $s): bool => in_array($s->position, $replacing, true))
+            ->pluck('title_championship_id')->filter()->map(fn ($id): int => (int) $id)->all());
         $proposals = [];
         $unfilled = [];
         $errors = [];
 
-        foreach ($this->titles->obligations($show, $brand) as $obligation) {
-            $empty = $slots->first(fn (MatchSlot $s): bool => ! $s->isFixed() && ! $s->isBooked()
-                && ($brand === null || $s->owner_brand === null || $s->owner_brand === $brand)
-                && ! in_array($s->position, array_map(fn (Proposal $p): int => $p->position, $proposals), true));
+        foreach ($this->titles->obligations($show, $brand, $replacing) as $obligation) {
+            $used = array_map(fn (Proposal $p): int => $p->position, $proposals);
+            $slot = $open->first(fn (MatchSlot $s): bool => ! in_array($s->position, $used, true));
 
-            if ($empty === null) {
+            if ($slot === null) {
                 break;
             }
 
-            $proposals[] = new Proposal($empty->position, $obligation, $obligation->sides);
+            $proposals[] = new Proposal($slot->position, $obligation, $obligation->sides, titleShot: true);
             $taken = [...$taken, ...$obligation->competitorIds()];
             $titles[] = (int) $obligation->titleChampionshipId;
         }
 
         $usedPositions = array_map(fn (Proposal $p): int => $p->position, $proposals);
 
-        foreach ($slots as $slot) {
-            if ($slot->isFixed() || $slot->isBooked() || in_array($slot->position, $usedPositions, true)
-                || ($brand !== null && $slot->owner_brand !== null && $slot->owner_brand !== $brand)) {
+        foreach ($open as $slot) {
+            if (in_array($slot->position, $usedPositions, true)) {
                 continue;
             }
 
             try {
-                $proposal = $this->proposeSlot($show, $slot->position, null, $rng, $taken, $titles, $brand);
+                $proposal = $this->proposeSlot($show, $slot->position, null, $rng, $taken, $titles, $brand, $replacing);
                 $proposals[] = $proposal;
                 $taken = [...$taken, ...$proposal->booking->allIds()];
 

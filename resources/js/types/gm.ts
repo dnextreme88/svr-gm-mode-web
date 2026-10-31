@@ -29,6 +29,8 @@ export type GameShell = {
     season_week: number;
     /** The week is airing live: its matches are being decided on the results screen. */
     airing: boolean;
+    /** This week's card to book (or its live results while it airs); the header's week chip links here. */
+    current_card_url: string | null;
     month: string;
     date: string;
     budget: number;
@@ -45,6 +47,29 @@ export type GameShell = {
         choice: string | null;
         blocked: boolean;
     };
+    /** The player's next team waiting to be named as a faction (house rule). */
+    faction_prompt: FactionPrompt | null;
+};
+
+/** 2 or 3 of the player's superstars who won 3 times together (house rule). */
+export type FactionPrompt = {
+    id: number;
+    wins: number;
+    show: string | null;
+    default_type: import('./enums').FactionType;
+    name_max_length: number;
+    members: Array<{
+        id: number;
+        name: string;
+        roster_type: RosterType;
+        weight_class: WeightClass;
+    }>;
+};
+
+/** A faction teaming in a match: its name and its members on that side. */
+export type MatchFaction = {
+    name: string;
+    members: string[];
 };
 
 export type InjuryInfo = {
@@ -167,9 +192,17 @@ export type MatchOutcome = {
     position: number;
     match_type: string | null;
     winners: string[];
+    /** The winning side in plain text, factions named as such. */
+    winners_label: string;
     losers: string[];
+    /** Factions teaming in this match (house rule). */
+    factions?: MatchFaction[];
     /** Each losing side's names, for the (C) tag. */
     loser_sides: string[][];
+    /** The winning side's manager, for "Snitsky w/ Eugene". */
+    winner_manager?: string | null;
+    /** Each losing side's manager, in the order of `loser_sides`. */
+    loser_side_managers?: Array<string | null>;
     /** The player decided the winner with Book to Win. */
     booked: boolean;
     /** Who held the title on the line going into the match. */
@@ -219,6 +252,8 @@ export type PendingMatch = {
             roster_type: import('./enums').RosterType;
             weight_class: import('./enums').WeightClass;
         }>;
+        /** The side's manager in a w/Manager match. */
+        manager?: string | null;
     }>;
     managers: string[];
     referee: string | null;
@@ -228,6 +263,8 @@ export type PendingMatch = {
     champions: string[];
     /** Each side's captain in a Captain Fall match, for the (Cpt) tag. */
     captains: string[];
+    /** Factions teaming in this match (house rule). */
+    factions?: MatchFaction[];
     /** A Gauntlet: the sides are the entrants in order, decided bout by bout. */
     gauntlet?: boolean;
 };

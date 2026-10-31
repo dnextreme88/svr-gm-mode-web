@@ -17,6 +17,7 @@ use App\Models\PromoSlot;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Calendar\CalendarService;
+use App\Services\Factions\FactionNamer;
 use App\Services\News\MatchFinish;
 use App\Services\News\NewsRecorder;
 use App\Services\News\PromoStories;
@@ -37,6 +38,7 @@ class PromoStoryWriter
         private NewsRecorder $news,
         private TitleService $titles,
         private CalendarService $calendar,
+        private FactionNamer $factions,
     ) {}
 
     public function write(Show $show, Rng $rng): void
@@ -245,11 +247,11 @@ class PromoStoryWriter
             $won = $match->competitors()->contains(fn (MatchParticipant $p): bool => $p->save_wrestler_id === $wrestler->id && $p->side === $result?->winner_side);
             $opponents = $match->competitors()
                 ->filter(fn (MatchParticipant $p): bool => $won ? $p->side !== $result?->winner_side : $p->side === $result?->winner_side)
-                ->map(fn (MatchParticipant $p): string => $p->saveWrestler->name())
+                ->map(fn (MatchParticipant $p): int => $p->save_wrestler_id)
                 ->values()
                 ->all();
 
-            return [[$outcome.($won ? '_won' : '_lost')], ['opponent' => implode(' & ', $opponents), 'how' => MatchFinish::phrase($match)], "slot:{$match->id}"];
+            return [[$outcome.($won ? '_won' : '_lost')], ['opponent' => $this->sideNames($match, $opponents), 'how' => MatchFinish::phrase($match)], "slot:{$match->id}"];
         }
 
         // Not booked and it failed: crashed by another superstar if the promo
@@ -308,10 +310,11 @@ class PromoStoryWriter
     {
         $result = $match->result;
         $winnerSide = $result?->winner_side;
-        $names = fn (bool $winners): string => $match->competitors()
+        $names = fn (bool $winners): string => $this->sideNames($match, $match->competitors()
             ->filter(fn (MatchParticipant $p): bool => ($p->side === $winnerSide) === $winners)
-            ->map(fn (MatchParticipant $p): string => $p->saveWrestler->name())
-            ->implode(' & ');
+            ->map(fn (MatchParticipant $p): int => $p->save_wrestler_id)
+            ->values()
+            ->all());
         $payload = [
             'winner' => $names(true),
             'loser' => $names(false),
@@ -339,6 +342,16 @@ class PromoStoryWriter
         }
 
         return ['cheap', $payload + ['champion' => $payload['loser'], 'challenger' => $payload['winner']]];
+    }
+
+    /**
+     * Names joined with "&", factions named as such (house rule).
+     *
+     * @param  array<int, int>  $ids
+     */
+    private function sideNames(MatchSlot $match, array $ids): string
+    {
+        return $this->factions->name($match->show->save_id, $ids, $match->show->week_number, $match->sides());
     }
 
     /**

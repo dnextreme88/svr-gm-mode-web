@@ -64,6 +64,14 @@ enum NewsEventType: string
     case ContractExpiring = 'contract_expiring';
     case RivalryMilestone = 'rivalry_milestone';
 
+    // Factions (house rule).
+    case FactionFormed = 'faction_formed';
+    case FactionMemberAdded = 'faction_member_added';
+    case FactionTitleWon = 'faction_title_won';
+    case FactionTitleLost = 'faction_title_lost';
+    case FactionInterbrandWin = 'faction_interbrand_win';
+    case FactionDisbanded = 'faction_disbanded';
+
     // Quiet-week fallbacks (house rule): written only for cards a week left empty.
     case TicketsOnSale = 'tickets_on_sale';
     case BrandSpotlight = 'brand_spotlight';

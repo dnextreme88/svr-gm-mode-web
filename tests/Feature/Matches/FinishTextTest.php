@@ -69,14 +69,30 @@ it('ends a weapon shot in a Table match through a table, not with a cover', func
     }
 });
 
-it('names one member of the losing team', function () {
+it('names one member of each team: the winner who scores it and the one it happens to', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito', 'Chris Masters'], smackdown: ['Batista']);
     onlyFinish(null);
     $slot = finishSlot(Card::book($save, Card::show($save), 1, Card::type('table', 'Tornado Tag'), [['Edge', 'Kane'], ['Carlito', 'Chris Masters']]));
 
     $summary = app(MatchResolver::class)->resolve($slot, new SeededRng('tag'), collect(), 0)->summary;
 
-    expect($summary)->toBeIn(['Edge & Kane put Carlito through a table.', 'Edge & Kane put Chris Masters through a table.']);
+    expect($summary)->toMatch('/^(Edge|Kane) puts (Carlito|Chris Masters) through a table\.$/');
+});
+
+it('gives every winner the same odds of scoring the finish (house rule)', function () {
+    $save = GameBuilder::inSeason(raw: ['Rob Conway', 'Rene Dupree', 'Tajiri', 'The Hurricane'], smackdown: ['Batista']);
+    onlyFinish(null);
+    $slot = finishSlot(Card::book($save, Card::show($save), 1, Card::type('handicap', 'One on Three (Tornado)'), [['The Hurricane'], ['Rob Conway', 'Rene Dupree', 'Tajiri']]));
+
+    $scorers = collect(range(1, 300))
+        ->map(fn (int $i) => app(MatchResolver::class)->resolve($slot, new SeededRng("score-{$i}"), collect(), 1)->summary)
+        ->map(fn (string $summary) => collect(['Rob Conway', 'Rene Dupree', 'Tajiri'])->filter(fn (string $n) => str_contains($summary, $n))->sole())
+        ->countBy();
+
+    // Each of the three scores about a third of the time, and the finish
+    // never credits the whole team.
+    expect($scorers->keys()->sort()->values()->all())->toBe(['Rene Dupree', 'Rob Conway', 'Tajiri'])
+        ->and($scorers->every(fn (int $n) => $n >= 70 && $n <= 130))->toBeTrue();
 });
 
 it('ends a Battle Royal with the last elimination', function () {
@@ -124,14 +140,11 @@ describe('Captain Fall', function () {
         ]));
     }
 
-    it('has the winning captain eliminate the other captain', function () {
+    it('has one of the winners eliminate the other captain', function () {
         onlyFinish(null);
 
         expect(app(MatchResolver::class)->resolve(captainSlot(), new SeededRng('cf'), collect(), 0)->summary)
-            ->toBeIn([
-                'Tommy Dreamer pins Christian, the captain, to eliminate his team.',
-                'Tommy Dreamer makes Christian, the captain, tap out to eliminate his team.',
-            ]);
+            ->toMatch('/^(Tommy Dreamer|Kane|Kurt Angle) (pins Christian, the captain,|makes Christian, the captain, tap out) to eliminate his team\.$/');
     });
 
     it('eliminates the team whose captain is disqualified', function () {

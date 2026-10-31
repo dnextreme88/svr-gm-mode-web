@@ -12,6 +12,7 @@ use App\Models\Championship;
 use App\Models\PromoSlot;
 use App\Models\PromoType;
 use App\Models\Save;
+use App\Models\SaveFaction;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Card\CardRandomizer;
@@ -19,6 +20,7 @@ use App\Services\Card\CardService;
 use App\Services\Contracts\ContractPricing;
 use App\Services\Promos\PromoService;
 use App\Services\Roster\RosterService;
+use Illuminate\Support\Collection;
 
 /**
  * Decisions for the brand no human runs. Its cards follow the strategic
@@ -148,6 +150,15 @@ class AiGm
             }
         }
 
+        // Once it has a member of a tag team or stable, it sometimes goes
+        // for a teammate instead (house rule): 25% teammate, else the
+        // division roll below. With no teammate left, anyone at random.
+        $mates = $this->draftTeammates($save, $roster, $pool);
+
+        if ($mates !== null && $rng->int(1, 100) <= (int) config('gm.ai.draft.teammate_chance')) {
+            return $rng->pick($mates->isNotEmpty() ? $mates->all() : $pool->all());
+        }
+
         $focusTaken = $roster->filter(fn (SaveWrestler $w): bool => self::isDraftFocus($brand, $w))->count();
 
         if ($rng->int(1, (int) config('gm.draft.ai_roll_max')) >= (int) config('gm.draft.ai_focus_from')
@@ -160,6 +171,31 @@ class AiGm
         }
 
         return $rng->pick($pool->all());
+    }
+
+    /**
+     * Free agents in the pool who share an active faction with someone on
+     * the rival's roster, or null while it has nobody from any faction
+     * (no basis to look for teammates, e.g. its first pick).
+     *
+     * @param  Collection<int, SaveWrestler>  $roster
+     * @param  Collection<int, SaveWrestler>  $pool
+     * @return Collection<int, SaveWrestler>|null
+     */
+    private function draftTeammates(Save $save, Collection $roster, Collection $pool): ?Collection
+    {
+        $rosterIds = $roster->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        $factions = SaveFaction::with('members')->where('save_id', $save->id)->whereNull('disbanded_week')->orderBy('id')->get()
+            ->filter(fn (SaveFaction $f): bool => $f->isActiveAt($save->current_week)
+                && array_intersect($f->memberIds(), $rosterIds) !== []);
+
+        if ($factions->isEmpty()) {
+            return null;
+        }
+
+        $mateIds = $factions->flatMap(fn (SaveFaction $f): array => $f->memberIds())->unique()->all();
+
+        return $pool->filter(fn (SaveWrestler $w): bool => in_array((int) $w->id, $mateIds, true))->values();
     }
 
     /**

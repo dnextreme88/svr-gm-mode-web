@@ -6,6 +6,7 @@ use App\Http\Controllers\Gm\ContractController;
 use App\Http\Controllers\Gm\DocsController;
 use App\Http\Controllers\Gm\DraftController;
 use App\Http\Controllers\Gm\EmailController;
+use App\Http\Controllers\Gm\FactionController;
 use App\Http\Controllers\Gm\FinancialsController;
 use App\Http\Controllers\Gm\FreeAgencyController;
 use App\Http\Controllers\Gm\NewsController;
@@ -67,6 +68,7 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::post('shows/{show}/unlock', [CardController::class, 'unlock'])->name('card.unlock');
             Route::post('shows/{show}/slots/{position}/randomize', [CardToolsController::class, 'randomize'])->whereNumber('position')->name('card.randomize');
             Route::post('shows/{show}/preset', [CardToolsController::class, 'preset'])->name('card.preset');
+            Route::post('shows/{show}/preset/apply', [CardToolsController::class, 'applyPreset'])->name('card.preset.apply');
             Route::put('shows/{show}/promos/{position}', [CardToolsController::class, 'bookPromo'])->whereNumber('position')->name('card.promo.book');
             Route::delete('shows/{show}/promos/{position}', [CardToolsController::class, 'clearPromo'])->whereNumber('position')->name('card.promo.clear');
             Route::get('reports', ReportsController::class)->name('reports');
@@ -78,6 +80,10 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::post('redraft/tags', [PpvController::class, 'setTags'])->name('redraft.tags');
             Route::post('redraft/run', [PpvController::class, 'runRedraft'])->name('redraft.run');
             Route::get('rivalries', RivalryController::class)->name('rivalries');
+            Route::get('factions', [FactionController::class, 'index'])->name('factions.index');
+            Route::post('factions/{saveFaction}/disband', [FactionController::class, 'disband'])->name('factions.disband');
+            Route::post('faction-prompts/{factionPrompt}/form', [FactionController::class, 'form'])->name('factions.prompts.form');
+            Route::post('faction-prompts/{factionPrompt}/defer', [FactionController::class, 'defer'])->name('factions.prompts.defer');
             Route::get('trade', [TradeController::class, 'show'])->name('trade.show');
             Route::post('trade', [TradeController::class, 'store'])->name('trade.store');
 

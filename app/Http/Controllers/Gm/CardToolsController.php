@@ -11,13 +11,16 @@ use App\Models\PromoType;
 use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\Show;
+use App\Services\Card\Booking;
 use App\Services\Card\CardRandomizer;
+use App\Services\Card\CardService;
 use App\Services\Card\Proposal;
 use App\Services\Promos\PromoService;
 use App\Services\Week\BookingOrder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -30,6 +33,7 @@ class CardToolsController extends Controller
         private CardRandomizer $randomizer,
         private PromoService $promos,
         private BookingOrder $order,
+        private CardService $cards,
     ) {}
 
     public function randomize(Request $request, Save $save, Show $show, int $position): JsonResponse
@@ -57,7 +61,8 @@ class CardToolsController extends Controller
     {
         $this->assertOwnShow($save, $show);
         $roll = (int) $request->integer('roll');
-        $result = $this->randomizer->preset($show, $save->rng("preset.{$show->streamKey()}.{$roll}", $show->week_number), $save->player_brand);
+        // The Preset card button rebooks every slot it may touch, not just the empty ones.
+        $result = $this->randomizer->preset($show, $save->rng("preset.{$show->streamKey()}.{$roll}", $show->week_number), $save->player_brand, replace: true);
 
         return response()->json([
             'proposals' => array_map(fn (Proposal $p): array => $p->toArray($this->names($p)), $result['proposals']),
@@ -65,6 +70,43 @@ class CardToolsController extends Controller
             'total_cost' => $result['total_cost'],
             'deficit_warning' => $result['deficit_warning'],
         ]);
+    }
+
+    /**
+     * Confirm a Preset: every proposed slot at once, in one transaction.
+     * The slots are cleared first, so a title or wrestler moving from one
+     * slot to another can't trip over its old booking, and a refusal
+     * leaves the card as it was.
+     */
+    public function applyPreset(Request $request, Save $save, Show $show): HttpResponse
+    {
+        $this->assertOwnShow($save, $show);
+        $this->order->assertEditable($save, $show);
+        $data = $request->validate([
+            'proposals' => ['required', 'array', 'min:1'],
+            'proposals.*.position' => ['required', 'integer', 'min:1'],
+            'proposals.*.match_type_id' => ['required', 'integer', 'exists:match_types,id'],
+            'proposals.*.sides' => ['required', 'array', 'min:2'],
+            'proposals.*.sides.*' => ['array', 'min:1'],
+            'proposals.*.sides.*.*' => ['integer'],
+            'proposals.*.managers' => ['nullable', 'array'],
+            'proposals.*.managers.*' => ['nullable', 'integer'],
+            'proposals.*.title_championship_id' => ['nullable', 'integer', 'exists:championships,id'],
+            'proposals.*.referee_id' => ['nullable', 'integer'],
+        ]);
+
+        DB::transaction(function () use ($data, $save, $show): void {
+            foreach ($data['proposals'] as $proposal) {
+                $this->brandFor($save, $show, (int) $proposal['position']);
+                $this->cards->clear($show, (int) $proposal['position'], $save->player_brand);
+            }
+
+            foreach ($data['proposals'] as $proposal) {
+                $this->cards->book($show, (int) $proposal['position'], Booking::fromArray($proposal), $save->player_brand);
+            }
+        });
+
+        return response()->noContent();
     }
 
     public function bookPromo(Request $request, Save $save, Show $show, int $position): RedirectResponse

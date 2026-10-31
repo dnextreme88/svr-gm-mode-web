@@ -23,11 +23,16 @@ class FallbackStories
             ['Get your seats for {event}', 'Tickets for {event} on {date} are on sale now. Expect a sold-out arena.'],
             ['The road leads to {event}', 'All eyes turn to {event} on {date}. Tickets are on sale now.'],
         ],
+        // Weeks recorded before both shows were named: Raw alone.
         'tickets.show' => [
             ['Tickets on sale now for {event}', '{event} comes to town on {date}. Get your seats before they are gone.'],
             ['Next up: {event} on {date}', 'Tickets for {event} on {date} are on sale now.'],
             ['{event} is coming to your city', 'The box office is open for {event} on {date}.'],
             ['Book your seat for {event}', 'Tickets for {date} are on sale. Who knows what {event} has in store?'],
+        ],
+        // No PPV next: both weekly shows, each with its date.
+        'tickets.shows' => [
+            ['Tickets on sale for Raw and Smackdown', "Monday Night Raw comes to town on {raw_date} and Smackdown on {smackdown_date}. Buy your tickets for these shows and don't miss out on the action!"],
         ],
 
         // Brand headline: the top champion's week, or the roster at HQ.
@@ -129,7 +134,7 @@ class FallbackStories
         $groups = [
             ['tickets', 'WWE headline: tickets on sale', [
                 'tickets.ppv' => 'A PPV airs next (named)',
-                'tickets.show' => 'A weekly show airs next (with its date)',
+                'tickets.shows' => 'No PPV next: both weekly shows, Raw and Smackdown, each with its date',
             ]],
             ['spotlight', 'Brand headline: a champion on tour, or WWE HQ', [
                 'spotlight.champion' => 'The top champion tours a city (world, then second tier, tag, special)',

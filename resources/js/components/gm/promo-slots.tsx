@@ -1,10 +1,10 @@
 import { X } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
-import { FloppyIcon } from '@/components/gm/floppy-icon';
 import { Panel } from '@/components/gm/panel';
 import { RivalryPicker, sortPair } from '@/components/gm/rivalry-picker';
+import { SlotActions } from '@/components/gm/slot-actions';
+import { useReportUnsaved } from '@/components/gm/unsaved-changes';
 import type { RivalryOption } from '@/components/gm/rivalry-picker';
 import { WrestlerPicker } from '@/components/gm/wrestler-picker';
 import type { PickerOption } from '@/components/gm/wrestler-picker';
@@ -191,7 +191,6 @@ function PromoEditor({
     const [title, setTitle] = useState<number | null>(
         slot.target_championship_id ?? null,
     );
-    const [confirmClear, setConfirmClear] = useState(false);
     const savedBefore =
         slot.before_position ?? defaultSpot(taken, matchSlotCount);
     const [before, setBefore] = useState<number>(savedBefore);
@@ -289,6 +288,7 @@ function PromoEditor({
         (pair && b !== slot.target_wrestler_b_id) ||
         title !== (slot.target_championship_id ?? null) ||
         before !== savedBefore;
+    useReportUnsaved(`Promo ${slot.position}`, dirty && !readOnly);
 
     // Back to what's saved.
     const discard = () => {
@@ -344,7 +344,7 @@ function PromoEditor({
                             <span className="block font-condensed font-bold tracking-wide uppercase">
                                 {t.name}
                             </span>
-                            <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-ink-dim">
+                            <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-dim">
                                 <span
                                     className={cn(
                                         'gm-num',
@@ -400,7 +400,7 @@ function PromoEditor({
                         </p>
                         <p className="text-ink-dim">{type.effect}</p>
                         {type.requirement && (
-                            <p className="mt-1 text-xs text-ink-faint">
+                            <p className="mt-1 text-sm text-ink-faint">
                                 Needs: {type.requirement}
                             </p>
                         )}
@@ -476,7 +476,7 @@ function PromoEditor({
                                         disabled={readOnly}
                                         onClick={() => setTitle(id)}
                                         className={cn(
-                                            'px-3 py-1 font-condensed text-xs font-bold tracking-[0.14em] uppercase',
+                                            'px-3 py-1 font-condensed text-sm font-bold tracking-[0.14em] uppercase',
                                             title === id
                                                 ? 'bg-gradient-to-b from-gold-hot to-gold text-arena'
                                                 : 'bg-white/5 text-ink-dim hover:text-ink',
@@ -521,7 +521,7 @@ function PromoEditor({
                                         }
                                         onClick={() => setBefore(position)}
                                         className={cn(
-                                            'inline-flex items-center gap-1 px-2.5 py-1 font-condensed text-xs font-semibold tracking-wider uppercase',
+                                            'inline-flex items-center gap-1 px-2.5 py-1 font-condensed text-sm font-semibold tracking-wider uppercase',
                                             holder !== undefined
                                                 ? 'cursor-not-allowed bg-white/[0.02] text-ink-faint'
                                                 : before === position
@@ -548,7 +548,7 @@ function PromoEditor({
             {slot.outcome_note && (
                 <p
                     className={cn(
-                        'mt-2 text-xs font-semibold',
+                        'mt-2 text-sm font-semibold',
                         slot.succeeded ? 'text-zone-safe' : 'text-zone-serious',
                     )}
                 >
@@ -556,65 +556,34 @@ function PromoEditor({
                 </p>
             )}
             {!readOnly && (
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <button
-                        type="button"
-                        className="gm-btn gm-btn-sm"
-                        disabled={!ready || !dirty}
-                        onClick={() =>
-                            type &&
-                            onSave(slot.position, {
-                                promo_type_id: type.id,
-                                target_wrestler_id:
-                                    type.needs_wrestler || pair ? a : null,
-                                target_wrestler_b_id: pair ? b : null,
-                                target_championship_id: type.needs_championship
-                                    ? title
-                                    : null,
-                                before_position: before,
-                            })
-                        }
-                    >
-                        <FloppyIcon status={saveStatus} />
-                        Save promo {slot.position}
-                    </button>
-                    <button
-                        type="button"
-                        className="gm-btn gm-btn-ghost gm-btn-sm"
-                        disabled={!dirty}
-                        onClick={discard}
-                        aria-label={`Discard changes to promo ${slot.position}`}
-                    >
-                        Discard
-                    </button>
-                    <button
-                        type="button"
-                        className="gm-btn gm-btn-danger gm-btn-sm"
-                        disabled={slot.promo_type_id === null}
-                        onClick={() => setConfirmClear(true)}
-                    >
-                        Clear
-                    </button>
-                    {dirty && (
-                        <span className="ml-auto font-condensed text-xs font-semibold tracking-wider text-gm-orange uppercase">
-                            Unsaved changes
-                        </span>
-                    )}
-                </div>
+                <SlotActions
+                    name={`promo ${slot.position}`}
+                    dirty={dirty}
+                    ready={ready}
+                    filled={slot.promo_type_id !== null}
+                    saveStatus={saveStatus}
+                    clearMessage="This removes the promo and its wrestlers from this slot."
+                    onSave={() =>
+                        type &&
+                        onSave(slot.position, {
+                            promo_type_id: type.id,
+                            target_wrestler_id:
+                                type.needs_wrestler || pair ? a : null,
+                            target_wrestler_b_id: pair ? b : null,
+                            target_championship_id: type.needs_championship
+                                ? title
+                                : null,
+                            before_position: before,
+                        })
+                    }
+                    onDiscard={discard}
+                    onClear={() => {
+                        setTypeId(null);
+                        onClear(slot.position);
+                    }}
+                    className="mt-3 gap-2"
+                />
             )}
-            <ConfirmDialog
-                open={confirmClear}
-                title={`Clear promo ${slot.position}?`}
-                message="This removes the promo and its wrestlers from this slot."
-                confirmLabel="Yes, clear it"
-                danger
-                onCancel={() => setConfirmClear(false)}
-                onConfirm={() => {
-                    setConfirmClear(false);
-                    setTypeId(null);
-                    onClear(slot.position);
-                }}
-            />
         </Panel>
     );
 }

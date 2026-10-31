@@ -37,6 +37,8 @@ class WeekResolver
     public const STEPS = [
         Steps\PrepareShows::class,
         AirShows::class,
+        // Right after the shows: teams that just won their 3rd match together.
+        Steps\FactionFormation::class,
         Steps\RecoverFatigue::class,
         Steps\InjuryReturns::class,
         Steps\TickContracts::class,
@@ -52,6 +54,8 @@ class WeekResolver
         Steps\WrestleManiaWrapUp::class,
         // Last before the week ends: fills whatever the week's news left empty.
         Steps\QuietWeekNews::class,
+        // Once the week is done: each brand's shows earn their income.
+        Steps\PayShowIncome::class,
         Steps\AdvanceWeek::class,
     ];
 

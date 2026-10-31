@@ -17,6 +17,7 @@ use App\Models\MatchSlot;
 use App\Models\SaveWrestler;
 use App\Models\TitleReign;
 use App\Services\Calendar\CalendarService;
+use App\Services\Factions\FactionNamer;
 use App\Services\News\FallbackStories;
 use App\Services\News\MatchFinish;
 use App\Services\News\NewsComposer;
@@ -45,6 +46,7 @@ class QuietWeekNews implements WeekStep
         private NewsRecorder $news,
         private CalendarService $calendar,
         private TitleService $titles,
+        private FactionNamer $factions,
     ) {}
 
     public function handle(WeekContext $context): void
@@ -81,19 +83,27 @@ class QuietWeekNews implements WeekStep
     }
 
     /**
-     * Whatever airs next: next week's PPV (Sunday comes first), else Raw.
+     * Whatever airs next: next week's PPV (Sunday comes first), else both
+     * weekly shows, Raw and Smackdown, each with its date.
      */
     private function tickets(WeekContext $context, Rng $rng): void
     {
         $next = $context->week + 1;
         $ppv = $this->calendar->ppvsForWeek($next)->first();
-        [$kind, $event, $date] = $ppv !== null
-            ? ['ppv', $ppv->name, $this->calendar->date($next)]
-            : ['show', 'Monday Night Raw', $this->calendar->showDate($next, Brand::Raw)];
 
-        $this->record($context, NewsEventType::TicketsOnSale, NewsTier::Headline, NewsBrand::Both, "tickets.{$kind}", [
-            'event' => $event,
-            'date' => $date->format('D M j, Y'),
+        if ($ppv !== null) {
+            $this->record($context, NewsEventType::TicketsOnSale, NewsTier::Headline, NewsBrand::Both, 'tickets.ppv', [
+                'event' => $ppv->name,
+                'date' => $this->calendar->date($next)->format('D M j, Y'),
+            ], $rng);
+
+            return;
+        }
+
+        $this->record($context, NewsEventType::TicketsOnSale, NewsTier::Headline, NewsBrand::Both, 'tickets.shows', [
+            'event' => 'Monday Night Raw and Friday Night Smackdown',
+            'raw_date' => $this->calendar->showDate($next, Brand::Raw)->format('F j, Y'),
+            'smackdown_date' => $this->calendar->showDate($next, Brand::Smackdown)->format('F j, Y'),
         ], $rng);
     }
 
@@ -234,10 +244,14 @@ class QuietWeekNews implements WeekStep
     {
         $won = $p->result === 'win';
 
-        return $slot->competitors()
+        $ids = $slot->competitors()
             ->filter(fn (MatchParticipant $o): bool => $won ? $o->side !== $p->side : $o->side === $slot->result?->winner_side)
-            ->map(fn (MatchParticipant $o): string => $o->saveWrestler->name())
-            ->implode(' & ');
+            ->map(fn (MatchParticipant $o): int => $o->save_wrestler_id)
+            ->values()
+            ->all();
+
+        // Factions are named as such (house rule).
+        return $this->factions->name($slot->show->save_id, $ids, $slot->show->week_number, $slot->sides());
     }
 
     /**

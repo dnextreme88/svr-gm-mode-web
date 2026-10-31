@@ -1,6 +1,7 @@
 import { Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
+import { unsavedList, useUnsavedSlots } from '@/components/gm/unsaved-changes';
 import gm from '@/routes/gm';
 import type { GameShell } from '@/types/gm';
 
@@ -9,6 +10,9 @@ import type { GameShell } from '@/types/gm';
  * where the player decides each match. It lives on the week's last card (the
  * weekly show), so in a PPV week it airs the PPV and the weekly show
  * together. While the week is airing it goes back to the results.
+ *
+ * With unsaved matches or promos on the card, the dialog lists them instead
+ * and offers no way to air until they're saved or discarded.
  */
 export function AirWeekButton({
     game,
@@ -22,6 +26,7 @@ export function AirWeekButton({
 }) {
     const [airing, setAiring] = useState(false);
     const [confirming, setConfirming] = useState(false);
+    const unsaved = useUnsavedSlots();
 
     if (game.stage !== 'in_season') {
         return null;
@@ -61,7 +66,29 @@ export function AirWeekButton({
                 {airing ? 'On air…' : `Air week ${game.season_week}`}
             </button>
             <ConfirmDialog
-                open={confirming}
+                open={confirming && unsaved.length > 0}
+                title="Unsaved changes"
+                message={
+                    <>
+                        {unsavedList(unsaved)}{' '}
+                        {unsaved.length === 1 ? 'has' : 'have'} unsaved changes.
+                        Save or discard {unsaved.length === 1 ? 'it' : 'them'}{' '}
+                        before airing week {game.season_week}:
+                        <ul
+                            className="mt-2 list-disc pl-5 text-ink"
+                            aria-label="Unsaved slots"
+                        >
+                            {unsaved.map((key) => (
+                                <li key={key}>{key}</li>
+                            ))}
+                        </ul>
+                    </>
+                }
+                cancelLabel="Back to the card"
+                onCancel={() => setConfirming(false)}
+            />
+            <ConfirmDialog
+                open={confirming && unsaved.length === 0}
                 title={`Air week ${game.season_week}?`}
                 message={
                     <>

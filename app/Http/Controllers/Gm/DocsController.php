@@ -7,6 +7,7 @@ use App\Enums\InjurySeverity;
 use App\Enums\PromoTypeKey;
 use App\Enums\Stipulation;
 use App\Http\Controllers\Controller;
+use App\Models\Faction;
 use App\Models\InjuryType;
 use App\Models\MatchType;
 use App\Models\PpvEvent;
@@ -110,6 +111,7 @@ class DocsController extends Controller
             'rosters' => [
                 'cap' => (int) config('gm.roster_cap'),
                 'starting_budget' => (int) config('gm.starting_budget'),
+                'weekly_show_income' => (int) config('gm.finances.weekly_show_income'),
                 'contract_weeks' => (int) config('gm.contracts.draft_default_length'),
                 'legends_draftable' => (bool) config('gm.draft.legends_draftable'),
                 'ai_roll_max' => (int) config('gm.draft.ai_roll_max'),
@@ -138,6 +140,7 @@ class DocsController extends Controller
                 'trades' => (array) config('gm.ai.trades'),
                 'mitb' => (array) config('gm.ai.mitb'),
                 'max_focus_picks' => (int) config('gm.ai.draft.max_focus_picks'),
+                'teammate_chance' => (int) config('gm.ai.draft.teammate_chance'),
                 'low_cash' => (int) config('gm.emails.low_cash_threshold'),
             ],
             'promos' => [
@@ -174,8 +177,27 @@ class DocsController extends Controller
             ],
             'emails' => $this->emails(),
             'results' => [
-                'booked_non_decisive_percent' => (int) round((float) config('gm.outcomes.booked_non_decisive_chance') * 100),
                 'buried_alive_weeks' => (int) config('gm.buried_alive.sit_out_weeks'),
+                'rumble_entrants_per_brand' => (int) config('gm.ppv.royal_rumble_entrants_per_brand'),
+            ],
+            // Factions (house rule): the rules, and the seeded real-life ones
+            // only. Factions formed in a career aren't listed here.
+            'factions' => [
+                'min_members' => (int) config('gm.factions.min_members'),
+                'max_members' => (int) config('gm.factions.max_members'),
+                'formation_wins' => (int) config('gm.factions.formation_wins'),
+                'formation_max_size' => (int) config('gm.factions.formation_max_size'),
+                'seeded' => Faction::with('members')->orderBy('faction_name')->get()->map(fn (Faction $f): array => [
+                    'name' => $f->faction_name,
+                    'type' => $f->faction_type->value,
+                    'formed' => $f->date_formed->format('M j, Y'),
+                    'disbanded' => $f->date_disbanded?->format('M j, Y'),
+                    'members' => $f->members->map(fn (Wrestler $w): array => [
+                        'name' => $w->name,
+                        'roster_type' => $w->roster_type->value,
+                        'weight_class' => $w->weight_class->value,
+                    ])->values(),
+                ])->values(),
             ],
             'calendar' => [
                 'weekly_show_days' => (array) config('gm.calendar.weekly_show_days'),

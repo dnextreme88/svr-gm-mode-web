@@ -14,7 +14,7 @@ class NewsTemplates
      * @var array<string, string>
      */
     private const TEMPLATES = [
-        'title_change' => 'NEW CHAMPION! {winner} defeats {loser} for the {title} via {via}!',
+        'title_change' => 'NEW CHAMPION! {winner} defeats {loser} for the {title} {how}!',
         // News written before the 2026-10-25 wording, without `via`.
         'title_change.legacy' => 'NEW CHAMPION! {winner} defeats {loser} for the {title} at {show}!',
         'title_retained' => '{champion} retains the {title} against {challenger}.',
@@ -28,7 +28,7 @@ class NewsTemplates
         'ppv_upcoming' => '{ppv} is {n} weeks away.',
         'ppv_main_event_set' => 'Main event confirmed for {ppv}: {wrestler_a} vs {wrestler_b}!',
         'ppv_results' => '{ppv} results: {top_result} headlines the night.',
-        'ppv_results.main_event' => '{ppv} main event: {winner} {defeats} {loser}{gimmick} via {via}!',
+        'ppv_results.main_event' => '{ppv} main event: {winner} {defeats} {loser}{gimmick}{ppv_how}!',
         'ppv_results.title_change' => '{ppv} main event: {winner} {defeats} {loser}{gimmick} to win the {title}!',
         'ppv_results.title_retained' => '{ppv} main event: {winner} {defeats} {loser}{gimmick} to retain the {title}!',
         'ppv_results.title_kept' => '{ppv} main event: {winner} {defeats} {loser}{gimmick} by {via}, but the {title} stays put!',
@@ -67,11 +67,11 @@ class NewsTemplates
         'slander_result' => "{brand}'s smear campaign against {rival_brand} {outcome}!",
         'interference_promo_result' => "{brand} {outcome} {rival_brand}'s show!",
         'season_reset' => 'A new year begins. Ratings reset and the re-draft opens.',
-        'match_result' => '{winner} {defeats} {loser} in decisive fashion. {pronoun} made sure to get the win via {via}.',
+        'match_result' => '{winner} {defeats} {loser} in decisive fashion. {pronoun} made sure to get the win {how}.',
         'match_result.not_decisive' => '{winner} {defeats} {loser} via {via}. Not the cleanest win, but a win is a win.',
         // House rule: a decisive win by someone who went in with a minor injury
         // that didn't turn serious by the end of the show.
-        'match_result.injured' => 'Handicapped and determined, {winner} {defeats} {loser} in a hard-hitting match via {via} despite suffering a minor injury. Remember, an injury is not a hindrance to winning the match!',
+        'match_result.injured' => 'Handicapped and determined, {winner} {defeats} {loser} in a hard-hitting match {how} despite suffering a minor injury. Remember, an injury is not a hindrance to winning the match!',
         'match_result.legacy' => '{winner} {defeats} {loser}{by} at {show}.',
         'main_event_hype_result' => "The hype was real: {winner} {defeats} {loser}{by} in {brand}'s main event!",
         'promo_result' => "{brand}'s {promo} promo {outcome}.",
@@ -82,6 +82,13 @@ class NewsTemplates
         'injury_report' => '{brand} injury report: {count} in 6 months.',
         'locker_room_note' => 'News from the {brand} locker room.',
         'rivalry_milestone' => "{wrestler_a} vs {wrestler_b}: {weeks} weeks in, the fans can't get enough.",
+        // Factions (house rule).
+        'faction_formed' => 'A new force is born: {members} are now {faction}!',
+        'faction_member_added' => '{wrestler} joins {faction}!',
+        'faction_title_won' => 'NEW CHAMPIONS! {faction} defeat {loser} for the {title} {how}!',
+        'faction_title_lost' => '{faction} lose the {title} to {winner}.',
+        'faction_interbrand_win' => '{faction} win one for {brand} at {ppv}!',
+        'faction_disbanded' => '{faction} have gone their separate ways.',
     ];
 
     /**
@@ -92,7 +99,7 @@ class NewsTemplates
      * @var array<string, string>
      */
     private const SUMMARIES = [
-        'title_change' => '{winner} beat {loser} via {via} and {walks} out with the {title}! {the_champion} {looks} forward to meeting new challengers that {champion_pronoun} will dethrone!',
+        'title_change' => '{winner} beat {loser} {how} and {walks} out with the {title}! {the_champion} {looks} forward to meeting new challengers that {champion_pronoun} will dethrone!',
         'title_change.legacy' => '{winner} beat {loser} at {show} and walks out with the {title}. The old reign is over.',
         'title_retained' => '{challenger} came for the {title}, but {champion} found a way to win and keeps the gold.',
         'retained_by_dq' => '{challenger} won the match, but titles only change hands on a decisive win. {champion} leaves with the {title}.',
@@ -108,8 +115,8 @@ class NewsTemplates
         'ppv_main_event_set' => '{ppv} has its main event: {wrestler_a} vs {wrestler_b}, with the world title on the line.',
         'ppv_results' => '{top_result} is the moment everyone will be talking about after {ppv}.',
         'ppv_results.main_event' => '{winner} closed out {ppv} with a win over {loser}{gimmick}, and that is the moment everyone will be talking about.',
-        'ppv_results.title_change' => '{ppv} ended with a new champion: {winner} beat {loser}{gimmick} via {via} and walked out with the {title}.',
-        'ppv_results.title_retained' => '{winner} beat {loser}{gimmick} via {via} to close {ppv} and is still the {title} holder.',
+        'ppv_results.title_change' => '{ppv} ended with a new champion: {winner} beat {loser}{gimmick}{ppv_how} and walked out with the {title}.',
+        'ppv_results.title_retained' => '{winner} beat {loser}{gimmick}{ppv_how} to close {ppv} and is still the {title} holder.',
         'ppv_results.title_kept' => '{winner} beat {loser}{gimmick} by {via} to close {ppv}, but titles only change hands on a decisive win, so {loser} keeps the {title}.',
         'survivor_series_teams' => 'Raw and Smackdown settle it in the Traditional 3 vs 3 elimination match. Team {captain_a} and Team {captain_b} are set.',
         'mitb_qualified' => '{wrestler} is in the Money in the Bank ladder match at WrestleMania. Six climb, one briefcase.',
@@ -165,6 +172,12 @@ class NewsTemplates
         'superstar_recap' => "A look back at a {brand} superstar's last match.",
         'injury_report' => "How many {brand} superstars were hurt in the last 6 months, with advice when it's too many.",
         'locker_room_note' => 'Who is unhappy, whose contract is running out, or all quiet.',
+        'faction_formed' => '{members} won {wins} matches together and decided to make it official. From now on they compete as {faction}, a new {type} to watch.',
+        'faction_member_added' => '{faction} has a new member: {wrestler} now fights alongside them.',
+        'faction_title_won' => '{faction} beat {loser} {how} and walk out with the {title}! The champions look forward to meeting new challengers that they will dethrone!',
+        'faction_title_lost' => '{faction} came into the night with the {title}, but {winner} took it from them {how}.',
+        'faction_interbrand_win' => '{faction} stood up for {brand} at {ppv} and beat {loser} {how}.',
+        'faction_disbanded' => '{members} are no longer {faction}. Each of them goes their own way from here.',
     ];
 
     public function template(NewsEventType $type): string
@@ -177,6 +190,7 @@ class NewsTemplates
      */
     public function render(NewsEventType $type, array $payload): string
     {
+        $payload = $this->withHow($payload);
         $variant = $this->variant($type, $payload, self::TEMPLATES);
 
         return $this->fill($this->promoStory($payload)[0] ?? self::TEMPLATES[$variant], $payload);
@@ -189,6 +203,7 @@ class NewsTemplates
      */
     public function summary(NewsEventType $type, array $payload): string
     {
+        $payload = $this->withHow($payload);
         $story = $this->promoStory($payload);
 
         if ($story !== null) {
@@ -228,6 +243,25 @@ class NewsTemplates
         $variant = $payload['variant'] ?? null;
 
         return is_string($key) && is_int($variant) ? PromoStories::story($key, $variant) ?? FallbackStories::story($key, $variant) : null;
+    }
+
+    /**
+     * News recorded before "in a Tables match" (2026-10-28) only has `via`:
+     * it keeps reading "via …".
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function withHow(array $payload): array
+    {
+        if (! isset($payload['via']) || ! is_scalar($payload['via'])) {
+            return $payload;
+        }
+
+        $payload['how'] ??= "via {$payload['via']}";
+        $payload['ppv_how'] ??= " via {$payload['via']}";
+
+        return $payload;
     }
 
     /**

@@ -4,20 +4,18 @@ namespace App\Services\Ai;
 
 use App\Enums\Brand;
 use App\Enums\ChampionshipEligibility;
-use App\Enums\ParticipantRole;
-use App\Enums\ShowStatus;
 use App\Enums\Stipulation;
 use App\Exceptions\GameRuleException;
 use App\Models\Championship;
 use App\Models\MatchSlot;
 use App\Models\MatchType;
 use App\Models\MoneyInTheBank;
-use App\Models\PromoSlot;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Card\Booking;
 use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
+use App\Services\Card\PlannedFatigue;
 use App\Services\Card\TitleMatchPlanner;
 use App\Services\Rivalries\RivalryService;
 use App\Services\Titles\LastChanceService;
@@ -61,6 +59,7 @@ class AiBooker
         private RivalryService $rivalries,
         private MitbService $mitb,
         private IntergenderRules $intergender,
+        private PlannedFatigue $plannedFatigue,
     ) {}
 
     /**
@@ -124,31 +123,7 @@ class AiBooker
      */
     public function plannedFatigue(Show $show, Brand $brand): array
     {
-        $fatigue = SaveWrestler::where('save_id', $show->save_id)->where('brand', $brand)->pluck('fatigue', 'id')
-            ->mapWithKeys(fn ($f, $id): array => [(int) $id => (int) $f])
-            ->all();
-
-        $shows = Show::where('save_id', $show->save_id)->where('week_number', $show->week_number)->where('status', '!=', ShowStatus::Aired)->pluck('id');
-
-        foreach (MatchSlot::with(['participants', 'matchType'])->whereIn('show_id', $shows)->get() as $slot) {
-            if ($slot->matchType === null) {
-                continue;
-            }
-
-            foreach ($slot->participants->where('role', ParticipantRole::Competitor) as $p) {
-                $fatigue[$p->save_wrestler_id] = ($fatigue[$p->save_wrestler_id] ?? 0) + $slot->matchType->fatigueCost();
-            }
-        }
-
-        $bar = (int) config('gm.fatigue.bar_size');
-
-        foreach (PromoSlot::with('promoType')->whereIn('show_id', $shows)->whereNotNull('promo_type_id')->get() as $promo) {
-            foreach ($promo->targetIds() as $id) {
-                $fatigue[$id] = ($fatigue[$id] ?? 0) + (int) $promo->promoType?->fatigue_bars * $bar;
-            }
-        }
-
-        return $fatigue;
+        return $this->plannedFatigue->forWeek($show, $brand);
     }
 
     /**

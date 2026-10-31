@@ -79,6 +79,13 @@ class CardValidator
             throw new GameRuleException('A wrestler can only appear once in the same match.');
         }
 
+        // A w/Manager type needs its managers, like its competitors.
+        foreach ($type->manager_sides as $side) {
+            if (($booking->managers[$side] ?? null) === null) {
+                throw new GameRuleException("{$type->name} needs a manager for each w/Manager side.");
+            }
+        }
+
         foreach ($booking->managers as $side => $managerId) {
             if (! in_array($side, $type->manager_sides, true)) {
                 throw new GameRuleException("{$type->name} has no manager on that side.");

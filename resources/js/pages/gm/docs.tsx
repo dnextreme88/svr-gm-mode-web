@@ -117,6 +117,7 @@ type Props = {
     rosters: {
         cap: number;
         starting_budget: number;
+        weekly_show_income: number;
         contract_weeks: number;
         legends_draftable: boolean;
         ai_roll_max: number;
@@ -171,6 +172,7 @@ type Props = {
         };
         mitb: { cash_in_champion_fatigue: number; cash_in_weeks_left: number };
         max_focus_picks: number;
+        teammate_chance: number;
         low_cash: number;
     };
     stipulations: Array<{ value: Stipulation; label: string }>;
@@ -184,8 +186,15 @@ type Props = {
     quiet_stories: StoryGroup[];
     emails: GmEmail[];
     results: {
-        booked_non_decisive_percent: number;
         buried_alive_weeks: number;
+        rumble_entrants_per_brand: number;
+    };
+    factions: {
+        min_members: number;
+        max_members: number;
+        formation_wins: number;
+        formation_max_size: number;
+        seeded: SeededFaction[];
     };
     calendar: {
         weekly_show_days: Record<'raw' | 'smackdown', string>;
@@ -205,13 +214,13 @@ type Props = {
 const tabs = [
     { key: 'matches', label: 'Match types' },
     { key: 'injuries', label: 'Fatigue & injuries' },
-    { key: 'specialties', label: 'Specialties' },
     { key: 'stipulations', label: 'Stipulations' },
     { key: 'promos', label: 'Promos' },
     { key: 'news', label: 'News & email' },
-    { key: 'schedule', label: 'Schedule' },
-    { key: 'results', label: 'Results & titles' },
+    { key: 'schedule', label: 'Booking and Scheduling' },
     { key: 'rosters', label: 'Rosters & draft' },
+    { key: 'rival', label: 'Rival GM' },
+    { key: 'factions', label: 'Factions' },
 ] as const;
 
 type TabKey = (typeof tabs)[number]['key'];
@@ -410,9 +419,13 @@ function RuleList({
 function MatchTypes({
     families,
     buriedWeeks,
+    rumbleEntrants,
+    specialists,
 }: {
     families: Props['match_types'];
     buriedWeeks: number;
+    rumbleEntrants: number;
+    specialists: Props['specialists'];
 }) {
     return (
         <div className="space-y-6">
@@ -420,7 +433,60 @@ function MatchTypes({
                 <RuleList title="Match rules" rules={matchRules} />
                 <RuleList title="Win conditions" rules={winConditions} />
             </div>
-            <div className="grid items-start gap-6 md:grid-cols-2">
+            <div className="grid items-start gap-6 md:grid-cols-2 xl:grid-cols-3">
+                <Panel title="30-man Royal Rumble">
+                    <ul
+                        data-testid="royal-rumble-rules"
+                        className="list-disc space-y-2 pl-4 text-sm text-ink"
+                    >
+                        <li>
+                            Held only at the Royal Rumble PPV, an interbrand
+                            card: {rumbleEntrants} entrants from Raw and{' '}
+                            {rumbleEntrants} from Smackdown. You pick yours on
+                            the Royal Rumble entrants card.
+                        </li>
+                        <li>
+                            Wrestlers are thrown over the top rope; the last one
+                            left in the ring wins. No rope breaks, count-outs or
+                            ring outs.
+                        </li>
+                        <li>No titles on the line, and no Divas.</li>
+                        <li>
+                            The winner headlines that season’s WrestleMania: the
+                            main event is the winner against their own brand’s
+                            world champion, for the world title.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel title="Buried Alive">
+                    <ul
+                        data-testid="buried-alive-rules"
+                        className="list-disc space-y-2 pl-4 text-sm text-ink"
+                    >
+                        <li>Only at No Mercy, Smackdown’s PPV.</li>
+                        <li>
+                            Won by burying the opponent alive. No DQs and no
+                            count-outs.
+                        </li>
+                        <li>
+                            The loser is gone for{' '}
+                            <span data-testid="buried-weeks">
+                                {buriedWeeks}
+                            </span>{' '}
+                            weeks: they can’t be booked as anything (match,
+                            promo, manager or referee). The result reads “He is
+                            nowhere to be seen”.
+                        </li>
+                        <li>
+                            Their contract pauses for those weeks: it doesn’t
+                            count down and costs no upkeep.
+                        </li>
+                        <li>
+                            Being buried can’t injure the loser. The winner can
+                            still get hurt.
+                        </li>
+                    </ul>
+                </Panel>
                 <Panel title="Gauntlet">
                     <ul
                         data-testid="gauntlet-rules"
@@ -446,43 +512,37 @@ function MatchTypes({
                             Book to Win goes bout by bout, in order: pick each
                             bout’s winner, and the next entrant steps in.
                         </li>
-                    </ul>
-                </Panel>
-                <Panel title="How finishes read">
-                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
                         <li>
-                            A finish follows the match’s win condition and names
-                            who it happened to: “Shelton Benjamin puts Rob Van
-                            Dam through a table”, “Undertaker pummels Batista so
-                            hard on the mat that he can’t answer the 10-count”.
-                        </li>
-                        <li>
-                            In a match with several opponents, the one who takes
-                            the finish is drawn at random; in a tag match, one
-                            member of the losing team.
-                        </li>
-                        <li>
-                            Battle Royals and elimination matches end with the
-                            last elimination: “Randy Orton last eliminates
-                            Triple H via pinfall”.
-                        </li>
-                        <li>
-                            A Foreign Object finish uses a steel chair, a
-                            sledgehammer, the ring bell or the steel steps. In a
-                            match without DQs it still has to end the match’s
-                            way: a weapon shot in a Table match ends with a
-                            table, not a cover.
-                        </li>
-                        <li>
-                            Buried Alive tells how long the loser is gone (
-                            <span data-testid="buried-weeks">
-                                {buriedWeeks}
-                            </span>{' '}
-                            weeks).
+                            On the card each entrant is labelled in gold by
+                            their order, 1st Participant to 6th Participant.
                         </li>
                     </ul>
                 </Panel>
             </div>
+            <Panel title="Managers">
+                <ul
+                    data-testid="manager-rules"
+                    className="list-disc space-y-2 pl-4 text-sm text-ink"
+                >
+                    <li>
+                        Anyone on the roster can manage a w/Manager match they
+                        aren’t competing in. Every manager slot must be filled,
+                        like every competitor slot: Save stays greyed out until
+                        it is, and Randomize and Preset fill managers from
+                        wrestlers not on the card.
+                    </li>
+                    <li>
+                        A manager wins or loses with their side: a win or a loss
+                        on their record, but no fatigue and no winning or losing
+                        streak.
+                    </li>
+                    <li>
+                        Results, outcome cards and Book to Win name each side’s
+                        manager: “Shelton Benjamin def. Snitsky w/ Eugene”.
+                    </li>
+                </ul>
+            </Panel>
+            <Specialties specialists={specialists} />
             {families.map((family) => (
                 <Panel
                     key={family.family}
@@ -1059,7 +1119,8 @@ function QuietWeekStoriesPanel({
                     <ul className="list-disc space-y-1 pl-4">
                         <li>
                             WWE headline: tickets on sale for whatever airs
-                            next, the PPV by name or the weekly show with its
+                            next, the PPV by name or, with no PPV next, both
+                            weekly shows (Raw and Smackdown), each with its
                             date.
                         </li>
                         <li>
@@ -1391,7 +1452,12 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
                 A new game picks how both rosters are built. Either way each
                 brand starts with a {formatMoney(rosters.starting_budget)}{' '}
                 budget, granted once, and can hold up to {rosters.cap} wrestlers
-                (Superstars, Divas and Legends all count).
+                (Superstars, Divas and Legends all count). Once each week is
+                done, both brands earn{' '}
+                <span data-testid="weekly-show-income">
+                    {formatMoney(rosters.weekly_show_income)}
+                </span>{' '}
+                for their shows.
             </p>
             <div className="grid items-start gap-6 md:grid-cols-2">
                 <Panel title="Manual draft pick">
@@ -1429,6 +1495,15 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
                             division after {rival.max_focus_picks} of them, and
                             its last picks fill any title nobody on its roster
                             can hold.
+                        </li>
+                        <li data-testid="draft-teammates">
+                            Once it has drafted a member of a tag team or
+                            stable, each pick first has a{' '}
+                            {rival.teammate_chance}% chance to go for one of
+                            their teammates you haven’t claimed (Jeff Hardy,
+                            then Matt Hardy or Lita). With none left it takes
+                            anyone affordable. Otherwise it makes the division
+                            roll above. Its first pick has no teammate roll.
                         </li>
                     </ul>
                 </Panel>
@@ -1472,8 +1547,6 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
                     </Panel>
                 ))}
             </div>
-
-            <RivalGmPanel rival={rival} />
         </div>
     );
 }
@@ -1518,8 +1591,8 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                         </li>
                         <li>
                             Air week on your weekly show starts the week’s live
-                            results, where you decide your matches (see Results
-                            &amp; titles). While the week airs the button reads
+                            results, where you decide your matches (see Live
+                            results below). While the week airs the button reads
                             Resume results.
                         </li>
                         <li>Both buttons ask you to confirm first.</li>
@@ -1584,7 +1657,156 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
     );
 }
 
-function ResultsDocs({ results }: Pick<Props, 'results'>) {
+type SeededFaction = {
+    name: string;
+    type: 'tag_team' | 'stable';
+    formed: string;
+    disbanded: string | null;
+    members: Array<{
+        name: string;
+        roster_type: RosterType;
+        weight_class: WeightClass;
+    }>;
+};
+
+/** Factions (house rule): naming, forming, disbanding and the seeded list. */
+function FactionsDocs({ factions }: Pick<Props, 'factions'>) {
+    return (
+        <div className="space-y-6">
+            <div className="grid items-start gap-6 md:grid-cols-2">
+                <Panel title="How factions work">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            A faction is a tag team or a stable of{' '}
+                            {factions.min_members} to {factions.max_members}{' '}
+                            members. Every real-life faction below is active in
+                            every career from week 1. Their real dates are for
+                            reference only.
+                        </li>
+                        <li>
+                            When 2 or more members of a faction team up on one
+                            side, they’re billed as the faction everywhere:
+                            results, outcome cards, news, title histories and
+                            reports. The rest of the side keeps their own names,
+                            e.g. “Evolution & Kane”.
+                        </li>
+                        <li>
+                            When a side fits more than one faction, the one
+                            covering the most of the side wins, then the
+                            smallest, then a tag team over a stable. Matt Hardy
+                            & Jeff Hardy are Team Xtreme; Danny & Doug Basham
+                            are The Basham Brothers, not The Cabinet.
+                        </li>
+                        <li>
+                            Booking stays individual: the card screen and its
+                            pickers always list each wrestler by name.
+                        </li>
+                        <li>
+                            The Factions page opens on the factions created in
+                            your career, by either brand; All adds the real-life
+                            ones, and Status narrows it to active or disbanded.
+                            Each shows its members, dates, record (matches where
+                            2 or more members teamed) and the titles they won
+                            together.
+                        </li>
+                        <li>
+                            Factions don’t change match odds yet. Benefits are
+                            planned for later.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel title="Forming and disbanding">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            2 or {factions.formation_max_size} male superstars
+                            who win {factions.formation_wins} matches together,
+                            as the whole winning side, can become a new faction.
+                            Divas can’t form one this way, though some real-life
+                            factions include a Diva.
+                        </li>
+                        <li>
+                            Your teams: after win number{' '}
+                            {factions.formation_wins} a pop-up asks for a name
+                            and a type (tag team or stable), then asks you to
+                            confirm. Not now asks again after their next win
+                            together.
+                        </li>
+                        <li>
+                            The rival GM’s teams form on their own, with a name
+                            of its choosing.
+                        </li>
+                        <li>
+                            A new faction is dated from the show where it
+                            formed, and its record counts the wins that formed
+                            it.
+                        </li>
+                        <li>
+                            Disband any active faction from the Factions page.
+                            From that week on they go by their own names; past
+                            results keep the faction name. It can’t be undone.
+                        </li>
+                        <li>
+                            News: a faction forming (headline), a new member
+                            (story, once factions can grow), winning a tag title
+                            (headline in place of the title change), losing one
+                            (story), winning on an interbrand card (WWE card)
+                            and disbanding (story).
+                        </li>
+                    </ul>
+                </Panel>
+            </div>
+
+            <Panel
+                title={`Real-life factions (${factions.seeded.length})`}
+                bodyClassName="p-0"
+            >
+                <div className="gm-scroll overflow-x-auto">
+                    <table className="gm-table" data-testid="seeded-factions">
+                        <thead>
+                            <tr>
+                                <th>Faction</th>
+                                <th>Type</th>
+                                <th>Members</th>
+                                <th>Formed</th>
+                                <th>Disbanded</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {factions.seeded.map((f) => (
+                                <tr key={f.name}>
+                                    <td className="font-semibold whitespace-nowrap">
+                                        {f.name}
+                                    </td>
+                                    <td className="whitespace-nowrap text-ink-dim">
+                                        {f.type === 'tag_team'
+                                            ? 'Tag team'
+                                            : 'Stable'}
+                                    </td>
+                                    <td>
+                                        {f.members.map((m, i) => (
+                                            <span key={m.name}>
+                                                {i > 0 && ', '}
+                                                <WrestlerName wrestler={m} />
+                                            </span>
+                                        ))}
+                                    </td>
+                                    <td className="whitespace-nowrap text-ink-dim">
+                                        {f.formed}
+                                    </td>
+                                    <td className="whitespace-nowrap text-ink-dim">
+                                        {f.disbanded ?? '—'}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </Panel>
+        </div>
+    );
+}
+
+function ResultsDocs() {
     return (
         <div className="space-y-6">
             <div className="grid items-start gap-6 md:grid-cols-2">
@@ -1623,45 +1845,22 @@ function ResultsDocs({ results }: Pick<Props, 'results'>) {
                         </li>
                     </ul>
                 </Panel>
-                <Panel title="Book to Win">
-                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
-                        <li>The side you book always wins.</li>
-                        <li>
-                            A booked title match always ends with a decisive
-                            finish: a pinfall, a submission or the match’s own
-                            win condition, never a DQ or count-out. The title
-                            changes hands when the challenger wins.
-                        </li>
-                        <li>
-                            Any other booked match ends by DQ or count-out{' '}
-                            <span data-testid="booked-non-decisive">
-                                {results.booked_non_decisive_percent}%
-                            </span>{' '}
-                            of the time, where the match type allows them.
-                            Otherwise it’s a decisive finish.
-                        </li>
-                        <li>
-                            Simulate match and Simulate all use the normal odds:
-                            weights, specialties and finish events.
-                        </li>
-                        <li>
-                            A booked result shows Booked to win on its card.
-                        </li>
-                        <li>
-                            A Gauntlet is booked bout by bout. Back undoes the
-                            last pick, and Simulate the rest decides the bouts
-                            you haven’t booked.
-                        </li>
-                    </ul>
-                </Panel>
             </div>
 
             <div className="grid items-start gap-6 md:grid-cols-2">
                 <Panel title="The results screen">
                     <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
                         <li>
-                            Every result is listed in air order, and each opens
-                            its full outcome card, with arrows to step through.
+                            Every result is listed in air order. The outcome
+                            card beside the list always shows one match, with
+                            arrows to step through; clicking a match shows its
+                            card.
+                        </li>
+                        <li>
+                            While the week airs, the card opens on the match to
+                            decide. Once it’s decided, its result stays up for 5
+                            seconds, then the card moves on to the next match to
+                            decide (picking a match yourself cancels that).
                         </li>
                         <li>
                             Promos sit before the match they aired in front of:
@@ -1830,6 +2029,8 @@ export default function Docs() {
                     <MatchTypes
                         families={props.match_types}
                         buriedWeeks={props.results.buried_alive_weeks}
+                        rumbleEntrants={props.results.rumble_entrants_per_brand}
+                        specialists={props.specialists}
                     />
                 )}
                 {tab === 'injuries' && (
@@ -1837,9 +2038,6 @@ export default function Docs() {
                         injuries={props.injuries}
                         fatigue={props.fatigue}
                     />
-                )}
-                {tab === 'specialties' && (
-                    <Specialties specialists={props.specialists} />
                 )}
                 {tab === 'stipulations' && (
                     <Stipulations stipulations={props.stipulations} />
@@ -1854,11 +2052,17 @@ export default function Docs() {
                     />
                 )}
                 {tab === 'schedule' && (
-                    <ScheduleDocs calendar={props.calendar} />
+                    <div className="space-y-6">
+                        <ScheduleDocs calendar={props.calendar} />
+                        <ResultsDocs />
+                    </div>
                 )}
-                {tab === 'results' && <ResultsDocs results={props.results} />}
                 {tab === 'rosters' && (
                     <RostersDocs rosters={props.rosters} rival={props.rival} />
+                )}
+                {tab === 'rival' && <RivalGmPanel rival={props.rival} />}
+                {tab === 'factions' && (
+                    <FactionsDocs factions={props.factions} />
                 )}
             </div>
         </>

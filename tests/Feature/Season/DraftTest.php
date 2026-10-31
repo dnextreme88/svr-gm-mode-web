@@ -32,7 +32,7 @@ use Tests\Support\GameBuilder;
 it('creates a save with every wrestler in Free Agency and $15M per brand, granted once', function () {
     $save = GameBuilder::newSave();
 
-    expect(SaveWrestler::where('save_id', $save->id)->count())->toBe(158)
+    expect(SaveWrestler::where('save_id', $save->id)->count())->toBe(163)
         ->and(SaveWrestler::where('save_id', $save->id)->whereNotNull('brand')->count())->toBe(0)
         ->and($save->brand(Brand::Raw)->budget)->toBe(15_000_000)
         ->and($save->brand(Brand::Smackdown)->budget)->toBe(15_000_000)
@@ -95,7 +95,7 @@ it('caps each brand at 30 picks and sends everyone undrafted to Free Agency', fu
 
     expect(SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Raw)->count())->toBe(30)
         ->and(SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Smackdown)->count())->toBe(30)
-        ->and(SaveWrestler::where('save_id', $save->id)->whereNull('brand')->count())->toBe(98)
+        ->and(SaveWrestler::where('save_id', $save->id)->whereNull('brand')->count())->toBe(103)
         ->and(DraftPick::where('save_id', $save->id)->where('brand', Brand::Smackdown)->where('pick_type', DraftPickType::Random)->count())->toBe(30)
         ->and($save->stage)->toBe(SaveStage::AssigningTitles);
 });
@@ -125,7 +125,7 @@ describe('Use WWE roster (house rule)', function () {
             ->and($signed(Brand::Smackdown))->toHaveCount(30)
             ->and($signed(Brand::Raw)->every(fn (SaveWrestler $w) => $w->wrestler->placeholder_brand === Brand::Raw))->toBeTrue()
             ->and($signed(Brand::Smackdown)->every(fn (SaveWrestler $w) => $w->wrestler->placeholder_brand === Brand::Smackdown))->toBeTrue()
-            ->and(SaveWrestler::where('save_id', $this->save->id)->whereNull('brand')->count())->toBe(98)
+            ->and(SaveWrestler::where('save_id', $this->save->id)->whereNull('brand')->count())->toBe(103)
             ->and(DraftPick::where('save_id', $this->save->id)->count())->toBe(0)
             ->and($this->save->refresh()->stage)->toBe(SaveStage::AssigningTitles);
     });

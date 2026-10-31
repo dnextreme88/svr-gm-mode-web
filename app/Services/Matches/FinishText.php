@@ -7,9 +7,11 @@ namespace App\Services\Matches;
  * is won by putting someone through a table, a Ladder match by retrieving the
  * briefcase, and so on.
  *
- * Templates use {W} (the winning side), {L} (the one wrestler on the losing
+ * Templates use {W} (the one winner who scores it; house rule: drawn with
+ * equal odds from the winning side), {L} (the one wrestler on the losing
  * side the finish happens to), {he}/{him}/{his}/{He} for {L}, and
- * [singular|plural] verb forms that follow the winning side's size.
+ * [singular|plural] verb forms. Callers can pass more tokens, e.g. {T} for a
+ * Captain Fall team's captain.
  */
 final class FinishText
 {

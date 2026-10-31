@@ -6,8 +6,8 @@ use App\Enums\Brand;
 use App\Models\Championship;
 use App\Models\MatchSlot;
 use App\Models\Save;
-use App\Models\SaveWrestler;
 use App\Models\Show;
+use App\Services\Factions\FactionNamer;
 use App\Services\Titles\LastChanceService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleService;
@@ -23,6 +23,7 @@ class TitleContextPresenter
         private LastChanceService $lastChance,
         private TitleShotService $shots,
         private MitbService $mitb,
+        private FactionNamer $factions,
     ) {}
 
     /**
@@ -52,7 +53,7 @@ class TitleContextPresenter
         }
 
         $slots = MatchSlot::with('participants')->where('show_id', $show->id)->get();
-        $names = fn (array $ids): string => SaveWrestler::with('wrestler')->whereIn('id', $ids)->get()->map(fn (SaveWrestler $w): string => $w->name())->implode(' & ');
+        $names = fn (array $ids): string => $this->factions->name($save->id, array_map('intval', $ids), $show->week_number);
 
         $shots = $this->shots->due($save, $brand, $show->week_number)->map(fn ($shot): array => [
             'id' => $shot->id,

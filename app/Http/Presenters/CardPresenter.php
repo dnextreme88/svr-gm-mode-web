@@ -12,6 +12,7 @@ use App\Models\MatchResult;
 use App\Models\MatchSlot;
 use App\Models\MatchType;
 use App\Models\Show;
+use App\Services\Factions\FactionNamer;
 
 /**
  * Card builder and outcome screen payloads (§4, §20).
@@ -132,12 +133,14 @@ class CardPresenter
             $name = $p->saveWrestler->wrestler->name;
 
             match (true) {
-                $p->role === ParticipantRole::Manager => $managers[] = $name,
+                $p->role === ParticipantRole::Manager => $managers[$p->side] = $name,
                 $p->role === ParticipantRole::Referee => $referee = $name,
                 $p->side === $result->winner_side => $winners[] = $name,
                 default => $losers[$p->side][] = $name,
             };
         }
+
+        ksort($losers);
 
         return [
             'id' => $slot->id,
@@ -149,8 +152,13 @@ class CardPresenter
             'booked' => $result->booked,
             'champions' => $result->championReign === null || $result->championReign->isVacant() ? [] : $result->championReign->holder_snapshot['names'],
             'captains' => self::captains($slot),
-            'losers' => array_values(array_map(fn (array $side): string => implode(' & ', $side), $losers)),
-            'managers' => $managers,
+            'factions' => self::factions($slot),
+            'winners_label' => self::sideLabel($slot, $result->winner_side),
+            'losers' => array_map(fn (int $side): string => self::sideLabel($slot, $side), array_keys($losers)),
+            'managers' => array_values($managers),
+            // Each side's manager, for "Snitsky w/ Eugene".
+            'winner_manager' => $managers[$result->winner_side] ?? null,
+            'loser_side_managers' => array_map(fn (int $side): ?string => $managers[$side] ?? null, array_keys($losers)),
             'referee' => $referee,
             'method' => $result->method->value,
             'method_label' => $result->method === MatchMethod::MatchSpecific && $slot->matchType?->win_condition !== null ? $slot->matchType->win_condition : $result->method->label(),
@@ -188,7 +196,7 @@ class CardPresenter
             $w = $p->saveWrestler->wrestler;
 
             match (true) {
-                $p->role === ParticipantRole::Manager => $managers[] = $w->name,
+                $p->role === ParticipantRole::Manager => $managers[$p->side] = $w->name,
                 $p->role === ParticipantRole::Referee => $referee = $w->name,
                 default => $sides[$p->side][] = ['id' => $p->save_wrestler_id, 'name' => $w->name, 'roster_type' => $w->roster_type->value, 'weight_class' => $w->weight_class->value],
             };
@@ -203,13 +211,14 @@ class CardPresenter
             'position' => $slot->position,
             'match_type' => $slot->matchType?->name,
             'win_condition' => $slot->matchType?->win_condition,
-            'sides' => array_map(fn (int $side, array $members): array => ['side' => $side, 'members' => $members], array_keys($sides), array_values($sides)),
-            'managers' => $managers,
+            'sides' => array_map(fn (int $side, array $members): array => ['side' => $side, 'members' => $members, 'manager' => $managers[$side] ?? null], array_keys($sides), array_values($sides)),
+            'managers' => array_values($managers),
             'referee' => $referee,
             'title' => $slot->titleChampionship?->name,
             'stipulation' => $slot->stipulation?->value,
             'champions' => $champions,
             'captains' => self::captains($slot),
+            'factions' => self::factions($slot),
             'gauntlet' => $slot->matchType?->family === MatchFamily::Gauntlet,
         ];
     }
@@ -235,6 +244,41 @@ class CardPresenter
             'booked' => $bout->booked,
             'summary' => $bout->summary,
         ])->all());
+    }
+
+    /**
+     * Factions teaming in this match (house rule): each faction's name and
+     * its members on one side, so the results show "Team Xtreme" in place of
+     * "Matt Hardy & Jeff Hardy".
+     *
+     * @return list<array{name: string, members: list<string>}>
+     */
+    private static function factions(MatchSlot $slot): array
+    {
+        $namer = app(FactionNamer::class);
+        $names = $slot->competitors()->mapWithKeys(fn (MatchParticipant $p): array => [$p->save_wrestler_id => $p->saveWrestler->wrestler->name]);
+        $factions = [];
+
+        foreach ($slot->sides() as $ids) {
+            foreach ($namer->groups($slot->show->save_id, $ids, $slot->show->week_number) as $group) {
+                if ($group['faction'] !== null) {
+                    $factions[] = [
+                        'name' => $group['faction']->faction_name,
+                        'members' => array_map(fn (int $id): string => (string) $names[$id], $group['ids']),
+                    ];
+                }
+            }
+        }
+
+        return $factions;
+    }
+
+    /**
+     * One side's name in plain text, factions named as such.
+     */
+    private static function sideLabel(MatchSlot $slot, int $side): string
+    {
+        return app(FactionNamer::class)->name($slot->show->save_id, $slot->sides()[$side] ?? [], $slot->show->week_number);
     }
 
     /**

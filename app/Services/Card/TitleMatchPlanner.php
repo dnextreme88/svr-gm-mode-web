@@ -102,9 +102,10 @@ class TitleMatchPlanner
      * Earned title shots due on this card, to be booked before anything else.
      * They go on the first card of the week (the weekly show).
      *
+     * @param  list<int>  $ignorePositions  slots being rebooked: a shot booked there is due again
      * @return list<Booking>
      */
-    public function obligations(Show $show, ?Brand $brand): array
+    public function obligations(Show $show, ?Brand $brand, array $ignorePositions = []): array
     {
         if ($brand === null) {
             return [];
@@ -114,7 +115,7 @@ class TitleMatchPlanner
             return [];
         }
 
-        $slots = MatchSlot::with('participants')->where('show_id', $show->id)->get();
+        $slots = MatchSlot::with('participants')->where('show_id', $show->id)->whereNotIn('position', $ignorePositions)->get();
         $bookings = [];
 
         foreach ($this->shots->due($show->game, $brand, $show->week_number) as $shot) {

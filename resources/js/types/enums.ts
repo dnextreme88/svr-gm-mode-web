@@ -182,6 +182,40 @@ export const EmailTemplateLabels: Record<EmailTemplate, string> = {
     'rival_slander': 'Rival Slander',
 };
 
+export const FactionOrigin = {
+    Seeded: 'seeded',
+    Player: 'player',
+    Rival: 'rival',
+} as const;
+export type FactionOrigin = (typeof FactionOrigin)[keyof typeof FactionOrigin];
+export const FactionOriginLabels: Record<FactionOrigin, string> = {
+    'seeded': 'Seeded',
+    'player': 'Player',
+    'rival': 'Rival',
+};
+
+export const FactionPromptStatus = {
+    Pending: 'pending',
+    Deferred: 'deferred',
+    Formed: 'formed',
+} as const;
+export type FactionPromptStatus = (typeof FactionPromptStatus)[keyof typeof FactionPromptStatus];
+export const FactionPromptStatusLabels: Record<FactionPromptStatus, string> = {
+    'pending': 'Pending',
+    'deferred': 'Deferred',
+    'formed': 'Formed',
+};
+
+export const FactionType = {
+    TagTeam: 'tag_team',
+    Stable: 'stable',
+} as const;
+export type FactionType = (typeof FactionType)[keyof typeof FactionType];
+export const FactionTypeLabels: Record<FactionType, string> = {
+    'tag_team': 'Tag Team',
+    'stable': 'Stable',
+};
+
 export const FinishEvent = {
     RefereeAttacked: 'referee_attacked',
     RivalInterference: 'rival_interference',
@@ -439,6 +473,12 @@ export const NewsEventType = {
     PromoResult: 'promo_result',
     ContractExpiring: 'contract_expiring',
     RivalryMilestone: 'rivalry_milestone',
+    FactionFormed: 'faction_formed',
+    FactionMemberAdded: 'faction_member_added',
+    FactionTitleWon: 'faction_title_won',
+    FactionTitleLost: 'faction_title_lost',
+    FactionInterbrandWin: 'faction_interbrand_win',
+    FactionDisbanded: 'faction_disbanded',
     TicketsOnSale: 'tickets_on_sale',
     BrandSpotlight: 'brand_spotlight',
     SuperstarRecap: 'superstar_recap',
@@ -499,6 +539,12 @@ export const NewsEventTypeLabels: Record<NewsEventType, string> = {
     'promo_result': 'Promo Result',
     'contract_expiring': 'Contract Expiring',
     'rivalry_milestone': 'Rivalry Milestone',
+    'faction_formed': 'Faction Formed',
+    'faction_member_added': 'Faction Member Added',
+    'faction_title_won': 'Faction Title Won',
+    'faction_title_lost': 'Faction Title Lost',
+    'faction_interbrand_win': 'Faction Interbrand Win',
+    'faction_disbanded': 'Faction Disbanded',
     'tickets_on_sale': 'Tickets On Sale',
     'brand_spotlight': 'Brand Spotlight',
     'superstar_recap': 'Superstar Recap',

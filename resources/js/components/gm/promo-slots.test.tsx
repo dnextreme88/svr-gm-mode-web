@@ -416,7 +416,7 @@ describe('PromoSlots', () => {
         setup();
 
         expect(
-            screen.getByRole('button', { name: 'Clear' }).className,
+            screen.getByRole('button', { name: 'Clear promo 1' }).className,
         ).toContain('gm-btn-danger');
     });
 
@@ -448,7 +448,7 @@ describe('PromoSlots', () => {
             />,
         );
 
-        await user.click(screen.getByRole('button', { name: 'Clear' }));
+        await user.click(screen.getByRole('button', { name: 'Clear promo 1' }));
         const dialog = screen.getByRole('dialog', { name: 'Clear promo 1?' });
         expect(onClear).not.toHaveBeenCalled();
 

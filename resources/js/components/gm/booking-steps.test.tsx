@@ -4,9 +4,16 @@ import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BookingAction, BookingSteps } from '@/components/gm/booking-steps';
 import type { BookingOrder } from '@/components/gm/booking-steps';
+import {
+    UnsavedChangesProvider,
+    useReportUnsaved,
+} from '@/components/gm/unsaved-changes';
 import type { GameShell } from '@/types/gm';
 
-const router = vi.hoisted(() => ({ post: vi.fn() }));
+const router = vi.hoisted(() => ({
+    post: vi.fn(),
+    on: vi.fn(() => () => {}),
+}));
 
 vi.mock('@inertiajs/react', () => ({
     Link: ({ children, href }: { children: ReactNode; href: string }) => (
@@ -133,6 +140,50 @@ describe('Booking order', () => {
             {},
             expect.anything(),
         );
+    });
+
+    it('won’t air the week while slots have unsaved changes, and lists them', async () => {
+        const user = userEvent.setup();
+
+        function Dirty({ slot }: { slot: string }) {
+            useReportUnsaved(slot, true);
+
+            return null;
+        }
+
+        render(
+            <UnsavedChangesProvider>
+                <Dirty slot="Promo 1" />
+                <Dirty slot="Match 2" />
+                <BookingAction
+                    game={game}
+                    showId={7}
+                    showName="Monday Night Raw"
+                    order={order({ is_last: true, next: null })}
+                />
+            </UnsavedChangesProvider>,
+        );
+
+        await user.click(screen.getByRole('button', { name: /Air week 4/ }));
+        const dialog = screen.getByRole('dialog');
+
+        expect(dialog).toHaveTextContent(
+            'Match 2 and Promo 1 have unsaved changes',
+        );
+        expect(
+            within(within(dialog).getByRole('list', { name: 'Unsaved slots' }))
+                .getAllByRole('listitem')
+                .map((li) => li.textContent),
+        ).toEqual(['Match 2', 'Promo 1']);
+        expect(
+            within(dialog).queryByRole('button', { name: 'Air week 4' }),
+        ).not.toBeInTheDocument();
+
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Back to the card' }),
+        );
+
+        expect(router.post).not.toHaveBeenCalled();
     });
 
     it('offers to unlock a confirmed card', async () => {

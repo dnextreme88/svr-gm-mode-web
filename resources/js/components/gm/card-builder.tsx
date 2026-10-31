@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { SpecialtyBadge } from '@/components/gm/badges';
-import { ConfirmDialog } from '@/components/gm/confirm-dialog';
+import { GoldTag, SpecialtyBadge } from '@/components/gm/badges';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
-import { FloppyIcon } from '@/components/gm/floppy-icon';
 import { PopoverPanel, usePopover } from '@/components/gm/popover';
+import { SlotActions } from '@/components/gm/slot-actions';
 import { WrestlerPicker } from '@/components/gm/wrestler-picker';
 import type { PickerOption } from '@/components/gm/wrestler-picker';
+import { useReportUnsaved } from '@/components/gm/unsaved-changes';
 import {
     bookingCounts,
     emptySides,
@@ -26,6 +26,7 @@ import type {
     FatigueConfig,
     MatchTypeOption,
     RosterEntry,
+    TitleOption,
 } from '@/types/gm';
 
 type SlotTools = (
@@ -45,12 +46,16 @@ export type CardBuilderProps = {
     onClear: (position: number) => void;
     /** The title cycler, shown in each slot's header. */
     renderTitle?: SlotTools;
-    /** Extra controls on the slot's action row (stipulation, randomize). */
+    /** More buttons beside Save, Discard and Clear (Randomize). */
+    renderButtons?: SlotTools;
+    /** Extra controls on the slot's action row (the stipulation). */
     renderActions?: SlotTools;
     /** Saved promos that tire wrestlers before a given match (§5). */
     promoFatigue?: PromoFatigue[];
     /** Read-only because the week's booking order hasn't reached this card, or it's confirmed. */
     lockedByOrder?: boolean;
+    /** Every title with its holders, to tag the champions in a title match. */
+    championships?: TitleOption[];
 };
 
 export function toDraft(slot: CardSlot): SlotDraft {
@@ -92,7 +97,7 @@ export function MatchCost({ cost }: { cost: number }) {
     return (
         <span
             data-testid="match-cost"
-            className={cn('gm-num text-zone-safe', cost === 0 && 'italic')}
+            className={cn('gm-num ml-1 text-zone-safe', cost === 0 && 'italic')}
         >
             {cost > 0 ? formatMoney(cost) : 'Free'}
         </span>
@@ -149,13 +154,14 @@ export function CardBuilder({
     onSave,
     onClear,
     renderTitle,
+    renderButtons,
     renderActions,
     promoFatigue = [],
     lockedByOrder = false,
+    championships = [],
 }: CardBuilderProps) {
     const [drafts, setDrafts] = useState<SlotDraft[]>(() => slots.map(toDraft));
     const [dirty, setDirty] = useState<Set<number>>(new Set());
-    const [confirmClear, setConfirmClear] = useState<number | null>(null);
 
     const types = useMemo(
         () => new Map(matchTypes.map((t) => [t.id, t])),
@@ -242,7 +248,6 @@ export function CardBuilder({
                     </span>
                 </span>
             </div>
-
             {drafts.map((draft) => (
                 <SlotEditor
                     key={draft.position}
@@ -256,6 +261,7 @@ export function CardBuilder({
                     counts={counts}
                     fatigueConfig={fatigueConfig}
                     promoFatigue={promoFatigue}
+                    championships={championships}
                     readOnly={readOnly || draft.fixed}
                     canSave={!readOnly && !draft.fixed}
                     dirty={dirty.has(draft.position)}
@@ -267,30 +273,15 @@ export function CardBuilder({
                         markClean(draft.position);
                     }}
                     onDiscard={() => discard(draft.position)}
-                    onClear={() => setConfirmClear(draft.position)}
+                    onClear={() => clearSlot(draft.position)}
                     title={renderTitle?.(draft, update, drafts)}
+                    buttons={renderButtons?.(draft, update, drafts)}
                     actions={renderActions?.(draft, update, drafts)}
                     names={
                         slots.find((s) => s.position === draft.position)?.names
                     }
                 />
             ))}
-
-            <ConfirmDialog
-                open={confirmClear !== null}
-                title={`Clear match ${confirmClear ?? ''}?`}
-                message="This removes the match type, every wrestler, the title and the stipulation from this slot."
-                confirmLabel="Yes, clear it"
-                danger
-                onCancel={() => setConfirmClear(null)}
-                onConfirm={() => {
-                    if (confirmClear !== null) {
-                        clearSlot(confirmClear);
-                    }
-
-                    setConfirmClear(null);
-                }}
-            />
         </div>
     );
 }
@@ -306,6 +297,7 @@ type SlotEditorProps = {
     counts: Map<number, number>;
     fatigueConfig: FatigueConfig;
     promoFatigue: PromoFatigue[];
+    championships: TitleOption[];
     readOnly: boolean;
     canSave: boolean;
     dirty: boolean;
@@ -317,6 +309,7 @@ type SlotEditorProps = {
     onDiscard: () => void;
     onClear: () => void;
     title?: React.ReactNode;
+    buttons?: React.ReactNode;
     actions?: React.ReactNode;
     names?: Record<string, string>;
 };
@@ -332,6 +325,7 @@ function SlotEditor({
     counts,
     fatigueConfig,
     promoFatigue,
+    championships,
     readOnly,
     canSave,
     dirty,
@@ -342,6 +336,7 @@ function SlotEditor({
     onDiscard,
     onClear,
     title,
+    buttons,
     actions,
     names,
 }: SlotEditorProps) {
@@ -349,6 +344,11 @@ function SlotEditor({
     const label = `Match ${draft.position}`;
     const saveStatus = useSaveStatus(saveKey);
     const everyone = participantIds(draft);
+    useReportUnsaved(label, dirty);
+    // The holders of the title on the line, tagged "Champion" on their slots.
+    const champions =
+        championships.find((c) => c.id === draft.titleChampionshipId)
+            ?.holder_ids ?? [];
 
     const note = (w: RosterEntry) =>
         w.blocked_reason ??
@@ -412,8 +412,12 @@ function SlotEditor({
                         testId={`slot-${draft.position}-side-${sideIndex}-${index}`}
                         label={`${label} side ${sideIndex + 1} wrestler ${index + 1}`}
                         id={id}
-                        captain={type.captain_fall && index === 0}
-                        captainTestId={`captain-${draft.position}-${sideIndex}`}
+                        heading={competitorHeading(
+                            type,
+                            draft.position,
+                            sideIndex,
+                            index,
+                        )}
                         options={competitorOptions(sideIndex, index)}
                         fallbackName={id !== null ? names?.[id] : undefined}
                         readOnly={readOnly}
@@ -436,6 +440,7 @@ function SlotEditor({
                                     )}
                                     config={fatigueConfig}
                                     matches={counts.get(id) ?? 0}
+                                    champion={champions.includes(id)}
                                 />
                             ) : null
                         }
@@ -451,8 +456,7 @@ function SlotEditor({
                             options={helperOptions(
                                 draft.managers[sideIndex] ?? null,
                             )}
-                            emptyLabel="No manager"
-                            clearLabel="No manager"
+                            required
                             fallbackName={
                                 names?.[draft.managers[sideIndex] ?? '']
                             }
@@ -501,7 +505,8 @@ function SlotEditor({
                 dirty && 'gm-panel-dirty',
             )}
         >
-            <header className="flex flex-wrap items-start gap-3 border-b border-white/6 px-4 py-2.5">
+            {/* A size container: the match type panel sizes to the card. */}
+            <header className="@container relative flex flex-wrap items-start gap-3 border-b border-white/6 px-4 py-2.5">
                 {/* Small screens: the label, the type picker and the cost line each get a line. */}
                 <div className="w-full sm:w-auto">
                     <span
@@ -533,25 +538,28 @@ function SlotEditor({
                         })
                     }
                 />
-                {type && (
-                    <span
-                        className="mt-1.5 flex w-full items-center justify-between gap-3 font-condensed tracking-wider text-ink-dim uppercase sm:w-auto sm:justify-start"
-                        data-testid={`type-info-${draft.position}`}
-                    >
-                        <span>
-                            Cost <MatchCost cost={type.cost} />
+                {/* md to lg: the cost line and the title share a row under the type picker. */}
+                <div className="contents md:flex md:w-full md:items-start md:justify-between md:gap-3 lg:contents">
+                    {type && (
+                        <span
+                            className="mt-1.5 flex w-full items-center justify-between gap-3 font-condensed tracking-wider text-ink-dim uppercase md:w-auto md:justify-start md:gap-10"
+                            data-testid={`type-info-${draft.position}`}
+                        >
+                            <span className="flex items-center">
+                                Cost <MatchCost cost={type.cost} />
+                            </span>
+                            <span className="flex items-center">
+                                Fatigue{' '}
+                                <FatigueCost bars={type.fatigue_cost_bars} />
+                            </span>
                         </span>
-                        <span>
-                            Fatigue{' '}
-                            <FatigueCost bars={type.fatigue_cost_bars} />
-                        </span>
-                    </span>
-                )}
-                {title && (
-                    <div className="mt-0.5 w-full sm:ml-auto sm:w-auto">
-                        {title}
-                    </div>
-                )}
+                    )}
+                    {title && (
+                        <div className="mt-0.5 w-full sm:ml-auto md:w-auto">
+                            {title}
+                        </div>
+                    )}
+                </div>
             </header>
 
             {type ? (
@@ -596,46 +604,23 @@ function SlotEditor({
                 </p>
             )}
 
-            {(canSave || actions) && (
-                <div className="flex flex-wrap items-center gap-3 border-t border-white/6 px-4 py-2.5">
-                    {canSave && (
-                        <>
-                            <button
-                                type="button"
-                                className="gm-btn gm-btn-sm"
-                                disabled={!complete || !dirty}
-                                onClick={onSave}
-                            >
-                                <FloppyIcon status={saveStatus} />
-                                Save {label.toLowerCase()}
-                            </button>
-                            <button
-                                type="button"
-                                className="gm-btn gm-btn-ghost gm-btn-sm"
-                                disabled={!dirty}
-                                onClick={onDiscard}
-                                aria-label={`Discard changes to ${label.toLowerCase()}`}
-                            >
-                                Discard
-                            </button>
-                            <button
-                                type="button"
-                                className="gm-btn gm-btn-danger gm-btn-sm"
-                                disabled={draft.matchTypeId === null}
-                                onClick={onClear}
-                                aria-label={`Clear ${label.toLowerCase()}`}
-                            >
-                                Clear
-                            </button>
-                        </>
-                    )}
+            {(canSave || buttons || actions) && (
+                <SlotActions
+                    name={label.toLowerCase()}
+                    editable={canSave}
+                    dirty={dirty}
+                    ready={complete}
+                    filled={draft.matchTypeId !== null}
+                    saveStatus={saveStatus}
+                    clearMessage="This removes the match type, every wrestler, the title and the stipulation from this slot."
+                    onSave={onSave}
+                    onDiscard={onDiscard}
+                    onClear={onClear}
+                    buttons={buttons}
+                    className="gap-3 border-t border-white/6 px-4 py-2.5"
+                >
                     {actions}
-                    {dirty && (
-                        <span className="ml-auto font-condensed text-xs font-semibold tracking-wider text-gm-orange uppercase">
-                            Unsaved changes
-                        </span>
-                    )}
-                </div>
+                </SlotActions>
             )}
         </section>
     );
@@ -655,6 +640,9 @@ function sideColumns(sides: number): number {
 
     return sides === 4 ? 2 : 3;
 }
+
+/** Width of the "vs" column between two sides on the grid. */
+const VERSUS_WIDTH = '2.5rem';
 
 function Versus() {
     return (
@@ -691,11 +679,14 @@ function SideGrid({
         );
     }
 
-    // 1fr auto 1fr (auto 1fr)…: a column per side with a "vs" between them.
+    // 1fr vs 1fr (vs 1fr)…: a column per side with a "vs" between them. Each
+    // row is its own grid, so the "vs" columns get a fixed width: as `auto`,
+    // a short last row's missing "vs" collapsed to 0 and its sides grew wider
+    // than the full rows above.
     const template = Array.from(
         { length: columns },
         () => 'minmax(0,1fr)',
-    ).join(' auto ');
+    ).join(` ${VERSUS_WIDTH} `);
 
     return (
         <div className="space-y-3" data-testid={testId}>
@@ -746,9 +737,11 @@ function MatchTypePicker({
     const label = `Match type for match ${position}`;
 
     return (
+        // Below 56rem the panel is placed against the slot header (the size
+        // container) and spans it; from 56rem it hangs under this picker.
         <div
             ref={ref}
-            className="relative mt-[3px] min-w-64 flex-1 basis-full sm:basis-auto"
+            className="mt-0.75 min-w-64 flex-1 basis-full sm:basis-auto @4xl:relative"
         >
             <button
                 type="button"
@@ -761,7 +754,7 @@ function MatchTypePicker({
                     toggle();
                 }}
                 className={cn(
-                    'gm-input flex w-full items-center justify-between gap-2 py-1 text-left text-sm transition-colors',
+                    'gm-input flex w-full items-center justify-between gap-2 py-1 text-left transition-colors',
                     !disabled && 'hover:border-white/25',
                     disabled && 'cursor-default opacity-70',
                 )}
@@ -790,7 +783,7 @@ function MatchTypePicker({
                     open={open}
                     role="dialog"
                     aria-label={label}
-                    className="grid w-full grid-cols-[minmax(0,9rem)_minmax(0,1fr)] sm:w-[min(40rem,calc(100vw-2rem))] sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]"
+                    className="inset-x-4 grid grid-cols-[minmax(0,8rem)_minmax(0,1fr)] @md:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] @4xl:right-auto @4xl:left-0 @4xl:w-[40rem]"
                 >
                     <div
                         role="listbox"
@@ -836,8 +829,8 @@ function MatchTypePicker({
                                         close();
                                     }}
                                     className={cn(
-                                        // Small screens: the cost and fatigue go under the name.
-                                        'flex w-full flex-col items-start gap-1 px-3 py-1.5 text-left text-sm hover:bg-white/6 sm:flex-row sm:items-center sm:justify-between sm:gap-3',
+                                        // Narrow cards: the cost and fatigue go under the name.
+                                        'flex w-full flex-col items-start gap-1 px-3 py-1.5 text-left text-sm hover:bg-white/6 @xl:flex-row @xl:items-center @xl:justify-between @xl:gap-3',
                                         t.id === type?.id && 'bg-brand/20',
                                     )}
                                 >
@@ -862,12 +855,51 @@ function MatchTypePicker({
     );
 }
 
+type SlotHeading = { text: string; testId: string };
+
+/** "1st", "2nd", "3rd", "4th"… */
+export function ordinal(n: number): string {
+    const tens = n % 100;
+    const suffix =
+        tens >= 11 && tens <= 13
+            ? 'th'
+            : (({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[
+                  n % 10
+              ] ?? 'th');
+
+    return `${n}${suffix}`;
+}
+
+/**
+ * The label over a competitor's picker: the captain (first on each side) in
+ * Captain Fall, or each entrant's order in a Gauntlet, where 1st and 2nd
+ * open and the winner of each bout meets the next.
+ */
+function competitorHeading(
+    type: MatchTypeOption,
+    position: number,
+    sideIndex: number,
+    index: number,
+): SlotHeading | undefined {
+    if (type.captain_fall && index === 0) {
+        return { text: 'Captain', testId: `captain-${position}-${sideIndex}` };
+    }
+
+    if (type.family === 'gauntlet') {
+        return {
+            text: `${ordinal(sideIndex + 1)} Participant`,
+            testId: `entrant-${position}-${sideIndex}`,
+        };
+    }
+
+    return undefined;
+}
+
 function CompetitorSlot({
     testId,
     label,
     id,
-    captain,
-    captainTestId,
+    heading,
     options,
     fallbackName,
     readOnly,
@@ -878,8 +910,8 @@ function CompetitorSlot({
     testId: string;
     label: string;
     id: number | null;
-    captain: boolean;
-    captainTestId: string;
+    /** A gold label above the picker: "Captain", "1st Participant"… */
+    heading?: SlotHeading;
     options: PickerOption[];
     fallbackName?: string;
     readOnly: boolean;
@@ -895,12 +927,12 @@ function CompetitorSlot({
                 multi && 'border-zone-minor/60 bg-zone-minor/[0.07]',
             )}
         >
-            {captain && (
+            {heading && (
                 <div
                     className="gm-label mb-1 text-gold"
-                    data-testid={captainTestId}
+                    data-testid={heading.testId}
                 >
-                    Captain
+                    {heading.text}
                 </div>
             )}
             <WrestlerPicker
@@ -923,12 +955,15 @@ function CompetitorDetails({
     fatigue,
     config,
     matches,
+    champion,
 }: {
     wrestler: RosterEntry;
     type: MatchTypeOption;
     fatigue: { goingIn: number; after: number };
     config: FatigueConfig;
     matches: number;
+    /** Defending the title on the line in this match. */
+    champion: boolean;
 }) {
     const goingInZone = fatigueZone(fatigue.goingIn, config);
 
@@ -949,12 +984,15 @@ function CompetitorDetails({
                     </span>
                 )}
             </div>
-            <FatigueMeter
-                fatigue={fatigue.goingIn}
-                projected={fatigue.after}
-                config={config}
-                showLabel
-            />
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <FatigueMeter
+                    fatigue={fatigue.goingIn}
+                    projected={fatigue.after}
+                    config={config}
+                    showLabel
+                />
+                {champion && <GoldTag className="ml-auto">Champion</GoldTag>}
+            </div>
             {goingInZone !== 'safe' && (
                 <p
                     className={cn(

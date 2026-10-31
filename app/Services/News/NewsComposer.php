@@ -78,7 +78,7 @@ class NewsComposer
             $headline = $slot === 'neutral' ? $pool->filter(fn (array $e): bool => $e['type'] === NewsEventType::PpvResults->value)->sortByDesc('priority')->first() : null;
             $headline ??= $slot === 'neutral' ? $pool->first(fn (array $e): bool => in_array($e['type'], self::FORCED_NEUTRAL, true)) : null;
             // House rule: a title change always takes its card's headline.
-            $headline ??= $pool->filter(fn (array $e): bool => $e['type'] === NewsEventType::TitleChange->value && $e['tier'] === NewsTier::Headline->value)
+            $headline ??= $pool->filter(fn (array $e): bool => in_array($e['type'], [NewsEventType::TitleChange->value, NewsEventType::FactionTitleWon->value], true) && $e['tier'] === NewsTier::Headline->value)
                 ->sortByDesc('priority')
                 ->first();
             $headline ??= $this->weightedTake($pool->filter(fn (array $e): bool => $e['tier'] === NewsTier::Headline->value), 1, $rng)[0] ?? null;

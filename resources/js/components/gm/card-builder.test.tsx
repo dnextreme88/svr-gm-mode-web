@@ -1,7 +1,8 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { CardBuilder } from '@/components/gm/card-builder';
+import { CardBuilder, ordinal } from '@/components/gm/card-builder';
+import { UnsavedChangesProvider } from '@/components/gm/unsaved-changes';
 import type {
     CardShow,
     CardSlot,
@@ -10,10 +11,42 @@ import type {
     RosterEntry,
 } from '@/types/gm';
 
-// The Clear confirmation reads the player's brand from the Inertia page.
+// The Clear confirmation reads the player's brand from the Inertia page; the
+// unsaved-changes guard listens for Inertia's `before` event.
+const inertia = vi.hoisted(() => ({
+    before: [] as Array<(event: { detail: { visit: unknown } }) => unknown>,
+    visit: vi.fn(),
+}));
+
 vi.mock('@inertiajs/react', () => ({
     usePage: () => ({ props: {} }),
+    router: {
+        on: (
+            name: string,
+            callback: (event: { detail: { visit: unknown } }) => unknown,
+        ) => {
+            inertia.before.push(callback);
+
+            return () => {
+                inertia.before = inertia.before.filter((c) => c !== callback);
+            };
+        },
+        visit: inertia.visit,
+    },
 }));
+
+/** Fire Inertia's `before` event for a visit; false means it was cancelled. */
+function navigate(path: string, method = 'get') {
+    const visit = {
+        url: new URL(path, window.location.origin),
+        method,
+        data: {},
+        headers: {},
+        prefetch: false,
+    };
+
+    return inertia.before.map((c) => c({ detail: { visit } }));
+}
 
 const config: FatigueConfig = {
     bar_size: 10,
@@ -108,6 +141,14 @@ const matchTypes = [
         variant: 'Fatal 4-Way',
         sides: [1, 1, 1, 1],
     }),
+    type({
+        id: 9,
+        name: 'Gauntlet — 6-Man Gauntlet',
+        family: 'gauntlet',
+        variant: '6-Man Gauntlet',
+        sides: [1, 1, 1, 1, 1, 1],
+        titles_allowed: false,
+    }),
 ];
 
 function wrestler(
@@ -169,6 +210,7 @@ const familyLabel: Record<number, string> = {
     6: 'Special Referee',
     7: 'Hell In A Cell',
     8: 'Ladder',
+    9: 'Gauntlet',
 };
 
 function escapeRe(text: string): string {
@@ -195,16 +237,29 @@ function setup(slots: CardSlot[] = [emptySlot(1), emptySlot(2)]) {
     const onSave = vi.fn();
     const onClear = vi.fn();
 
+    // On the card page the builder sits in the unsaved-changes provider.
     render(
-        <CardBuilder
-            show={show}
-            slots={slots}
-            matchTypes={matchTypes}
-            roster={roster}
-            fatigueConfig={config}
-            onSave={onSave}
-            onClear={onClear}
-        />,
+        <UnsavedChangesProvider>
+            <CardBuilder
+                show={show}
+                slots={slots}
+                matchTypes={matchTypes}
+                roster={roster}
+                fatigueConfig={config}
+                onSave={onSave}
+                onClear={onClear}
+                championships={[
+                    {
+                        id: 1,
+                        name: 'Intercontinental Championship',
+                        is_tag: false,
+                        eligibility: 'open',
+                        holder_ids: [10],
+                        holder_name: 'Edge',
+                    },
+                ]}
+            />
+        </UnsavedChangesProvider>,
     );
 
     const user = userEvent.setup();
@@ -342,6 +397,60 @@ describe('CardBuilder', () => {
         expect(within(slot).queryByText('Unsaved changes')).toBeNull();
     });
 
+    it('asks before leaving the page with unsaved matches, naming them', async () => {
+        window.history.pushState({}, '', '/gm/saves/1/shows/3');
+        const { user, pickType } = setup();
+        inertia.visit.mockReset();
+
+        // Nothing unsaved: navigation goes through.
+        expect(navigate('/gm/saves/1/rosters')).not.toContain(false);
+
+        await pickType(1, 1);
+        await pickType(2, 1);
+
+        let results: unknown[] = [];
+        act(() => {
+            results = navigate('/gm/saves/1/rosters');
+        });
+
+        expect(results).toContain(false);
+        const dialog = screen.getByRole('dialog');
+        expect(dialog).toHaveTextContent(
+            'Matches 1 and 2 have unsaved changes. Leave this page and discard them?',
+        );
+
+        await user.click(within(dialog).getByRole('button', { name: 'Stay' }));
+        expect(inertia.visit).not.toHaveBeenCalled();
+
+        act(() => {
+            navigate('/gm/saves/1/rosters');
+        });
+        await user.click(
+            within(screen.getByRole('dialog')).getByRole('button', {
+                name: 'Discard and leave',
+            }),
+        );
+
+        expect(inertia.visit).toHaveBeenCalledWith(
+            new URL('/gm/saves/1/rosters', window.location.origin),
+            expect.objectContaining({ method: 'get' }),
+        );
+    });
+
+    it('lets visits to the card itself through, and warns on refresh', async () => {
+        window.history.pushState({}, '', '/gm/saves/1/shows/3');
+        const { pickType } = setup();
+        await pickType(1, 1);
+
+        expect(
+            navigate(`${window.location.pathname}/slots/1`, 'put'),
+        ).not.toContain(false);
+
+        const event = new Event('beforeunload', { cancelable: true });
+        window.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(true);
+    });
+
     it('shows a floppy icon on Save', () => {
         setup();
 
@@ -397,6 +506,34 @@ describe('CardBuilder', () => {
         expect(screen.getByTestId('captain-1-0')).toHaveTextContent('Captain');
         expect(screen.getByTestId('captain-1-1')).toHaveTextContent('Captain');
         expect(screen.getAllByText('Captain')).toHaveLength(2);
+    });
+
+    it('labels each Gauntlet entrant by their order, 1st and 2nd opening', async () => {
+        const { pickType } = setup();
+
+        await pickType(1, 9);
+
+        expect(
+            [0, 1, 2, 3, 4, 5].map(
+                (side) => screen.getByTestId(`entrant-1-${side}`).textContent,
+            ),
+        ).toEqual([
+            '1st Participant',
+            '2nd Participant',
+            '3rd Participant',
+            '4th Participant',
+            '5th Participant',
+            '6th Participant',
+        ]);
+        expect(screen.queryByText('Captain')).toBeNull();
+    });
+
+    it('labels no entrants outside a Gauntlet', async () => {
+        const { pickType } = setup();
+
+        await pickType(1, 7);
+
+        expect(screen.queryByText(/Participant/)).toBeNull();
     });
 
     it('disables seriously injured wrestlers', async () => {
@@ -459,7 +596,7 @@ describe('CardBuilder', () => {
         const rows = [0, 1].map((r) => screen.getByTestId(`sides-1-row-${r}`));
         expect(rows.map((r) => r.style.gridTemplateColumns)).toEqual(
             Array(2).fill(
-                'minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr)',
+                'minmax(0,1fr) 2.5rem minmax(0,1fr) 2.5rem minmax(0,1fr)',
             ),
         );
         expect(
@@ -479,7 +616,7 @@ describe('CardBuilder', () => {
 
         expect(
             screen.getByTestId('sides-1-row-0').style.gridTemplateColumns,
-        ).toBe('minmax(0,1fr) auto minmax(0,1fr)');
+        ).toBe('minmax(0,1fr) 2.5rem minmax(0,1fr)');
         expect(screen.getByTestId('sides-1-row-1')).toBeInTheDocument();
     });
 
@@ -490,7 +627,7 @@ describe('CardBuilder', () => {
 
         const row = screen.getByTestId('sides-1-row-0');
         expect(row.style.gridTemplateColumns).toBe(
-            'minmax(0,1fr) auto minmax(0,1fr)',
+            'minmax(0,1fr) 2.5rem minmax(0,1fr)',
         );
         // Stacked on small screens: one dropdown per line, vs between.
         expect(row.className).toContain('flex-col');
@@ -826,5 +963,45 @@ describe('CardBuilder', () => {
         expect(
             screen.queryByRole('button', { name: /Save/ }),
         ).not.toBeInTheDocument();
+    });
+    it('tags the champion defending the title on the line', () => {
+        const titleMatch = (
+            position: number,
+            title: number | null,
+        ): CardSlot => ({
+            ...emptySlot(position),
+            match_type_id: 1,
+            sides: [[10], [11]],
+            title_championship_id: title,
+        });
+        setup([titleMatch(1, 1), titleMatch(2, null)]);
+
+        expect(screen.getByTestId('slot-1-side-0-0')).toHaveTextContent(
+            'Champion',
+        );
+        expect(screen.getByTestId('slot-1-side-1-0')).not.toHaveTextContent(
+            'Champion',
+        );
+        expect(screen.getByTestId('slot-2-side-0-0')).not.toHaveTextContent(
+            'Champion',
+        );
+    });
+});
+
+describe('ordinal', () => {
+    it('writes 1st, 2nd, 3rd and the teens as th', () => {
+        expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101].map(ordinal)).toEqual([
+            '1st',
+            '2nd',
+            '3rd',
+            '4th',
+            '11th',
+            '12th',
+            '13th',
+            '21st',
+            '22nd',
+            '23rd',
+            '101st',
+        ]);
     });
 });
