@@ -12,6 +12,7 @@ use App\Models\MatchResult;
 use App\Models\MatchSlot;
 use App\Models\MoneyInTheBank;
 use App\Models\Save;
+use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Models\TitleReign;
 use App\Services\Calendar\CalendarService;
@@ -29,6 +30,9 @@ use Inertia\Response;
  */
 class TitleHistoryController extends Controller
 {
+    /** @var Collection<int, SaveWrestler> the save's wrestlers by id, for name colour coding */
+    private Collection $wrestlers;
+
     public function __construct(
         private CalendarService $calendar,
         private FactionNamer $factions,
@@ -37,6 +41,7 @@ class TitleHistoryController extends Controller
     public function __invoke(Save $save, TitleRecords $records, MitbService $mitb): Response
     {
         $week = $save->current_week;
+        $this->wrestlers = SaveWrestler::with('wrestler')->where('save_id', $save->id)->get()->keyBy('id');
         $championships = Championship::orderBy('sort_order')->get();
 
         $reigns = TitleReign::with(['wonShow'])
@@ -85,19 +90,24 @@ class TitleHistoryController extends Controller
         return Inertia::render('gm/titles/history', [
             'titles' => $titles,
             'hall' => $titles->groupBy('brand')->map(fn ($group) => $group->map(fn (array $t): array => [
+                'id' => $t['id'],
                 'name' => $t['name'],
                 'holder' => $t['current']['holder'] ?? null,
+                'holder_parts' => $t['current']['holder_parts'] ?? null,
                 'weeks_held' => $t['current']['weeks_held'] ?? null,
                 'defenses' => $t['current']['defenses'] ?? null,
             ])->values()),
             'records' => [
-                'overall' => $records->records($save),
-                'per_title' => $championships->mapWithKeys(fn (Championship $c): array => [$c->id => $records->records($save, $c)]),
+                'overall' => $this->recordParts($records->records($save)),
+                'per_title' => $championships->mapWithKeys(fn (Championship $c): array => [$c->id => $this->recordParts($records->records($save, $c))]),
             ],
             'briefcases' => $mitb->held($save)->map(fn (MoneyInTheBank $b): array => [
                 'holder' => $b->holder->name(),
+                'holder_parts' => $this->parts([$b->save_wrestler_id], $b->holder->name()),
                 'brand' => $b->brand->value,
                 'expires_week' => $b->expires_week,
+                'expires_season' => $this->calendar->seasonOf($b->expires_week),
+                'expires_season_week' => $this->calendar->seasonWeek($b->expires_week),
             ])->values(),
         ]);
     }
@@ -117,6 +127,7 @@ class TitleHistoryController extends Controller
             'id' => $r->id,
             'reign_number' => $r->reign_number,
             'holder' => $r->holderName(),
+            'holder_parts' => $vacant ? [] : $this->parts($r->holderIds(), $r->holderName()),
             'holder_type' => $r->holder_type->value,
             'holder_reign' => $vacant ? null : $this->holderReign($r, $all),
             'won_week' => $r->won_week,
@@ -173,24 +184,63 @@ class TitleHistoryController extends Controller
     private function match(Save $save, TitleReign $reign, MatchSlot $slot, string $kind, ?int $number): array
     {
         // Factions are named as such (house rule).
-        $opponents = $slot->participants
+        $sides = $slot->participants
             ->filter(fn (MatchParticipant $p): bool => $p->role === ParticipantRole::Competitor && ! in_array($p->save_wrestler_id, $reign->holderIds(), true))
             ->groupBy('side')
-            ->map(fn (Collection $side): string => $this->factions->name($save->id, array_values(array_map('intval', $side->pluck('save_wrestler_id')->all())), $slot->show->week_number))
-            ->values()
-            ->implode(', ');
+            ->map(function (Collection $side) use ($save, $slot): array {
+                $ids = array_values(array_map('intval', $side->pluck('save_wrestler_id')->all()));
+                $name = $this->factions->name($save->id, $ids, $slot->show->week_number);
+
+                return ['name' => $name, 'parts' => $this->parts($ids, $name)];
+            })
+            ->values();
 
         return [
             'id' => $slot->id,
             'kind' => $kind,
             'number' => $number,
-            'opponents' => $opponents,
+            'opponents' => $sides->pluck('name')->implode(', '),
+            'opponent_sides' => $sides->pluck('parts')->all(),
             'season' => $this->calendar->seasonOf($slot->show->week_number),
             'season_week' => $this->calendar->seasonWeek($slot->show->week_number),
             'ppv' => $this->ppvName($slot->show),
             'match_type' => $slot->matchType?->name,
             'link' => $this->link($save, $slot->show->week_number, $slot->show, $slot->id),
         ];
+    }
+
+    /**
+     * A name split for colour coding: each wrestler with their roster type
+     * and weight class, or one uncoloured part when the name is a faction's.
+     *
+     * @param  list<int>  $ids
+     * @return list<array{name: string, roster_type: string|null, weight_class: string|null}>
+     */
+    private function parts(array $ids, string $display): array
+    {
+        $members = array_values(array_filter(array_map(fn (int $id): ?SaveWrestler => $this->wrestlers->get($id), $ids)));
+
+        if (count($members) === count($ids) && $display === implode(' & ', array_map(fn (SaveWrestler $w): string => $w->name(), $members))) {
+            return array_map(fn (SaveWrestler $w): array => [
+                'name' => $w->name(),
+                'roster_type' => $w->wrestler->roster_type->value,
+                'weight_class' => $w->wrestler->weight_class->value,
+            ], $members);
+        }
+
+        return [['name' => $display, 'roster_type' => null, 'weight_class' => null]];
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>|null>  $records
+     * @return array<string, array<string, mixed>|null>
+     */
+    private function recordParts(array $records): array
+    {
+        return array_map(fn (?array $record): ?array => $record === null ? null : [
+            ...$record,
+            'holder_parts' => $this->parts($record['holder_ids'], $record['holder']),
+        ], $records);
     }
 
     private function ppvName(?Show $show): ?string

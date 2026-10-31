@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import TitleHistory from '@/pages/gm/titles/history';
 
 const visit = vi.fn();
+const replace = vi.fn();
 
 const reign = {
     id: 2,
@@ -27,6 +28,15 @@ const reign = {
             kind: 'defense',
             number: 2,
             opponents: 'Rey Mysterio',
+            opponent_sides: [
+                [
+                    {
+                        name: 'Rey Mysterio',
+                        roster_type: 'superstar',
+                        weight_class: 'cruiserweight',
+                    },
+                ],
+            ],
             season: 1,
             season_week: 4,
             ppv: 'Backlash',
@@ -98,18 +108,16 @@ vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     Link: ({
         children,
-        href,
-        className,
+        ...rest
     }: {
         children: ReactNode;
         href: string;
         className?: string;
-    }) => (
-        <a href={href} className={className}>
-            {children}
-        </a>
-    ),
-    router: { visit: (url: string) => visit(url) },
+    }) => <a {...rest}>{children}</a>,
+    router: {
+        visit: (url: string) => visit(url),
+        replace: (options: unknown) => replace(options),
+    },
     usePage: () => ({ props, url: '/gm/saves/1/titles' }),
 }));
 
@@ -176,6 +184,39 @@ describe('Title History lineage', () => {
         );
         expect(screen.getByTestId('reign-1')).toHaveTextContent(
             'Vacated: Injured',
+        );
+    });
+
+    it('links each defense to its results and colour-codes the opponent', () => {
+        render(<TitleHistory />);
+
+        const link = within(screen.getByTestId('defense-31')).getByRole(
+            'link',
+            { name: 'Defense 2 against Rey Mysterio' },
+        );
+        expect(link).toHaveAttribute(
+            'href',
+            '/gm/saves/1/results/4?match=9&brand=raw',
+        );
+        expect(within(link).getByText('Rey Mysterio')).toHaveAttribute(
+            'data-tone',
+            'cruiser',
+        );
+    });
+
+    it('keeps the selected title in the URL', async () => {
+        const user = userEvent.setup();
+        render(<TitleHistory />);
+
+        await user.click(
+            screen.getByRole('button', { name: 'WWE Championship' }),
+        );
+
+        expect(replace).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: expect.stringContaining('title=wwe'),
+                preserveState: true,
+            }),
         );
     });
 });

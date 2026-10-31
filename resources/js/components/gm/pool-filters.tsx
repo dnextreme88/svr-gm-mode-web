@@ -26,7 +26,7 @@ function Chip({
             onClick={onClick}
             aria-pressed={pressed}
             className={cn(
-                'px-2 py-1 font-condensed text-xs font-semibold tracking-wider uppercase',
+                'inline-flex min-h-11 items-center px-2 py-1 font-condensed text-xs font-semibold tracking-wider uppercase sm:min-h-0',
                 active ? 'bg-brand text-white' : 'text-ink-dim hover:text-ink',
             )}
         >
@@ -84,7 +84,8 @@ export function PoolFilters({
                 Specialists
             </Chip>
             <input
-                className="gm-input w-40 py-1 text-sm"
+                type="search"
+                className="gm-input min-h-11 w-40 py-1 text-sm sm:min-h-0"
                 placeholder="Search…"
                 aria-label="Search wrestlers"
                 value={value.search}
