@@ -1,4 +1,4 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { BookingAction, BookingSteps } from '@/components/gm/booking-steps';
 import type { BookingOrder } from '@/components/gm/booking-steps';
