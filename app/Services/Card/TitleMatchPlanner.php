@@ -9,6 +9,7 @@ use App\Models\MatchType;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Titles\LastChanceService;
+use App\Services\Titles\TitleContention;
 use App\Services\Titles\TitleService;
 use App\Services\Titles\TitleShotService;
 use App\Support\Rng\Rng;
@@ -23,6 +24,7 @@ class TitleMatchPlanner
         private TitleService $titles,
         private LastChanceService $lastChance,
         private TitleShotService $shots,
+        private TitleContention $contention,
     ) {}
 
     /**
@@ -77,6 +79,23 @@ class TitleMatchPlanner
                 ->all();
 
             $needed = $type->competitorCount() - count($reign->holderIds());
+
+            // House rule: a title with an earned Champion vs. Contender shot
+            // waiting is only booked as that shot (an obligation), and a #1
+            // contender's title only against exactly the contenders.
+            if ($this->contention->earnedShot($show->game, $championship->id) !== null) {
+                continue;
+            }
+
+            $contendership = $this->contention->contendership($show->game, $championship->id);
+
+            if ($contendership !== null) {
+                if (count($contendership->contender_ids) !== $needed || array_diff($contendership->contender_ids, $challengers) !== []) {
+                    continue;
+                }
+
+                $challengers = $contendership->contender_ids;
+            }
 
             if (count($challengers) >= $needed) {
                 $options[] = ['championship' => $championship, 'holders' => $reign->holderIds(), 'challengers' => $challengers];

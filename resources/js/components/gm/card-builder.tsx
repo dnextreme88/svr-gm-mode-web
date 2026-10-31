@@ -15,6 +15,7 @@ import {
     projectedFatigue,
 } from '@/lib/card';
 import type { PromoFatigue, SlotDraft } from '@/lib/card';
+import { cantChallenge, contestable } from '@/lib/titles';
 import { fatigueZone, formatMoney, zoneLabel } from '@/lib/gm';
 import { slotSaveKey, useSaveStatus } from '@/lib/save-status';
 import { cn } from '@/lib/utils';
@@ -26,7 +27,7 @@ import type {
     FatigueConfig,
     MatchTypeOption,
     RosterEntry,
-    TitleOption,
+    TitleContext,
 } from '@/types/gm';
 
 type SlotTools = (
@@ -54,8 +55,11 @@ export type CardBuilderProps = {
     promoFatigue?: PromoFatigue[];
     /** Read-only because the week's booking order hasn't reached this card, or it's confirmed. */
     lockedByOrder?: boolean;
-    /** Every title with its holders, to tag the champions in a title match. */
-    championships?: TitleOption[];
+    /**
+     * Titles, their holders, Last Chance lockouts and #1 contenders: tags the
+     * champions and greys out who can't challenge for the title on the line.
+     */
+    titleContext?: TitleContext;
 };
 
 export function toDraft(slot: CardSlot): SlotDraft {
@@ -158,7 +162,7 @@ export function CardBuilder({
     renderActions,
     promoFatigue = [],
     lockedByOrder = false,
-    championships = [],
+    titleContext,
 }: CardBuilderProps) {
     const [drafts, setDrafts] = useState<SlotDraft[]>(() => slots.map(toDraft));
     const [dirty, setDirty] = useState<Set<number>>(new Set());
@@ -261,7 +265,7 @@ export function CardBuilder({
                     counts={counts}
                     fatigueConfig={fatigueConfig}
                     promoFatigue={promoFatigue}
-                    championships={championships}
+                    titleContext={titleContext}
                     readOnly={readOnly || draft.fixed}
                     canSave={!readOnly && !draft.fixed}
                     dirty={dirty.has(draft.position)}
@@ -297,7 +301,7 @@ type SlotEditorProps = {
     counts: Map<number, number>;
     fatigueConfig: FatigueConfig;
     promoFatigue: PromoFatigue[];
-    championships: TitleOption[];
+    titleContext: TitleContext | undefined;
     readOnly: boolean;
     canSave: boolean;
     dirty: boolean;
@@ -325,7 +329,7 @@ function SlotEditor({
     counts,
     fatigueConfig,
     promoFatigue,
-    championships,
+    titleContext,
     readOnly,
     canSave,
     dirty,
@@ -345,10 +349,23 @@ function SlotEditor({
     const saveStatus = useSaveStatus(saveKey);
     const everyone = participantIds(draft);
     useReportUnsaved(label, dirty);
-    // The holders of the title on the line, tagged "Champion" on their slots.
+    const championships = titleContext?.championships ?? [];
+    const titleOnLine = championships.find(
+        (c) => c.id === draft.titleChampionshipId,
+    );
+    // Tagged "Champion" on their slots: the holders of the title on the line,
+    // the champion a Champion vs. Contender is against, and every champion in
+    // a Winner Takes All.
     const champions =
-        championships.find((c) => c.id === draft.titleChampionshipId)
-            ?.holder_ids ?? [];
+        draft.stipulation === 'winner_takes_all'
+            ? championships
+                  .filter((c) => contestable(c))
+                  .flatMap((c) => c.holder_ids)
+            : draft.stipulation === 'champion_vs_contender'
+              ? (championships.find(
+                    (c) => c.id === draft.stipulationChampionshipId,
+                )?.holder_ids ?? [])
+              : (titleOnLine?.holder_ids ?? []);
 
     const note = (w: RosterEntry) =>
         w.blocked_reason ??
@@ -377,14 +394,24 @@ function SlotEditor({
                     w.roster_type === 'diva'
                 );
             })
-            .map((w) => ({
-                wrestler: w,
-                disabled:
-                    !w.bookable ||
-                    (everyone.includes(w.id) && w.id !== current),
-                note: note(w),
-                booked: bookedElsewhere(w.id),
-            }));
+            .map((w) => {
+                // Can't challenge for the title on the line: a Last Chance
+                // loser, anyone but its #1 contender(s), or not eligible.
+                const blocked =
+                    titleOnLine !== undefined &&
+                    titleContext !== undefined &&
+                    cantChallenge(titleOnLine, w, titleContext);
+
+                return {
+                    wrestler: w,
+                    disabled:
+                        !w.bookable ||
+                        blocked ||
+                        (everyone.includes(w.id) && w.id !== current),
+                    note: blocked ? "Can't book" : note(w),
+                    booked: bookedElsewhere(w.id),
+                };
+            });
     };
 
     // Managers and the special referee: anyone bookable who isn't already in the match.

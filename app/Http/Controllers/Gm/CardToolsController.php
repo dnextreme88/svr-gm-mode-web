@@ -42,7 +42,17 @@ class CardToolsController extends Controller
         $data = $request->validate(['match_type_id' => ['nullable', 'integer', 'exists:match_types,id'], 'roll' => ['nullable', 'integer', 'min:0']]);
         $type = isset($data['match_type_id']) ? MatchType::whereKey($data['match_type_id'])->first() : null;
         $roll = (int) ($data['roll'] ?? 0);
-        $titles = array_values(array_map('intval', MatchSlot::where('show_id', $show->id)->where('position', '!=', $position)->whereNotNull('title_championship_id')->pluck('title_championship_id')->all()));
+        $titles = array_values(MatchSlot::where('show_id', $show->id)->where('position', '!=', $position)->get()
+            ->flatMap(fn (MatchSlot $slot): array => array_filter([$slot->title_championship_id, ...($slot->contested_title_ids ?? [])]))
+            ->map(fn ($id): int => (int) $id)
+            ->all());
+
+        // An earned title shot this card still needs comes first, like Preset.
+        $owed = $this->randomizer->owedTitleShot($show, $position, $brand);
+
+        if ($owed !== null) {
+            return response()->json(['proposal' => $owed->toArray($this->names($owed))]);
+        }
 
         $proposal = $this->randomizer->proposeSlot(
             $show,

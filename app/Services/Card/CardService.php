@@ -5,18 +5,23 @@ namespace App\Services\Card;
 use App\Enums\Brand;
 use App\Enums\ParticipantRole;
 use App\Enums\ShowStatus;
+use App\Enums\Stipulation;
 use App\Exceptions\GameRuleException;
 use App\Models\MatchParticipant;
 use App\Models\MatchSlot;
 use App\Models\PromoSlot;
 use App\Models\Show;
+use App\Services\Titles\TitleContention;
 
 /**
  * Saves and clears bookings on a card (§4).
  */
 class CardService
 {
-    public function __construct(private CardValidator $validator) {}
+    public function __construct(
+        private CardValidator $validator,
+        private TitleContention $contention,
+    ) {}
 
     /**
      * Create the empty match and promo slots for a card.
@@ -53,6 +58,10 @@ class CardService
             'title_championship_id' => $booking->titleChampionshipId,
             'stipulation' => $booking->stipulation,
             'stipulation_championship_id' => $booking->stipulationChampionshipId,
+            // House rule: a Winner Takes All match keeps the titles it contests.
+            'contested_title_ids' => $booking->stipulation === Stipulation::WinnerTakesAll
+                ? $this->contention->contested($show->game, $booking)
+                : null,
             'cost' => $booking->matchType->cost,
         ]);
 
@@ -78,7 +87,7 @@ class CardService
         }
 
         $slot->participants()->delete();
-        $slot->update(['match_type_id' => null, 'title_championship_id' => null, 'stipulation' => null, 'stipulation_championship_id' => null, 'cost' => 0]);
+        $slot->update(['match_type_id' => null, 'title_championship_id' => null, 'stipulation' => null, 'stipulation_championship_id' => null, 'contested_title_ids' => null, 'cost' => 0]);
 
         return $slot;
     }

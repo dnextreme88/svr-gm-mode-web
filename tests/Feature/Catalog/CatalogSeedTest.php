@@ -28,14 +28,14 @@ function wrestler(string $name): Wrestler
 }
 
 describe('roster (§9)', function () {
-    it('seeds 163 wrestlers: the Nov 2005 brands, free agents and Legends', function () {
-        expect(Wrestler::count())->toBe(163)
+    it('seeds 160 wrestlers: the Nov 2005 brands, free agents and Legends', function () {
+        expect(Wrestler::count())->toBe(160)
             ->and(Wrestler::where('roster_type', RosterType::Superstar)->where('placeholder_brand', Brand::Raw)->count())->toBe(25)
             ->and(Wrestler::where('roster_type', RosterType::Superstar)->where('placeholder_brand', Brand::Smackdown)->count())->toBe(28)
-            ->and(Wrestler::where('roster_type', RosterType::Superstar)->whereNull('placeholder_brand')->count())->toBe(50)
+            ->and(Wrestler::where('roster_type', RosterType::Superstar)->whereNull('placeholder_brand')->count())->toBe(48)
             ->and(Wrestler::where('roster_type', RosterType::Diva)->where('placeholder_brand', Brand::Raw)->count())->toBe(5)
             ->and(Wrestler::where('roster_type', RosterType::Diva)->where('placeholder_brand', Brand::Smackdown)->count())->toBe(2)
-            ->and(Wrestler::where('roster_type', RosterType::Diva)->whereNull('placeholder_brand')->count())->toBe(16)
+            ->and(Wrestler::where('roster_type', RosterType::Diva)->whereNull('placeholder_brand')->count())->toBe(15)
             ->and(Wrestler::where('roster_type', RosterType::Legend)->count())->toBe(37);
     });
 
@@ -87,7 +87,7 @@ describe('roster (§9)', function () {
     });
 
     it('has unique names', function () {
-        expect(Wrestler::distinct()->count('name'))->toBe(163);
+        expect(Wrestler::distinct()->count('name'))->toBe(160);
     });
 });
 
@@ -130,7 +130,7 @@ describe('weight classes (§12)', function () {
 
     it('turns Legends who were active in 2005 into Superstars', function (string $name) {
         expect(wrestler($name)->roster_type)->toBe(RosterType::Superstar);
-    })->with(['Hacksaw Jim Duggan', 'Tatanka', 'Jerry Lawler', 'Road Warrior Animal', 'Goldust', 'Jimmy Wang Yang', 'Mike Knox', 'Tommy Dreamer', 'Al Snow']);
+    })->with(['Hacksaw Jim Duggan', 'Tatanka', 'Road Warrior Animal', 'Goldust', 'Jimmy Wang Yang', 'Tommy Dreamer', 'Al Snow']);
 
     it('classes the 2005 additions as listed', function (string $name, WeightClass $class) {
         expect(wrestler($name)->weight_class)->toBe($class);
@@ -162,24 +162,23 @@ describe('weight classes (§12)', function () {
         ['The Brooklyn Brawler', WeightClass::Heavyweight],
         ['Dean Malenko', WeightClass::Cruiserweight],
         ['Fit Finlay', WeightClass::LightHeavyweight],
-        ['Gerald Brisco', WeightClass::Cruiserweight],
+        ['Gerald Brisco', WeightClass::LightHeavyweight],
+        ['Jerry Lawler', WeightClass::LightHeavyweight],
         ['Goldust', WeightClass::LightHeavyweight],
         ['Jack Brisco', WeightClass::LightHeavyweight],
         ['Jimmy Snuka', WeightClass::LightHeavyweight],
         ['Jimmy Wang Yang', WeightClass::Cruiserweight],
         ['Michael Hayes', WeightClass::Heavyweight],
-        ['Mike Knox', WeightClass::Heavyweight],
         ['Mr. McMahon', WeightClass::Heavyweight],
         ['Pat Patterson', WeightClass::LightHeavyweight],
         ['Ricky Steamboat', WeightClass::LightHeavyweight],
-        ['Superstar Billy Graham', WeightClass::Heavyweight],
     ]);
 
     it('adds the 2005 extras as Legends', function (string $name) {
         expect(wrestler($name)->roster_type)->toBe(RosterType::Legend);
     })->with([
         'Arn Anderson', 'The Brooklyn Brawler', 'Dean Malenko', 'Fit Finlay', 'Gerald Brisco', 'Jack Brisco',
-        'Jimmy Snuka', 'Michael Hayes', 'Mr. McMahon', 'Pat Patterson', 'Ricky Steamboat', 'Superstar Billy Graham',
+        'Jimmy Snuka', 'Michael Hayes', 'Mr. McMahon', 'Pat Patterson', 'Ricky Steamboat', 'Jerry Lawler',
     ]);
 
     it('makes every Diva a Featherweight', function () {
@@ -193,9 +192,9 @@ describe('weight classes (§12)', function () {
 });
 
 describe('specialties (§21)', function () {
-    it('seeds 37 specialties across 29 wrestlers', function () {
-        expect(WrestlerSpecialty::count())->toBe(37)
-            ->and(WrestlerSpecialty::distinct()->count('wrestler_id'))->toBe(29);
+    it('seeds 44 specialties across 33 wrestlers', function () {
+        expect(WrestlerSpecialty::count())->toBe(44)
+            ->and(WrestlerSpecialty::distinct()->count('wrestler_id'))->toBe(33);
     });
 
     it('gives the listed wrestlers their specialties', function () {
@@ -206,8 +205,11 @@ describe('specialties (§21)', function () {
             ->and(wrestler('Kurt Angle')->specialtyFamilies())->toBe([MatchFamily::Submission])
             ->and(collect(['Stevie Richards', 'Sabu', 'Terry Funk', 'Tommy Dreamer'])->map(fn ($n) => wrestler($n)->specialtyFamilies())->all())
             ->toBe(array_fill(0, 4, [MatchFamily::Hardcore]))
-            ->and(collect(['Bubba Ray Dudley', 'D-Von Dudley'])->map(fn ($n) => wrestler($n)->specialtyFamilies())->all())
-            ->toBe(array_fill(0, 2, [MatchFamily::Table]))
+            ->and(collect(['Bubba Ray Dudley', 'D-Von Dudley'])->map(fn ($n) => collect(wrestler($n)->specialtyFamilies())->sortBy('value')->values()->all())->all())
+            ->toBe(array_fill(0, 2, [MatchFamily::Hardcore, MatchFamily::Table]))
+            ->and(collect(['Hardcore Holly', 'Rhino', 'Bam Bam Bigelow'])->map(fn ($n) => wrestler($n)->specialtyFamilies())->all())
+            ->toBe(array_fill(0, 3, [MatchFamily::Hardcore]))
+            ->and(wrestler('The Blue Meanie')->specialtyFamilies())->toEqualCanonicalizing([MatchFamily::FirstBlood, MatchFamily::Hardcore])
             ->and(wrestler('Spike Dudley')->specialtyFamilies())->toEqualCanonicalizing([MatchFamily::Table, MatchFamily::Hardcore])
             ->and(wrestler('Mick Foley')->specialtyFamilies())->toEqualCanonicalizing([MatchFamily::Hardcore, MatchFamily::HellInACell])
             ->and(wrestler('Kane')->specialtyFamilies())->toBe([MatchFamily::FirstBlood])
@@ -468,9 +470,9 @@ describe('promo types (§5)', function () {
 it('is safe to run the catalog seeder twice', function () {
     $this->seed(CatalogSeeder::class);
 
-    expect(Wrestler::count())->toBe(163)
+    expect(Wrestler::count())->toBe(160)
         ->and(MatchType::count())->toBe(97)
-        ->and(WrestlerSpecialty::count())->toBe(37);
+        ->and(WrestlerSpecialty::count())->toBe(44);
 });
 
 it('lays the season out as Sunday-first months from April 2005 to March 2006', function () {

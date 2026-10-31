@@ -228,8 +228,9 @@ type TabKey = (typeof tabs)[number]['key'];
 /** Rule summaries from spec §22. */
 const stipulationRules: Record<Stipulation, string[]> = {
     champion_vs_contender: [
-        'Always 1 vs 1 (singles title) or 2 vs 2 (tag title), with the title not on the line.',
-        'If the contender wins, they earn a title match on the next weekly show or PPV, whichever comes first. The card can’t air until that match is booked.',
+        'Always 1 vs 1 (singles title) or 2 vs 2 (tag title), with the title not on the line. One side is exactly the champion(s); the other side holds no title at all.',
+        'A champion with several titles can put any one of them up: pick it in the modal. Only one title per match.',
+        'If the contender wins, they earn a title match on the next weekly show or PPV, whichever comes first. The card can’t air until that match is booked, and the card reminds you when you open it.',
         'A seriously injured contender gets the shot on the first show after they recover. Minor injuries don’t delay it.',
         'If the champion wins, nothing changes.',
     ],
@@ -242,7 +243,17 @@ const stipulationRules: Record<Stipulation, string[]> = {
     last_chance: [
         'Only bookable once the same champion(s) and contender(s) have met in at least 2 title matches this reign, with the champion winning every one.',
         'If the contender wins, they become champion as normal.',
-        'If they lose, they can’t face the same champion(s) in a title match until the title changes hands.',
+        'If they lose, they can’t face the same champion(s) in a title match until the title changes hands. The pickers show them as Can’t book.',
+    ],
+    winner_takes_all: [
+        'Only 1 vs 1 or a triple threat, with every competitor a champion. No title is picked: every singles title they hold is on the line (never a tag title or the Women’s title, so no Divas).',
+        'A decisive win gives the winner every contested title. A DQ or count-out changes nothing.',
+        'A contested title can’t be on the line anywhere else on the card.',
+    ],
+    number_one_contender: [
+        'Any non-title match whose sides fit the title: one wrestler per side for a singles title (a Battle Royal or Gauntlet too), 2 vs 2 or 2 vs 2 vs 2 for a tag title, all Divas for the Women’s title. Nobody in it holds that title.',
+        'The winner(s) become the #1 contender(s), with no deadline. Until then, that title can only be defended against them.',
+        'It’s voided if a contender leaves the brand or is seriously injured. If the title is vacated first, you choose: award it to the contender(s) or forfeit.',
     ],
 };
 

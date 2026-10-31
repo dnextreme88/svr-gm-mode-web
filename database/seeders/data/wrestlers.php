@@ -87,7 +87,6 @@ $freeAgents = [
     ['Rhino', 'heavyweight', 295],
     ['Rosey', 'super_heavyweight', 375],
     ['Tyson Tomko', 'heavyweight', 292],
-    ['Jerry Lawler', 'heavyweight', null],
     ['Matt Hardy', 'light_heavyweight', 235],
     ['Charlie Haas', 'heavyweight', 249],
     ['Christian', 'light_heavyweight', 227],
@@ -115,7 +114,6 @@ $freeAgents = [
     ['Al Snow', 'light_heavyweight', 235],
     ['Goldust', 'light_heavyweight', 232],
     ['Jimmy Wang Yang', 'cruiserweight', 206],
-    ['Mike Knox', 'heavyweight', 293],
     ['Chuck Palumbo', 'heavyweight', null],
     ['MVP', 'heavyweight', null],
 ];
@@ -125,7 +123,7 @@ $smackdownDivas = ['Melina', 'Sharmell'];
 $freeAgentDivas = [
     'Ashley Massaro', 'Maria', 'Candice Michelle', 'Hiroko', 'Ivory', 'Molly Holly',
     'Christy Hemme', 'Joy Giovanni', 'Michelle McCool', 'Stacy Keibler', 'Cherry',
-    'Dawn Marie', 'Jillian Hall', 'Miss Jackie', 'Vickie Guerrero', 'Mae Young',
+    'Dawn Marie', 'Jillian Hall', 'Vickie Guerrero', 'Mae Young',
 ];
 
 $legends = [
@@ -155,14 +153,14 @@ $legends = [
     ['The Brooklyn Brawler', 'heavyweight', 248],
     ['Dean Malenko', 'cruiserweight', 212],
     ['Fit Finlay', 'light_heavyweight', 233],
-    ['Gerald Brisco', 'cruiserweight', 209],
+    ['Gerald Brisco', 'light_heavyweight', 209],
+    ['Jerry Lawler', 'light_heavyweight', null],
     ['Jack Brisco', 'light_heavyweight', 234],
     ['Jimmy Snuka', 'light_heavyweight', 235],
     ['Michael Hayes', 'heavyweight', 255],
     ['Mr. McMahon', 'heavyweight', 248],
     ['Pat Patterson', 'light_heavyweight', 237],
     ['Ricky Steamboat', 'light_heavyweight', 235],
-    ['Superstar Billy Graham', 'heavyweight', 275],
     ['Faarooq', 'heavyweight', 270],
     ['Brutus Beefcake', 'heavyweight', null],
     ['Bam Bam Bigelow', 'super_heavyweight', null],
@@ -207,8 +205,8 @@ return [
         'JBL' => ['first_blood'],
         'Eddie Guerrero' => ['first_blood'],
         'Spike Dudley' => ['table', 'hardcore'],
-        'Bubba Ray Dudley' => ['table'],
-        'D-Von Dudley' => ['table'],
+        'Bubba Ray Dudley' => ['table', 'hardcore'],
+        'D-Von Dudley' => ['table', 'hardcore'],
         'Undertaker' => ['hell_in_a_cell'],
         'Bret Hart' => ['submission', 'iron_man'],
         'Stone Cold Steve Austin' => ['first_blood'],
@@ -218,5 +216,9 @@ return [
         'Sabu' => ['hardcore'],
         'Terry Funk' => ['hardcore'],
         'Tommy Dreamer' => ['hardcore'],
+        'Hardcore Holly' => ['hardcore'],
+        'Rhino' => ['hardcore'],
+        'Bam Bam Bigelow' => ['hardcore'],
+        'The Blue Meanie' => ['first_blood', 'hardcore'],
     ],
 ];

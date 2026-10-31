@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int|null $title_championship_id
  * @property Stipulation|null $stipulation
  * @property int|null $stipulation_championship_id
+ * @property list<int>|null $contested_title_ids
  * @property int $cost
  * @property FixedSlotKind|null $fixed_kind
  * @property Brand|null $owner_brand
@@ -159,6 +160,7 @@ class MatchSlot extends Model
     {
         return [
             'stipulation' => Stipulation::class,
+            'contested_title_ids' => 'array',
             'fixed_kind' => FixedSlotKind::class,
             'owner_brand' => Brand::class,
             'rating' => 'float',

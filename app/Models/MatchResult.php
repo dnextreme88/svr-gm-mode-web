@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $champion_reign_id the reign on the line going in
  * @property string|null $title_banner
  * @property string|null $stipulation_outcome
+ * @property list<array{championship_id: int, reign_id: int}>|null $titles_won
  * @property string $summary
  * @property int $rng_seed_step
  * @property-read MatchSlot $matchSlot
@@ -69,6 +70,7 @@ class MatchResult extends Model
             'method' => MatchMethod::class,
             'finish_event' => FinishEvent::class,
             'title_changed' => 'boolean',
+            'titles_won' => 'array',
             'booked' => 'boolean',
         ];
     }

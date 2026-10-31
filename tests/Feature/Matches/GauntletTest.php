@@ -104,9 +104,9 @@ it('plays each bout as a normal singles match, DQs included', function () {
         ->and($result->losers)->toHaveCount(5);
 });
 
-it('takes no stipulation', function () {
+it('takes no stipulation but a #1 Contender’s Match', function () {
     $save = GameBuilder::inSeason(raw: GAUNTLET, smackdown: ['Batista']);
 
     expect(fn () => Card::book($save, Card::show($save), 1, Card::type('gauntlet', '6-Man Gauntlet'), array_map(fn (string $n): array => [$n], GAUNTLET), [], null, Stipulation::LoserLeavesShow))
-        ->toThrow(GameRuleException::class, "Gauntlet can't have a stipulation");
+        ->toThrow(GameRuleException::class, "Gauntlet can't have a Loser Leaves Show stipulation");
 });

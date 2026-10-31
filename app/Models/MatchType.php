@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\Brand;
 use App\Enums\MatchFamily;
+use App\Enums\Stipulation;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -102,12 +103,24 @@ class MatchType extends Model
     }
 
     /**
-     * House rule: no stipulations in the families listed in
-     * `gm.match_rules.no_stipulation_families` (the Gauntlet).
+     * Stipulations this type can take. Families listed in
+     * `gm.match_rules.family_stipulations` take only those: a Gauntlet only
+     * takes a #1 Contender's Match (house rule).
+     *
+     * @return list<Stipulation>
      */
-    public function allowsStipulations(): bool
+    public function allowedStipulations(): array
     {
-        return ! in_array($this->family->value, (array) config('gm.match_rules.no_stipulation_families', []), true);
+        $only = config("gm.match_rules.family_stipulations.{$this->family->value}");
+
+        return $only === null
+            ? Stipulation::cases()
+            : array_values(array_map(fn (string $s): Stipulation => Stipulation::from($s), (array) $only));
+    }
+
+    public function allowsStipulation(Stipulation $stipulation): bool
+    {
+        return in_array($stipulation, $this->allowedStipulations(), true);
     }
 
     public function isMoneyInTheBank(): bool

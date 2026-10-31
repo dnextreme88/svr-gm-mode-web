@@ -91,6 +91,10 @@ return [
 
     ['fulfill_your_fantasy', 'Single', $one, [], ['divas_only' => true, 'win_condition' => 'Bra & Panties']],
 
+    // House rule (replaces Slobber Knocker): six entrants, five singles bouts.
+    // Entrants 1 and 2 open; each winner faces the next entrant. No titles; the only stipulation is a #1 Contender's Match.
+    ['gauntlet', '6-Man Gauntlet', $six, []],
+
     ['hardcore', 'Single', $one, []],
     ['hardcore', 'Single No Manager vs. w/Manager', $one, $noMgrVsMgr],
     ['hardcore', 'Single w/Manager vs. w/Manager', $one, $mgrVsMgr],
@@ -123,10 +127,6 @@ return [
     ['last_man_standing', 'Single', $one, [], ['win_condition' => '10-count']],
     ['last_man_standing', 'Single No Manager vs. w/Manager', $one, $noMgrVsMgr, ['win_condition' => '10-count']],
     ['last_man_standing', 'Single w/Manager vs. w/Manager', $one, $mgrVsMgr, ['win_condition' => '10-count']],
-
-    // House rule (replaces Slobber Knocker): six entrants, five singles bouts.
-    // Entrants 1 and 2 open; each winner faces the next entrant. No titles or stipulations.
-    ['gauntlet', '6-Man Gauntlet', $six, []],
 
     ['special_referee', 'Single', $one, []],
     ['special_referee', 'Tag Match', $tag, []],

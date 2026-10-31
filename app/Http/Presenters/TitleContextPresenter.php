@@ -3,13 +3,18 @@
 namespace App\Http\Presenters;
 
 use App\Enums\Brand;
+use App\Enums\TitleShotKind;
+use App\Enums\TitleShotStatus;
 use App\Models\Championship;
 use App\Models\MatchSlot;
 use App\Models\Save;
 use App\Models\Show;
+use App\Models\TitleReign;
+use App\Models\TitleShot;
 use App\Services\Factions\FactionNamer;
 use App\Services\Titles\LastChanceService;
 use App\Services\Titles\MitbService;
+use App\Services\Titles\TitleContention;
 use App\Services\Titles\TitleService;
 use App\Services\Titles\TitleShotService;
 
@@ -24,6 +29,7 @@ class TitleContextPresenter
         private TitleShotService $shots,
         private MitbService $mitb,
         private FactionNamer $factions,
+        private TitleContention $contention,
     ) {}
 
     /**
@@ -66,11 +72,37 @@ class TitleContextPresenter
 
         $briefcase = $this->mitb->held($save)->first(fn ($b): bool => $b->brand === $brand);
 
+        // House rule (2026-10-31): #1 contenders waiting for their title
+        // match, titles with an earned shot still to come, and everyone who
+        // holds a title (a Champion vs. Contender contender can't).
+        $contenderships = $this->contention->contenderships($save)
+            ->filter(fn (TitleShot $shot): bool => $shot->brand === $brand)
+            ->map(fn (TitleShot $shot): array => [
+                'championship_id' => $shot->championship_id,
+                'championship' => $shot->championship->name,
+                'contender_ids' => $shot->contender_ids,
+                'contenders' => $names($shot->contender_ids),
+            ])->values();
+        $earned = TitleShot::where('save_id', $save->id)
+            ->where('kind', TitleShotKind::ChampionVsContender)
+            ->where('status', TitleShotStatus::Pending)
+            ->pluck('championship_id')
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values();
+        $holders = $this->titles->currentReigns($save)
+            ->flatMap(fn (TitleReign $reign): array => $reign->holderIds())
+            ->unique()
+            ->values();
+
         return [
             'championships' => $titles,
             'lockouts' => (object) $this->lastChance->lockedIds($save),
             'last_chance' => $lastChance,
             'title_shots' => $shots,
+            'contenderships' => $contenderships,
+            'earned_shot_title_ids' => $earned,
+            'title_holder_ids' => $holders,
             'briefcase' => $briefcase === null ? null : [
                 'id' => $briefcase->id,
                 'holder' => $briefcase->holder->name(),

@@ -20,6 +20,7 @@ use App\Services\Card\TitleMatchPlanner;
 use App\Services\Rivalries\RivalryService;
 use App\Services\Titles\LastChanceService;
 use App\Services\Titles\MitbService;
+use App\Services\Titles\TitleContention;
 use App\Services\Titles\TitleService;
 use App\Support\Rng\Rng;
 use Illuminate\Database\Eloquent\Collection;
@@ -60,6 +61,7 @@ class AiBooker
         private MitbService $mitb,
         private IntergenderRules $intergender,
         private PlannedFatigue $plannedFatigue,
+        private TitleContention $contention,
     ) {}
 
     /**
@@ -447,10 +449,14 @@ class AiBooker
             return null;
         }
 
-        foreach (Championship::where('brand', $this->brand)->orderBy('sort_order')->get() as $championship) {
-            $reign = $this->titles->currentReign($this->show->game, $championship);
+        $save = $this->show->game;
+        $options = [];
 
-            if ($reign === null || $championship->is_tag !== $type->isTwoOnTwo()) {
+        foreach (Championship::where('brand', $this->brand)->orderBy('sort_order')->get() as $championship) {
+            $reign = $this->titles->currentReign($save, $championship);
+
+            if ($reign === null || $championship->is_tag !== $type->isTwoOnTwo()
+                || $this->contention->contendership($save, $championship->id) !== null) {
                 continue;
             }
 
@@ -468,16 +474,20 @@ class AiBooker
                 $contenders = $booking->sides[1 - $i];
                 $wrestlers = SaveWrestler::with('wrestler')->whereIn('id', $contenders)->get();
 
-                if ($wrestlers->contains(fn (SaveWrestler $w): bool => ! $championship->allowsWrestler($w->wrestler))
+                // House rule: the contender side holds no title of its own.
+                if ($wrestlers->contains(fn (SaveWrestler $w): bool => ! $championship->allowsWrestler($w->wrestler) || $this->contention->holdsAnyTitle($save, $w->id))
                     || $this->lastChance->isLockedOut($reign, $contenders)) {
                     continue;
                 }
 
-                return new Booking($type, $booking->sides, $booking->managers, null, Stipulation::ChampionVsContender, $championship->id, $booking->refereeId);
+                $options[] = $championship->id;
             }
         }
 
-        return null;
+        // A champion with several titles puts any one of them up (house rule).
+        return $options === []
+            ? null
+            : new Booking($type, $booking->sides, $booking->managers, null, Stipulation::ChampionVsContender, (int) $this->rng->pick($options), $booking->refereeId);
     }
 
     /**

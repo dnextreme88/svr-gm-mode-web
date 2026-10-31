@@ -9,6 +9,7 @@ import type {
     FatigueConfig,
     MatchTypeOption,
     RosterEntry,
+    TitleContext,
 } from '@/types/gm';
 
 // The Clear confirmation reads the player's brand from the Inertia page; the
@@ -233,7 +234,28 @@ function emptySlot(position: number): CardSlot {
     };
 }
 
-function setup(slots: CardSlot[] = [emptySlot(1), emptySlot(2)]) {
+const titleContext = (overrides: Partial<TitleContext> = {}): TitleContext => ({
+    championships: [
+        {
+            id: 1,
+            name: 'Intercontinental Championship',
+            is_tag: false,
+            eligibility: 'open',
+            holder_ids: [10],
+            holder_name: 'Edge',
+        },
+    ],
+    lockouts: {},
+    last_chance: [],
+    title_shots: [],
+    briefcase: null,
+    ...overrides,
+});
+
+function setup(
+    slots: CardSlot[] = [emptySlot(1), emptySlot(2)],
+    context: TitleContext = titleContext(),
+) {
     const onSave = vi.fn();
     const onClear = vi.fn();
 
@@ -248,16 +270,7 @@ function setup(slots: CardSlot[] = [emptySlot(1), emptySlot(2)]) {
                 fatigueConfig={config}
                 onSave={onSave}
                 onClear={onClear}
-                championships={[
-                    {
-                        id: 1,
-                        name: 'Intercontinental Championship',
-                        is_tag: false,
-                        eligibility: 'open',
-                        holder_ids: [10],
-                        holder_name: 'Edge',
-                    },
-                ]}
+                titleContext={context}
             />
         </UnsavedChangesProvider>,
     );
@@ -985,6 +998,62 @@ describe('CardBuilder', () => {
         expect(screen.getByTestId('slot-2-side-0-0')).not.toHaveTextContent(
             'Champion',
         );
+    });
+    it("greys out who can't challenge for the title on the line", async () => {
+        const user = userEvent.setup();
+        // Kane lost a Last Chance match to Edge, the Intercontinental champion.
+        setup(
+            [
+                {
+                    ...emptySlot(1),
+                    match_type_id: 1,
+                    sides: [[10], [null]],
+                    title_championship_id: 1,
+                },
+            ],
+            titleContext({ lockouts: { 1: [11] } }),
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Match 1 side 2 wrestler 1' }),
+        );
+        const kane = screen.getByRole('option', { name: /Kane/ });
+
+        expect(kane).toBeDisabled();
+        expect(kane).toHaveTextContent("Can't book");
+    });
+
+    it('lets only the #1 contender challenge for a title they wait on', async () => {
+        const user = userEvent.setup();
+        setup(
+            [
+                {
+                    ...emptySlot(1),
+                    match_type_id: 1,
+                    sides: [[10], [null]],
+                    title_championship_id: 1,
+                },
+            ],
+            titleContext({
+                contenderships: [
+                    {
+                        championship_id: 1,
+                        championship: 'Intercontinental Championship',
+                        contender_ids: [11],
+                        contenders: 'Kane',
+                    },
+                ],
+            }),
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Match 1 side 2 wrestler 1' }),
+        );
+
+        expect(screen.getByRole('option', { name: /Kane/ })).toBeEnabled();
+        expect(
+            screen.getByRole('option', { name: /Ric Flair/ }),
+        ).toHaveTextContent("Can't book");
     });
 });
 

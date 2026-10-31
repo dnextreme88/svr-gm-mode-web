@@ -3,6 +3,7 @@
 namespace App\Services\Roster;
 
 use App\Enums\Brand;
+use App\Enums\ContendershipVoidReason;
 use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
@@ -17,6 +18,7 @@ use App\Services\Calendar\CalendarService;
 use App\Services\Injuries\InjuryStatus;
 use App\Services\Mail\EmailService;
 use App\Services\News\NewsRecorder;
+use App\Services\Titles\ContendershipService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleService;
 use Illuminate\Support\Collection;
@@ -35,6 +37,7 @@ class TradeService
         private EmailService $emails,
         private NewsRecorder $news,
         private AiTradeJudge $judge,
+        private ContendershipService $contenderships,
     ) {}
 
     /**
@@ -171,6 +174,7 @@ class TradeService
 
             // A traded Money in the Bank holder's briefcase is voided (§8, §10).
             $this->mitb->voidFor($wrestler, 'traded', $week);
+            $this->contenderships->voidFor($wrestler, ContendershipVoidReason::Traded, $week);
             $wrestler->update(['brand' => $to, 'joined_brand_week' => $week]);
             $wrestler->activeContract?->update(['brand' => $to]);
         }

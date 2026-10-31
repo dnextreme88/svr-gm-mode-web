@@ -3,6 +3,7 @@
 namespace App\Services\Ppv;
 
 use App\Enums\Brand;
+use App\Enums\ContendershipVoidReason;
 use App\Enums\DraftPhase;
 use App\Enums\DraftPickSource;
 use App\Enums\DraftPickType;
@@ -17,6 +18,7 @@ use App\Models\SaveWrestler;
 use App\Services\Mail\EmailService;
 use App\Services\News\NewsRecorder;
 use App\Services\Roster\RosterService;
+use App\Services\Titles\ContendershipService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleService;
 use App\Support\Rng\Rng;
@@ -35,6 +37,7 @@ class ReDraftService
         private MitbService $mitb,
         private NewsRecorder $news,
         private EmailService $emails,
+        private ContendershipService $contenderships,
     ) {}
 
     public function series(Save $save): ?InterbrandSeries
@@ -155,6 +158,7 @@ class ReDraftService
     private function move(SaveWrestler $wrestler, Brand $to, int $week): void
     {
         $this->mitb->voidFor($wrestler, 'redrafted', $week);
+        $this->contenderships->voidFor($wrestler, ContendershipVoidReason::Redrafted, $week);
         $wrestler->update(['brand' => $to, 'joined_brand_week' => $week]);
         $wrestler->activeContract?->update(['brand' => $to]);
     }

@@ -72,7 +72,7 @@ export function SlotActions({
         <div className={cn('flex flex-wrap items-center', className)}>
             {(editable || buttons) && (
                 <div
-                    className="grid w-full gap-2 sm:grid-cols-2 md:flex md:w-auto md:flex-wrap md:items-center [&>*]:w-full sm:[&>*]:w-auto sm:[&>*]:justify-self-start sm:[&>*:nth-child(even)]:justify-self-end"
+                    className="grid w-full gap-2 sm:grid-cols-2 md:flex-wrap md:items-center lg:flex lg:w-auto [&>*]:w-full sm:[&>*]:w-auto sm:[&>*]:justify-self-start sm:[&>*:nth-child(even)]:justify-self-end"
                     data-testid="slot-buttons"
                 >
                     {editable && (

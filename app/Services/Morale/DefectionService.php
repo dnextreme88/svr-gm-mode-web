@@ -3,6 +3,7 @@
 namespace App\Services\Morale;
 
 use App\Enums\Brand;
+use App\Enums\ContendershipVoidReason;
 use App\Enums\EmailTemplate;
 use App\Enums\Morale;
 use App\Enums\NewsBrand;
@@ -14,6 +15,7 @@ use App\Models\SaveWrestler;
 use App\Services\Mail\EmailService;
 use App\Services\News\NewsRecorder;
 use App\Services\Roster\RosterService;
+use App\Services\Titles\ContendershipService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleService;
 use App\Support\Rng\Rng;
@@ -30,6 +32,7 @@ class DefectionService
         private MoraleCalculator $morale,
         private EmailService $emails,
         private NewsRecorder $news,
+        private ContendershipService $contenderships,
     ) {}
 
     public function chanceFor(Morale $morale): float
@@ -102,6 +105,7 @@ class DefectionService
 
         $this->titles->vacateFor($wrestler, ReignEndReason::Defected, $week);
         $this->mitb->voidFor($wrestler, 'defected', $week);
+        $this->contenderships->voidFor($wrestler, ContendershipVoidReason::Defected, $week);
 
         $wrestler->update(['brand' => $to, 'joined_brand_week' => $week + 1]);
         $wrestler->activeContract?->update(['brand' => $to]);

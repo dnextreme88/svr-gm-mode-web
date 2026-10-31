@@ -3,6 +3,7 @@
 namespace App\Services\Contracts;
 
 use App\Enums\Brand;
+use App\Enums\ContendershipVoidReason;
 use App\Enums\ContractLength;
 use App\Enums\ContractStatus;
 use App\Enums\LedgerCategory;
@@ -20,6 +21,7 @@ use App\Services\Finance\LedgerService;
 use App\Services\Morale\MoraleCalculator;
 use App\Services\News\NewsRecorder;
 use App\Services\Roster\RosterService;
+use App\Services\Titles\ContendershipService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleService;
 
@@ -36,6 +38,7 @@ class ContractService
         private MoraleCalculator $morale,
         private NewsRecorder $news,
         private RosterService $roster,
+        private ContendershipService $contenderships,
     ) {}
 
     /**
@@ -161,6 +164,13 @@ class ContractService
 
         $vacated = $this->titles->vacateFor($wrestler, $reason, $week);
         $this->mitb->voidFor($wrestler, $reason->value, $week);
+        // House rule: a #1 contender who leaves the brand loses the spot.
+        $this->contenderships->voidFor($wrestler, match ($reason) {
+            ReignEndReason::ContractExpired => ContendershipVoidReason::ContractExpired,
+            ReignEndReason::LoserLeaves => ContendershipVoidReason::LoserLeaves,
+            ReignEndReason::Defected => ContendershipVoidReason::Defected,
+            default => ContendershipVoidReason::Released,
+        }, $week);
 
         $wrestler->activeContract?->update([
             'status' => $reason === ReignEndReason::ContractExpired ? ContractStatus::Expired : ContractStatus::Released,

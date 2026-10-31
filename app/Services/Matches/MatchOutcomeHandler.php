@@ -10,6 +10,7 @@ use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
 use App\Enums\ReignEndReason;
+use App\Enums\RosterType;
 use App\Enums\Stipulation;
 use App\Enums\WonVia;
 use App\Models\Championship;
@@ -25,6 +26,7 @@ use App\Services\Factions\FactionNamer;
 use App\Services\Finance\LedgerService;
 use App\Services\News\NewsRecorder;
 use App\Services\Titles\ChampionshipAssignment;
+use App\Services\Titles\ContendershipService;
 use App\Services\Titles\LastChanceService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleRecords;
@@ -49,6 +51,7 @@ class MatchOutcomeHandler
         private NewsRecorder $news,
         private TitleRecords $records,
         private FactionNamer $factions,
+        private ContendershipService $contenderships,
     ) {}
 
     public function apply(MatchSlot $slot, MatchResult $result, ResolvedMatch $resolved, WeekContext $context): void
@@ -64,6 +67,7 @@ class MatchOutcomeHandler
         $championSide = null;
         $stipulationOutcome = null;
         $reignBefore = null;
+        $titlesWon = null;
 
         if ($slot->titleChampionship !== null) {
             foreach ($slot->competitorIds() as $id) {
@@ -74,7 +78,9 @@ class MatchOutcomeHandler
             $this->shots->fulfil($slot, $context->week);
         }
 
-        if ($slot->stipulation !== null) {
+        if ($slot->stipulation === Stipulation::WinnerTakesAll) {
+            [$stipulationOutcome, $titlesWon, $titleChanged] = $this->winnerTakesAll($slot, $resolved, $context, $nameOf);
+        } elseif ($slot->stipulation !== null) {
             $stipulationOutcome = $this->resolveStipulation($slot, $resolved, $context, $nameOf, $championSide, $reignBefore, $titleChanged);
         }
 
@@ -109,6 +115,7 @@ class MatchOutcomeHandler
             'champion_reign_id' => $reignBefore?->id,
             'title_banner' => $banner,
             'stipulation_outcome' => $stipulationOutcome,
+            'titles_won' => $titlesWon,
         ]);
     }
 
@@ -198,12 +205,25 @@ class MatchOutcomeHandler
                     'champion' => $cvcReign->holderName(),
                     'title' => $championship->name,
                     'next_show' => 'next week',
-                ], ['championship_id' => $championship->id, 'wrestler_ids' => $slot->competitorIds()], priority: 70, week: $week, dedupeKey: "slot:{$slot->id}");
+                    ...$this->pronouns($contenders),
+                ], ['championship_id' => $championship->id, 'wrestler_ids' => $slot->competitorIds()], priority: (int) config('gm.news.stipulation_priority.contender_earned_shot'), week: $week, dedupeKey: "slot:{$slot->id}");
 
                 return "{$nameOf($contenders)} earns a {$championship->name} match next week";
             }
 
+            // House rule: the champion dodged a bullet.
+            $this->news->record($save, NewsEventType::ChampionSurvivedChallenge, NewsTier::Story, $championship->brand, [
+                'champion' => $cvcReign->holderName(),
+                'contender' => $nameOf($contenders),
+                'title' => $championship->name,
+                ...$this->pronouns($cvcReign->holderIds()),
+            ], ['championship_id' => $championship->id, 'wrestler_ids' => $slot->competitorIds()], priority: (int) config('gm.news.stipulation_priority.champion_survived_challenge'), week: $week, dedupeKey: "slot:{$slot->id}");
+
             return "{$cvcReign->holderName()} holds off the challenge";
+        }
+
+        if ($slot->stipulation === Stipulation::NumberOneContender) {
+            return $this->numberOneContender($slot, $resolved, $context, $nameOf);
         }
 
         // For stipulations, a contender's DQ or count-out win is a loss to the champion(s).
@@ -239,6 +259,152 @@ class MatchOutcomeHandler
         }
 
         return null;
+    }
+
+    /**
+     * Winner Takes All (house rule): on a decisive win the winner takes every
+     * contested title they don't already hold. A DQ or count-out changes
+     * nothing, and each champion's defense counts.
+     *
+     * @param  callable(list<int>): string  $nameOf
+     * @return array{0: string|null, 1: list<array{championship_id: int, reign_id: int}>|null, 2: bool}
+     */
+    private function winnerTakesAll(MatchSlot $slot, ResolvedMatch $resolved, WeekContext $context, callable $nameOf): array
+    {
+        $save = $context->save;
+        $week = $context->week;
+        $show = $slot->show;
+        $championships = Championship::whereIn('id', $slot->contested_title_ids ?? [])->orderBy('sort_order')->get();
+
+        foreach ($slot->competitorIds() as $id) {
+            $context->data['title_match'][$id] = true;
+        }
+
+        $reigns = $championships
+            ->map(fn (Championship $c): ?TitleReign => $this->titles->currentReign($save, $c))
+            ->filter()
+            ->values();
+
+        if ($reigns->isEmpty()) {
+            return [null, null, false];
+        }
+
+        if (! $resolved->isDecisive()) {
+            $reigns->each(fn (TitleReign $reign) => $reign->increment('defenses'));
+
+            return ['Nobody takes it all: every champion keeps their title', null, false];
+        }
+
+        $winnerId = $resolved->winners[0];
+        $winner = SaveWrestler::with('wrestler')->findOrFail($winnerId);
+        $won = [];
+        $taken = [];
+        $formerChampions = [];
+
+        foreach ($reigns as $reign) {
+            if (in_array($winnerId, $reign->holderIds(), true)) {
+                $reign->increment('defenses');
+                $won[] = ['championship_id' => $reign->championship_id, 'reign_id' => $reign->id];
+
+                continue;
+            }
+
+            $new = $this->titles->changeHands($save, $reign->championship, $winner, $week, WonVia::Match, $show, $slot->id);
+            $this->records->checkAfterReignEnded($reign->refresh(), $week);
+            $this->records->checkAfterReignStarted($new, $week);
+            $won[] = ['championship_id' => $reign->championship_id, 'reign_id' => $new->id];
+            $taken[] = $reign->championship->name;
+            $formerChampions[] = $reign->holderName();
+        }
+
+        $titles = $this->listNames(array_values($championships->map(fn (Championship $c): string => $c->name)->all()));
+
+        if ($taken !== []) {
+            $variant = (string) $context->rng("winner-takes-all.{$show->streamKey()}.{$slot->position}")
+                ->weightedPick((array) config('gm.news.winner_takes_all_variants'));
+
+            $this->news->record($save, NewsEventType::WinnerTakesAll, NewsTier::Headline, $show->brand ?? $winner->brand ?? NewsBrand::Both, [
+                'outcome' => $variant,
+                'winner' => $winner->name(),
+                'losers' => $nameOf($resolved->losers),
+                'titles' => $titles,
+                'how' => $resolved->how($slot->matchType),
+                ...$this->pronouns([$winnerId]),
+                'loser_pronoun' => count($resolved->losers) > 1 ? 'they' : 'he',
+                'losers_were' => count($resolved->losers) > 1 ? 'were' : 'was',
+            ], ['championship_id' => $championships->first()?->id, 'wrestler_ids' => $slot->competitorIds()], priority: (int) config('gm.news.stipulation_priority.winner_takes_all'), week: $week, dedupeKey: "slot:{$slot->id}");
+        }
+
+        return ["{$winner->name()} wins it all: {$titles}", $won, $taken !== []];
+    }
+
+    /**
+     * #1 Contender's Match (house rule): the winning side becomes the
+     * title's #1 contender(s), whatever the finish.
+     *
+     * @param  callable(list<int>): string  $nameOf
+     */
+    private function numberOneContender(MatchSlot $slot, ResolvedMatch $resolved, WeekContext $context, callable $nameOf): ?string
+    {
+        $championship = $slot->stipulationChampionship;
+        $reign = $championship === null ? null : $this->titles->currentReign($context->save, $championship);
+
+        if ($championship === null || $reign === null) {
+            return null;
+        }
+
+        $contenders = $resolved->winners;
+        $this->contenderships->create($context->save, $championship, $contenders, $reign->holderIds(), $slot, $context->week);
+
+        $variant = (string) $context->rng("number-one-contender.{$slot->show->streamKey()}.{$slot->position}")
+            ->weightedPick((array) config('gm.news.number_one_contender_variants'));
+        $champions = $reign->holderIds();
+
+        $this->news->record($context->save, NewsEventType::NumberOneContender, NewsTier::Headline, $championship->brand, [
+            'outcome' => $variant,
+            'contender' => $nameOf($contenders),
+            'champion' => $reign->holderName(),
+            'title' => $championship->name,
+            ...$this->pronouns($contenders),
+            'champion_pronoun' => $this->pronouns($champions)['pronoun_lc'],
+            'champion_possessive' => count($champions) > 1 ? 'their' : ($this->pronouns($champions)['pronoun_lc'] === 'she' ? 'her' : 'his'),
+        ], ['championship_id' => $championship->id, 'wrestler_ids' => $slot->competitorIds()], priority: (int) config('gm.news.stipulation_priority.number_one_contender'), week: $context->week, dedupeKey: "slot:{$slot->id}");
+
+        $become = count($contenders) > 1 ? 'become the #1 contenders' : 'becomes the #1 contender';
+
+        return "{$nameOf($contenders)} {$become} for the {$championship->name}";
+    }
+
+    /**
+     * News wording for one wrestler (he/she) or a team (they).
+     *
+     * @param  list<int>  $ids
+     * @return array{pronoun: string, pronoun_lc: string, is: string, has: string, possessive: string}
+     */
+    private function pronouns(array $ids): array
+    {
+        if (count($ids) > 1) {
+            return ['pronoun' => 'They', 'pronoun_lc' => 'they', 'is' => 'are', 'has' => 'have', 'possessive' => 'their'];
+        }
+
+        $diva = SaveWrestler::with('wrestler')->find($ids[0] ?? 0)?->wrestler->roster_type === RosterType::Diva;
+
+        return $diva
+            ? ['pronoun' => 'She', 'pronoun_lc' => 'she', 'is' => 'is', 'has' => 'has', 'possessive' => 'her']
+            : ['pronoun' => 'He', 'pronoun_lc' => 'he', 'is' => 'is', 'has' => 'has', 'possessive' => 'his'];
+    }
+
+    /**
+     * "the A", "the A and the B", "the A, the B and the C".
+     *
+     * @param  list<string>  $names
+     */
+    private function listNames(array $names): string
+    {
+        $names = array_map(fn (string $n): string => "the {$n}", $names);
+        $last = array_pop($names);
+
+        return $names === [] ? (string) $last : implode(', ', $names)." and {$last}";
     }
 
     /**

@@ -21,6 +21,16 @@ class NewsTemplates
         'retained_by_dq' => '{challenger} wins, but {champion} keeps the {title} on a {method}!',
         'contender_earned_shot' => '{contender} beats {champion} and earns a {title} match at {next_show}!',
         'last_chance_result' => '{contender} {won_or_lost} their last chance at the {title}.',
+        'champion_survived_challenge' => '{champion} survives {contender} and the {title} is safe, for now!',
+        'winner_takes_all' => 'WINNER TAKES ALL! {winner} outlasts {losers} and leaves with {titles}!',
+        'winner_takes_all.celebrate' => 'WINNER TAKES ALL! {winner} outlasts {losers} and leaves with {titles}!',
+        'winner_takes_all.revenge' => '{losers} vow revenge after losing it all to {winner}!',
+        'number_one_contender' => '{contender} earns a shot at {champion} and the {title}!',
+        'number_one_contender.fired_up' => '{contender} earns a shot at {champion} and the {title}!',
+        'number_one_contender.staredown' => '{champion} and new #1 contender {contender} come face to face!',
+        'number_one_contender.fans' => '{contender} celebrates a #1 contender win with the fans!',
+        'contendership_voided' => 'The {title} #1 contendership is off',
+        'contender_awarded_title' => '{contenders} awarded the vacant {title}!',
         'title_vacated' => 'The {title} has been vacated: {reason}.',
         'title_awarded' => '{wrestler} named the new {title} holder.',
         'reign_milestone' => '{champion} marks {weeks} weeks as {title}.',
@@ -103,7 +113,18 @@ class NewsTemplates
         'title_change.legacy' => '{winner} beat {loser} at {show} and walks out with the {title}. The old reign is over.',
         'title_retained' => '{challenger} came for the {title}, but {champion} found a way to win and keeps the gold.',
         'retained_by_dq' => '{challenger} won the match, but titles only change hands on a decisive win. {champion} leaves with the {title}.',
-        'contender_earned_shot' => '{contender} beat champion {champion} in a Champion vs Contender match. The win earns a {title} match {next_show}.',
+        'contender_earned_shot' => '{contender} beat champion {champion} in a Champion vs. Contender match and earned a {title} match {next_show}. {pronoun} {is} thrilled about it and determined to do {possessive} best to capture the title.',
+        'contender_earned_shot.legacy' => '{contender} beat champion {champion} in a Champion vs Contender match. The win earns a {title} match {next_show}.',
+        'champion_survived_challenge' => '{champion} dodged a bullet against {contender} in a Champion vs. Contender match. Feeling lucky, {pronoun_lc} {is} optimistic that the {title} is safe in the meantime.',
+        'winner_takes_all' => '{winner} won the Winner Takes All match {how} and now holds {titles}. {pronoun} headed straight to the fans to celebrate the biggest night of {possessive} career with them.',
+        'winner_takes_all.celebrate' => '{winner} won the Winner Takes All match {how} and now holds {titles}. {pronoun} headed straight to the fans to celebrate the biggest night of {possessive} career with them.',
+        'winner_takes_all.revenge' => '{losers} lost {titles} to {winner} in a Winner Takes All match. Those titles meant the world, and the frustration showed: {loser_pronoun} vowed to get revenge and make sure {winner} loses next time.',
+        'number_one_contender' => '{contender} won the #1 Contender\'s Match and can\'t wait for the title match. {champion} had better bring {champion_possessive} A-game and be ready to lose, because {pronoun_lc} {is} coming for the {title}.',
+        'number_one_contender.fired_up' => '{contender} won the #1 Contender\'s Match and can\'t wait for the title match. {champion} had better bring {champion_possessive} A-game and be ready to lose, because {pronoun_lc} {is} coming for the {title}.',
+        'number_one_contender.staredown' => '{champion} came out after the #1 Contender\'s Match to congratulate {contender}, and it turned into a long staredown. Both sides are looking forward to their {title} match.',
+        'number_one_contender.fans' => '{contender} won the #1 Contender\'s Match and celebrated in the crowd. {pronoun} said the win belongs to the fans and promised to bring them the {title}, because this victory is for everyone.',
+        'contendership_voided' => '{contenders} won\'t get their {title} match after all: {reason}.',
+        'contender_awarded_title' => 'The {title} was vacated with {contenders} waiting as #1 contender. Instead of a vacancy match, the title was awarded on the spot. {pronoun} won\'t forget how it got here.',
         'last_chance_result' => '{contender} had already lost to the champion twice in this reign. This was their final shot at the {title}.',
         'last_chance_result.lost' => '{contender} had already lost to the champion twice in this reign and came up short again. They are locked out of {title} matches against this champion.',
         'last_chance_result.won' => '{contender} had lost to the champion twice in this reign, but the third time paid off with the {title}.',
@@ -223,7 +244,9 @@ class NewsTemplates
      */
     private function variant(NewsEventType $type, array $payload, array $templates): string
     {
-        $variant = in_array($type, [NewsEventType::TitleChange, NewsEventType::MatchResult], true) && ! isset($payload['via'])
+        $legacy = (in_array($type, [NewsEventType::TitleChange, NewsEventType::MatchResult], true) && ! isset($payload['via']))
+            || ($type === NewsEventType::ContenderEarnedShot && ! isset($payload['pronoun']));
+        $variant = $legacy
             ? 'legacy'
             : $payload['outcome'] ?? $payload['won_or_lost'] ?? null;
 
