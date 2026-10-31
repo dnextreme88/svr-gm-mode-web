@@ -277,6 +277,14 @@
 }
 
 @layer components {
+    /* Anything that runs past a GM page (a long dropdown) shows the arena,
+       not the app's light page background. app.blade.php paints html in an
+       unlayered <style>, which beats this layer, hence !important. */
+    html:has(.gm-root),
+    body:has(.gm-root) {
+        background-color: var(--color-arena) !important;
+    }
+
     .gm-current-week {
         position: relative;
         isolation: isolate;

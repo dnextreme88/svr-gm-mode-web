@@ -429,6 +429,30 @@ function MenuBar({ items, url }: { items: NavItem[]; url: string }) {
     );
 }
 
+/**
+ * A quiet runway under every page: a tall, mostly empty band with a small
+ * sign-off. A long dropdown near the bottom of a page (a superstar picker on
+ * the last promo slot) lands on it instead of running past the page.
+ */
+function Footer() {
+    return (
+        <footer
+            data-testid="gm-footer"
+            className="relative z-0 mt-8 flex min-h-56 flex-col items-center justify-end gap-2 border-t border-white/6 px-4 pb-6 text-center"
+        >
+            <span
+                aria-hidden
+                className="font-condensed text-xl font-semibold tracking-[0.12em] text-ink-faint/50 uppercase"
+            >
+                GM Mode
+            </span>
+            <p className="text-xs text-ink-faint">
+                Smackdown vs Raw 2006 - a fan-made GM mode web version
+            </p>
+        </footer>
+    );
+}
+
 export default function GmLayout({ children }: { children: ReactNode }) {
     const page = usePage<{ game?: GameShell }>();
     const game = page.props.game;
@@ -456,6 +480,7 @@ export default function GmLayout({ children }: { children: ReactNode }) {
             <main className="relative z-10 mx-auto max-w-[1600px] px-3 py-8 md:px-6">
                 {children}
             </main>
+            <Footer />
             {/* One modal at a time: a vacated title first, then notices, then a new faction. */}
             {game?.title_vacancy_prompt && !game.airing && (
                 <TitleVacancyModal
