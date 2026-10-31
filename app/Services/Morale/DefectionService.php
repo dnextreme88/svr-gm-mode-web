@@ -86,7 +86,7 @@ class DefectionService
         $email = $this->emails->send($save, $from, EmailTemplate::DefectionAttempt, "{$name} is trying to leave for {$to->label()}", [
             'save_wrestler_id' => $wrestler->id,
             'to' => $to->value,
-        ], "{$name} has had enough and wants out.", $week);
+        ], $this->emails->text($save, 'defection', $from, $week, ['name' => $name, 'to' => $to->label()], $name), $week);
 
         $this->news->record($save, NewsEventType::DefectionAttempt, NewsTier::Story, $from, [
             'wrestler' => $name,

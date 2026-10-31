@@ -124,24 +124,73 @@ it('makes every promo a sure thing except Advertising, Interview Space, Interfer
     ]);
 });
 
-it('backfires Slander automatically if used more than once in 4 weeks, and always makes the neutral headline', function () {
+it('backfires Slander and Interference on their 4th use within 5 weeks, and always makes the neutral headline', function (PromoTypeKey $key, ?string $target, string $event) {
+    GameBuilder::passiveRival();
+    config(['gm.promos.success_rates.'.$key->value => 1.0]);
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Christian'], smackdown: ['Batista']);
+
+    // Weeks 1-3: one a week, all roll as usual.
+    $slots = [];
+
+    foreach (range(1, 3) as $week) {
+        $slots[] = bookPromo($save, $key, 1, $target);
+        airPromos($save);
+    }
+
+    // Week 4: the 4th use in 5 weeks backfires.
+    $slots[] = bookPromo($save, $key, 1, $target);
+    airPromos($save);
+
+    $news = NewsEvent::where('type', $event)->orderBy('id')->get();
+
+    expect(collect($slots)->map(fn ($s) => $s->refresh()->succeeded)->all())->toBe([true, true, true, false])
+        ->and($slots[3]->backfired)->toBeTrue()
+        ->and($news)->toHaveCount(4)
+        ->and($news->pluck('tier')->map->value->unique()->all())->toBe(['headline'])
+        ->and($news->pluck('brand')->map->value->unique()->all())->toBe(['both'])
+        ->and($news[3]->payload['story'])->toBe("{$key->value}.backfires");
+})->with([
+    'slander' => [PromoTypeKey::SlanderPromotion, null, 'slander_result'],
+    'interference' => [PromoTypeKey::InterferencePromotion, 'Edge', 'interference_promo_result'],
+]);
+
+it('counts two of the same promo on one card as two uses', function () {
+    GameBuilder::passiveRival();
     config(['gm.promos.success_rates.slander_promotion' => 1.0]);
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
 
-    $first = bookPromo($save, PromoTypeKey::SlanderPromotion);
+    $week1 = [bookPromo($save, PromoTypeKey::SlanderPromotion, 1), bookPromo($save, PromoTypeKey::SlanderPromotion, 2)];
     airPromos($save);
-    $second = bookPromo($save, PromoTypeKey::SlanderPromotion);
+    $week2 = [bookPromo($save, PromoTypeKey::SlanderPromotion, 1), bookPromo($save, PromoTypeKey::SlanderPromotion, 2)];
     airPromos($save);
 
-    $news = NewsEvent::where('type', 'slander_result')->orderBy('id')->get();
+    // Promo 2 airs first (the earlier free spot), so promo 1 is week 2's
+    // second Slander: the 4th use.
+    $backfired = collect([...$week1, ...$week2])->map(fn ($s) => $s->refresh()->backfired)->all();
 
-    expect($first->refresh()->succeeded)->toBeTrue()
-        ->and($second->refresh()->backfired)->toBeTrue()
-        ->and($second->succeeded)->toBeFalse()
-        ->and($news)->toHaveCount(2)
-        ->and($news->pluck('tier')->map->value->unique()->all())->toBe(['headline'])
-        ->and($news->pluck('brand')->map->value->unique()->all())->toBe(['both'])
-        ->and($news[1]->payload['story'])->toBe('slander_promotion.backfires');
+    expect($backfired)->toBe([false, false, true, false]);
+});
+
+it('forgets uses older than 5 weeks, and counts each promo on its own', function () {
+    GameBuilder::passiveRival();
+    config(['gm.promos.success_rates.slander_promotion' => 1.0, 'gm.promos.success_rates.interference_promotion' => 1.0]);
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+
+    // Weeks 1-3: a Slander each week, plus Interferences that don't count against it.
+    foreach (range(1, 3) as $week) {
+        bookPromo($save, PromoTypeKey::SlanderPromotion, 1);
+        bookPromo($save, PromoTypeKey::InterferencePromotion, 2, 'Edge');
+        airPromos($save);
+    }
+
+    // Weeks 4 and 5 off; week 6's window (weeks 2-6) holds only 2 Slanders.
+    airPromos($save);
+    airPromos($save);
+    $late = bookPromo($save, PromoTypeKey::SlanderPromotion, 1);
+    airPromos($save);
+
+    expect($late->refresh()->backfired)->toBeFalse()
+        ->and($late->succeeded)->toBeTrue();
 });
 
 it('reports Interference results as a neutral headline whether it succeeds or fails', function () {

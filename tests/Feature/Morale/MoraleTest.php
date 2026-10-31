@@ -88,7 +88,8 @@ it('has the superstar email the GM only once they are Unsatisfied or Upset', fun
     expect($emails)->toHaveCount(1)
         ->and($emails[0]->sender)->toBe('Edge')
         ->and($emails[0]->subject)->toBe('Put me on the card')
-        ->and($emails[0]->body)->toContain("I haven't been used in 6 weeks")
+        ->and($emails[0]->body)->toContain('6 weeks')
+        ->and($emails[0]->body)->toContain("I'm not happy about it")
         ->and(MoraleComplaint::where('type', MoraleComplaintType::Inactivity)->where('save_wrestler_id', GameBuilder::wrestler($save, 'Edge')->id)->sole()->level)->toBe(ComplaintLevel::Unsatisfied);
 });
 

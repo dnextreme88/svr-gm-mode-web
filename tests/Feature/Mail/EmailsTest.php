@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Brand;
+use App\Enums\ContractLength;
 use App\Enums\ContractStatus;
 use App\Enums\EmailTemplate;
 use App\Enums\InjurySeverity;
@@ -12,10 +13,13 @@ use App\Models\InjuryType;
 use App\Models\PromoType;
 use App\Models\Save;
 use App\Models\SaveBrand;
+use App\Models\SaveWrestler;
+use App\Services\Contracts\ContractService;
 use App\Services\Injuries\InjuryService;
 use App\Services\Promos\PromoService;
 use App\Services\Roster\TradeService;
 use App\Services\Titles\ChampionshipAssignment;
+use App\Services\Week\Steps\InjuryReturns;
 use App\Services\Week\Steps\SendReminders;
 use App\Services\Week\Steps\TrackDeficit;
 use App\Services\Week\WeekContext;
@@ -83,25 +87,109 @@ it('can name one of your specialists in the specialties tip', function (float $c
     'never' => [0.0, false],
 ]);
 
-it('reminds about Interference after 13 unused weeks, once, and restarts the clock after use', function () {
+/**
+ * The weeks a reminder went out, for one kind of promo reminder or template.
+ *
+ * @return list<int>
+ */
+function reminderWeeks(Save $save, EmailTemplate $template, ?string $promo = null): array
+{
+    return inbox($save, $template)
+        ->filter(fn (Email $e) => $promo === null || ($e->payload['promo'] ?? null) === $promo)
+        ->pluck('week_number')->values()->all();
+}
+
+it('reminds about Interference every 12 unused weeks and restarts the clock after use', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
 
-    foreach ([12, 13, 14] as $week) {
+    foreach ([11, 12, 13, 24] as $week) {
         runStep(SendReminders::class, $save, $week);
     }
 
-    expect(inbox($save, EmailTemplate::PromoReminder)->pluck('week_number')->all())->toBe([13]);
+    expect(reminderWeeks($save, EmailTemplate::PromoReminder, 'interference_promotion'))->toBe([12, 24]);
 
-    // Air an Interference promo in week 1: the next reminder is due at week 14.
+    // Air an Interference promo in week 1: the next reminders are due at weeks 13 and 25.
     Email::query()->delete();
     app(PromoService::class)->book(Card::show($save), 1, PromoType::where('key', PromoTypeKey::InterferencePromotion)->firstOrFail(), GameBuilder::wrestler($save, 'Kane')->id);
     mailWeek($save);
 
-    foreach ([13, 14] as $week) {
+    foreach ([12, 13, 25] as $week) {
         runStep(SendReminders::class, $save, $week);
     }
 
-    expect(inbox($save, EmailTemplate::PromoReminder)->pluck('week_number')->all())->toBe([14]);
+    expect(reminderWeeks($save, EmailTemplate::PromoReminder, 'interference_promotion'))->toBe([13, 25]);
+});
+
+it('reminds the player about Slander every 12 unused weeks and restarts the clock after use', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+
+    foreach ([12, 24] as $week) {
+        runStep(SendReminders::class, $save, $week);
+    }
+
+    $emails = inbox($save, EmailTemplate::PromoReminder)->filter(fn (Email $e) => $e->payload['promo'] === 'slander_promotion')->values();
+
+    expect($emails->pluck('week_number')->all())->toBe([12, 24])
+        ->and($emails[0]->sender)->toBe('JR')
+        ->and($emails[0]->body)->toContain('12 weeks')
+        ->and(inbox($save, EmailTemplate::PromoReminder, Brand::Smackdown)->filter(fn (Email $e) => $e->payload['promo'] === 'slander_promotion'))->toHaveCount(0);
+
+    Email::query()->delete();
+    app(PromoService::class)->book(Card::show($save), 1, PromoType::where('key', PromoTypeKey::SlanderPromotion)->firstOrFail());
+    mailWeek($save);
+
+    foreach ([12, 13] as $week) {
+        runStep(SendReminders::class, $save, $week);
+    }
+
+    expect(reminderWeeks($save, EmailTemplate::PromoReminder, 'slander_promotion'))->toBe([13]);
+});
+
+it('reminds the player to propose a trade every 12 weeks without one', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Christian'], smackdown: ['Batista', 'JBL']);
+
+    foreach ([11, 12, 24] as $week) {
+        runStep(SendReminders::class, $save, $week);
+    }
+
+    expect(reminderWeeks($save, EmailTemplate::TradeReminder))->toBe([12, 24])
+        ->and(inbox($save, EmailTemplate::TradeReminder)[0]->body)->toContain('Smackdown');
+
+    // An offer in week 5, accepted or not, restarts the clock.
+    Email::query()->delete();
+    $save->update(['current_week' => 5]);
+    app(TradeService::class)->propose($save->refresh(), Brand::Raw, [GameBuilder::wrestler($save, 'Kane')->id], [GameBuilder::wrestler($save, 'Batista')->id]);
+
+    foreach ([12, 17] as $week) {
+        runStep(SendReminders::class, $save, $week);
+    }
+
+    expect(reminderWeeks($save, EmailTemplate::TradeReminder))->toBe([17]);
+});
+
+it('reminds the player to sign specialists and Legends every 16 weeks without a signing', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+
+    foreach ([15, 16, 32] as $week) {
+        runStep(SendReminders::class, $save, $week);
+    }
+
+    $emails = inbox($save, EmailTemplate::FreeAgentReminder);
+
+    expect($emails->pluck('week_number')->all())->toBe([16, 32])
+        ->and($emails[0]->sender)->toBe('JR')
+        ->and($emails[0]->body)->toContain('Legends');
+
+    // A signing in week 3 restarts the clock.
+    Email::query()->delete();
+    $free = SaveWrestler::where('save_id', $save->id)->whereNull('brand')->orderBy('id')->firstOrFail();
+    app(ContractService::class)->signFreeAgent($save, $free, Brand::Raw, ContractLength::cases()[0], 3);
+
+    foreach ([16, 19] as $week) {
+        runStep(SendReminders::class, $save, $week);
+    }
+
+    expect(reminderWeeks($save, EmailTemplate::FreeAgentReminder))->toBe([19]);
 });
 
 it('has the rival GM answer a trade, listing one superstar per line', function (float $accept, string $subject, string $opening) {
@@ -114,11 +202,12 @@ it('has the rival GM answer a trade, listing one superstar per line', function (
 
     expect($email->sender)->toBe('Smackdown GM')
         ->and($email->subject)->toBe($subject)
-        ->and($email->body)->toBe("{$opening}\n\nKane\nChristian\n\nfor\n\nBatista")
+        ->and($email->body)->toContain($opening)
+        ->and($email->body)->toEndWith("\n\nKane\nChristian\n\nfor\n\nBatista")
         ->and(inbox($save, EmailTemplate::Trade, Brand::Smackdown))->toHaveCount(0);
 })->with([
-    'accepted' => [1.0, 'Trade accepted', 'I accept your trade. The roster change is effective immediately.'],
-    'declined' => [0.0, 'Trade declined', 'I decline your trade.'],
+    'accepted' => [1.0, 'Trade accepted', 'accept your trade'],
+    'declined' => [0.0, 'Trade declined', 'decline your trade'],
 ]);
 
 it('has Vince remind both brands 2 weeks before each shared PPV', function () {
@@ -178,7 +267,8 @@ it('has the Trainer report an injury with the superstar, injury and time out', f
     $weeks = $injury->durationWeeks() - 1;
 
     expect($email->sender)->toBe('Trainer')
-        ->and($email->body)->toContain("Edge suffered a {$type->label}")
+        ->and($email->body)->toContain('Edge')
+        ->and($email->body)->toContain("suffered a {$type->label}")
         ->and($email->body)->toContain($outlook)
         ->and($email->body)->toContain($weeks === 1 ? '1 week' : "{$weeks} weeks");
 })->with([
@@ -218,3 +308,37 @@ it('has the rival GM react to a Slander promo', function (float $rate, string $s
     'success' => [1.0, 'You just made an enemy', 'I will get you back'],
     'failure' => [0.0, 'Nice try', 'good laugh'],
 ]);
+
+it('has the rival GM react to an Interference promo', function (float $rate, string $subject, string $phrase) {
+    config(['gm.promos.success_rates.interference_promotion' => $rate]);
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+    app(PromoService::class)->book(Card::show($save), 1, PromoType::where('key', PromoTypeKey::InterferencePromotion)->firstOrFail(), GameBuilder::wrestler($save, 'Edge')->id);
+
+    mailWeek($save);
+
+    $email = inbox($save, EmailTemplate::InterferenceResult)->sole();
+
+    expect($email->sender)->toBe('Smackdown GM')
+        ->and($email->subject)->toBe($subject)
+        ->and($email->body)->toContain($phrase);
+})->with([
+    'success' => [1.0, 'You owe me, and I always collect', 'pay for it with interest'],
+    'failure' => [0.0, "Is that the best you've got?", "hasn't stopped laughing"],
+]);
+
+it('has the Trainer clear a seriously injured superstar to return, but not a minor one', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+    $serious = app(InjuryService::class)->injure(GameBuilder::wrestler($save, 'Edge'), InjurySeverity::Serious, 1, $save->rng('test'));
+    $minor = app(InjuryService::class)->injure(GameBuilder::wrestler($save, 'Kane'), InjurySeverity::Minor, 1, $save->rng('test'));
+
+    runStep(InjuryReturns::class, $save, $minor->ends_week - 1);
+    runStep(InjuryReturns::class, $save, $serious->ends_week - 2);
+    runStep(InjuryReturns::class, $save, $serious->ends_week - 1);
+
+    $email = inbox($save, EmailTemplate::InjuryCleared)->sole();
+
+    expect($email->week_number)->toBe($serious->ends_week - 1)
+        ->and($email->sender)->toBe('Trainer')
+        ->and($email->subject)->toBe('Edge is cleared to return')
+        ->and($email->body)->toContain("full recovery from the {$serious->type->label}");
+});

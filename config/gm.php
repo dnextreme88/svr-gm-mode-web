@@ -374,7 +374,14 @@ return [
         'comeback_reminder_min_weeks_out' => 3,
         // ASSUMPTION: "freshly signed/traded-in" window for New Superstar.
         'new_superstar_window_weeks' => 2,
-        'slander_overuse_window_weeks' => 4,
+        // House rule (2026-10-31): Slander and Interference each backfire
+        // automatically on their 4th use within 5 weeks (this week and the 4
+        // before it). Every use counts, two on one card included; the first
+        // `max_uses` roll their normal success rate. Each promo counts on its own.
+        'overuse' => [
+            'window_weeks' => 5,
+            'max_uses' => 3,
+        ],
         // House rule (2026-10-25): Merchandise Sponsorship rolls one of these
         // tiers (equal odds) when it airs; the bigger the deal, the less
         // likely it lands. A success pays the tier's amount.
@@ -503,7 +510,13 @@ return [
         'specialty_tip_every_weeks' => 26,
         // ASSUMPTION: how often the specialties tip names one of your specialists.
         'specialty_mention_chance' => 0.5,
-        'interference_reminder_weeks' => 13,
+        // House rule (2026-10-31): JR / Tazz remind the GM every N weeks
+        // since they last ran the promo, proposed a trade or signed a free
+        // agent; doing it restarts the clock.
+        'interference_reminder_weeks' => 12,
+        'slander_reminder_weeks' => 12,
+        'trade_reminder_weeks' => 12,
+        'free_agent_reminder_weeks' => 16,
         // ASSUMPTION: Vince's shared-PPV reminder lands 2 weeks out.
         'ppv_reminder_weeks_before' => 2,
         'low_cash_threshold' => 500_000,

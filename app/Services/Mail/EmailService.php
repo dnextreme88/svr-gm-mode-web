@@ -9,6 +9,7 @@ use App\Enums\MatchFamily;
 use App\Enums\PpvKey;
 use App\Models\Contract;
 use App\Models\Email;
+use App\Models\PendingRosterMove;
 use App\Models\PpvEvent;
 use App\Models\Save;
 use App\Models\SaveWrestler;
@@ -71,6 +72,25 @@ class EmailService
     public function fromSuperstar(SaveWrestler $wrestler, Brand $brand, EmailTemplate $template, string $subject, string $body, int $week, array $payload = []): Email
     {
         return $this->send($wrestler->game, $brand, $template, $subject, ['save_wrestler_id' => $wrestler->id, ...$payload], $body, $week, $wrestler->name());
+    }
+
+    /**
+     * One variant of an email body (`EmailTexts`), drawn from the save's RNG.
+     * `$who` keeps two emails of the same kind in one week from sharing a draw.
+     *
+     * @param  array<string, string|int>  $vars
+     */
+    public function text(Save $save, string $key, Brand $brand, int $week, array $vars = [], string $who = ''): string
+    {
+        return EmailTexts::pick($key, $save->rng("email.{$key}.{$brand->value}.{$who}", $week), $vars);
+    }
+
+    /**
+     * "1 week" / "3 weeks".
+     */
+    public static function weeks(int $weeks): string
+    {
+        return $weeks === 1 ? '1 week' : "{$weeks} weeks";
     }
 
     /**
@@ -150,7 +170,7 @@ class EmailService
                     'vacated' => $vacatedTitles[$w->id] ?? [],
                 ], $expired),
             ],
-            'These contracts ran out this week. Each wrestler has been released to Free Agency.',
+            $this->text($save, 'contract_expired', $brand, $week),
             $week,
         );
     }
@@ -162,9 +182,7 @@ class EmailService
     {
         $season = $this->calendar->seasonOf($week);
 
-        $body = $season === 1
-            ? "Welcome to {$brand->label()}. The roster is set and the titles have their first champions, so the rest is up to you.\n\nIf you ever need help, check your email. I'll keep you posted on contracts that are running out, injuries, unhappy superstars, upcoming pay-per-views and anything else you should know about."
-            : "WrestleMania is behind us and season {$season} starts now. Same {$brand->label()}, new year: the calendar starts over and the road leads to WrestleMania again.\n\nAs always, if you need help, check your email. I'll keep you posted.";
+        $body = $this->text($save, $season === 1 ? 'welcome.first' : 'welcome.next', $brand, $week, ['brand' => $brand->label(), 'season' => $season]);
 
         return $this->send($save, $brand, EmailTemplate::Welcome, $season === 1 ? "Welcome to {$brand->label()}" : "Season {$season} starts now", ['season' => $season], $body, $week);
     }
@@ -210,9 +228,81 @@ class EmailService
             EmailTemplate::PromoReminder,
             'Time to crash the other show?',
             ['promo' => 'interference_promotion', 'weeks' => $weeksUnused],
-            "We haven't sent anyone to crash {$rival->label()}'s show in {$weeksUnused} weeks. An Interference promo costs money and only works half the time, but when it lands it makes the news.\n\nYou'll find it in the promo slots on your next card.",
+            $this->text($save, 'interference_reminder', $brand, $week, ['rival' => $rival->label(), 'weeks' => self::weeks($weeksUnused)]),
             $week,
         );
+    }
+
+    /**
+     * A nudge after a long stretch without a Slander promo.
+     */
+    public function slanderReminder(Save $save, Brand $brand, int $weeksUnused, int $week): Email
+    {
+        return $this->send(
+            $save,
+            $brand,
+            EmailTemplate::PromoReminder,
+            'Time to take a shot at the other show?',
+            ['promo' => 'slander_promotion', 'weeks' => $weeksUnused],
+            $this->text($save, 'slander_reminder', $brand, $week, ['rival' => $this->rival($brand)->label(), 'weeks' => self::weeks($weeksUnused)]),
+            $week,
+        );
+    }
+
+    /**
+     * A nudge after a long stretch without a trade offer to the rival GM.
+     */
+    public function tradeReminder(Save $save, Brand $brand, int $weeksIdle, int $week): Email
+    {
+        return $this->send(
+            $save,
+            $brand,
+            EmailTemplate::TradeReminder,
+            'Thought about making a trade?',
+            ['weeks' => $weeksIdle],
+            $this->text($save, 'trade_reminder', $brand, $week, ['rival' => $this->rival($brand)->label(), 'weeks' => self::weeks($weeksIdle)]),
+            $week,
+        );
+    }
+
+    /**
+     * A nudge to look for specialists and Legends in Free Agency, naming a
+     * couple who are free right now.
+     */
+    public function freeAgentReminder(Save $save, Brand $brand, int $weeksIdle, int $week): Email
+    {
+        $pool = SaveWrestler::with('wrestler.specialties')
+            ->where('save_id', $save->id)
+            ->whereNull('brand')
+            ->whereNotIn('id', PendingRosterMove::where('save_id', $save->id)->whereNull('applied_week')->select('save_wrestler_id'))
+            ->where(fn ($q) => $q->whereNull('unsignable_until_week')->orWhere('unsignable_until_week', '<=', $week))
+            ->orderBy('id')
+            ->get();
+        $rng = $save->rng("email.free_agent_reminder.{$brand->value}", $week);
+        $specialists = $pool->filter(fn (SaveWrestler $w): bool => ! $w->wrestler->isLegend() && $w->wrestler->specialties->isNotEmpty())->values()->all();
+        $legends = $pool->filter(fn (SaveWrestler $w): bool => $w->wrestler->isLegend())->values()->all();
+
+        $body = $this->text($save, 'free_agent_reminder', $brand, $week, ['weeks' => self::weeks($weeksIdle)]);
+        $names = [];
+
+        if ($specialists !== []) {
+            /** @var SaveWrestler $specialist */
+            $specialist = $rng->pick($specialists);
+            $families = implode(' and ', array_map(fn (MatchFamily $f): string => $f->label(), $specialist->wrestler->specialtyFamilies()));
+            $names[] = "{$specialist->name()} (a {$families} specialist)";
+        }
+
+        if ($legends !== []) {
+            /** @var SaveWrestler $legend */
+            $legend = $rng->pick($legends);
+            $names[] = "the Legend {$legend->name()}";
+        }
+
+        if ($names !== []) {
+            $body .= "\n\nRight now, ".implode(' and ', $names).' '.(count($names) === 1 ? 'is' : 'are').' sitting in the Free Agency pool.';
+        }
+
+        return $this->send($save, $brand, EmailTemplate::FreeAgentReminder, 'Anyone worth signing?', ['weeks' => $weeksIdle], $body, $week);
     }
 
     /**
@@ -224,7 +314,7 @@ class EmailService
     public function tradeAnswer(Save $save, Brand $proposer, bool $accepted, array $out, array $in, int $week): Email
     {
         $list = fn (array $names): string => $names === [] ? '(nobody)' : implode("\n", $names);
-        $opening = $accepted ? 'I accept your trade. The roster change is effective immediately.' : 'I decline your trade.';
+        $opening = $this->text($save, $accepted ? 'trade.accepted' : 'trade.declined', $proposer, $week);
 
         return $this->send(
             $save,
@@ -245,11 +335,37 @@ class EmailService
     {
         $rival = $this->rival($brand);
 
-        [$subject, $body] = $succeeded
-            ? ['You just made an enemy', "I saw what you pulled with that smear campaign against {$rival->label()}. Cute. Enjoy it while it lasts, because I don't forget, and I will get you back for this."]
-            : ['Nice try', "Was that smear campaign supposed to hurt {$rival->label()}? The whole locker room had a good laugh at it. Thanks for the free entertainment, and for wasting your money."];
+        $subject = $succeeded ? 'You just made an enemy' : 'Nice try';
+        $body = $this->text($save, $succeeded ? 'slander.success' : 'slander.failure', $brand, $week, ['rival' => $rival->label()]);
 
         return $this->send($save, $brand, EmailTemplate::SlanderResult, $subject, ['succeeded' => $succeeded], $body, $week, $this->rivalGm($brand));
+    }
+
+    /**
+     * The rival GM reacts to the player's Interference promo on their show:
+     * gloating when it was foiled, furious about the bill when it worked.
+     */
+    public function interferenceResult(Save $save, Brand $brand, bool $succeeded, int $week): Email
+    {
+        $rival = $this->rival($brand)->label();
+        $show = $brand->label();
+
+        $subject = $succeeded ? 'You owe me, and I always collect' : "Is that the best you've got?";
+        $body = $this->text($save, $succeeded ? 'interference.success' : 'interference.failure', $brand, $week, ['rival' => $rival, 'brand' => $show]);
+
+        return $this->send($save, $brand, EmailTemplate::InterferenceResult, $subject, ['succeeded' => $succeeded], $body, $week, $this->rivalGm($brand));
+    }
+
+    /**
+     * The Trainer clears a seriously injured superstar: they can be booked
+     * again from next week.
+     */
+    public function injuryCleared(Save $save, Brand $brand, SaveWrestler $wrestler, string $injury, int $week): Email
+    {
+        $name = $wrestler->name();
+        $body = $this->text($save, 'injury.cleared', $brand, $week, ['name' => $name, 'injury' => $injury], $name);
+
+        return $this->send($save, $brand, EmailTemplate::InjuryCleared, "{$name} is cleared to return", ['save_wrestler_id' => $wrestler->id, 'label' => $injury], $body, $week, (string) config('gm.email_senders.trainer'));
     }
 
     /**
@@ -258,9 +374,8 @@ class EmailService
      */
     public function rivalSlander(Save $save, Brand $target, Brand $slanderer, bool $succeeded, int $week): Email
     {
-        [$subject, $body] = $succeeded
-            ? ["{$slanderer->label()} ran a smear campaign against us", "{$slanderer->label()} spent the week running a smear campaign against {$target->label()}, and it's getting traction. The fans are talking about it. We need a strong show to answer them."]
-            : ["{$slanderer->label()} tried to smear us", "{$slanderer->label()} ran a smear campaign against {$target->label()} this week. It fell flat: nobody bought it, and they paid good money for nothing."];
+        $subject = $succeeded ? "{$slanderer->label()} ran a smear campaign against us" : "{$slanderer->label()} tried to smear us";
+        $body = $this->text($save, $succeeded ? 'rival_slander.success' : 'rival_slander.failure', $target, $week, ['rival' => $slanderer->label(), 'brand' => $target->label()]);
 
         return $this->send($save, $target, EmailTemplate::RivalSlander, $subject, ['succeeded' => $succeeded, 'rival_brand' => $slanderer->value], $body, $week);
     }
@@ -315,7 +430,7 @@ class EmailService
             $brand,
             EmailTemplate::ContractReminder,
             "My contract is up in {$weeksLeft} weeks",
-            "Just a heads-up: my contract runs out in {$weeksLeft} weeks. If you want me to stay on {$brand->label()}, we need to talk about a new deal soon. Otherwise I'll be testing the free agent market.",
+            $this->text($wrestler->game, 'contract_reminder', $brand, $week, ['brand' => $brand->label(), 'weeks' => self::weeks($weeksLeft)], $wrestler->name()),
             $week,
             ['weeks_left' => $weeksLeft],
         );
@@ -331,7 +446,7 @@ class EmailService
             $brand,
             EmailTemplate::InjuryReturning,
             "I'll be back in {$weeksLeft} weeks",
-            "Rehab is going well. The doctors say I'll be cleared to compete in {$weeksLeft} weeks. Keep a spot open for me on the card.",
+            $this->text($wrestler->game, 'injury_returning', $brand, $week, ['weeks' => self::weeks($weeksLeft)], $wrestler->name()),
             $week,
             ['weeks_left' => $weeksLeft],
         );
@@ -350,7 +465,7 @@ class EmailService
             EmailTemplate::LowCash,
             "We're running low on cash ({$amount})",
             ['budget' => $budget],
-            "We're down to {$amount}. Contracts and match costs come out every week, so it won't last long at this rate.\n\nAdvertising and Merchandise Sponsorship promos bring money in, and cheaper match types help. If we go into the red for too long, the board will make us choose.",
+            $this->text($save, 'low_cash', $brand, $week, ['amount' => $amount, 'brand' => $brand->label()]),
             $week,
         );
     }

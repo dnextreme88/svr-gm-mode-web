@@ -244,6 +244,7 @@ const props = {
     stipulations: [],
     promos: {
         slots: 2,
+        overuse: { window_weeks: 5, max_uses: 3 },
         merchandise_tiers: [
             { amount: 100000, chance: 0.8 },
             { amount: 1000000, chance: 0.25 },
@@ -458,6 +459,11 @@ describe('Docs page', () => {
         expect(screen.getByTestId('promo-advertising')).toHaveTextContent(
             '+$150,000',
         );
+        expect(
+            screen.getByText(
+                /backfires automatically on its 4th use within 5 weeks/,
+            ),
+        ).toBeInTheDocument();
     });
 
     it('lists every news event by group with its card, tier and templates, then the emails', async () => {

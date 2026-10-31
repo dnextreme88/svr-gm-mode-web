@@ -48,7 +48,7 @@ class TrackDeficit implements WeekStep
                     EmailTemplate::Deficit,
                     "We've been in the red for {$weeks} weeks",
                     ['weeks' => $weeks, 'budget' => $brand->budget],
-                    'The board wants a plan. Run Advertising or Merchandise promos, downgrade to cheaper match types, or release roster members.',
+                    $this->emails->text($context->save, 'deficit', $brand->brand, $context->week, ['weeks' => EmailService::weeks($weeks)]),
                     $context->week,
                 );
             }
@@ -64,7 +64,9 @@ class TrackDeficit implements WeekStep
             return;
         }
 
-        $last = Email::where('save_id', $context->save->id)
+        // Deleted emails still count, so clearing the inbox doesn't re-send it.
+        $last = Email::withTrashed()
+            ->where('save_id', $context->save->id)
             ->where('brand', $brand->brand)
             ->where('template', EmailTemplate::LowCash)
             ->max('week_number');

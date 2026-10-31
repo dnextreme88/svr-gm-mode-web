@@ -153,29 +153,15 @@ class MoraleService
             return;
         }
 
-        $upset = $level === ComplaintLevel::Upset;
-        [$subject, $body] = match ($type) {
-            MoraleComplaintType::LosingStreak => [
-                "I've lost {$value} straight",
-                "I've lost {$value} matches in a row and I'm sick of it. Put me in a position to win.",
-            ],
-            MoraleComplaintType::ContractExtension => [
-                'I want a new contract',
-                "I've won {$value} straight and I'm still on the same deal. I've earned a new contract.",
-            ],
-            MoraleComplaintType::TitleMatch => [
-                'Where is my title shot?',
-                "It's been {$value} weeks since I got a title match. I deserve a shot at the gold.",
-            ],
-            MoraleComplaintType::Inactivity => [
-                'Put me on the card',
-                "I haven't been used in {$value} weeks. I didn't sign with {$wrestler->brand->label()} to sit in the back.",
-            ],
+        $subject = match ($type) {
+            MoraleComplaintType::LosingStreak => "I've lost {$value} straight",
+            MoraleComplaintType::ContractExtension => 'I want a new contract',
+            MoraleComplaintType::TitleMatch => 'Where is my title shot?',
+            MoraleComplaintType::Inactivity => 'Put me on the card',
         };
-
-        $body .= $upset
-            ? ' I\'m upset, and if nothing changes I\'ll start looking at the other brand.'
-            : ' I\'m not happy about it.';
+        $vars = ['n' => $value, 'brand' => $wrestler->brand->label()];
+        $body = $this->emails->text($wrestler->game, "morale.{$type->value}", $wrestler->brand, $week, $vars, $name)
+            .' '.$this->emails->text($wrestler->game, "morale.{$level->value}", $wrestler->brand, $week, $vars, $name);
 
         $this->emails->fromSuperstar($wrestler, $wrestler->brand, EmailTemplate::MoraleComplaint, $subject, $body, $week, [
             'type' => $type->value,

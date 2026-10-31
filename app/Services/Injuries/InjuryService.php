@@ -182,16 +182,17 @@ class InjuryService
     /**
      * The Trainer's note: who, what, how bad and how long.
      */
-    private function trainerReport(SaveWrestler $wrestler, Injury $injury, int $weeksOut, bool $escalated): string
+    private function trainerReport(SaveWrestler $wrestler, Injury $injury, int $weeksOut, bool $escalated, int $week): string
     {
-        $name = $wrestler->name();
-        $weeks = $weeksOut === 1 ? '1 week' : "{$weeksOut} weeks";
-        $what = $escalated
-            ? "{$name} kept competing through a minor injury and it got worse. It's now a {$injury->type->label}, a {$injury->severity->value} injury."
-            : "{$name} suffered a {$injury->type->label}, a {$injury->severity->value} injury.";
-        $outlook = $injury->severity === InjurySeverity::Serious
-            ? "They can't compete and should be healed in {$weeks}."
-            : "They can still compete, but every match risks making it worse. It should heal in {$weeks}.";
+        $brand = $wrestler->brand ?? throw new \LogicException('Only signed wrestlers get a Trainer report.');
+        $vars = [
+            'name' => $wrestler->name(),
+            'injury' => $injury->type->label,
+            'severity' => $injury->severity->value,
+            'weeks' => EmailService::weeks($weeksOut),
+        ];
+        $what = $this->emails->text($wrestler->game, $escalated ? 'injury.escalated' : 'injury.fresh', $brand, $week, $vars, $wrestler->name());
+        $outlook = $this->emails->text($wrestler->game, "injury.{$injury->severity->value}", $brand, $week, $vars, $wrestler->name());
 
         return "{$what} {$outlook}";
     }
@@ -226,7 +227,7 @@ class InjuryService
                     'escalated' => $escalated,
                     'vacated' => $vacated,
                 ],
-                $this->trainerReport($wrestler, $injury, $weeksOut, $escalated),
+                $this->trainerReport($wrestler, $injury, $weeksOut, $escalated, $week),
                 $week,
                 (string) config('gm.email_senders.trainer'),
             );
