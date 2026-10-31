@@ -90,11 +90,11 @@ export default function Redraft() {
                     <p className="mb-4 text-sm text-ink-dim">
                         Each brand gets up to {max_picks} random picks from the
                         rival’s non-champions, in a random order that then
-                        alternates. Drafted wrestlers keep their contracts and
+                        alternates. Drafted superstars keep their contracts and
                         morale. A brand at the roster cap skips its remaining
                         picks.
                         {series?.winner_brand &&
-                            ` ${brandName(series.winner_brand)} won the brand battle: one protected wrestler, and one hand-pick in place of a random pick.`}
+                            ` ${brandName(series.winner_brand)} won the brand battle: one protected superstar, and one hand-pick in place of a random pick.`}
                     </p>
 
                     {you_won && (

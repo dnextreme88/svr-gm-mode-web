@@ -56,8 +56,8 @@ export default function AssignTitles() {
             </PageTitle>
             <p className="-mt-3 mb-6 max-w-2xl text-sm text-ink-dim">
                 {initial
-                    ? 'Decide each title in turn: crown a champion or leave it vacant. Each assignment opens reign #1. A wrestler can only hold one title.'
-                    : 'Award a vacant title. A wrestler can only be awarded a title if they don’t already hold one.'}
+                    ? 'Decide each title in turn: crown a champion or leave it vacant. Each assignment opens reign #1. A superstar can only hold one title.'
+                    : 'Award a vacant title. A superstar can only be awarded a title if they don’t already hold one.'}
             </p>
 
             {initial ? (
@@ -221,7 +221,7 @@ function TitleCard({
             ) : championship.eligible.length < needed ? (
                 <div className="flex items-center justify-between gap-4">
                     <p className="text-sm text-ink-dim">
-                        No eligible wrestler left on your roster. This title
+                        No eligible superstar left on your roster. This title
                         starts vacant.
                     </p>
                     {vacantButton}

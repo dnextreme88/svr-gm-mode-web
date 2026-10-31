@@ -30,6 +30,7 @@ const game = {
     deficit: { blocked: false },
 } as unknown as GameShell;
 
+/** Backlash, the PPV night's only card, by default. */
 const order = (overrides: Partial<BookingOrder>): BookingOrder => ({
     steps: [
         {
@@ -38,6 +39,7 @@ const order = (overrides: Partial<BookingOrder>): BookingOrder => ({
             show_type: 'ppv',
             confirmed: false,
             current: true,
+            aired: false,
         },
         {
             id: 7,
@@ -45,30 +47,38 @@ const order = (overrides: Partial<BookingOrder>): BookingOrder => ({
             show_type: 'weekly',
             confirmed: false,
             current: false,
+            aired: false,
         },
     ],
     blocked_by: null,
-    next: { id: 7, name: 'Monday Night Raw' },
+    waits_for_airing: false,
+    next: null,
     confirmed: false,
     editable: true,
-    is_last: false,
+    is_last: true,
     airs_this_week: true,
+    night: 'ppv',
     ...overrides,
 });
+
+/** The same week from the weekly show's side. */
+const weekly = (overrides: Partial<BookingOrder> = {}): BookingOrder =>
+    order({
+        night: 'weekly',
+        steps: order({}).steps.map((s) => ({ ...s, current: s.id === 7 })),
+        ...overrides,
+    });
 
 beforeEach(() => router.post.mockClear());
 
 describe('Booking order', () => {
-    it('lists the week’s cards in order and explains a blocked card', () => {
+    it('lists the week’s cards in order and has the weekly show wait for the PPV to air', () => {
         render(
             <BookingSteps
                 game={game}
-                order={order({
+                order={weekly({
                     blocked_by: { id: 9, name: 'Backlash' },
-                    steps: order({}).steps.map((s) => ({
-                        ...s,
-                        current: s.id === 7,
-                    })),
+                    waits_for_airing: true,
                 })}
             />,
         );
@@ -79,11 +89,73 @@ describe('Booking order', () => {
                 .map((l) => l.textContent),
         ).toEqual(['1Backlash', '2Monday Night Raw']);
         expect(screen.getByRole('alert')).toHaveTextContent(
+            'Weeks start on Sunday, so Backlash airs first. This show is booked once its results are in.',
+        );
+    });
+
+    it('explains a card waiting for an earlier one of the same night', () => {
+        render(
+            <BookingSteps
+                game={game}
+                order={order({ blocked_by: { id: 9, name: 'Backlash' } })}
+            />,
+        );
+
+        expect(screen.getByRole('alert')).toHaveTextContent(
             'Weeks start on Sunday, so Backlash is booked first.',
         );
     });
 
-    it('confirms the PPV card before moving on to the weekly show', async () => {
+    it('marks a card that has aired', () => {
+        render(
+            <BookingSteps
+                game={game}
+                order={weekly({
+                    steps: weekly().steps.map((s) => ({
+                        ...s,
+                        aired: s.id === 9,
+                    })),
+                })}
+            />,
+        );
+
+        expect(
+            within(screen.getByRole('list', { name: 'This week’s cards' }))
+                .getAllByRole('link')
+                .map((l) => l.textContent),
+        ).toEqual(['1Backlashaired', '2Monday Night Raw']);
+    });
+
+    it('confirms a PPV card before moving on to the next card of the night', async () => {
+        const user = userEvent.setup();
+        const next = 'Survivor Series: Raw vs. Smackdown';
+        render(
+            <BookingAction
+                game={game}
+                showId={9}
+                showName="Survivor Series"
+                order={order({ is_last: false, next: { id: 8, name: next } })}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: `Continue to ${next}` }),
+        );
+        const dialog = screen.getByRole('dialog');
+        expect(dialog).toHaveTextContent('Finish Survivor Series?');
+        expect(dialog).toHaveTextContent('the PPV night');
+        expect(router.post).not.toHaveBeenCalled();
+
+        await user.click(
+            within(dialog).getByRole('button', { name: `Continue to ${next}` }),
+        );
+
+        expect(router.post).toHaveBeenCalledWith(
+            expect.stringContaining('/shows/9/confirm'),
+        );
+    });
+
+    it('airs the PPV night on its own from its last card', async () => {
         const user = userEvent.setup();
         render(
             <BookingAction
@@ -94,42 +166,39 @@ describe('Booking order', () => {
             />,
         );
 
-        await user.click(
-            screen.getByRole('button', {
-                name: 'Continue to Monday Night Raw',
-            }),
-        );
+        await user.click(screen.getByRole('button', { name: /Air Backlash/ }));
         const dialog = screen.getByRole('dialog');
-        expect(dialog).toHaveTextContent('Finish Backlash?');
-        expect(router.post).not.toHaveBeenCalled();
+        expect(dialog).toHaveTextContent('Backlash airs now');
+        expect(dialog).toHaveTextContent(
+            'The weekly show is booked once the PPV’s results are in.',
+        );
 
         await user.click(
-            within(dialog).getByRole('button', {
-                name: 'Continue to Monday Night Raw',
-            }),
+            within(dialog).getByRole('button', { name: 'Air Backlash' }),
         );
 
         expect(router.post).toHaveBeenCalledWith(
-            expect.stringContaining('/shows/9/confirm'),
+            expect.stringContaining('/advance'),
+            {},
+            expect.anything(),
         );
     });
 
-    it('airs the whole week from the last card, after a confirmation', async () => {
+    it('airs the rest of the week from the weekly show, after a confirmation', async () => {
         const user = userEvent.setup();
         render(
             <BookingAction
                 game={game}
                 showId={7}
                 showName="Monday Night Raw"
-                order={order({ is_last: true, next: null })}
+                order={weekly()}
             />,
         );
 
         await user.click(screen.getByRole('button', { name: /Air week 4/ }));
         const dialog = screen.getByRole('dialog');
-        expect(dialog).toHaveTextContent(
-            'Backlash and Monday Night Raw air now',
-        );
+        expect(dialog).toHaveTextContent('Monday Night Raw airs now');
+        expect(dialog).not.toHaveTextContent('PPV’s results');
 
         await user.click(
             within(dialog).getByRole('button', { name: 'Air week 4' }),
@@ -159,7 +228,7 @@ describe('Booking order', () => {
                     game={game}
                     showId={7}
                     showName="Monday Night Raw"
-                    order={order({ is_last: true, next: null })}
+                    order={weekly()}
                 />
             </UnsavedChangesProvider>,
         );

@@ -25,7 +25,9 @@ class TitleShotService
 
     /**
      * ASSUMPTION: "the next weekly show or PPV, whichever comes first" is the
-     * first card after the result is known, i.e. next week's weekly show.
+     * first card booked after the result is known. A PPV week's weekly show
+     * is booked after the PPV airs (house rule, 2026-11-01), so a shot won
+     * at a PPV is due that week; one won on a weekly show, next week.
      *
      * @param  list<int>  $contenderIds
      * @param  list<int>  $championIds
@@ -41,7 +43,7 @@ class TitleShotService
             'champion_ids' => $championIds,
             'earned_match_id' => $slot->id,
             'earned_week' => $week,
-            'due_week' => $week + 1,
+            'due_week' => $slot->show->isPpv() ? $week : $week + 1,
             'status' => TitleShotStatus::Pending,
         ]);
     }

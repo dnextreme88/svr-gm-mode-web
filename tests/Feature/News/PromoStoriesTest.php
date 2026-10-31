@@ -72,7 +72,7 @@ describe('the story catalog', function () {
     });
 
     it('only uses placeholders the writer fills in', function () {
-        $known = ['brand', 'rival_brand', 'show', 'wrestler', 'wrestler_b', 'opponent', 'winner', 'loser', 'champion', 'challenger', 'title', 'how', 'where', 'streak', 'weeks', 'injury', 'weeks_left', 'amount', 'ppv', 'ppv_weeks', 'pronoun', 'rivalry'];
+        $known = ['brand', 'rival_brand', 'show', 'wrestler', 'wrestler_b', 'opponent', 'winner', 'loser', 'champion', 'challenger', 'title', 'how', 'where', 'streak', 'weeks', 'injury', 'weeks_left', 'amount', 'ppv', 'ppv_weeks', 'pronoun', 'rivalry', 'attendance'];
 
         foreach (PromoStories::keys() as $key) {
             foreach (PromoStories::variants($key) as [$headline, $summary]) {
@@ -184,7 +184,8 @@ describe('Interview Space', function () {
             $seen[$latest->payload['story'].'#'.$latest->payload['variant']] = true;
         }
 
-        expect(array_keys($seen))->toHaveCount(6);
+        // 4 generic variants, 2 quoting the crowd, 2 for the win streak.
+        expect(array_keys($seen))->toHaveCount(8);
     });
 });
 

@@ -124,7 +124,7 @@ export default function FreeAgency() {
                             <thead>
                                 <tr>
                                     <th aria-sort={ariaSort(sort, 'name')}>
-                                        {header('name', 'Wrestler')}
+                                        {header('name', 'Superstar')}
                                     </th>
                                     <th aria-sort={ariaSort(sort, 'type')}>
                                         {header('type', 'Type')}

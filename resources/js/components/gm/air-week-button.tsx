@@ -6,10 +6,12 @@ import gm from '@/routes/gm';
 import type { GameShell } from '@/types/gm';
 
 /**
- * Airs the current week, after a confirmation, and opens its live results,
- * where the player decides each match. It lives on the week's last card (the
- * weekly show), so in a PPV week it airs the PPV and the weekly show
- * together. While the week is airing it goes back to the results.
+ * Airs a night, after a confirmation, and opens its live results, where the
+ * player decides each match. It lives on the night's last card. In a PPV
+ * week (house rule, 2026-11-01) it first airs the PPV night ("Air
+ * SummerSlam"); the weekly show is booked after the PPV's results and its
+ * button airs the rest of the week. While a night is airing it goes back to
+ * the results.
  *
  * With unsaved matches or promos on the card, the dialog lists them instead
  * and offers no way to air until they're saved or discarded.
@@ -17,11 +19,14 @@ import type { GameShell } from '@/types/gm';
 export function AirWeekButton({
     game,
     shows,
+    ppv,
     disabled = false,
 }: {
     game: GameShell;
-    /** Every card that airs this week, in air order. */
+    /** Every card that airs on this night, in air order. */
     shows: string[];
+    /** The PPV this button airs, when it airs a PPV night. */
+    ppv?: string;
     disabled?: boolean;
 }) {
     const [airing, setAiring] = useState(false);
@@ -44,6 +49,7 @@ export function AirWeekButton({
         );
     }
 
+    const label = ppv ? `Air ${ppv}` : `Air week ${game.season_week}`;
     const list =
         shows.length > 1
             ? `${shows.slice(0, -1).join(', ')} and ${shows[shows.length - 1]}`
@@ -58,12 +64,14 @@ export function AirWeekButton({
                 title={
                     game.deficit.blocked
                         ? 'Choose a deficit recovery plan on Financials first'
-                        : 'Air this week and decide its matches'
+                        : ppv
+                          ? 'Air the PPV and decide its matches'
+                          : 'Air this week and decide its matches'
                 }
                 onClick={() => setConfirming(true)}
             >
                 <span className="size-2 animate-gm-pulse rounded-full bg-white" />
-                {airing ? 'On air…' : `Air week ${game.season_week}`}
+                {airing ? 'On air…' : label}
             </button>
             <ConfirmDialog
                 open={confirming && unsaved.length > 0}
@@ -73,7 +81,7 @@ export function AirWeekButton({
                         {unsavedList(unsaved)}{' '}
                         {unsaved.length === 1 ? 'has' : 'have'} unsaved changes.
                         Save or discard {unsaved.length === 1 ? 'it' : 'them'}{' '}
-                        before airing week {game.season_week}:
+                        before airing {ppv ?? `week ${game.season_week}`}:
                         <ul
                             className="mt-2 list-disc pl-5 text-ink"
                             aria-label="Unsaved slots"
@@ -89,7 +97,7 @@ export function AirWeekButton({
             />
             <ConfirmDialog
                 open={confirming && unsaved.length === 0}
-                title={`Air week ${game.season_week}?`}
+                title={`${label}?`}
                 message={
                     <>
                         {list} {shows.length > 1 ? 'air' : 'airs'} now. You
@@ -97,9 +105,11 @@ export function AirWeekButton({
                         book a winner. You can’t change{' '}
                         {shows.length > 1 ? 'these cards' : 'this card'}{' '}
                         afterwards.
+                        {ppv &&
+                            ' The weekly show is booked once the PPV’s results are in.'}
                     </>
                 }
-                confirmLabel={`Air week ${game.season_week}`}
+                confirmLabel={label}
                 onCancel={() => setConfirming(false)}
                 onConfirm={() => {
                     setConfirming(false);

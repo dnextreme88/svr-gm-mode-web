@@ -24,3 +24,4 @@ Dated implementation and upgrade plans for this site. Each plan is a Markdown fi
 | **2026-10-31** | [Rosters & Title History UI/UX Audit Fixes](20261031-rosters-and-title-history-ux.md) |
 | **2026-10-31** | [Page UX Fixes, Trade Rules & Faction Updates](20261031-page-ux-trade-rules-and-faction-updates.md) |
 | **2026-10-31** | [Email Inbox Redesign, Richer Emails & New Reminders](20261031-email-inbox.md) |
+| **2026-11-01** | [Fan Attendance, PPV Night First, Shared SummerSlam, Rival Stipulations & "Superstar" Wording](20261101-attendance-and-rival-stipulations.md) |

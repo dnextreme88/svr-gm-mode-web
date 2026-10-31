@@ -108,6 +108,8 @@ class DocsController extends Controller
                 'escalation_chance' => (float) config('gm.injuries.escalation_chance'),
             ],
             'specialists' => $specialists,
+            // Fan attendance (house rule, 2026-11-01): the draw score, crowds and gate.
+            'attendance' => (array) config('gm.attendance'),
             'rosters' => [
                 'cap' => (int) config('gm.roster_cap'),
                 'starting_budget' => (int) config('gm.starting_budget'),
@@ -260,7 +262,7 @@ class DocsController extends Controller
             ['email' => 'Free agent reminder', 'from' => $jrTazz, 'when' => "Every {$emails['free_agent_reminder_weeks']} weeks without a Free Agency signing: look for superstars with match specialties and for Legends, naming one of each who is free right now. Signing anyone from Free Agency restarts the clock."],
             ['email' => 'Low on cash', 'from' => $jrTazz, 'when' => "When the budget is {$lowCash} or less, at most once every {$emails['low_cash_every_weeks']} weeks while it stays low."],
             ['email' => 'Expiring contracts', 'from' => $jrTazz, 'when' => 'Every week, listing everyone with '.(int) config('gm.contracts.expiring_threshold_weeks').' or fewer weeks left, with Renegotiate and Release buttons.'],
-            ['email' => 'Contract expired', 'from' => $jrTazz, 'when' => 'The week a contract runs out and the wrestler leaves for Free Agency.'],
+            ['email' => 'Contract expired', 'from' => $jrTazz, 'when' => 'The week a contract runs out and the superstar leaves for Free Agency.'],
             ['email' => 'Deficit', 'from' => $jrTazz, 'when' => 'After '.(int) config('gm.finances.deficit_weeks_limit').' straight weeks in the red. You must pick a way to recover before the next week airs.'],
             ['email' => 'Defection attempt', 'from' => $jrTazz, 'when' => 'When an Unsatisfied or Upset superstar tries to jump to the other brand.'],
             ['email' => 'Trade answer', 'from' => $rivalGm, 'when' => 'Right after every trade offer: accepted or declined, with each superstar on its own line.'],

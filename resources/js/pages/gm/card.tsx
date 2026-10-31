@@ -23,6 +23,7 @@ import { UnsavedChangesProvider } from '@/components/gm/unsaved-changes';
 import type { PromoFatigue } from '@/lib/card';
 import { requestJson } from '@/lib/http';
 import { saveVisit, slotSaveKey } from '@/lib/save-status';
+import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type {
     CardShow,
@@ -44,6 +45,8 @@ type Props = GamePageProps & {
     promo_types: PromoTypeOption[];
     promo_eligibility: Record<string, PromoEligibilityView>;
     booking_order: BookingOrder;
+    /** A brand's SummerSlam card: whether it has the night's main event. */
+    summerslam: { main_event: boolean; headliner: string } | null;
 };
 
 export default function CardPage() {
@@ -59,6 +62,7 @@ export default function CardPage() {
         promo_types,
         promo_eligibility,
         booking_order,
+        summerslam,
     } = usePage<Props>().props;
     const types = useMemo(
         () => new Map(match_types.map((t) => [t.id, t])),
@@ -192,6 +196,22 @@ export default function CardPage() {
             </PageTitle>
 
             <BookingSteps game={game} order={booking_order} />
+
+            {summerslam && (
+                <p
+                    data-testid="summerslam-main-event"
+                    className={cn(
+                        'mb-4 border px-4 py-2.5 text-sm',
+                        summerslam.main_event
+                            ? 'border-gold/40 bg-gold/8 text-gold-hot'
+                            : 'border-white/8 bg-white/4 text-ink-dim',
+                    )}
+                >
+                    {summerslam.main_event
+                        ? `SummerSlam main event: your weekly shows drew more fans this season, so you book Match 1, Match 3 and the main event. The rival books Matches 2 and 4.`
+                        : `${summerslam.headliner}'s weekly shows drew more fans this season, so it books Match 1, Match 3 and the main event. You book Matches 2 and 4.`}
+                </p>
+            )}
 
             <TitleShotReminder
                 key={pendingShots.map((s) => s.id).join(',')}

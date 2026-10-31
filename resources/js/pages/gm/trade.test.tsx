@@ -103,7 +103,7 @@ describe('Propose Trade', () => {
         render(<ProposeTrade />);
 
         expect(sendButton()).toBeDisabled();
-        expect(screen.getByText(/Pick up to 5 wrestlers/)).toBeInTheDocument();
+        expect(screen.getByText(/Pick up to 5 superstars/)).toBeInTheDocument();
 
         // 1 for 0 leaves the rival at 31.
         await user.click(
@@ -176,7 +176,7 @@ describe('Propose Trade', () => {
         const rules = screen
             .getByRole('heading', { name: 'How trades work' })
             .closest('section') as HTMLElement;
-        expect(rules).toHaveTextContent('Up to 5 wrestlers on each side');
+        expect(rules).toHaveTextContent('Up to 5 superstars on each side');
         expect(rules).toHaveTextContent('Neither roster can end up over 30');
         expect(rules).toHaveTextContent(
             'Champions and seriously injured superstars can’t be traded',
@@ -271,7 +271,7 @@ describe('Propose Trade', () => {
             within(gets)
                 .getAllByRole('listitem')
                 .map((li) => li.textContent),
-        ).toEqual(['Wrestlers: +1', 'Legends: +2']);
+        ).toEqual(['Superstars: +1', 'Legends: +2']);
 
         const gives = screen.getByTestId('offer-points-gives');
         expect(gives).toHaveTextContent('They give: 1 point');

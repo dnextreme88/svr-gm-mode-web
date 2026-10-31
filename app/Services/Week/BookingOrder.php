@@ -2,6 +2,7 @@
 
 namespace App\Services\Week;
 
+use App\Enums\ShowStatus;
 use App\Exceptions\GameRuleException;
 use App\Models\Save;
 use App\Models\Show;
@@ -10,10 +11,12 @@ use Illuminate\Support\Collection;
 /**
  * The player books a week's cards in date order. Weeks start on Sunday, so a
  * PPV week runs: the brand's PPV card, then the interbrand card (Royal
- * Rumble / Survivor Series entrants, or WrestleMania), then the weekly show.
- * Each card is confirmed before the next one opens; the weekly show is last
- * and its Air button airs the whole week. A confirmed card is read-only for
- * the player until they unlock it.
+ * Rumble / Survivor Series entrants, SummerSlam or WrestleMania), then the
+ * weekly show. Each card is confirmed before the next one opens. House rule
+ * (2026-11-01): the PPV night and the weekly show are booked and aired
+ * apart. The PPV night's last card airs it; the weekly show opens once the
+ * PPV has aired, and its Air button airs the rest of the week. A confirmed
+ * card is read-only for the player until they unlock it.
  */
 class BookingOrder
 {
@@ -38,7 +41,16 @@ class BookingOrder
     }
 
     /**
-     * The earlier card that still needs confirming before this one opens.
+     * Which night a card is on: the PPV night or the weekly show.
+     */
+    public static function night(Show $show): string
+    {
+        return $show->isPpv() ? 'ppv' : 'weekly';
+    }
+
+    /**
+     * The earlier card that must come first: one of the same night still to
+     * confirm, or a PPV card that hasn't aired yet (see `waitsForAiring`).
      */
     public function blocker(Save $save, Show $show): ?Show
     {
@@ -47,7 +59,7 @@ class BookingOrder
                 return null;
             }
 
-            if ($step->confirmed_at === null) {
+            if (self::night($step) === self::night($show) ? $step->confirmed_at === null : $step->status !== ShowStatus::Aired) {
                 return $step;
             }
         }
@@ -56,14 +68,25 @@ class BookingOrder
     }
 
     /**
-     * The card after this one, or null when this is the week's last card.
+     * Whether this card waits for an earlier night to air, not to be confirmed.
+     */
+    public function waitsForAiring(Save $save, Show $show): bool
+    {
+        $blocker = $this->blocker($save, $show);
+
+        return $blocker !== null && self::night($blocker) !== self::night($show);
+    }
+
+    /**
+     * The next card of the same night, or null when this card airs it.
      */
     public function next(Save $save, Show $show): ?Show
     {
         $steps = $this->steps($save, $show->week_number);
         $index = $steps->search(fn (Show $s): bool => $s->is($show));
+        $next = $index === false ? null : $steps->get($index + 1);
 
-        return $index === false ? null : $steps->get($index + 1);
+        return $next !== null && self::night($next) === self::night($show) ? $next : null;
     }
 
     public function isLast(Save $save, Show $show): bool
@@ -76,6 +99,10 @@ class BookingOrder
      */
     public function assertEditable(Save $save, Show $show): void
     {
+        if ($show->status !== ShowStatus::Booking) {
+            throw new GameRuleException("{$show->name} has already aired.");
+        }
+
         if ($show->confirmed_at !== null) {
             throw new GameRuleException("{$show->name} is confirmed. Unlock it to make changes.");
         }
@@ -83,7 +110,9 @@ class BookingOrder
         $blocker = $this->blocker($save, $show);
 
         if ($blocker !== null) {
-            throw new GameRuleException("Book {$blocker->name} first. This week's cards are booked in date order.");
+            throw new GameRuleException($this->waitsForAiring($save, $show)
+                ? "Air {$blocker->name} first. The weekly show is booked once the PPV's results are in."
+                : "Book {$blocker->name} first. This week's cards are booked in date order.");
         }
     }
 
@@ -97,7 +126,7 @@ class BookingOrder
         $next = $this->next($save, $show);
 
         if ($next === null) {
-            throw new GameRuleException("{$show->name} is the last card this week. Air the week instead.");
+            throw new GameRuleException("{$show->name} is the last card of its night. Air it instead.");
         }
 
         $show->update(['confirmed_at' => now()]);
@@ -110,7 +139,7 @@ class BookingOrder
      */
     public function unlock(Save $save, Show $show): void
     {
-        if ($show->week_number !== $save->current_week) {
+        if ($show->week_number !== $save->current_week || $show->status !== ShowStatus::Booking) {
             throw new GameRuleException("{$show->name} has already aired.");
         }
 
@@ -118,20 +147,36 @@ class BookingOrder
         $from = $steps->search(fn (Show $s): bool => $s->is($show));
 
         foreach ($steps->slice((int) $from) as $step) {
-            $step->update(['confirmed_at' => null]);
+            if (self::night($step) === self::night($show)) {
+                $step->update(['confirmed_at' => null]);
+            }
         }
     }
 
     /**
-     * Throws unless every card before the week's last one is confirmed.
+     * The player's cards of the night that airs next: the PPV night until
+     * it has aired, then the weekly show.
+     *
+     * @return Collection<int, Show>
+     */
+    public function nightUp(Save $save, int $week): Collection
+    {
+        $steps = $this->steps($save, $week);
+        $ppv = $steps->filter(fn (Show $s): bool => self::night($s) === 'ppv');
+
+        return ($ppv->contains(fn (Show $s): bool => $s->status !== ShowStatus::Aired) ? $ppv : $steps->filter(fn (Show $s): bool => self::night($s) === 'weekly'))->values();
+    }
+
+    /**
+     * Throws unless every card before the airing night's last one is confirmed.
      */
     public function assertReadyToAir(Save $save, int $week): void
     {
-        $steps = $this->steps($save, $week);
+        $steps = $this->nightUp($save, $week);
 
         foreach ($steps->slice(0, max(0, $steps->count() - 1)) as $step) {
             if ($step->confirmed_at === null) {
-                throw new GameRuleException("Book and confirm {$step->name} before the week can air.");
+                throw new GameRuleException("Book and confirm {$step->name} before it can air.");
             }
         }
     }

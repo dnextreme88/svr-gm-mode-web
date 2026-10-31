@@ -426,10 +426,10 @@ function PromoEditor({
                         <div className="grid gap-2 sm:grid-cols-2">
                             <div>
                                 <div className="gm-label mb-1">
-                                    {pair ? 'First wrestler' : 'Wrestler'}
+                                    {pair ? 'First superstar' : 'Superstar'}
                                 </div>
                                 <WrestlerPicker
-                                    label={`Promo ${slot.position} ${pair ? 'first wrestler' : 'wrestler'}`}
+                                    label={`Promo ${slot.position} ${pair ? 'first superstar' : 'superstar'}`}
                                     value={a}
                                     options={optionsFor(firstIds)}
                                     disabled={readOnly}
@@ -445,10 +445,10 @@ function PromoEditor({
                             {pair && (
                                 <div>
                                     <div className="gm-label mb-1">
-                                        Second wrestler
+                                        Second superstar
                                     </div>
                                     <WrestlerPicker
-                                        label={`Promo ${slot.position} second wrestler`}
+                                        label={`Promo ${slot.position} second superstar`}
                                         value={b}
                                         options={optionsFor(secondIds)}
                                         disabled={readOnly || a === null}
@@ -563,7 +563,7 @@ function PromoEditor({
                     ready={ready}
                     filled={slot.promo_type_id !== null}
                     saveStatus={saveStatus}
-                    clearMessage="This removes the promo and its wrestlers from this slot."
+                    clearMessage="This removes the promo and its superstars from this slot."
                     onSave={() =>
                         type &&
                         onSave(slot.position, {

@@ -206,7 +206,7 @@ export function ProposalModal({
                                 Couldn’t fill match
                                 {unfilledSlots.length > 1 ? 'es' : ''}{' '}
                                 {unfilledSlots.join(', ')}: not enough available
-                                wrestlers fresh enough to book without risking
+                                superstars fresh enough to book without risking
                                 an injury.
                             </p>
                         )}

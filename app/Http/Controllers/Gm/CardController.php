@@ -16,6 +16,7 @@ use App\Models\PromoType;
 use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\Show;
+use App\Services\Attendance\SummerSlamMainEvent;
 use App\Services\Card\Booking;
 use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
@@ -48,6 +49,7 @@ class CardController extends Controller
         private MitbService $mitb,
         private PromoEligibility $promoEligibility,
         private BookingOrder $order,
+        private SummerSlamMainEvent $summerSlam,
     ) {}
 
     public function show(Save $save, Show $show): Response|RedirectResponse
@@ -85,6 +87,10 @@ class CardController extends Controller
             'match_types' => $types,
             'roster' => $roster,
             'title_context' => $this->titleContext->forShow($save, $show, $brand),
+            // House rule (2026-11-01): the bigger draw closes SummerSlam.
+            'summerslam' => ($headliner = $this->summerSlam->cardHeadliner($show)) === null
+                ? null
+                : ['main_event' => $headliner === $save->player_brand, 'headliner' => $headliner->label()],
             // Active Effects: Buried Alive losers still sitting out.
             'buried_alive' => SaveWrestler::with('wrestler')
                 ->where('save_id', $save->id)

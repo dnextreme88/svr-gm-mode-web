@@ -87,18 +87,18 @@ class TradeService
         $week = $save->current_week;
 
         if ($outIds === [] && $inIds === []) {
-            throw new GameRuleException('A trade needs at least one wrestler.');
+            throw new GameRuleException('A trade needs at least one superstar.');
         }
 
         if (count($outIds) > $max || count($inIds) > $max) {
-            throw new GameRuleException("Trades are limited to {$max} wrestlers per side.");
+            throw new GameRuleException("Trades are limited to {$max} superstars per side.");
         }
 
         foreach ([[$outIds, $proposer], [$inIds, $rival]] as [$ids, $brand]) {
             $wrestlers = SaveWrestler::with('wrestler')->where('save_id', $save->id)->whereIn('id', $ids)->get();
 
             if ($wrestlers->count() !== count(array_unique($ids)) || $wrestlers->contains(fn (SaveWrestler $w): bool => $w->brand !== $brand)) {
-                throw new GameRuleException('Every wrestler must be on the right roster.');
+                throw new GameRuleException('Every superstar must be on the right roster.');
             }
 
             foreach ($wrestlers as $wrestler) {
@@ -112,7 +112,7 @@ class TradeService
 
         foreach ($this->resultingSizes($save, $proposer, $outIds, $inIds) as $brand => $size) {
             if ($size > $this->roster->cap()) {
-                throw new GameRuleException('The trade would put '.Brand::from($brand)->label()." over {$this->roster->cap()} wrestlers.");
+                throw new GameRuleException('The trade would put '.Brand::from($brand)->label()." over {$this->roster->cap()} superstars.");
             }
         }
     }

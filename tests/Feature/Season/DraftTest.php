@@ -272,7 +272,7 @@ describe('Rival GM draft focus (house rule)', function () {
         $ai = app(AiGm::class);
         $focus = collect(range(1, 300))->filter(fn (int $n) => AiGm::isDraftFocus(Brand::Raw, $ai->draftPick($save, Brand::Raw, $n)))->count();
 
-        // 41% focus rolls + ~17% of the rest by chance ≈ 51%, against ~17% if it were plain random.
+        // 40% focus rolls + ~17% of the rest by chance ≈ 50%, against ~17% if it were plain random.
         expect($focus / 300)->toBeGreaterThan(0.4)->toBeLessThan(0.62);
     });
 });

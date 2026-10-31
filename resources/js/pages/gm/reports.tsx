@@ -1,13 +1,17 @@
 import { Head, usePage } from '@inertiajs/react';
+import { AttendanceChart } from '@/components/gm/attendance-chart';
+import type { AttendancePoint } from '@/components/gm/attendance-chart';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import type { CardShow, GamePageProps, MatchOutcome } from '@/types/gm';
 
 type Props = GamePageProps & {
     shows: Array<CardShow & { outcomes: MatchOutcome[] }>;
+    /** Every aired night's crowd, both brands (house rule, 2026-11-01). */
+    attendance: AttendancePoint[];
 };
 
 export default function Reports() {
-    const { shows } = usePage<Props>().props;
+    const { shows, attendance } = usePage<Props>().props;
 
     return (
         <>
@@ -17,6 +21,10 @@ export default function Reports() {
                 Star ratings and fan support come from the Match Rating and
                 Popularity systems, which haven’t been designed yet.
             </p>
+
+            <Panel title="Fan attendance" className="mb-6">
+                <AttendanceChart points={attendance} />
+            </Panel>
 
             {shows.length === 0 ? (
                 <EmptyState>No shows have aired yet.</EmptyState>

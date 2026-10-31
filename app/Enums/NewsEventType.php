@@ -70,6 +70,9 @@ enum NewsEventType: string
     case ContractExpiring = 'contract_expiring';
     case RivalryMilestone = 'rivalry_milestone';
 
+    // Fan attendance (house rule, 2026-11-01).
+    case Attendance = 'attendance';
+
     // Factions (house rule).
     case FactionFormed = 'faction_formed';
     case FactionMemberAdded = 'faction_member_added';

@@ -1,14 +1,18 @@
 <?php
 
 use App\Enums\Brand;
+use App\Enums\ShowStatus;
 use App\Enums\ShowType;
+use App\Models\Championship;
 use App\Models\Contract;
 use App\Models\Email;
 use App\Models\MatchResult;
+use App\Models\MatchSlot;
 use App\Models\NewsEvent;
 use App\Models\Save;
 use App\Models\Show;
 use App\Models\WeekResolution;
+use App\Services\Titles\TitleShotService;
 use App\Services\Week\ShowScheduler;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\Card;
@@ -16,8 +20,9 @@ use Tests\Support\FixedOutcomes;
 use Tests\Support\GameBuilder;
 
 /*
-| Weeks start on Sunday: a PPV week books the PPV card first, then the
-| weekly show, and the weekly show's Air button airs both.
+| Weeks start on Sunday: a PPV week books and airs the PPV night first, then
+| (house rule, 2026-11-01) the weekly show is booked with the PPV's results
+| in hand, and its Air button airs the rest of the week.
 */
 
 const BACKLASH = 4;
@@ -44,70 +49,98 @@ function bookVia($test, Save $save, Show $show, string $a, string $b)
     ]);
 }
 
-it('keeps the weekly show closed until the PPV card is confirmed', function () {
+it('keeps the weekly show closed until the PPV has aired', function () {
     $save = backlashWeek();
     $raw = rawCard($save, ShowType::Weekly);
     $backlash = rawCard($save, ShowType::Ppv);
 
     bookVia($this, $save, $raw, 'Edge', 'Kane')
         ->assertStatus(422)
-        ->assertJsonFragment(['message' => "Book Backlash first. This week's cards are booked in date order."]);
+        ->assertJsonFragment(['message' => "Air Backlash first. The weekly show is booked once the PPV's results are in."]);
 
     bookVia($this, $save, $backlash, 'Edge', 'Kane')->assertNoContent();
-
-    $this->post(route('gm.card.confirm', [$save, $backlash]))
-        ->assertRedirect(route('gm.card.show', [$save, $raw]));
+    $this->post(route('gm.advance', $save))->assertRedirect(route('gm.results', [$save, BACKLASH]));
+    $this->post(route('gm.results.simulate-all', [$save, BACKLASH]));
 
     bookVia($this, $save, $raw, 'Christian', 'Chris Jericho')->assertNoContent();
 
-    // The confirmed PPV card is read-only until it's unlocked.
+    // The aired PPV card can't change, or be unlocked.
     bookVia($this, $save, $backlash, 'Christian', 'Chris Jericho')->assertStatus(422);
-    $this->post(route('gm.card.unlock', [$save, $backlash]))->assertRedirect();
-    expect($backlash->refresh()->confirmed_at)->toBeNull();
+    $this->post(route('gm.card.unlock', [$save, $backlash]))->assertSessionHasErrors('game');
 });
 
-it('won’t air the week until every card before the weekly show is confirmed', function () {
+it('doesn’t confirm a night’s last card: that one airs the night', function () {
     $save = backlashWeek();
-    $backlash = rawCard($save, ShowType::Ppv);
 
-    $this->post(route('gm.advance', $save))->assertSessionHasErrors('game');
-    expect(WeekResolution::count())->toBe(0);
-
-    $this->post(route('gm.card.confirm', [$save, $backlash]));
-    $this->post(route('gm.advance', $save))->assertRedirect(route('gm.results', [$save, BACKLASH]));
-
-    expect(WeekResolution::count())->toBe(1);
+    $this->post(route('gm.card.confirm', [$save, rawCard($save, ShowType::Ppv)]))->assertSessionHasErrors('game');
 });
 
-it('doesn’t confirm the week’s last card: that one airs the week', function () {
-    $save = backlashWeek();
-    $backlash = rawCard($save, ShowType::Ppv);
-    $this->post(route('gm.card.confirm', [$save, $backlash]));
-
-    $this->post(route('gm.card.confirm', [$save, rawCard($save, ShowType::Weekly)]))->assertSessionHasErrors('game');
-});
-
-it('airs the Sunday PPV before the weekly show and lists its results first', function () {
+it('airs the PPV night, waits for the weekly show, then airs the rest of the week', function () {
     $save = backlashWeek();
     $backlash = rawCard($save, ShowType::Ppv);
     $raw = rawCard($save, ShowType::Weekly);
+    $smackdown = Card::show($save, Brand::Smackdown, ShowType::Weekly, BACKLASH);
     Card::book($save, $backlash, 1, Card::singles(), [['Edge'], ['Kane']]);
-    Card::book($save, $raw, 1, Card::singles(), [['Christian'], ['Chris Jericho']]);
     FixedOutcomes::queue('Edge')->queue('Christian');
-    $this->post(route('gm.card.confirm', [$save, $backlash]));
 
     $this->post(route('gm.advance', $save));
+    $this->post(route('gm.results.simulate-all', [$save, BACKLASH]));
+
+    // The PPV is in; the week waits for the weekly show.
+    expect(WeekResolution::count())->toBe(0)
+        ->and($backlash->refresh()->status)->toBe(ShowStatus::Aired)
+        ->and($raw->refresh()->status)->toBe(ShowStatus::Booking)
+        // The rival books its weekly show after the PPV, too.
+        ->and(MatchSlot::where('show_id', $smackdown->id)->whereNotNull('match_type_id')->count())->toBe(0);
+
+    $this->get(route('gm.results', [$save, BACKLASH]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('airing', false)
+            ->where('continue_to.name', 'Monday Night Raw')
+            ->where('continue_to.url', route('gm.card.show', [$save, $raw]))
+            ->where('shows', fn ($shows) => collect($shows)->pluck('name')->all() === ['Backlash']));
+
+    Card::book($save, $raw, 1, Card::singles(), [['Christian'], ['Chris Jericho']]);
+    $this->post(route('gm.advance', $save))->assertRedirect(route('gm.results', [$save, BACKLASH]));
     $this->post(route('gm.results.simulate-all', [$save, BACKLASH]));
 
     $ppvResult = MatchResult::whereHas('matchSlot', fn ($q) => $q->where('show_id', $backlash->id))->sole();
     $rawResult = MatchResult::whereHas('matchSlot', fn ($q) => $q->where('show_id', $raw->id))->sole();
 
-    expect($ppvResult->id)->toBeLessThan($rawResult->id);
+    expect(WeekResolution::count())->toBe(1)
+        ->and($ppvResult->id)->toBeLessThan($rawResult->id)
+        ->and(MatchSlot::where('show_id', $smackdown->id)->whereNotNull('match_type_id')->count())->toBeGreaterThan(0);
 
     $this->get(route('gm.results', [$save, BACKLASH]))
         ->assertInertia(fn (Assert $page) => $page
+            ->where('continue_to', null)
             ->where('shows.0.name', 'Backlash')
             ->where('shows.1.name', 'Monday Night Raw'));
+});
+
+it('finishes a week waiting for its weekly show when simulating past it', function () {
+    $save = backlashWeek();
+    Card::book($save, rawCard($save, ShowType::Ppv), 1, Card::singles(), [['Edge'], ['Kane']]);
+    $this->post(route('gm.advance', $save));
+    $this->post(route('gm.results.simulate-all', [$save, BACKLASH]));
+
+    $this->post(route('gm.simulate', $save), ['week' => BACKLASH + 1]);
+
+    expect(WeekResolution::where('week_number', BACKLASH)->exists())->toBeTrue()
+        ->and(MatchResult::whereHas('matchSlot', fn ($q) => $q->where('show_id', rawCard($save, ShowType::Weekly)->id))->count())->toBeGreaterThan(0);
+});
+
+it('makes a title shot won at a PPV due on that week’s weekly show', function () {
+    $save = backlashWeek();
+    $slot = Card::book($save, rawCard($save, ShowType::Ppv), 1, Card::singles(), [['Edge'], ['Kane']]);
+    $title = Championship::where('key', 'wwe')->firstOrFail();
+    $shots = app(TitleShotService::class);
+
+    expect($shots->create($save, $title, [GameBuilder::wrestler($save, 'Edge')->id], [GameBuilder::wrestler($save, 'Kane')->id], $slot, BACKLASH)->due_week)->toBe(BACKLASH);
+
+    $weekly = Card::book($save, Card::show($save, Brand::Raw, ShowType::Weekly, 1), 1, Card::singles(), [['Christian'], ['Chris Jericho']]);
+
+    expect($shots->create($save, $title, [GameBuilder::wrestler($save, 'Christian')->id], [GameBuilder::wrestler($save, 'Kane')->id], $weekly, 1)->due_week)->toBe(2);
 });
 
 it('shows the rival’s results from the calendar', function () {

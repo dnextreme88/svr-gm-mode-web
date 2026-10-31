@@ -200,7 +200,7 @@ describe('Randomize / Preset modal (§24)', () => {
             .mockRejectedValue(
                 new HttpError(
                     422,
-                    'Not enough available wrestlers to book this match (need 2, have 1).',
+                    'Not enough available superstars to book this match (need 2, have 1).',
                 ),
             );
 
@@ -215,7 +215,7 @@ describe('Randomize / Preset modal (§24)', () => {
         await user.click(screen.getByRole('button', { name: 'Randomize' }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent(
-            'Not enough available wrestlers to book this match (need 2, have 1).',
+            'Not enough available superstars to book this match (need 2, have 1).',
         );
         expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
         expect(onConfirm).not.toHaveBeenCalled();

@@ -17,6 +17,7 @@ use App\Models\MatchSlot;
 use App\Models\MatchType;
 use App\Models\SaveWrestler;
 use App\Models\Show;
+use App\Services\Attendance\SummerSlamMainEvent;
 use App\Services\Card\CardRandomizer;
 use App\Services\Injuries\InjuryStatus;
 use App\Services\News\NewsRecorder;
@@ -38,11 +39,21 @@ class PpvCardService
 
     public const WM_MAIN_EVENT = 10;
 
+    /**
+     * House rule (2026-11-01): SummerSlam is one card. The brand that drew
+     * more fans books Match 1, Match 3 and the main event; the other brand
+     * books Matches 2 and 4.
+     */
+    public const SUMMERSLAM_HEADLINER_SLOTS = [1, 3, 5];
+
+    public const SUMMERSLAM_OTHER_SLOTS = [2, 4];
+
     public function __construct(
         private CardRandomizer $randomizer,
         private TitleService $titles,
         private InjuryStatus $injuries,
         private NewsRecorder $news,
+        private SummerSlamMainEvent $summerSlam,
     ) {}
 
     /**
@@ -54,6 +65,12 @@ class PpvCardService
 
         if ($show->isWrestleMania()) {
             $this->setUpWrestleMania($show);
+
+            return;
+        }
+
+        if ($show->isInterbrand() && $show->ppvKey() === PpvKey::Summerslam) {
+            $this->setUpSummerSlam($show);
 
             return;
         }
@@ -90,7 +107,7 @@ class PpvCardService
 
         foreach ($ids as $id) {
             if (! in_array($id, $pool, true)) {
-                throw new GameRuleException('Entrants must be bookable wrestlers on your roster.');
+                throw new GameRuleException('Entrants must be bookable superstars on your roster.');
             }
         }
 
@@ -140,7 +157,7 @@ class PpvCardService
         $needed = $rumble ? $this->rumbleEntrantsFor($show, $brand) : (int) config('gm.ppv.survivor_series_team_size');
 
         if ($pool->count() < $needed) {
-            throw new GameRuleException("Not enough bookable wrestlers (need {$needed}, have {$pool->count()}).");
+            throw new GameRuleException("Not enough bookable superstars (need {$needed}, have {$pool->count()}).");
         }
 
         $this->setEntrants($show, $brand, array_map('intval', $rng->sample($pool->pluck('id')->all(), $needed)));
@@ -328,6 +345,22 @@ class PpvCardService
             ->whereIn('position', self::WM_SERIES_SLOTS)
             ->orderBy('position')
             ->get();
+    }
+
+    /**
+     * The shared SummerSlam card's 5 slots, split by who drew more fans
+     * this season (`SummerSlamMainEvent`).
+     */
+    private function setUpSummerSlam(Show $show): void
+    {
+        $headliner = $this->summerSlam->headliner($show->game, $show->season, $show->week_number);
+        $other = $headliner === Brand::Raw ? Brand::Smackdown : Brand::Raw;
+
+        foreach (range(1, 5) as $position) {
+            MatchSlot::firstOrCreate(['show_id' => $show->id, 'position' => $position], [
+                'owner_brand' => in_array($position, self::SUMMERSLAM_HEADLINER_SLOTS, true) ? $headliner : $other,
+            ]);
+        }
     }
 
     private function setUpWrestleMania(Show $show): void

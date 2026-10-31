@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Brand;
+use App\Enums\ShowStatus;
 use App\Enums\ShowType;
 use App\Models\Show;
 use App\Services\Calendar\CalendarService;
@@ -33,7 +34,7 @@ it('links to the weekly show in a week without a PPV', function () {
     expect(chipUrl($this, $save))->toBe(route('gm.card.show', [$save, Card::show($save)]));
 });
 
-it('links to the PPV first, then the weekly show once the PPV is confirmed', function () {
+it('links to the PPV until it has aired, then the weekly show', function () {
     $save = GameBuilder::inSeason();
     $week = app(CalendarService::class)->nextPpv(1, Brand::Raw)['week'];
     $save->update(['current_week' => $week]);
@@ -43,10 +44,14 @@ it('links to the PPV first, then the weekly show once the PPV is confirmed', fun
 
     expect(chipUrl($this, $save))->toBe(route('gm.card.show', [$save, $ppv]));
 
+    // Confirmed, it's still the PPV night's last card, where the PPV airs from.
     $ppv->update(['confirmed_at' => now()]);
+    expect(chipUrl($this, $save))->toBe(route('gm.card.show', [$save, $ppv]));
+
+    // House rule (2026-11-01): the weekly show is booked once the PPV aired.
+    $ppv->update(['status' => ShowStatus::Aired]);
     expect(chipUrl($this, $save))->toBe(route('gm.card.show', [$save, $weekly]));
 
-    // Everything confirmed: still the last card, where the week airs from.
     app(BookingOrder::class)->confirmAll($save, $week);
     expect(chipUrl($this, $save))->toBe(route('gm.card.show', [$save, $weekly]));
 });

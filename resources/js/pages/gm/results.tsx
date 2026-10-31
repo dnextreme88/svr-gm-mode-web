@@ -1,6 +1,8 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { AttendanceChip } from '@/components/gm/attendance-chip';
+import type { AttendanceBreakdown } from '@/components/gm/attendance-chip';
 import { CashInTag } from '@/components/gm/badges';
 import { BookToWinCard } from '@/components/gm/book-to-win-card';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
@@ -27,6 +29,8 @@ type ShowResult = CardShow & {
     outcomes: Array<MatchOutcome | PendingMatch>;
     promos?: ResultPromo[];
     fatigue: FatigueStep[];
+    attendance?: number | null;
+    attendance_breakdown?: AttendanceBreakdown | null;
 };
 
 /** How long a decided match's result stays up before the next match shows. */
@@ -44,6 +48,8 @@ type Props = GamePageProps & {
     from_schedule?: boolean;
     /** The week is airing live: the player's matches are still being decided. */
     airing?: boolean;
+    /** After a PPV night (house rule, 2026-11-01): the weekly show to book next. */
+    continue_to?: { name: string; url: string } | null;
     /** House rule: the briefcase holder may cash in after the world title match that just aired. */
     cash_in_offer?: { holder: string; champion: string; title: string } | null;
     shows: ShowResult[];
@@ -136,6 +142,7 @@ export default function Results() {
         from_schedule,
         airing = false,
         cash_in_offer = null,
+        continue_to = null,
         shows,
         new_emails,
     } = usePage<Props>().props;
@@ -331,6 +338,10 @@ export default function Results() {
                             Decide every match to continue.
                         </p>
                     </>
+                ) : continue_to ? (
+                    <Link href={continue_to.url} className="gm-btn">
+                        Continue to {continue_to.name}
+                    </Link>
                 ) : (
                     <Link href={gm.news.url(game.id)} className="gm-btn">
                         Continue
@@ -360,6 +371,14 @@ export default function Results() {
                                 title={show.name}
                                 titleClassName="text-2xl"
                                 bodyClassName="p-0"
+                                actions={
+                                    <AttendanceChip
+                                        attendance={show.attendance ?? null}
+                                        breakdown={
+                                            show.attendance_breakdown ?? null
+                                        }
+                                    />
+                                }
                             >
                                 <ol className="divide-y divide-white/5">
                                     {rowsFor(show).map((row, _, rows) => {

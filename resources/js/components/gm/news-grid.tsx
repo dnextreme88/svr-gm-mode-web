@@ -22,8 +22,11 @@ export type NewsPage = {
     headlines: Record<'raw' | 'smackdown' | 'neutral', NewsCard | null>;
     stories: Record<'raw' | 'smackdown', NewsCard[]>;
     ticker: NewsCard[];
-    fan_support: null;
+    /** The week's crowds: each weekly show, and each PPV night. */
+    attendance: AttendanceNight[];
 };
+
+export type AttendanceNight = { name: string; ppv: boolean; crowd: number };
 
 const slotLabel = {
     raw: 'Raw',
@@ -166,7 +169,7 @@ export function NewsGrid({ pages }: { pages: NewsPage[] }) {
                 )}
             </div>
 
-            <Ticker items={page.ticker} />
+            <Ticker items={page.ticker} attendance={page.attendance} />
         </section>
     );
 }
@@ -254,8 +257,26 @@ function NewsCardView({
     );
 }
 
-function Ticker({ items }: { items: NewsCard[] }) {
-    const entries = [...items.map((i) => i.text), 'Fan support trend: —'];
+/** "Fan attendance: Monday Night Raw 15,050 · Friday Night Smackdown 12,300". */
+export function attendanceLine(nights: AttendanceNight[]): string | null {
+    return nights.length === 0
+        ? null
+        : `Fan attendance: ${nights.map((n) => `${n.name} ${n.crowd.toLocaleString('en-US')}`).join(' · ')}`;
+}
+
+function Ticker({
+    items,
+    attendance,
+}: {
+    items: NewsCard[];
+    attendance: AttendanceNight[];
+}) {
+    const crowds = attendanceLine(attendance);
+    // The crowds lead the ticker, in gold so they stand out.
+    const entries = [
+        ...(crowds === null ? [] : [{ text: crowds, gold: true }]),
+        ...items.map((i) => ({ text: i.text, gold: false })),
+    ];
 
     return (
         <div
@@ -268,13 +289,16 @@ function Ticker({ items }: { items: NewsCard[] }) {
             </span>
             <div className="relative flex-1 overflow-hidden py-2">
                 <ul className="flex w-max animate-gm-ticker gap-10 pl-6 text-sm whitespace-nowrap text-ink-dim hover:[animation-play-state:paused]">
-                    {[...entries, ...entries].map((text, i) => (
+                    {[...entries, ...entries].map(({ text, gold }, i) => (
                         <li
                             key={i}
                             aria-hidden={i >= entries.length}
                             data-testid={
                                 i < entries.length ? 'ticker-item' : undefined
                             }
+                            className={cn(
+                                gold && 'font-semibold text-gold-hot',
+                            )}
                         >
                             <span className="mr-3 text-brand-hot">◆</span>
                             {text}

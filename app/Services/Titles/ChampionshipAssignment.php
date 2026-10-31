@@ -107,7 +107,7 @@ class ChampionshipAssignment
 
         foreach ($saveWrestlerIds as $id) {
             if (! in_array($id, $eligibleIds, true)) {
-                throw new GameRuleException("That wrestler isn't eligible for the {$championship->name}.");
+                throw new GameRuleException("That superstar isn't eligible for the {$championship->name}.");
             }
         }
 

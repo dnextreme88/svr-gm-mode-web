@@ -36,6 +36,11 @@ class NewsTemplates
         'reign_milestone' => '{champion} marks {weeks} weeks as {title}.',
         'record_broken' => 'History made: {wrestler} sets a new {record} record!',
         'ppv_upcoming' => '{ppv} is {n} weeks away.',
+        'attendance' => '{show} draws {crowd} fans!',
+        'attendance.packed' => '{crowd} fans pack the arena for {show}!',
+        'attendance.biggest' => '{show} draws {crowd} fans, the biggest crowd of the week!',
+        'attendance.spoken' => 'The fans have spoken: {crowd} turn up for {show}!',
+        'attendance.house' => 'Big house for {show}: {crowd} in attendance!',
         'ppv_main_event_set' => 'Main event confirmed for {ppv}: {wrestler_a} vs {wrestler_b}!',
         'ppv_results' => '{ppv} results: {top_result} headlines the night.',
         'ppv_results.main_event' => '{ppv} main event: {winner} {defeats} {loser}{gimmick}{ppv_how}!',
@@ -133,12 +138,17 @@ class NewsTemplates
         'reign_milestone' => '{champion} has held the {title} for {weeks} weeks and nobody has managed to take it.',
         'record_broken' => '{wrestler} now holds the {record} record in the title history books.',
         'ppv_upcoming' => '{ppv} is {n} weeks away. Expect the card to take shape over the coming shows.',
+        'attendance' => '{show} drew {crowd} fans this week.{others}',
+        'attendance.packed' => 'The building was full for {show}: {crowd} fans came out to see it.{others}',
+        'attendance.biggest' => 'No show drew more this week than {show}, with {crowd} fans in attendance.{others}',
+        'attendance.spoken' => '{crowd} fans bought a ticket for {show}, and the card gave them a reason to.{others}',
+        'attendance.house' => '{show} played to {crowd} fans, a house the whole company will notice.{others}',
         'ppv_main_event_set' => '{ppv} has its main event: {wrestler_a} vs {wrestler_b}, with the world title on the line.',
         'ppv_results' => '{top_result} is the moment everyone will be talking about after {ppv}.',
-        'ppv_results.main_event' => '{winner} closed out {ppv} with a win over {loser}{gimmick}, and that is the moment everyone will be talking about.',
-        'ppv_results.title_change' => '{ppv} ended with a new champion: {winner} beat {loser}{gimmick}{ppv_how} and walked out with the {title}.',
-        'ppv_results.title_retained' => '{winner} beat {loser}{gimmick}{ppv_how} to close {ppv} and is still the {title} holder.',
-        'ppv_results.title_kept' => '{winner} beat {loser}{gimmick} by {via} to close {ppv}, but titles only change hands on a decisive win, so {loser} keeps the {title}.',
+        'ppv_results.main_event' => '{winner} closed out {ppv} with a win over {loser}{gimmick}, and that is the moment everyone will be talking about.{crowd}',
+        'ppv_results.title_change' => '{ppv} ended with a new champion: {winner} beat {loser}{gimmick}{ppv_how} and walked out with the {title}.{crowd}',
+        'ppv_results.title_retained' => '{winner} beat {loser}{gimmick}{ppv_how} to close {ppv} and is still the {title} holder.{crowd}',
+        'ppv_results.title_kept' => '{winner} beat {loser}{gimmick} by {via} to close {ppv}, but titles only change hands on a decisive win, so {loser} keeps the {title}.{crowd}',
         'survivor_series_teams' => 'Raw and Smackdown settle it in the Traditional 3 vs 3 elimination match. Team {captain_a} and Team {captain_b} are set.',
         'mitb_qualified' => '{wrestler} is in the Money in the Bank ladder match at WrestleMania. Six climb, one briefcase.',
         'mitb_winner' => '{wrestler} climbed the ladder and grabbed the briefcase: a world title shot they can cash in on any card for a year.',
@@ -226,6 +236,9 @@ class NewsTemplates
     public function summary(NewsEventType $type, array $payload): string
     {
         $payload = $this->withHow($payload);
+        // A PPV main event aired before fan attendance has no crowd line.
+        $payload['crowd'] ??= '';
+        $payload['others'] ??= '';
         $story = $this->promoStory($payload);
 
         if ($story !== null) {

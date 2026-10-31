@@ -14,7 +14,7 @@ use App\Services\Week\BookingOrder;
 class BookingOrderPresenter
 {
     /**
-     * @return array{steps: list<array{id: int, name: string, show_type: string, confirmed: bool, current: bool}>, blocked_by: array{id: int, name: string}|null, next: array{id: int, name: string}|null, confirmed: bool, editable: bool, is_last: bool, airs_this_week: bool}
+     * @return array{steps: list<array{id: int, name: string, show_type: string, confirmed: bool, current: bool, aired: bool}>, blocked_by: array{id: int, name: string}|null, waits_for_airing: bool, next: array{id: int, name: string}|null, confirmed: bool, editable: bool, is_last: bool, airs_this_week: bool, night: string}
      */
     public static function for(Save $save, Show $show, BookingOrder $order): array
     {
@@ -29,13 +29,18 @@ class BookingOrderPresenter
                 'show_type' => $s->show_type->value,
                 'confirmed' => $s->confirmed_at !== null,
                 'current' => $s->is($show),
+                'aired' => $s->status->value === 'aired',
             ])->all()),
             'blocked_by' => $blocker === null ? null : ['id' => $blocker->id, 'name' => $blocker->name],
+            // House rule (2026-11-01): the weekly show waits for the PPV to air.
+            'waits_for_airing' => $blocker !== null && $order->waitsForAiring($save, $show),
             'next' => $next === null ? null : ['id' => $next->id, 'name' => $next->name],
             'confirmed' => $show->confirmed_at !== null,
             'editable' => $airsThisWeek && $blocker === null && $show->confirmed_at === null,
             'is_last' => $next === null,
             'airs_this_week' => $airsThisWeek,
+            // Which night this card airs on: its Air button airs that night.
+            'night' => BookingOrder::night($show),
         ];
     }
 }

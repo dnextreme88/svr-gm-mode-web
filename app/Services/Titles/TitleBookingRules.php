@@ -261,7 +261,7 @@ class TitleBookingRules
         if (array_unique($sides) !== [$size] || count($sides) < 2 || ($championship->is_tag && count($sides) > 3)) {
             throw new GameRuleException($championship->is_tag
                 ? "A #1 Contender’s Match for the {$championship->name} is 2 vs 2 or 2 vs 2 vs 2."
-                : "A #1 Contender’s Match for the {$championship->name} has one wrestler per side.");
+                : "A #1 Contender’s Match for the {$championship->name} has one superstar per side.");
         }
 
         $competitors = $booking->competitorIds();

@@ -76,7 +76,7 @@ class CardValidator
         $competitorIds = $booking->competitorIds();
 
         if (count($competitorIds) !== count(array_unique($competitorIds))) {
-            throw new GameRuleException('A wrestler can only appear once in the same match.');
+            throw new GameRuleException('A superstar can only appear once in the same match.');
         }
 
         // A w/Manager type needs its managers, like its competitors.
@@ -118,7 +118,7 @@ class CardValidator
             $wrestler = $wrestlers->get($id);
 
             if ($wrestler === null || ($brand !== null && $wrestler->brand !== $brand)) {
-                throw new GameRuleException('Only wrestlers on the brand roster can be booked.');
+                throw new GameRuleException('Only superstars on the brand roster can be booked.');
             }
 
             if ($this->injuries->isSeriouslyInjured($wrestler, $week)) {
