@@ -1,4 +1,11 @@
-import { PopoverPanel, usePopover } from '@/components/gm/popover';
+import {
+    PickerButton,
+    PickerClearRow,
+    PickerEmpty,
+    PickerList,
+    PickerRow,
+} from '@/components/gm/picker';
+import { usePopover } from '@/components/gm/popover';
 import { GoldTag } from '@/components/gm/badges';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
@@ -64,18 +71,11 @@ export function WrestlerPicker({
 
     return (
         <div ref={ref} className={cn('relative', className)}>
-            <button
-                type="button"
+            <PickerButton
                 aria-label={label}
-                aria-haspopup="listbox"
-                aria-expanded={open}
+                open={open}
                 disabled={disabled}
                 onClick={toggle}
-                className={cn(
-                    'gm-input flex w-full items-center justify-between gap-2 py-1 text-left text-sm transition-colors',
-                    !disabled && 'hover:border-white/25',
-                    disabled && 'cursor-default opacity-70',
-                )}
             >
                 {selected ? (
                     <WrestlerName
@@ -87,71 +87,49 @@ export function WrestlerPicker({
                         {fallbackName}
                     </span>
                 ) : (
-                    <span className="gm-label text-ink-faint italic">
-                        {emptyLabel}
-                    </span>
+                    <PickerEmpty>{emptyLabel}</PickerEmpty>
                 )}
-                {!disabled && (
-                    <span aria-hidden className="text-xs text-ink-faint">
-                        ▾
-                    </span>
-                )}
-            </button>
+            </PickerButton>
             {mounted && (
-                <PopoverPanel
-                    open={open}
-                    role="listbox"
-                    aria-label={label}
-                    // Tall enough for the clear row and 8 full wrestler rows.
-                    className="gm-scroll max-h-[330px] w-full min-w-56 overflow-x-hidden overflow-y-auto py-1"
-                >
+                <PickerList open={open} label={label}>
                     {!required && (
-                        <button
-                            type="button"
-                            role="option"
-                            aria-selected={value === null}
+                        <PickerClearRow
+                            selected={value === null}
                             onClick={() => pick(null)}
-                            className="gm-label block w-full px-3 py-1.5 text-left text-ink-faint italic hover:bg-white/6"
                         >
                             {clearLabel}
-                        </button>
+                        </PickerClearRow>
                     )}
                     {options.map(
                         ({ wrestler, disabled: off, note, booked }) => (
-                            <button
+                            <PickerRow
                                 key={wrestler.id}
-                                type="button"
-                                role="option"
-                                aria-selected={wrestler.id === value}
-                                aria-disabled={off || undefined}
+                                selected={wrestler.id === value}
                                 disabled={off}
                                 onClick={() => pick(wrestler.id)}
-                                className={cn(
-                                    'flex w-full items-baseline justify-between gap-3 px-3 py-1.5 text-left text-base',
-                                    off
-                                        ? 'cursor-not-allowed opacity-40'
-                                        : 'hover:bg-white/6',
-                                    wrestler.id === value && 'bg-brand/20',
-                                )}
+                                aside={
+                                    (note || booked) && (
+                                        <>
+                                            {note && (
+                                                <span className="text-ink-faint">
+                                                    {note}
+                                                </span>
+                                            )}
+                                            {booked && (
+                                                <GoldTag>Booked</GoldTag>
+                                            )}
+                                        </>
+                                    )
+                                }
                             >
                                 <WrestlerName
                                     wrestler={wrestler}
                                     className="truncate"
                                 />
-                                {(note || booked) && (
-                                    <span className="flex shrink-0 items-baseline gap-2 font-condensed text-sm tracking-wide uppercase">
-                                        {note && (
-                                            <span className="text-ink-faint">
-                                                {note}
-                                            </span>
-                                        )}
-                                        {booked && <GoldTag>Booked</GoldTag>}
-                                    </span>
-                                )}
-                            </button>
+                            </PickerRow>
                         ),
                     )}
-                </PopoverPanel>
+                </PickerList>
             )}
         </div>
     );

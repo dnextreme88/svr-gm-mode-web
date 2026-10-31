@@ -49,6 +49,10 @@ export type GameShell = {
     };
     /** The player's next team waiting to be named as a faction (house rule). */
     faction_prompt: FactionPrompt | null;
+    /** House rule: a vacated title with a #1 contender waiting. */
+    title_vacancy_prompt?: TitleVacancyPrompt | null;
+    /** One-off notices for the GM, shown until seen. */
+    notices?: GmNotice[];
 };
 
 /** 2 or 3 of the player's superstars who won 3 times together (house rule). */
@@ -142,6 +146,8 @@ export type CardSlot = {
     title_championship_id: number | null;
     stipulation: import('./enums').Stipulation | null;
     stipulation_championship_id: number | null;
+    /** House rule: a Winner Takes All match's contested titles. */
+    contested_title_ids?: number[];
     cost: number;
     fixed_kind: import('./enums').FixedSlotKind | null;
     owner_brand: Brand | null;
@@ -167,8 +173,8 @@ export type MatchTypeOption = {
     captain_fall: boolean;
     /** Needs a non-competing special referee from the roster (§10). */
     special_referee?: boolean;
-    /** House rule: false for the Gauntlet, which takes no stipulation. */
-    stipulations_allowed?: boolean;
+    /** House rule: the stipulations this type takes (a Gauntlet only takes #1 Contender's Match). */
+    allowed_stipulations?: import('./enums').Stipulation[];
 };
 
 export type RosterEntry = WrestlerRow & {
@@ -220,6 +226,11 @@ export type MatchOutcome = {
     title_banner: 'new_champion' | 'and_still' | null;
     stipulation: import('./enums').Stipulation | null;
     stipulation_outcome: string | null;
+    /** The title a Champion vs. Contender or #1 Contender's Match is about. */
+    stipulation_title?: string | null;
+    /** Winner Takes All: the titles on the line, and what the winner took. */
+    contested_titles?: string[];
+    titles_won?: string[];
     /** A Gauntlet's bouts, in order. */
     bouts?: GauntletBout[];
     rating: number | null;
@@ -259,6 +270,8 @@ export type PendingMatch = {
     referee: string | null;
     title: string | null;
     stipulation: import('./enums').Stipulation | null;
+    stipulation_title?: string | null;
+    contested_titles?: string[];
     /** Who holds the title on the line. */
     champions: string[];
     /** Each side's captain in a Captain Fall match, for the (Cpt) tag. */
@@ -309,10 +322,37 @@ export type TitleContext = {
         contenders: string;
         booked: boolean;
     }>;
+    /** House rule: #1 contenders waiting for their title match. */
+    contenderships?: Array<{
+        championship_id: number;
+        championship: string;
+        contender_ids: number[];
+        contenders: string;
+    }>;
+    /** Titles with an earned Champion vs. Contender shot still to come. */
+    earned_shot_title_ids?: number[];
+    /** Everyone holding a title, on either brand. */
+    title_holder_ids?: number[];
     briefcase: {
         id: number;
         holder: string;
         expires_week: number;
         cashed_in_here: boolean;
     } | null;
+};
+
+export type TitleVacancyPrompt = {
+    id: number;
+    title: string;
+    contenders: string;
+    contender_count: number;
+};
+
+export type GmNotice = {
+    id: number;
+    kind: import('./enums').GmNoticeKind;
+    week: number;
+    title: string;
+    contenders: string;
+    reason: string;
 };

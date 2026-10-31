@@ -57,6 +57,11 @@
         cubic-bezier(0.2, 0.8, 0.2, 1) both;
     --animate-gm-slide-from-left: gm-slide-from-left 320ms
         cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    /* The Schedule's month flip: Next comes up from below, Previous down from above. */
+    --animate-gm-slide-from-below: gm-slide-from-below 280ms
+        cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    --animate-gm-slide-from-above: gm-slide-from-above 280ms
+        cubic-bezier(0.2, 0.8, 0.2, 1) both;
     --animate-gm-pop-in: gm-pop-in 160ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
     --animate-gm-pop-out: gm-pop-out 160ms ease-in both;
     --animate-gm-dice-tumble: gm-dice-tumble 360ms linear infinite;
@@ -168,6 +173,28 @@
         to {
             opacity: 1;
             transform: translateX(0);
+        }
+    }
+
+    @keyframes gm-slide-from-below {
+        from {
+            opacity: 0;
+            transform: translateY(24px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes gm-slide-from-above {
+        from {
+            opacity: 0;
+            transform: translateY(-24px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
         }
     }
 

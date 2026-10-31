@@ -6,7 +6,9 @@ use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
 use App\Enums\ReignEndReason;
 use App\Enums\TitleHolderType;
+use App\Enums\TitleShotKind;
 use App\Enums\TitleShotStatus;
+use App\Enums\TitleVacancyPromptStatus;
 use App\Enums\WonVia;
 use App\Models\Championship;
 use App\Models\Save;
@@ -15,6 +17,7 @@ use App\Models\Show;
 use App\Models\TagTeam;
 use App\Models\TitleReign;
 use App\Models\TitleShot;
+use App\Models\TitleVacancyPrompt;
 use App\Services\Calendar\CalendarService;
 use App\Services\News\NewsRecorder;
 use Illuminate\Support\Collection;
@@ -174,11 +177,25 @@ class TitleService
             'end_reason' => $reason,
         ]);
 
-        // ง22 (to confirm): a title shot on a title that becomes vacant is voided.
+        // ยง22 (to confirm): a title shot on a title that becomes vacant is voided.
         TitleShot::where('save_id', $save->id)
             ->where('championship_id', $championship->id)
+            ->where('kind', TitleShotKind::ChampionVsContender)
             ->where('status', TitleShotStatus::Pending)
             ->update(['status' => TitleShotStatus::Voided, 'resolved_week' => $week]);
+
+        // House rule: a #1 contender waiting on it is offered the title (the
+        // player answers a prompt; the rival settles its own, see
+        // ContendershipService).
+        TitleShot::where('save_id', $save->id)
+            ->where('championship_id', $championship->id)
+            ->where('kind', TitleShotKind::NumberOneContender)
+            ->where('status', TitleShotStatus::Pending)
+            ->get()
+            ->each(fn (TitleShot $shot) => TitleVacancyPrompt::firstOrCreate(
+                ['title_shot_id' => $shot->id, 'status' => TitleVacancyPromptStatus::Pending],
+                ['save_id' => $save->id, 'championship_id' => $championship->id, 'week_number' => $week],
+            ));
 
         $this->news->record($save, NewsEventType::TitleVacated, NewsTier::Headline, $championship->brand, [
             'title' => $championship->name,

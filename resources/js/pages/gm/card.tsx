@@ -1,4 +1,4 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { BookingAction, BookingSteps } from '@/components/gm/booking-steps';
 import type { BookingOrder } from '@/components/gm/booking-steps';
@@ -12,6 +12,7 @@ import type {
     PromoTypeOption,
 } from '@/components/gm/promo-slots';
 import { ProposalLauncher } from '@/components/gm/proposal-launcher';
+import { TitleShotReminder } from '@/components/gm/title-shot-reminder';
 import type { ProposalResult } from '@/components/gm/proposal-launcher';
 import type { ProposalView } from '@/components/gm/proposal-modal';
 import { StipulationPicker, TitleCycler } from '@/components/gm/title-tools';
@@ -94,6 +95,12 @@ export default function CardPage() {
         [promo_slots, promo_types, show.match_slot_count],
     );
     const pendingShots = title_context.title_shots.filter((s) => !s.booked);
+    const contenderships = title_context.contenderships ?? [];
+    // Where "Book it now" puts an owed title match: the first empty slot of
+    // the player's, else the last one.
+    const ownSlots = slots.filter((s) => !s.fixed_kind && !s.locked);
+    const reminderSlot =
+        ownSlots.find((s) => s.match_type_id === null) ?? ownSlots.at(-1);
     const briefcase = title_context.briefcase;
     // Cards are booked in date order (Sunday PPV first), and a confirmed
     // card is read-only until it's unlocked.
@@ -197,19 +204,52 @@ export default function CardPage() {
 
             <BookingSteps game={game} order={booking_order} />
 
-            {pendingShots.length > 0 && (
+            <TitleShotReminder
+                key={pendingShots.map((s) => s.id).join(',')}
+                shots={pendingShots}
+                canBook={booking && reminderSlot !== undefined}
+                onBook={async () => {
+                    if (reminderSlot === undefined) {
+                        return;
+                    }
+
+                    // Randomize proposes the owed title match first.
+                    const { proposal } = await requestJson<{
+                        proposal: ProposalView;
+                    }>(
+                        'POST',
+                        gm.card.randomize.url({
+                            ...ids,
+                            position: reminderSlot.position,
+                        }),
+                        { roll: 0 },
+                    );
+                    await saveProposals([proposal]);
+                }}
+            />
+
+            {(pendingShots.length > 0 || contenderships.length > 0) && (
                 <div
                     role="alert"
                     className="mb-4 border-l-4 border-gold bg-gold/10 px-4 py-3 text-sm"
                 >
                     <div className="gm-label text-gold-hot">
-                        Required title match
+                        {pendingShots.length > 0
+                            ? 'Required title match'
+                            : '#1 contender waiting'}
                     </div>
                     {pendingShots.map((shot) => (
                         <p key={shot.id} className="mt-1">
                             {shot.contenders} earned a{' '}
                             <strong>{shot.championship}</strong> match. Book it
                             before this card can air.
+                        </p>
+                    ))}
+                    {contenderships.map((c) => (
+                        <p key={`no1-${c.championship_id}`} className="mt-1">
+                            {c.contenders} await a{' '}
+                            <strong>{c.championship}</strong> match as #1
+                            contender. Only they can challenge for it.
                         </p>
                     ))}
                 </div>
@@ -241,13 +281,18 @@ export default function CardPage() {
                     })
                 }
                 promoFatigue={promoFatigue}
-                championships={title_context.championships}
+                titleContext={title_context}
                 renderTitle={(draft, update, drafts) => (
                     <TitleCycler
-                        takenTitleIds={drafts
-                            .filter((d) => d.position !== draft.position)
-                            .map((d) => d.titleChampionshipId)
-                            .filter((id): id is number => id !== null)}
+                        takenTitleIds={[
+                            ...drafts
+                                .filter((d) => d.position !== draft.position)
+                                .map((d) => d.titleChampionshipId)
+                                .filter((id): id is number => id !== null),
+                            ...slots
+                                .filter((s) => s.position !== draft.position)
+                                .flatMap((s) => s.contested_title_ids ?? []),
+                        ]}
                         draft={draft}
                         type={
                             draft.matchTypeId
@@ -293,8 +338,25 @@ export default function CardPage() {
                         />
                     )
                 }
-                renderActions={(draft, update) => (
+                renderActions={(draft, update, drafts) => (
                     <StipulationPicker
+                        takenTitleIds={[
+                            ...drafts
+                                .filter((d) => d.position !== draft.position)
+                                .map((d) => d.titleChampionshipId)
+                                .filter((id): id is number => id !== null),
+                            ...slots
+                                .filter((s) => s.position !== draft.position)
+                                .flatMap((s) => s.contested_title_ids ?? []),
+                        ]}
+                        numberOneTitleIds={drafts
+                            .filter(
+                                (d) =>
+                                    d.position !== draft.position &&
+                                    d.stipulation === 'number_one_contender',
+                            )
+                            .map((d) => d.stipulationChampionshipId)
+                            .filter((id): id is number => id !== null)}
                         draft={draft}
                         type={
                             draft.matchTypeId

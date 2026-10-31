@@ -211,7 +211,9 @@ return [
         'no_ring_out_families' => ['steel_cage', 'battle_royal', 'royal_rumble', 'elimination_chamber'],
         'no_titles_families' => ['handicap', 'gauntlet'],
         'no_titles_sides' => [[3, 3]],
-        'no_stipulation_families' => ['gauntlet'],
+        // A Gauntlet takes only these stipulations (house rule): a #1
+        // Contender's Match, whose Gauntlet winner becomes the contender.
+        'family_stipulations' => ['gauntlet' => ['number_one_contender']],
         // Six-competitor variants of these families cost more fatigue.
         'six_competitor_bars' => ['hardcore' => 4, 'ladder' => 4, 'tlc' => 4, 'table' => 4],
     ],
@@ -279,6 +281,10 @@ return [
         // (e.g. 3) to vacate on any injury longer than that many weeks.
         'vacate_on_injury_over_weeks' => null,
         'vacate_on_serious_injury' => true,
+        // House rule: when the rival's title is vacated while it has a #1
+        // contender, the rival awards it to them (the player is asked).
+        // ASSUMPTION.
+        'ai_award_contender_on_vacancy' => true,
     ],
 
     /*
@@ -425,6 +431,19 @@ return [
         // that week. The interbrand card's (Survivor Series, WrestleMania)
         // outranks a brand PPV's; the Royal Rumble result sits at 90.
         'ppv_main_event_priority' => ['interbrand' => 95, 'brand' => 85],
+        // House rule (2026-10-31): stipulation news. Winner Takes All and
+        // #1 Contender's Match outrank the match's plain result.
+        'stipulation_priority' => [
+            'contender_earned_shot' => 75,
+            'champion_survived_challenge' => 60,
+            'number_one_contender' => 85,
+            'winner_takes_all' => 100,
+            'contender_awarded_title' => 95,
+            'contendership_voided' => 30,
+        ],
+        // Which story a Winner Takes All / #1 Contender's Match gets, by weight.
+        'winner_takes_all_variants' => ['celebrate' => 80, 'revenge' => 20],
+        'number_one_contender_variants' => ['fired_up' => 1, 'staredown' => 1, 'fans' => 1],
         'stories_per_brand' => 2,
         // Deferred: overall ratings aren't designed yet, so upset_win is off.
         'upset_win_overall_margin' => null,

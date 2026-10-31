@@ -68,6 +68,28 @@ export const ComplaintLevelLabels: Record<ComplaintLevel, string> = {
     'upset': 'Upset',
 };
 
+export const ContendershipVoidReason = {
+    Released: 'released',
+    ContractExpired: 'contract_expired',
+    Traded: 'traded',
+    Redrafted: 'redrafted',
+    Defected: 'defected',
+    LoserLeaves: 'loser_leaves',
+    SeriousInjury: 'serious_injury',
+    Forfeited: 'forfeited',
+} as const;
+export type ContendershipVoidReason = (typeof ContendershipVoidReason)[keyof typeof ContendershipVoidReason];
+export const ContendershipVoidReasonLabels: Record<ContendershipVoidReason, string> = {
+    'released': 'was released',
+    'contract_expired': 'saw their contract run out',
+    'traded': 'was traded',
+    'redrafted': 'moved brands in the re-draft',
+    'defected': 'defected to the other brand',
+    'loser_leaves': 'lost a Loser Leaves Show match',
+    'serious_injury': 'suffered a serious injury',
+    'forfeited': 'forfeited it when the title was vacated',
+};
+
 export const ContractLength = {
     FiveWeeks: 5,
     ThreeMonths: 12,
@@ -250,6 +272,14 @@ export const FixedSlotKindLabels: Record<FixedSlotKind, string> = {
     'mitb_cash_in': 'Mitb Cash In',
 };
 
+export const GmNoticeKind = {
+    ContendershipVoided: 'contendership_voided',
+} as const;
+export type GmNoticeKind = (typeof GmNoticeKind)[keyof typeof GmNoticeKind];
+export const GmNoticeKindLabels: Record<GmNoticeKind, string> = {
+    'contendership_voided': 'Contendership Voided',
+};
+
 export const InjurySeverity = {
     Minor: 'minor',
     Serious: 'serious',
@@ -426,6 +456,11 @@ export const NewsEventType = {
     RetainedByDq: 'retained_by_dq',
     ContenderEarnedShot: 'contender_earned_shot',
     LastChanceResult: 'last_chance_result',
+    ChampionSurvivedChallenge: 'champion_survived_challenge',
+    WinnerTakesAll: 'winner_takes_all',
+    NumberOneContender: 'number_one_contender',
+    ContendershipVoided: 'contendership_voided',
+    ContenderAwardedTitle: 'contender_awarded_title',
     TitleVacated: 'title_vacated',
     TitleAwarded: 'title_awarded',
     ReignMilestone: 'reign_milestone',
@@ -492,6 +527,11 @@ export const NewsEventTypeLabels: Record<NewsEventType, string> = {
     'retained_by_dq': 'Retained By Dq',
     'contender_earned_shot': 'Contender Earned Shot',
     'last_chance_result': 'Last Chance Result',
+    'champion_survived_challenge': 'Champion Survived Challenge',
+    'winner_takes_all': 'Winner Takes All',
+    'number_one_contender': 'Number One Contender',
+    'contendership_voided': 'Contendership Voided',
+    'contender_awarded_title': 'Contender Awarded Title',
     'title_vacated': 'Title Vacated',
     'title_awarded': 'Title Awarded',
     'reign_milestone': 'Reign Milestone',
@@ -732,12 +772,16 @@ export const Stipulation = {
     ChampionVsContender: 'champion_vs_contender',
     LoserLeavesShow: 'loser_leaves_show',
     LastChance: 'last_chance',
+    WinnerTakesAll: 'winner_takes_all',
+    NumberOneContender: 'number_one_contender',
 } as const;
 export type Stipulation = (typeof Stipulation)[keyof typeof Stipulation];
 export const StipulationLabels: Record<Stipulation, string> = {
     'champion_vs_contender': 'Champion vs. Contender',
     'loser_leaves_show': 'Loser Leaves Show',
     'last_chance': 'Last Chance Match',
+    'winner_takes_all': 'Winner Takes All',
+    'number_one_contender': '#1 Contender\'s Match',
 };
 
 export const TitleHolderType = {
@@ -752,16 +796,40 @@ export const TitleHolderTypeLabels: Record<TitleHolderType, string> = {
     'vacant': 'Vacant',
 };
 
+export const TitleShotKind = {
+    ChampionVsContender: 'champion_vs_contender',
+    NumberOneContender: 'number_one_contender',
+} as const;
+export type TitleShotKind = (typeof TitleShotKind)[keyof typeof TitleShotKind];
+export const TitleShotKindLabels: Record<TitleShotKind, string> = {
+    'champion_vs_contender': 'Champion Vs Contender',
+    'number_one_contender': 'Number One Contender',
+};
+
 export const TitleShotStatus = {
     Pending: 'pending',
     Fulfilled: 'fulfilled',
     Voided: 'voided',
+    Forfeited: 'forfeited',
 } as const;
 export type TitleShotStatus = (typeof TitleShotStatus)[keyof typeof TitleShotStatus];
 export const TitleShotStatusLabels: Record<TitleShotStatus, string> = {
     'pending': 'Pending',
     'fulfilled': 'Fulfilled',
     'voided': 'Voided',
+    'forfeited': 'Forfeited',
+};
+
+export const TitleVacancyPromptStatus = {
+    Pending: 'pending',
+    Awarded: 'awarded',
+    Forfeited: 'forfeited',
+} as const;
+export type TitleVacancyPromptStatus = (typeof TitleVacancyPromptStatus)[keyof typeof TitleVacancyPromptStatus];
+export const TitleVacancyPromptStatusLabels: Record<TitleVacancyPromptStatus, string> = {
+    'pending': 'Pending',
+    'awarded': 'Awarded',
+    'forfeited': 'Forfeited',
 };
 
 export const TradeStatus = {

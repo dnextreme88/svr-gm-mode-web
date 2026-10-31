@@ -3,6 +3,7 @@
 namespace App\Services\Titles;
 
 use App\Enums\Brand;
+use App\Enums\TitleShotKind;
 use App\Enums\TitleShotStatus;
 use App\Models\Championship;
 use App\Models\MatchSlot;
@@ -35,6 +36,7 @@ class TitleShotService
             'save_id' => $save->id,
             'championship_id' => $championship->id,
             'brand' => $championship->brand,
+            'kind' => TitleShotKind::ChampionVsContender,
             'contender_ids' => $contenderIds,
             'champion_ids' => $championIds,
             'earned_match_id' => $slot->id,
@@ -55,7 +57,7 @@ class TitleShotService
     {
         $due = new Collection;
 
-        foreach (TitleShot::with('championship')->where('save_id', $save->id)->where('brand', $brand)->where('status', TitleShotStatus::Pending)->orderBy('id')->get() as $shot) {
+        foreach (TitleShot::with('championship')->where('save_id', $save->id)->where('brand', $brand)->where('kind', TitleShotKind::ChampionVsContender)->where('status', TitleShotStatus::Pending)->orderBy('id')->get() as $shot) {
             if ($this->titles->currentReign($save, $shot->championship) === null) {
                 $shot->update(['status' => TitleShotStatus::Voided, 'resolved_week' => $week]);
 

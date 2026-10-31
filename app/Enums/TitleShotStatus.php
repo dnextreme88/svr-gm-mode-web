@@ -14,4 +14,6 @@ enum TitleShotStatus: string
     case Pending = 'pending';
     case Fulfilled = 'fulfilled';
     case Voided = 'voided';
+    // A #1 contendership the player let go when the title was vacated.
+    case Forfeited = 'forfeited';
 }

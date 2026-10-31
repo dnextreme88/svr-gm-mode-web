@@ -19,6 +19,7 @@ use App\Http\Controllers\Gm\SaveController;
 use App\Http\Controllers\Gm\ScheduleController;
 use App\Http\Controllers\Gm\TitleAssignmentController;
 use App\Http\Controllers\Gm\TitleHistoryController;
+use App\Http\Controllers\Gm\TitlePromptController;
 use App\Http\Controllers\Gm\TradeController;
 use App\Http\Controllers\Gm\WeekController;
 use App\Http\Middleware\ShareGameState;
@@ -84,6 +85,9 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::post('factions/{saveFaction}/disband', [FactionController::class, 'disband'])->name('factions.disband');
             Route::post('faction-prompts/{factionPrompt}/form', [FactionController::class, 'form'])->name('factions.prompts.form');
             Route::post('faction-prompts/{factionPrompt}/defer', [FactionController::class, 'defer'])->name('factions.prompts.defer');
+            Route::post('title-prompts/{titleVacancyPrompt}/award', [TitlePromptController::class, 'award'])->name('titles.prompts.award');
+            Route::post('title-prompts/{titleVacancyPrompt}/forfeit', [TitlePromptController::class, 'forfeit'])->name('titles.prompts.forfeit');
+            Route::post('notices/seen', [TitlePromptController::class, 'seen'])->name('notices.seen');
             Route::get('trade', [TradeController::class, 'show'])->name('trade.show');
             Route::post('trade', [TradeController::class, 'store'])->name('trade.store');
 

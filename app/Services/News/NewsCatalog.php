@@ -56,6 +56,11 @@ class NewsCatalog
 
         'contender_earned_shot' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Headline'],
         'last_chance_result' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Headline'],
+        'champion_survived_challenge' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Story, when the champion wins a Champion vs. Contender match'],
+        'winner_takes_all' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Headline: the winner celebrates (80%) or the losers vow revenge (20%)'],
+        'number_one_contender' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Headline: fired up, a staredown with the champion, or celebrating with the fans (a third each)'],
+        'contendership_voided' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Ticker, when a #1 contender leaves the brand, is seriously injured or forfeits'],
+        'contender_awarded_title' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Headline, when a vacated title is awarded to its #1 contender(s)'],
         'loser_leaves' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Headline'],
 
         'ppv_upcoming' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Story 2 weeks out, Headline 1 week out (every PPV, brand or shared)'],

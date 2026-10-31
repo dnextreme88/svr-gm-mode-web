@@ -195,26 +195,29 @@ describe('stipulation options', () => {
         ).not.toContain('last_chance');
     });
 
-    it('offers nothing for a Gauntlet', () => {
+    it("offers a Gauntlet only a #1 Contender's Match", () => {
         const gauntlet = {
             ...singles,
             id: 3,
             sides: [1, 1, 1, 1, 1, 1],
             titles_allowed: false,
-            stipulations_allowed: false,
+            allowed_stipulations: ['number_one_contender'],
         } as MatchTypeOption;
+        const six = new Map(
+            [20, 21, 22, 23, 24, 25].map((id) => [id, wrestler(id)]),
+        );
 
         expect(
             stipulationOptions(
-                draft([[1], [2], [3], [4], [5], [6]]),
+                draft([[20], [21], [22], [23], [24], [25]]),
                 gauntlet,
                 context,
-                roster,
-            ),
-        ).toEqual([]);
+                six,
+            ).map((o) => [o.value, o.titles?.map((t) => t.id)]),
+        ).toEqual([['number_one_contender', [10]]]);
     });
 
-    it('offers nothing outside 1v1 and 2v2', () => {
+    it('offers no Loser Leaves Show or Champion vs. Contender outside 1v1 and 2v2', () => {
         expect(
             stipulationOptions(
                 draft([[1], [2], [3]]),
@@ -223,5 +226,168 @@ describe('stipulation options', () => {
                 roster,
             ),
         ).toEqual([]);
+    });
+});
+
+describe("#1 Contender's Match (house rule)", () => {
+    const battleRoyal = {
+        ...singles,
+        id: 4,
+        sides: [1, 1, 1, 1, 1, 1],
+    } as MatchTypeOption;
+    const tag = { ...singles, id: 5, sides: [2, 2, 2] } as MatchTypeOption;
+    const people = new Map(
+        [20, 21, 22, 23, 24, 25].map((id) => [id, wrestler(id)]),
+    );
+    const numberOne = (
+        sides: number[][],
+        type: MatchTypeOption,
+        ctx: TitleContext = context,
+        who = people,
+    ) =>
+        stipulationOptions(draft(sides), type, ctx, who)
+            .find((o) => o.value === 'number_one_contender')
+            ?.titles?.map((t) => t.id) ?? [];
+
+    it('can be a 6-man Battle Royal of non-champions', () => {
+        expect(
+            numberOne([[20], [21], [22], [23], [24], [25]], battleRoyal),
+        ).toEqual([10]);
+    });
+
+    it('never includes the champion of the title in contention', () => {
+        expect(
+            numberOne(
+                [[1], [20], [21], [22], [23], [24]],
+                battleRoyal,
+                context,
+                new Map([...people, [1, wrestler(1)]]),
+            ),
+        ).not.toContain(10);
+    });
+
+    it("is 2 vs 2 vs 2 for a tag title, and all Divas for the Women's title", () => {
+        const ctx: TitleContext = {
+            ...context,
+            championships: [
+                {
+                    id: 30,
+                    name: 'World Tag Team Championship',
+                    is_tag: true,
+                    eligibility: 'open',
+                    holder_ids: [1, 2],
+                    holder_name: 'Champs',
+                },
+                {
+                    id: 31,
+                    name: "Women's Championship",
+                    is_tag: false,
+                    eligibility: 'divas_only',
+                    holder_ids: [3],
+                    holder_name: 'Trish',
+                },
+            ],
+        };
+        const divas = new Map(
+            [40, 41].map((id) => [
+                id,
+                wrestler(id, {
+                    roster_type: 'diva',
+                    weight_class: 'featherweight',
+                }),
+            ]),
+        );
+
+        expect(
+            numberOne(
+                [
+                    [20, 21],
+                    [22, 23],
+                    [24, 25],
+                ],
+                tag,
+                ctx,
+            ),
+        ).toEqual([30]);
+        expect(numberOne([[40], [41]], singles, ctx, divas)).toEqual([31]);
+    });
+
+    it('is gone once the title has a #1 contender waiting', () => {
+        expect(
+            numberOne([[20], [21], [22], [23], [24], [25]], battleRoyal, {
+                ...context,
+                contenderships: [
+                    {
+                        championship_id: 10,
+                        championship: 'WWE Championship',
+                        contender_ids: [2],
+                        contenders: 'Edge',
+                    },
+                ],
+            }),
+        ).toEqual([]);
+    });
+
+    it('keeps the title match for exactly the #1 contender(s)', () => {
+        const ctx: TitleContext = {
+            ...context,
+            contenderships: [
+                {
+                    championship_id: 10,
+                    championship: 'WWE Championship',
+                    contender_ids: [2],
+                    contenders: 'Edge',
+                },
+            ],
+        };
+
+        expect(
+            titleCandidates(draft([[1], [2]]), singles, ctx, roster).map(
+                (t) => t.id,
+            ),
+        ).toContain(10);
+        expect(
+            titleCandidates(
+                draft([[1], [20]]),
+                singles,
+                ctx,
+                new Map([...roster, [20, wrestler(20)]]),
+            ).map((t) => t.id),
+        ).not.toContain(10);
+    });
+});
+
+describe('Winner Takes All (house rule)', () => {
+    it('needs every competitor to hold a title, and never takes Divas', () => {
+        const ctx: TitleContext = {
+            ...context,
+            championships: [
+                ...context.championships,
+                {
+                    id: 13,
+                    name: "Women's Championship",
+                    is_tag: false,
+                    eligibility: 'divas_only',
+                    holder_ids: [3],
+                    holder_name: 'Trish',
+                },
+            ],
+        };
+        const values = (sides: number[][]) =>
+            stipulationOptions(draft(sides), singles, ctx, roster).map(
+                (o) => o.value,
+            );
+
+        expect(values([[1], [4]])).toContain('winner_takes_all');
+        expect(values([[1], [2]])).not.toContain('winner_takes_all');
+        expect(values([[1], [3]])).not.toContain('winner_takes_all');
+    });
+
+    it('skips a title already on the line elsewhere on the card', () => {
+        expect(
+            stipulationOptions(draft([[1], [4]]), singles, context, roster, {
+                takenIds: [10],
+            }).map((o) => o.value),
+        ).not.toContain('winner_takes_all');
     });
 });

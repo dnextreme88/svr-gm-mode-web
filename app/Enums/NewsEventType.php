@@ -16,6 +16,12 @@ enum NewsEventType: string
     case RetainedByDq = 'retained_by_dq';
     case ContenderEarnedShot = 'contender_earned_shot';
     case LastChanceResult = 'last_chance_result';
+    // House rules (2026-10-31): title stipulations.
+    case ChampionSurvivedChallenge = 'champion_survived_challenge';
+    case WinnerTakesAll = 'winner_takes_all';
+    case NumberOneContender = 'number_one_contender';
+    case ContendershipVoided = 'contendership_voided';
+    case ContenderAwardedTitle = 'contender_awarded_title';
     case TitleVacated = 'title_vacated';
     case TitleAwarded = 'title_awarded';
     case ReignMilestone = 'reign_milestone';

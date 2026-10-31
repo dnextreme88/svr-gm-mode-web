@@ -6,7 +6,9 @@ import { UnreadPill } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { FactionPromptModal } from '@/components/gm/faction-prompt-modal';
 import { FloppyIcon } from '@/components/gm/floppy-icon';
+import { NoticeModal } from '@/components/gm/notice-modal';
 import { PopoverPanel, usePopover } from '@/components/gm/popover';
+import { TitleVacancyModal } from '@/components/gm/title-vacancy-modal';
 import { formatMoney } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
@@ -454,7 +456,26 @@ export default function GmLayout({ children }: { children: ReactNode }) {
             <main className="relative z-10 mx-auto max-w-[1600px] px-3 py-8 md:px-6">
                 {children}
             </main>
+            {/* One modal at a time: a vacated title first, then notices, then a new faction. */}
+            {game?.title_vacancy_prompt && !game.airing && (
+                <TitleVacancyModal
+                    key={game.title_vacancy_prompt.id}
+                    saveId={game.id}
+                    prompt={game.title_vacancy_prompt}
+                />
+            )}
+            {game &&
+                !game.title_vacancy_prompt &&
+                !game.airing &&
+                (game.notices ?? []).length > 0 && (
+                    <NoticeModal
+                        saveId={game.id}
+                        notices={game.notices ?? []}
+                    />
+                )}
             {game?.faction_prompt &&
+                !game.title_vacancy_prompt &&
+                (game.notices ?? []).length === 0 &&
                 game.stage === 'in_season' &&
                 !game.airing && (
                     <FactionPromptModal

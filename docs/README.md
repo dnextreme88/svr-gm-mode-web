@@ -19,3 +19,4 @@ Dated implementation and upgrade plans for this site. Each plan is a Markdown fi
 | **2026-10-25** | [Finish Text, Captain Tags & the Gauntlet](20261025-finish-text-captains-and-gauntlet.md) |
 | **2026-10-26** | [Card Polish, Stipulation Rows & Aired-Only News](20261026-card-polish-stipulation-rows-and-aired-news.md) |
 | **2026-10-27** | [Factions, Roster Cap Guard, Week Chip & Unsaved Changes](20261027-factions.md) |
+| **2026-10-31** | [Match Stipulations & Title Contention](20261031-match-stipulations-and-title-contention.md) |

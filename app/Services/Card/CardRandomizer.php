@@ -165,6 +165,17 @@ class CardRandomizer
     }
 
     /**
+     * An earned Champion vs. Contender title shot this card still has to
+     * book (none of its other slots has it), proposed for this slot.
+     */
+    public function owedTitleShot(Show $show, int $position, Brand $brand): ?Proposal
+    {
+        $obligation = $this->titles->obligations($show, $brand, [$position])[0] ?? null;
+
+        return $obligation === null ? null : new Proposal($position, $obligation, $obligation->sides, titleShot: true);
+    }
+
+    /**
      * Who can compete in a type without risking an injury: nobody the match
      * would leave above `gm.card.randomize_max_fatigue`, and wrestlers with
      * a minor injury (it can turn serious) only when there aren't enough

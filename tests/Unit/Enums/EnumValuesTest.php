@@ -47,14 +47,14 @@ dataset('spec enums', [
     'MoraleComplaintType (§11)' => [MoraleComplaintType::class, ['losing_streak', 'contract_extension', 'title_match', 'inactivity']],
     'InjurySeverity (§6)' => [InjurySeverity::class, ['minor', 'serious']],
     'ContractLength (§2)' => [ContractLength::class, [5, 12, 24, 36, 52]],
-    'Stipulation (§22)' => [Stipulation::class, ['champion_vs_contender', 'loser_leaves_show', 'last_chance']],
+    'Stipulation (§22)' => [Stipulation::class, ['champion_vs_contender', 'loser_leaves_show', 'last_chance', 'winner_takes_all', 'number_one_contender']],
     'MatchMethod (§20)' => [MatchMethod::class, ['pinfall', 'submission', 'countout', 'dq', 'match_specific']],
     'FinishEvent (§20)' => [FinishEvent::class, ['referee_attacked', 'rival_interference', 'foreign_object', 'countout', 'cheap_rollup']],
     'TitleHolderType (§16)' => [TitleHolderType::class, ['wrestler', 'tag_team', 'vacant']],
     'WonVia (§16)' => [WonVia::class, ['match', 'awarded', 'vacancy_match', 'mitb_cash_in']],
     'ReignEndReason (§16)' => [ReignEndReason::class, ['active', 'lost_match', 'defected', 'injured', 'loser_leaves', 'released', 'contract_expired']],
     'MitbStatus (§11)' => [MitbStatus::class, ['held', 'cashed_in_won', 'cashed_in_lost', 'expired', 'voided']],
-    'TitleShotStatus (§22)' => [TitleShotStatus::class, ['pending', 'fulfilled', 'voided']],
+    'TitleShotStatus (§22)' => [TitleShotStatus::class, ['pending', 'fulfilled', 'voided', 'forfeited']],
     'TradeStatus (§11)' => [TradeStatus::class, ['proposed', 'accepted', 'rejected', 'invalid']],
     'DraftPhase (§11)' => [DraftPhase::class, ['initial', 'wrestlemania_reset']],
     'DraftPickSource (§11)' => [DraftPickSource::class, ['free_agency', 'rival_roster']],
@@ -76,7 +76,7 @@ it('covers all 8 championships, 14 promos and 15 PPVs', function () {
 });
 
 it('lists the full §19 news catalog', function () {
-    expect(NewsEventType::values())->toHaveCount(63)
+    expect(NewsEventType::values())->toHaveCount(68)
         ->toContain('title_change', 'retained_by_dq', 'mitb_cash_in', 'interbrand_series_result', 'defection_blocked', 'season_reset', 'match_result', 'main_event_hype_result', 'promo_result', 'contract_expiring', 'rivalry_milestone');
 });
 

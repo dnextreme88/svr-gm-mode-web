@@ -6,6 +6,7 @@ use App\Enums\Brand;
 use App\Enums\MatchFamily;
 use App\Enums\MatchMethod;
 use App\Enums\ParticipantRole;
+use App\Models\Championship;
 use App\Models\GauntletBout;
 use App\Models\MatchParticipant;
 use App\Models\MatchResult;
@@ -82,6 +83,7 @@ class CardPresenter
             'title_championship_id' => $slot->title_championship_id,
             'stipulation' => $slot->stipulation?->value,
             'stipulation_championship_id' => $slot->stipulation_championship_id,
+            'contested_title_ids' => $slot->contested_title_ids ?? [],
             'cost' => $slot->cost,
             'fixed_kind' => $slot->fixed_kind?->value,
             'owner_brand' => $slot->owner_brand?->value,
@@ -111,7 +113,8 @@ class CardPresenter
             'ppv_only' => $type->ppv_only,
             'captain_fall' => $type->captain_fall,
             'special_referee' => $type->hasSpecialReferee(),
-            'stipulations_allowed' => $type->allowsStipulations(),
+            // House rule: the stipulations this type can take (a Gauntlet only takes #1 Contender's Match).
+            'allowed_stipulations' => array_map(fn ($s) => $s->value, $type->allowedStipulations()),
         ];
     }
 
@@ -169,6 +172,8 @@ class CardPresenter
             'title_banner' => $result->title_banner,
             'stipulation' => $slot->stipulation?->value,
             'stipulation_outcome' => $result->stipulation_outcome,
+            ...self::stipulationTitles($slot),
+            'titles_won' => self::titleNames(array_map(fn (array $won): int => $won['championship_id'], $result->titles_won ?? [])),
             'bouts' => self::bouts($slot),
             'rating' => $slot->rating,
             'fan_delta' => $slot->fan_delta,
@@ -216,6 +221,7 @@ class CardPresenter
             'referee' => $referee,
             'title' => $slot->titleChampionship?->name,
             'stipulation' => $slot->stipulation?->value,
+            ...self::stipulationTitles($slot),
             'champions' => $champions,
             'captains' => self::captains($slot),
             'factions' => self::factions($slot),
@@ -296,5 +302,29 @@ class CardPresenter
         $names = $slot->competitors()->mapWithKeys(fn (MatchParticipant $p): array => [$p->save_wrestler_id => $p->saveWrestler->wrestler->name]);
 
         return array_values(array_map(fn (array $ids): string => (string) $names[$ids[0]], $slot->sides()));
+    }
+
+    /**
+     * The titles a stipulation is about (house rule): the one a Champion
+     * vs. Contender or #1 Contender's Match is for, and a Winner Takes All
+     * match's contested titles.
+     *
+     * @return array{stipulation_title: string|null, contested_titles: list<string>}
+     */
+    private static function stipulationTitles(MatchSlot $slot): array
+    {
+        return [
+            'stipulation_title' => $slot->stipulation_championship_id === null ? null : Championship::find($slot->stipulation_championship_id)?->name,
+            'contested_titles' => self::titleNames($slot->contested_title_ids ?? []),
+        ];
+    }
+
+    /**
+     * @param  list<int>  $ids
+     * @return list<string>
+     */
+    private static function titleNames(array $ids): array
+    {
+        return $ids === [] ? [] : array_values(Championship::whereIn('id', $ids)->orderBy('sort_order')->pluck('name')->map(fn ($n): string => (string) $n)->all());
     }
 }

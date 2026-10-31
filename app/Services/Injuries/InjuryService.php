@@ -2,6 +2,7 @@
 
 namespace App\Services\Injuries;
 
+use App\Enums\ContendershipVoidReason;
 use App\Enums\EmailTemplate;
 use App\Enums\InjurySeverity;
 use App\Enums\NewsBrand;
@@ -14,6 +15,7 @@ use App\Models\MatchType;
 use App\Models\SaveWrestler;
 use App\Services\Mail\EmailService;
 use App\Services\News\NewsRecorder;
+use App\Services\Titles\ContendershipService;
 use App\Services\Titles\TitleService;
 use App\Support\Rng\Rng;
 
@@ -28,6 +30,7 @@ class InjuryService
         private TitleService $titles,
         private EmailService $emails,
         private NewsRecorder $news,
+        private ContendershipService $contenderships,
     ) {}
 
     /**
@@ -202,6 +205,11 @@ class InjuryService
 
         if ($this->vacatesTitles($injury)) {
             $vacated = $this->titles->vacateFor($wrestler, ReignEndReason::Injured, $week);
+        }
+
+        // House rule: a seriously injured #1 contender loses the spot.
+        if ($injury->severity === InjurySeverity::Serious) {
+            $this->contenderships->voidFor($wrestler, ContendershipVoidReason::SeriousInjury, $week);
         }
 
         if ($wrestler->brand !== null) {

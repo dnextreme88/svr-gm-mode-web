@@ -47,6 +47,8 @@ class WeekResolver
         Steps\RivalRosterUpkeep::class,
         Steps\ApplyPendingMoves::class,
         Steps\TitleUpkeep::class,
+        // House rule: the rival awards or forfeits its vacated titles' #1 contenderships.
+        Steps\SettleTitleVacancies::class,
         Steps\TrackDeficit::class,
         Steps\SendContractEmails::class,
         Steps\SendReminders::class,
@@ -65,6 +67,7 @@ class WeekResolver
     public const GUARDS = [
         Guards\DeficitChoiceGuard::class,
         Guards\TitleShotGuard::class,
+        Guards\TitleVacancyGuard::class,
         Guards\PpvEntrantsGuard::class,
     ];
 

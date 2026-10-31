@@ -131,7 +131,7 @@ it('renders the documentation page from the catalog', function () {
             ->where('match_types.0.family', 'single')
             ->has('injuries.minor')
             ->has('injuries.serious')
-            ->has('stipulations', 3)
+            ->has('stipulations', 5)
             ->has('promo_stories', 14)
             ->has('quiet_stories', 5)
             ->has('rosters.wwe.raw', 30)
@@ -145,7 +145,7 @@ it('lists the 2005 specialty additions on the documentation page', function () {
 
     $this->get(route('gm.docs'))
         ->assertInertia(fn (Assert $page) => $page
-            ->has('specialists', 29)
+            ->has('specialists', 33)
             ->where('specialists', function ($rows) {
                 $byName = collect($rows)->keyBy('name')->map(fn ($w) => collect($w['specialties'])->sort()->values()->all());
 

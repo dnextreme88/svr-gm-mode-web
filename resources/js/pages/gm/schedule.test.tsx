@@ -95,6 +95,8 @@ const props = {
                             brand: 'smackdown',
                             name: 'Friday Night Smackdown',
                             mine: false,
+                            // The rival's show this week.
+                            state: 'rival',
                         }),
                     ]),
                     day('2005-04-30'),
@@ -132,7 +134,7 @@ describe('Schedule calendar', () => {
         );
         expect(
             screen.getAllByRole('columnheader').map((h) => h.textContent),
-        ).toEqual(['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']);
+        ).toEqual(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
     });
 
     it('steps between months with the arrows', async () => {
@@ -147,6 +149,52 @@ describe('Schedule calendar', () => {
         expect(screen.getByTestId('calendar-month')).toHaveTextContent(
             'May 2005',
         );
+    });
+
+    it('slides the month in the way the arrow points, but not on first load', async () => {
+        const user = userEvent.setup();
+        render(<Schedule />);
+
+        expect(screen.getByTestId('calendar-days').className).not.toContain(
+            'animate-gm-slide',
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Next month' }));
+        expect(screen.getByTestId('calendar-days')).toHaveClass(
+            'animate-gm-slide-from-below',
+        );
+        expect(screen.getByTestId('calendar-month')).toHaveClass(
+            'animate-gm-slide-from-below',
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Previous month' }),
+        );
+        expect(screen.getByTestId('calendar-days')).toHaveClass(
+            'animate-gm-slide-from-above',
+        );
+    });
+
+    it('hovers each show in its brand colour, PPVs in gold', () => {
+        render(<Schedule />);
+
+        expect(screen.getByTestId('air-2005-04-04-weekly-raw')).toHaveClass(
+            'hover:bg-raw',
+        );
+        expect(
+            screen.getByTestId('air-2005-04-08-weekly-smackdown'),
+        ).toHaveClass('hover:bg-sd');
+        expect(
+            screen.getByTestId('air-2005-04-24-ppv-shared').className,
+        ).not.toMatch(/hover:bg-(raw|sd)/);
+    });
+
+    it('doesn’t highlight the rival’s show this week', () => {
+        render(<Schedule />);
+
+        const cell = document.querySelector('[data-date="2005-04-29"]');
+
+        expect(cell?.className).not.toContain('border-brand/40');
     });
 
     it('opens an aired show’s results, the rival’s included', async () => {

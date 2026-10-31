@@ -7,12 +7,14 @@ use App\Enums\FactionType;
 use App\Enums\SaveStage;
 use App\Models\Email;
 use App\Models\FactionPrompt;
+use App\Models\GmNotice;
 use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Models\WeekAiring;
 use App\Services\Calendar\CalendarService;
 use App\Services\Roster\RosterService;
+use App\Services\Titles\ContendershipService;
 use App\Services\Week\BookingOrder;
 
 /**
@@ -24,6 +26,7 @@ class GamePresenter
         private CalendarService $calendar,
         private RosterService $roster,
         private BookingOrder $order,
+        private ContendershipService $contenderships,
     ) {}
 
     /**
@@ -79,6 +82,33 @@ class GamePresenter
                 'blocked' => $player->deficit_weeks >= $limit && $player->deficit_choice === null,
             ],
             'faction_prompt' => $this->factionPrompt($save),
+            'title_vacancy_prompt' => $this->titleVacancyPrompt($save),
+            'notices' => GmNotice::where('save_id', $save->id)->whereNull('seen_at')->orderBy('id')->get()
+                ->map(fn (GmNotice $n): array => ['id' => $n->id, 'kind' => $n->kind->value, 'week' => $n->week_number, ...$n->payload])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * The player's vacated title with a #1 contender waiting (house rule):
+     * award it or forfeit the contendership.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function titleVacancyPrompt(Save $save): ?array
+    {
+        $prompt = $this->contenderships->pendingPrompt($save);
+
+        if ($prompt === null) {
+            return null;
+        }
+
+        return [
+            'id' => $prompt->id,
+            'title' => $prompt->championship->name,
+            'contenders' => $this->contenderships->names($prompt->titleShot->contender_ids),
+            'contender_count' => count($prompt->titleShot->contender_ids),
         ];
     }
 

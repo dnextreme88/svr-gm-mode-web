@@ -577,7 +577,18 @@ function MatchRow({
                     >
                         <span className="border border-brand-hot/70 px-2 py-px font-condensed text-xs font-bold tracking-[0.14em] text-brand-hot uppercase group-hover:border-white/80 group-hover:text-white">
                             {StipulationLabels[o.stipulation]}
+                            {o.stipulation_title &&
+                                `: ${o.stipulation_title.replace(' Championship', '')}`}
                         </span>
+                        {(o.contested_titles ?? []).map((t) => (
+                            <span
+                                key={t}
+                                data-testid="contested-title"
+                                className="bg-gradient-to-b from-gold-hot to-gold px-2 py-px font-condensed text-xs font-bold tracking-[0.14em] text-arena uppercase"
+                            >
+                                ◆ {t}
+                            </span>
+                        ))}
                         {!o.pending && o.stipulation_outcome && (
                             <span>{o.stipulation_outcome}</span>
                         )}

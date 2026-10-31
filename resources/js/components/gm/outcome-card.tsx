@@ -136,6 +136,22 @@ export function OutcomeCard({
                 </p>
             )}
 
+            {(outcome.titles_won ?? []).length > 0 && (
+                <ul
+                    aria-label="Titles won"
+                    className="mx-auto mt-3 flex max-w-2xl flex-wrap justify-center gap-2"
+                >
+                    {(outcome.titles_won ?? []).map((t) => (
+                        <li
+                            key={t}
+                            className="bg-gradient-to-b from-gold-hot to-gold px-2 py-px font-condensed text-xs font-bold tracking-[0.14em] text-arena uppercase"
+                        >
+                            ◆ {t}
+                        </li>
+                    ))}
+                </ul>
+            )}
+
             <div className="mt-8 flex justify-center gap-8 text-xs text-ink-faint">
                 <span title="Match Rating system is deferred">Rating —</span>
                 <span title="Popularity system is deferred">Fan support —</span>

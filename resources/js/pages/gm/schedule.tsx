@@ -45,7 +45,7 @@ type Props = GamePageProps & {
     initial_month: string;
 };
 
-const weekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const stateLabel: Record<AirState, string | null> = {
     aired: 'Results',
@@ -93,7 +93,22 @@ export default function Schedule() {
         null,
     );
     const [simulating, setSimulating] = useState(false);
+    // Which way the last arrow went; null on first load, so nothing slides then.
+    const [direction, setDirection] = useState<'next' | 'previous' | null>(
+        null,
+    );
     const month = months[index];
+    const slide =
+        direction === 'next'
+            ? 'animate-gm-slide-from-below'
+            : direction === 'previous'
+              ? 'animate-gm-slide-from-above'
+              : undefined;
+
+    const go = (delta: -1 | 1) => {
+        setDirection(delta === 1 ? 'next' : 'previous');
+        setIndex((i) => Math.min(months.length - 1, Math.max(0, i + delta)));
+    };
 
     if (!month) {
         return null;
@@ -145,7 +160,8 @@ export default function Schedule() {
             >
                 <header className="mb-4 flex items-center justify-between gap-3">
                     <h2
-                        className="gm-heading text-2xl text-ink"
+                        key={month.key}
+                        className={cn('gm-heading text-2xl text-ink', slide)}
                         data-testid="calendar-month"
                     >
                         {month.label}
@@ -156,7 +172,7 @@ export default function Schedule() {
                             aria-label="Previous month"
                             className="gm-btn gm-btn-ghost gm-btn-sm"
                             disabled={index === 0}
-                            onClick={() => setIndex((i) => Math.max(0, i - 1))}
+                            onClick={() => go(-1)}
                         >
                             <ChevronUp className="size-4" />
                         </button>
@@ -165,11 +181,7 @@ export default function Schedule() {
                             aria-label="Next month"
                             className="gm-btn gm-btn-ghost gm-btn-sm"
                             disabled={index === months.length - 1}
-                            onClick={() =>
-                                setIndex((i) =>
-                                    Math.min(months.length - 1, i + 1),
-                                )
-                            }
+                            onClick={() => go(1)}
                         >
                             <ChevronDown className="size-4" />
                         </button>
@@ -188,21 +200,29 @@ export default function Schedule() {
                             </div>
                         ))}
                     </div>
-                    {month.rows.map((row) => (
-                        <div
-                            key={row[0]?.date}
-                            role="row"
-                            className="grid grid-cols-7 gap-1"
-                        >
-                            {row.map((day) => (
-                                <DayCell
-                                    key={day.date}
-                                    day={day}
-                                    onOpen={(air) => open(air, day.date)}
-                                />
-                            ))}
-                        </div>
-                    ))}
+                    {/* Keyed by month so each flip replays the slide. */}
+                    <div
+                        key={month.key}
+                        role="rowgroup"
+                        data-testid="calendar-days"
+                        className={slide}
+                    >
+                        {month.rows.map((row) => (
+                            <div
+                                key={row[0]?.date}
+                                role="row"
+                                className="grid grid-cols-7 gap-1"
+                            >
+                                {row.map((day) => (
+                                    <DayCell
+                                        key={day.date}
+                                        day={day}
+                                        onOpen={(air) => open(air, day.date)}
+                                    />
+                                ))}
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink-dim">
@@ -267,9 +287,24 @@ export default function Schedule() {
     );
 }
 
+/**
+ * A clickable show's hover, in its brand's colour: Raw red, Smackdown blue.
+ * PPVs stay gold and brighten.
+ */
+function hoverFor(air: Air): string {
+    if (air.kind === 'ppv' || air.brand === null) {
+        return 'hover:brightness-125';
+    }
+
+    return air.brand === 'raw'
+        ? 'hover:bg-raw hover:text-white hover:brightness-125'
+        : 'hover:bg-sd hover:text-white hover:brightness-125';
+}
+
 function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
+    // The player's own cards this week; the rival's shows aren't highlighted.
     const thisWeek = day.airs.some((a) =>
-        ['open', 'confirmed', 'waiting', 'rival'].includes(a.state),
+        ['open', 'confirmed', 'waiting'].includes(a.state),
     );
 
     return (
@@ -322,7 +357,7 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
                                   : 'bg-white/12 text-ink-dim',
                             air.state === 'aired' && 'opacity-70',
                             clickable
-                                ? 'cursor-pointer hover:brightness-125'
+                                ? cn('cursor-pointer', hoverFor(air))
                                 : 'cursor-default',
                             air.state === 'waiting' && 'opacity-60',
                         )}
