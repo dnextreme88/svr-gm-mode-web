@@ -105,7 +105,7 @@ it('reminds about Interference after 13 unused weeks, once, and restarts the clo
 });
 
 it('has the rival GM answer a trade, listing one superstar per line', function (float $accept, string $subject, string $opening) {
-    config(['gm.ai.trades.fair_accept' => $accept, 'gm.ai.trades.unfair_accept' => $accept]);
+    config(['gm.ai.trades.fair_accept' => $accept, 'gm.ai.trades.fair_ahead_accept' => [], 'gm.ai.trades.unfair_accept' => $accept]);
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Christian'], smackdown: ['Batista', 'JBL']);
 
     app(TradeService::class)->propose($save, Brand::Raw, [GameBuilder::wrestler($save, 'Kane')->id, GameBuilder::wrestler($save, 'Christian')->id], [GameBuilder::wrestler($save, 'Batista')->id]);

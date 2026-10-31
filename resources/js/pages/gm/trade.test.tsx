@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProposeTrade from '@/pages/gm/trade';
 
 const row = (id: number, name: string, extra: object = {}) => ({
@@ -48,17 +48,37 @@ const props = {
     roster_counts: { smackdown: 30, raw: 30 },
     max_per_side: 5,
     judge: {
+        base_value: 1,
         legend_value: 2,
-        champion_history_value: 1,
         focus_value: 1,
-        fair_accept: 0.9,
-        unfair_accept: 0.05,
+        specialty_value: 1,
+        minor_injury_value: -1,
+        win_streak_step: 5,
+        win_streak_value: 1,
+        loss_streak_from: 7,
+        loss_streak_value: -1,
+        tag_partner_value: 1,
+        full_tag_team_value: 1,
+        full_stable_value: 2,
+        world_reign_bands: { 1: 1, 5: 2, 8: 3 },
+        repeat_title_reigns: 2,
+        repeat_title_value: 1,
         fair_ratio: 1,
+        fair_accept: 0.75,
+        fair_ahead_accept: { 1: 0.9, 2: 1 },
+        unfair_accept: 0.25,
     },
     history: [],
 };
 
-const requestJson = vi.fn(async () => ({ chance: 0.9 }));
+const assessment = (chance: number) => ({
+    chance,
+    fair: true,
+    gets: { total: 3, lines: { base: 1, legend: 2 } },
+    gives: { total: 1, lines: { base: 2, minor_injury: -1 } },
+});
+
+const requestJson = vi.fn(async () => assessment(0.9));
 
 vi.mock('@/lib/http', () => ({
     requestJson: (...args: unknown[]) => requestJson(...(args as [])),
@@ -73,6 +93,11 @@ vi.mock('@inertiajs/react', () => ({
 const sendButton = () => screen.getByRole('button', { name: 'Send offer' });
 
 describe('Propose Trade', () => {
+    beforeEach(() => {
+        requestJson.mockReset();
+        requestJson.mockImplementation(async () => assessment(0.9));
+    });
+
     it('explains why the offer can’t go yet', async () => {
         const user = userEvent.setup();
         render(<ProposeTrade />);
@@ -95,7 +120,9 @@ describe('Propose Trade', () => {
             within(screen.getByTestId('trade-row-4')).getByRole('checkbox'),
         );
         expect(sendButton()).toBeEnabled();
-        expect(screen.getByText(/1 for 1/)).toBeInTheDocument();
+        // Nothing to explain once the offer can go.
+        expect(document.getElementById('offer-hint')).toBeNull();
+        expect(sendButton()).not.toHaveAttribute('aria-describedby');
     });
 
     it('lists the offer and lets you remove someone from it', async () => {
@@ -156,11 +183,33 @@ describe('Propose Trade', () => {
         );
 
         const judge = within(rules).getByTestId('trade-judge');
-        expect(judge).toHaveTextContent('+2 points for a Legend');
-        expect(judge).toHaveTextContent('+1 point for a Diva');
+        // Each rule is its own line, grouped under a heading line.
+        const lines = within(judge)
+            .getAllByRole('listitem')
+            .map((li) => li.textContent);
+        expect(lines).toEqual(
+            expect.arrayContaining([
+                'A Legend: +2',
+                'A Diva: +1',
+                'A match specialist: +1',
+                'Their tag team partner is on the rival’s roster: +1',
+                'A whole tag team traded together: +1',
+                'A whole stable traded together: +2',
+                'Every 5 wins in a row: +1',
+                'A losing streak of 7 or more: −1',
+                'A minor injury: −1',
+                'Their own brand’s world title: +1 for 1–4 reigns, +2 for 5–7, +3 for 8 or more',
+                'The same other title 2 or more times: +1',
+            ]),
+        );
         expect(judge).toHaveTextContent('at least as many points as they give');
-        expect(judge).toHaveTextContent(
-            '90% of the time, and anything else 5%',
+        expect(lines).toEqual(
+            expect.arrayContaining([
+                'A fair offer with even points: 75%',
+                'They come out 1 point ahead: 90%',
+                'They come out 2 or more points ahead: 100%',
+                'Anything else: 25%',
+            ]),
         );
     });
 
@@ -188,7 +237,7 @@ describe('Propose Trade', () => {
             { out: [1], in: [4] },
         );
 
-        requestJson.mockResolvedValueOnce({ chance: 0.05 });
+        requestJson.mockResolvedValueOnce(assessment(0.2));
         await user.click(
             within(screen.getByTestId('trade-row-4')).getByRole('checkbox'),
         );
@@ -197,5 +246,37 @@ describe('Propose Trade', () => {
         );
         // 2 for 0 is over their cap, so there's no chance to show.
         expect(screen.queryByTestId('offer-chance')).toBeNull();
+    });
+
+    it('shows orange below 90% and lists each side’s points by category', async () => {
+        requestJson.mockImplementation(async () => assessment(0.8));
+        const user = userEvent.setup();
+        render(<ProposeTrade />);
+
+        await user.click(
+            within(screen.getByTestId('trade-row-1')).getByRole('checkbox'),
+        );
+        await user.click(
+            within(screen.getByTestId('trade-row-4')).getByRole('checkbox'),
+        );
+
+        const chance = await screen.findByTestId('offer-chance');
+        expect(within(chance).getByText('80%').className).toContain(
+            'text-gm-orange',
+        );
+
+        const gets = screen.getByTestId('offer-points-gets');
+        expect(gets).toHaveTextContent('They get: 3 points');
+        expect(
+            within(gets)
+                .getAllByRole('listitem')
+                .map((li) => li.textContent),
+        ).toEqual(['Wrestlers: +1', 'Legends: +2']);
+
+        const gives = screen.getByTestId('offer-points-gives');
+        expect(gives).toHaveTextContent('They give: 1 point');
+        expect(within(gives).getByText('−1').className).toContain(
+            'text-zone-serious',
+        );
     });
 });

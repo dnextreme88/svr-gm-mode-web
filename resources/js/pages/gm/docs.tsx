@@ -177,10 +177,23 @@ type Props = {
             save_ahead_weeks: number;
         };
         trades: {
+            base_value: number;
             legend_value: number;
-            champion_history_value: number;
             focus_value: number;
+            specialty_value: number;
+            minor_injury_value: number;
+            win_streak_step: number;
+            win_streak_value: number;
+            loss_streak_from: number;
+            loss_streak_value: number;
+            tag_partner_value: number;
+            full_tag_team_value: number;
+            full_stable_value: number;
+            world_reign_bands: Record<string, number>;
+            repeat_title_reigns: number;
+            repeat_title_value: number;
             fair_accept: number;
+            fair_ahead_accept: Record<string, number>;
             unfair_accept: number;
         };
         mitb: { cash_in_champion_fatigue: number; cash_in_weeks_left: number };
@@ -1648,13 +1661,35 @@ function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
                     {formatMoney(roster.cash_reserve)} in the bank.
                 </li>
                 <li>
-                    <strong>Trades:</strong> every superstar is worth 1, plus{' '}
-                    {rival.trades.legend_value} for a Legend,{' '}
-                    {rival.trades.champion_history_value} for a former champion
-                    and {rival.trades.focus_value} for its division. It takes a
-                    fair offer that leaves every title fillable{' '}
-                    {pct(rival.trades.fair_accept)} of the time, anything else{' '}
-                    {pct(rival.trades.unfair_accept)}.
+                    <strong>Trades:</strong> every wrestler is worth{' '}
+                    {rival.trades.base_value}, plus {rival.trades.legend_value}{' '}
+                    for a Legend, {rival.trades.focus_value} for its division,{' '}
+                    {rival.trades.specialty_value} for a match specialist,{' '}
+                    {rival.trades.win_streak_value} for every{' '}
+                    {rival.trades.win_streak_step} wins in a row and{' '}
+                    {rival.trades.tag_partner_value} for someone whose tag team
+                    partner is on its roster, {rival.trades.full_tag_team_value}{' '}
+                    for a whole tag team and {rival.trades.full_stable_value}{' '}
+                    for a whole stable traded together;{' '}
+                    {rival.trades.minor_injury_value} for a minor injury and{' '}
+                    {rival.trades.loss_streak_value} for a losing streak of{' '}
+                    {rival.trades.loss_streak_from}+. Title history counts too:
+                    reigns with their own brand’s world title are worth{' '}
+                    {Object.entries(rival.trades.world_reign_bands)
+                        .map(([from, value]) => `${value} from ${from}`)
+                        .join(', ')}
+                    , and holding the same other title{' '}
+                    {rival.trades.repeat_title_reigns}+ times{' '}
+                    {rival.trades.repeat_title_value}. It takes a fair offer (it
+                    gets at least the points it gives, and every title stays
+                    fillable) {pct(rival.trades.fair_accept)} of the time with
+                    even points, more when it comes out ahead (
+                    {Object.entries(rival.trades.fair_ahead_accept)
+                        .map(([from, value]) => `${pct(value)} at +${from}`)
+                        .join(', ')}
+                    ), anything else {pct(rival.trades.unfair_accept)}. The
+                    Trade page shows the chance and the points as you build an
+                    offer.
                 </li>
                 <li>
                     <strong>Money in the Bank:</strong> it cashes in when its

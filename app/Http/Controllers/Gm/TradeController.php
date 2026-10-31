@@ -54,14 +54,7 @@ class TradeController extends Controller
             ],
             'max_per_side' => (int) config('gm.trades.max_per_side'),
             // How the rival GM judges an offer (AiTradeJudge), shown as the page's rules.
-            'judge' => [
-                'legend_value' => (float) config('gm.ai.trades.legend_value'),
-                'champion_history_value' => (float) config('gm.ai.trades.champion_history_value'),
-                'focus_value' => (float) config('gm.ai.trades.focus_value'),
-                'fair_accept' => (float) config('gm.ai.trades.fair_accept'),
-                'unfair_accept' => (float) config('gm.ai.trades.unfair_accept'),
-                'fair_ratio' => (float) config('gm.ai.trades.fair_ratio'),
-            ],
+            'judge' => (array) config('gm.ai.trades'),
             'history' => $this->trades->history($save)->map(fn (Trade $t): array => [
                 'id' => $t->id,
                 'week_number' => $t->week_number,
@@ -73,8 +66,8 @@ class TradeController extends Controller
     }
 
     /**
-     * The chance the rival GM accepts the offer being built (shown in the
-     * offer bar before it's sent).
+     * The rival GM's judgement of the offer being built: its chance of
+     * accepting and what each side is worth to it (the offer bar).
      */
     public function odds(Request $request, Save $save, AiTradeJudge $judge): JsonResponse
     {
@@ -85,14 +78,12 @@ class TradeController extends Controller
             'in.*' => ['integer'],
         ]);
 
-        return response()->json([
-            'chance' => $judge->chance(
-                $save,
-                $save->player_brand,
-                array_values(array_map('intval', $data['out'] ?? [])),
-                array_values(array_map('intval', $data['in'] ?? [])),
-            ),
-        ]);
+        return response()->json($judge->assess(
+            $save,
+            $save->player_brand,
+            array_values(array_map('intval', $data['out'] ?? [])),
+            array_values(array_map('intval', $data['in'] ?? [])),
+        ));
     }
 
     public function store(Request $request, Save $save): RedirectResponse

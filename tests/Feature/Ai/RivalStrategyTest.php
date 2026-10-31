@@ -204,12 +204,12 @@ describe('rivalries', function () {
 
 describe('trades, briefcase and draft', function () {
     it('accepts a fair trade and declines a lopsided one', function () {
-        config(['gm.ai.trades.fair_accept' => 1.0, 'gm.ai.trades.unfair_accept' => 0.0]);
+        config(['gm.ai.trades.fair_accept' => 1.0, 'gm.ai.trades.fair_ahead_accept' => [], 'gm.ai.trades.unfair_accept' => 0.0]);
         $save = strategySave();
         $trades = app(TradeService::class);
         $id = fn (string $name): int => GameBuilder::wrestler($save, $name)->id;
 
-        $fair = $trades->propose($save, Brand::Smackdown, [$id('Booker T')], [$id('Rob Conway')]);
+        $fair = $trades->propose($save, Brand::Smackdown, [$id('Booker T')], [$id('Eugene')]);
         $lopsided = $trades->propose($save->refresh(), Brand::Smackdown, [$id('JBL')], [$id('Edge'), $id('Kane'), $id('John Cena')]);
 
         expect($fair->status)->toBe(TradeStatus::Accepted)

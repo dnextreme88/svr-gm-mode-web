@@ -30,6 +30,10 @@ A second UI/UX audit covered Factions, Propose Trade, Free Agency, Financials an
 - The offer bar is pinned flush to the bottom of the window (no gap for the lists to show through) and is opaque.
 - Note: `TradeService::execute` moves the wrestlers as soon as the rival accepts, while the Contracts rules say roster moves take effect the following week. The page describes what the code does; which one is right is still open.
 
+- **New trade scoring (house rule, 2026-10-31, `gm.ai.trades`):** each wrestler is worth 1, +2 Legend, +1 focus class, +1 match specialist, +1 per 5 wins in a row, +1 when the wrestler's active tag team partner is on the rival's roster (tag teams only; the rival looks over its own roster, so offering Jeff Hardy to a rival with Matt Hardy scores it), +1 for a whole active tag team and +2 for a whole active stable on one side of the offer (every current member, e.g. APA, Evolution), −1 minor injury, −1 for a losing streak of 7+. Title history: own-brand world title reigns +1 (1–4), +2 (5–7), +3 (8+); the same non-world title held twice or more +1. Acceptance follows the points margin: a fair offer with even points 75%, the rival 1 point ahead 90%, 2 or more ahead 100% (`fair_ahead_accept`); anything else 25% (was 90% / 5%). The Trade page lists each rate. `AiTradeJudge::assess` returns the chance plus both sides' points by category; the offer bar lists them under the chance.
+- The offer bar's hint only shows while the offer can't be sent (the "N for N. The rival GM answers by email." line is gone).
+- The chance shows green from 90%, so only offers that leave the rival ahead show green; even fair offers (75%) and the rest show orange.
+
 ### Rivalries
 
 - **How rivalries work** sits under the heading: how one starts (2 meetings in 4 weeks, Start a Rivalry, a crashed Interview Space), heat (start, per meeting, per Continue Rivalry, weekly cooling, heating up, the 10-week headline, the PPV blow-off) and Rival Interference. Numbers come from `gm.rivalries`, `gm.news.rivalry_milestone_weeks` and the two promos' fatigue and cost (the `rules` prop).

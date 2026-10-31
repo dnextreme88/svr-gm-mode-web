@@ -20,13 +20,56 @@ import type { GamePageProps, WrestlerRow } from '@/types/gm';
 
 type TradeRow = WrestlerRow & { untradeable: string | null };
 
+/** How the rival GM values wrestlers in a trade (`gm.ai.trades`). */
 type TradeJudge = {
+    base_value: number;
     legend_value: number;
-    champion_history_value: number;
     focus_value: number;
-    fair_accept: number;
-    unfair_accept: number;
+    specialty_value: number;
+    minor_injury_value: number;
+    win_streak_step: number;
+    win_streak_value: number;
+    loss_streak_from: number;
+    loss_streak_value: number;
+    tag_partner_value: number;
+    full_tag_team_value: number;
+    full_stable_value: number;
+    /** Reigns with their own brand's world title (from) => points. */
+    world_reign_bands: Record<string, number>;
+    repeat_title_reigns: number;
+    repeat_title_value: number;
     fair_ratio: number;
+    fair_accept: number;
+    /** Points the rival comes out ahead (from) => chance for a fair offer. */
+    fair_ahead_accept: Record<string, number>;
+    unfair_accept: number;
+};
+
+type PointCategory =
+    | 'base'
+    | 'legend'
+    | 'focus'
+    | 'specialty'
+    | 'minor_injury'
+    | 'win_streak'
+    | 'loss_streak'
+    | 'tag_partner'
+    | 'full_tag_team'
+    | 'full_stable'
+    | 'world_champion'
+    | 'repeat_champion';
+
+/** One side's worth to the rival, by category (AiTradeJudge::assess). */
+type SidePoints = {
+    total: number;
+    lines: Partial<Record<PointCategory, number>> | [];
+};
+
+type Assessment = {
+    chance: number;
+    fair: boolean;
+    gets: SidePoints;
+    gives: SidePoints;
 };
 
 type Props = GamePageProps & {
@@ -66,32 +109,34 @@ export default function ProposeTrade() {
         roster_counts[game.rival_brand] - incoming.length + out.length;
     const overCap = yourSize > game.roster_cap || theirSize > game.roster_cap;
     const empty = out.length === 0 && incoming.length === 0;
-    // Why the offer can't go yet, or what happens when it does.
+    // Why the offer can't go yet; nothing once it can.
     const hint = empty
         ? `Pick up to ${max_per_side} wrestlers on each side. Uneven trades are fine.`
         : yourSize > game.roster_cap
           ? `Your roster would end at ${yourSize}/${game.roster_cap}. Send more or receive fewer.`
           : theirSize > game.roster_cap
             ? `Their roster would end at ${theirSize}/${game.roster_cap}. Ask for more or send fewer.`
-            : `${out.length} for ${incoming.length}. The rival GM answers by email.`;
-    // The rival's chance of accepting (AiTradeJudge::chance), refreshed as
-    // the offer changes. Null while there's nothing to judge.
-    const [chance, setChance] = useState<number | null>(null);
+            : null;
+    // The rival's judgement (AiTradeJudge::assess): its chance of accepting
+    // and each side's points, refreshed as the offer changes. Null while
+    // there's nothing to judge.
+    const [assessment, setAssessment] = useState<Assessment | null>(null);
+    const chance = assessment?.chance ?? null;
 
     useEffect(() => {
         if (empty || overCap) {
-            setChance(null);
+            setAssessment(null);
 
             return;
         }
 
         let current = true;
-        requestJson<{ chance: number }>('POST', gm.trade.odds.url(game.id), {
+        requestJson<Assessment>('POST', gm.trade.odds.url(game.id), {
             out,
             in: incoming,
         })
-            .then((r) => current && setChance(r.chance))
-            .catch(() => current && setChance(null));
+            .then((r) => current && setAssessment(r))
+            .catch(() => current && setAssessment(null));
 
         return () => {
             current = false;
@@ -172,15 +217,17 @@ export default function ProposeTrade() {
                         rows={theirs.filter((w) => incoming.includes(w.id))}
                         onRemove={(id) => toggle(incoming, setIncoming, id)}
                     />
-                    <p
-                        id="offer-hint"
-                        className={cn(
-                            'text-ink-dim',
-                            overCap && 'text-zone-serious',
-                        )}
-                    >
-                        {hint}
-                    </p>
+                    {hint && (
+                        <p
+                            id="offer-hint"
+                            className={cn(
+                                'text-ink-dim',
+                                overCap && 'text-zone-serious',
+                            )}
+                        >
+                            {hint}
+                        </p>
+                    )}
                     {chance !== null && (
                         <p data-testid="offer-chance" className="text-ink-dim">
                             Chance the rival GM accepts:{' '}
@@ -196,12 +243,29 @@ export default function ProposeTrade() {
                             </span>
                         </p>
                     )}
+                    {assessment && (
+                        <div
+                            data-testid="offer-points"
+                            className="grid gap-x-8 gap-y-2 pt-1 sm:grid-cols-2"
+                        >
+                            <OfferPoints
+                                label="They get"
+                                side={assessment.gets}
+                                rivalBrand={game.rival_brand}
+                            />
+                            <OfferPoints
+                                label="They give"
+                                side={assessment.gives}
+                                rivalBrand={game.rival_brand}
+                            />
+                        </div>
+                    )}
                 </div>
                 <button
                     type="button"
                     className="gm-btn"
                     disabled={empty || overCap}
-                    aria-describedby="offer-hint"
+                    aria-describedby={hint ? 'offer-hint' : undefined}
                     onClick={send}
                 >
                     Send offer
@@ -248,9 +312,41 @@ export default function ProposeTrade() {
 }
 
 /** The rival's focus class, worth extra to it in a trade (AiGm::isDraftFocus). */
-const RIVAL_FOCUS: Record<'raw' | 'smackdown', string> = {
-    raw: 'a Diva',
-    smackdown: 'a Cruiserweight or Light Heavyweight',
+const FOCUS_LABEL: Record<'raw' | 'smackdown', string> = {
+    raw: 'A Diva',
+    smackdown: 'A Cruiserweight or Light Heavyweight',
+};
+
+/** "+2" in the ink colour, "−1" in red. */
+function PointValue({ value }: { value: number }) {
+    return (
+        <span
+            className={cn(
+                'gm-num font-semibold',
+                value < 0 ? 'text-zone-serious' : 'text-zone-safe',
+            )}
+        >
+            {signed(value)}
+        </span>
+    );
+}
+
+/** A nested list of "what: points" rule lines. */
+function PointList({ items }: { items: Array<[string, number]> }) {
+    return (
+        <ul className="mt-1 list-[circle] space-y-1 pl-5 marker:text-ink-faint">
+            {items.map(([label, value]) => (
+                <li key={label}>
+                    {label}: <PointValue value={value} />
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+const FOCUS_CLASS: Record<'raw' | 'smackdown', string> = {
+    raw: 'Divas',
+    smackdown: 'Cruiserweights and Light Heavyweights',
 };
 
 const percent = (chance: number) => `${Math.round(chance * 100)}%`;
@@ -258,7 +354,115 @@ const percent = (chance: number) => `${Math.round(chance * 100)}%`;
 /** Acceptance chances at or above this show green, anything lower orange. */
 const HIGH_CHANCE = 0.9;
 
-const points = (n: number) => `+${n} ${n === 1 ? 'point' : 'points'}`;
+/** "+2" / "−1": a signed point value. */
+const signed = (n: number) => `${n < 0 ? '−' : '+'}${Math.abs(n)}`;
+
+const points = (n: number) =>
+    `${signed(n)} ${Math.abs(n) === 1 ? 'point' : 'points'}`;
+
+const POINT_LABELS: Record<PointCategory, string> = {
+    base: 'Wrestlers',
+    legend: 'Legends',
+    focus: 'Their focus class',
+    specialty: 'Match specialists',
+    minor_injury: 'Minor injuries',
+    win_streak: 'Win streaks',
+    loss_streak: 'Losing streaks',
+    tag_partner: 'Tag team partners',
+    full_tag_team: 'Full tag teams',
+    full_stable: 'Full stables',
+    world_champion: 'World champions',
+    repeat_champion: 'Repeat champions',
+};
+
+/** The acceptance rates, one line each: even fair, each band ahead, the rest. */
+function acceptLines(judge: TradeJudge): Array<[string, number]> {
+    const bands = Object.entries(judge.fair_ahead_accept ?? {})
+        .map(([from, chance]) => [Number(from), chance] as const)
+        .sort((a, b) => a[0] - b[0]);
+
+    return [
+        ['A fair offer with even points', judge.fair_accept],
+        ...bands.map(([from, chance], i): [string, number] => {
+            const last = i === bands.length - 1 && from > 1;
+            const count = last ? `${from} or more` : `${from}`;
+            const unit = from === 1 && !last ? 'point' : 'points';
+
+            return [`They come out ${count} ${unit} ahead`, chance];
+        }),
+        ['Anything else', judge.unfair_accept],
+    ];
+}
+
+/** "+1 for 1–4 reigns, +2 for 5–7, +3 for 8 or more". */
+function worldBands(bands: Record<string, number>): string {
+    const entries = Object.entries(bands)
+        .map(([from, value]) => [Number(from), value] as const)
+        .sort((a, b) => a[0] - b[0]);
+
+    return entries
+        .map(([from, value], i) => {
+            const next = entries[i + 1]?.[0];
+            const range =
+                next === undefined
+                    ? `${from} or more`
+                    : next - 1 === from
+                      ? `${from}`
+                      : `${from}–${next - 1}`;
+
+            return `${signed(value)} for ${range}${i === 0 ? ' reigns' : ''}`;
+        })
+        .join(', ');
+}
+
+/** One side of the offer: its points to the rival, by category. */
+function OfferPoints({
+    label,
+    side,
+    rivalBrand,
+}: {
+    label: string;
+    side: SidePoints;
+    rivalBrand: 'raw' | 'smackdown';
+}) {
+    const lines = Object.entries(side.lines) as Array<[PointCategory, number]>;
+
+    return (
+        <div
+            data-testid={`offer-points-${label === 'They get' ? 'gets' : 'gives'}`}
+        >
+            <p className="text-ink-dim">
+                {label}:{' '}
+                <span className="gm-num font-semibold text-ink">
+                    {side.total}{' '}
+                    {Math.abs(side.total) === 1 ? 'point' : 'points'}
+                </span>
+            </p>
+            {lines.length > 0 && (
+                <ol className="list-decimal pl-5 text-xs text-ink-dim marker:text-ink-faint">
+                    {lines.map(([category, value]) => (
+                        <li key={category}>
+                            {category === 'focus'
+                                ? `${POINT_LABELS.focus} (${FOCUS_CLASS[rivalBrand]})`
+                                : POINT_LABELS[category]}
+                            :{' '}
+                            <span
+                                className={cn(
+                                    'gm-num',
+                                    value < 0
+                                        ? 'text-zone-serious'
+                                        : 'text-zone-safe',
+                                )}
+                            >
+                                {signed(value)}
+                            </span>
+                        </li>
+                    ))}
+                </ol>
+            )}
+        </div>
+    );
+}
 
 /** The trade rules as the game applies them (TradeService, AiTradeJudge). */
 function TradeRules({
@@ -303,12 +507,69 @@ function TradeRules({
                         </p>
                         <ul className="list-disc space-y-1.5 pl-5 marker:text-ink-faint">
                             <li>
-                                Every wrestler is worth 1 point;{' '}
-                                {points(judge.legend_value)} for a Legend,{' '}
-                                {points(judge.champion_history_value)} for
-                                anyone who has held a title, and{' '}
-                                {points(judge.focus_value)} for{' '}
-                                {RIVAL_FOCUS[rivalBrand]}.
+                                Every wrestler starts at{' '}
+                                {points(judge.base_value).slice(1)}, then:
+                                <PointList
+                                    items={[
+                                        ['A Legend', judge.legend_value],
+                                        [
+                                            FOCUS_LABEL[rivalBrand],
+                                            judge.focus_value,
+                                        ],
+                                        [
+                                            'A match specialist',
+                                            judge.specialty_value,
+                                        ],
+                                        [
+                                            'Their tag team partner is on the rival’s roster',
+                                            judge.tag_partner_value,
+                                        ],
+                                        [
+                                            'A whole tag team traded together',
+                                            judge.full_tag_team_value,
+                                        ],
+                                        [
+                                            'A whole stable traded together',
+                                            judge.full_stable_value,
+                                        ],
+                                    ]}
+                                />
+                            </li>
+                            <li>
+                                Form:
+                                <PointList
+                                    items={[
+                                        [
+                                            `Every ${judge.win_streak_step} wins in a row`,
+                                            judge.win_streak_value,
+                                        ],
+                                        [
+                                            `A losing streak of ${judge.loss_streak_from} or more`,
+                                            judge.loss_streak_value,
+                                        ],
+                                        [
+                                            'A minor injury',
+                                            judge.minor_injury_value,
+                                        ],
+                                    ]}
+                                />
+                            </li>
+                            <li>
+                                Title history in this career:
+                                <ul className="mt-1 list-[circle] space-y-1 pl-5 marker:text-ink-faint">
+                                    <li>
+                                        Their own brand’s world title:{' '}
+                                        {worldBands(judge.world_reign_bands)}
+                                    </li>
+                                    <li>
+                                        The same other title{' '}
+                                        {judge.repeat_title_reigns} or more
+                                        times:{' '}
+                                        <PointValue
+                                            value={judge.repeat_title_value}
+                                        />
+                                    </li>
+                                </ul>
                             </li>
                             <li>
                                 An offer is fair when they get{' '}
@@ -319,9 +580,19 @@ function TradeRules({
                                 before.
                             </li>
                             <li>
-                                They accept a fair offer{' '}
-                                {percent(judge.fair_accept)} of the time, and
-                                anything else {percent(judge.unfair_accept)}.
+                                How often they accept:
+                                <ul className="mt-1 list-[circle] space-y-1 pl-5 marker:text-ink-faint">
+                                    {acceptLines(judge).map(
+                                        ([label, chance]) => (
+                                            <li key={label}>
+                                                {label}:{' '}
+                                                <span className="gm-num font-semibold text-ink">
+                                                    {percent(chance)}
+                                                </span>
+                                            </li>
+                                        ),
+                                    )}
+                                </ul>
                             </li>
                         </ul>
                     </div>

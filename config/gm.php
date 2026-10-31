@@ -588,14 +588,41 @@ return [
             // the renewals due within this many weeks (on top of renew_at_weeks_left).
             'save_ahead_weeks' => 30,
         ],
-        // ASSUMPTION: there's no Popularity yet, so this is the whole trade value model.
+        // House rule (2026-10-31): how the rival GM values each wrestler in a
+        // trade (AiTradeJudge). There's no Popularity yet, so this is the whole
+        // trade value model.
         'trades' => [
+            'base_value' => 1,
             'legend_value' => 2,
-            'champion_history_value' => 1,
             'focus_value' => 1,
+            // Has any match specialty.
+            'specialty_value' => 1,
+            'minor_injury_value' => -1,
+            // +win_streak_value for every win_streak_step wins in a row.
+            'win_streak_step' => 5,
+            'win_streak_value' => 1,
+            // A flat penalty once the losing streak reaches loss_streak_from.
+            'loss_streak_from' => 7,
+            'loss_streak_value' => -1,
+            // In an active tag team (not a stable) with a partner on the rival's roster.
+            'tag_partner_value' => 1,
+            // Every current member of an active tag team / stable on the same
+            // side of the offer: per complete faction.
+            'full_tag_team_value' => 1,
+            'full_stable_value' => 2,
+            // Reigns with their own brand's world title => points (the highest
+            // band reached counts).
+            'world_reign_bands' => [1 => 1, 5 => 2, 8 => 3],
+            // Has held the same non-world title at least this many times.
+            'repeat_title_reigns' => 2,
+            'repeat_title_value' => 1,
             'fair_ratio' => 1.0,
-            'fair_accept' => 0.9,
-            'unfair_accept' => 0.05,
+            // A fair offer with even points; one where the rival comes out
+            // ahead uses fair_ahead_accept (points ahead => chance, the
+            // highest band reached counts). Anything else: unfair_accept.
+            'fair_accept' => 0.75,
+            'fair_ahead_accept' => [1 => 0.9, 2 => 1.0],
+            'unfair_accept' => 0.25,
         ],
         // ASSUMPTION
         'mitb' => [
