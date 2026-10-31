@@ -49,7 +49,8 @@ const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const stateLabel: Record<AirState, string | null> = {
     aired: 'Results',
-    open: 'Book',
+    // The current week is marked by its animated border, not a word.
+    open: null,
     confirmed: 'Booked',
     waiting: 'After PPV',
     rival: null,
@@ -317,7 +318,7 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
             className={cn(
                 'flex min-h-16 flex-col gap-1 border border-transparent p-1 sm:min-h-24 sm:p-1.5',
                 day.in_month ? 'bg-white/[0.03]' : 'opacity-35',
-                thisWeek && 'border-brand/40 bg-brand/[0.07]',
+                thisWeek && 'gm-current-week',
             )}
         >
             <span
@@ -346,7 +347,7 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
                                 ? `Simulate to week ${air.season_week}`
                                 : air.name
                         }
-                        aria-label={`${air.name}, week ${air.season_week}${label ? `: ${label}` : ''}${air.can_simulate ? ': simulate to here' : ''}`}
+                        aria-label={`${air.name}, week ${air.season_week}${label ? `: ${label}` : ''}${air.state === 'open' ? ': this week, to book' : ''}${air.can_simulate ? ': simulate to here' : ''}`}
                         onClick={() => onOpen(air)}
                         className={cn(
                             'w-full truncate px-1 py-0.5 text-left font-condensed text-xs leading-tight tracking-wide uppercase sm:px-1.5',

@@ -7,19 +7,19 @@
 
 return [
     'minor' => [
-        ['Sprained Wrist', 1, 3, 'Broken Wrist'],
+        ['Sprained Wrist', 2, 4, 'Broken Wrist'],
         ['Back Spasms', 1, 2, 'Herniated Disc'],
-        ['Sprained Ankle', 1, 3, 'Broken Ankle'],
-        ['Bruised Ribs', 1, 3, 'Broken Ribs'],
-        ['Pulled Hamstring', 2, 4, 'Torn Hamstring'],
-        ['Groin Strain', 1, 3, 'Torn Groin'],
+        ['Sprained Ankle', 2, 4, 'Broken Ankle'],
+        ['Bruised Ribs', 2, 4, 'Broken Ribs'],
+        ['Pulled Hamstring', 3, 5, 'Torn Hamstring'],
+        ['Groin Strain', 2, 4, 'Torn Groin'],
         ['Neck Stinger', 1, 2, 'Neck Injury (Surgery)'],
-        ['Shoulder Strain', 1, 3, 'Torn Rotator Cuff'],
-        ['Knee Contusion', 1, 3, 'Torn Meniscus'],
+        ['Shoulder Strain', 2, 4, 'Torn Rotator Cuff'],
+        ['Knee Contusion', 2, 4, 'Torn Meniscus'],
         ['Dislocated Finger', 1, 2, 'Broken Hand'],
         ['Laceration (Stitches)', 1, 2, null],
-        ['Mild Concussion', 2, 4, 'Severe Concussion'],
-        ['Arm Hematoma', 1, 3, 'Torn Triceps'],
+        ['Mild Concussion', 3, 5, 'Severe Concussion'],
+        ['Arm Hematoma', 2, 4, 'Torn Triceps'],
     ],
     'serious' => [
         ['Broken Wrist', 6, 12],

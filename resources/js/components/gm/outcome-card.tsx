@@ -1,3 +1,4 @@
+import { CashInTag } from '@/components/gm/badges';
 import { Fragment } from 'react';
 import { SideNames } from '@/components/gm/champion-tag';
 import { cn } from '@/lib/utils';
@@ -22,7 +23,7 @@ export function OutcomeCard({
         >
             <div className="gm-label">
                 {showName} ·{' '}
-                {isMainEvent ? 'Main event' : `Match ${outcome.position}`}
+                {isMainEvent ? 'Main Event' : `Match ${outcome.position}`}
             </div>
             <div className="mt-1 font-condensed text-sm tracking-wider text-ink-dim uppercase">
                 {outcome.match_type}
@@ -128,6 +129,12 @@ export function OutcomeCard({
                         </li>
                     ))}
                 </ol>
+            )}
+
+            {outcome.mitb_cash_in && (
+                <p className="mt-4 text-lg">
+                    <CashInTag />
+                </p>
             )}
 
             {outcome.stipulation_outcome && (

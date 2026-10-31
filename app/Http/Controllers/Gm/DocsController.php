@@ -127,6 +127,19 @@ class DocsController extends Controller
                         ]),
                 ]),
             ],
+            // Morale (§15) and defection (§8), from config.
+            'morale' => [
+                'thresholds' => [
+                    'losing_streak' => array_map('intval', (array) config('gm.morale.losing_streak')),
+                    'contract_extension' => array_map('intval', (array) config('gm.morale.contract_extension')),
+                    'title_match' => array_map('intval', (array) config('gm.morale.title_match')),
+                    'inactivity' => array_map('intval', (array) config('gm.morale.inactivity')),
+                ],
+                'champions_exempt' => (bool) config('gm.morale.champions_exempt_from_title_demand'),
+                'defection_unsatisfied_percent' => (int) round((float) config('gm.defection.chance.unsatisfied') * 100),
+                'defection_upset_percent' => (int) round((float) config('gm.defection.chance.upset') * 100),
+                'blocked_sit_out_weeks' => (int) config('gm.defection.blocked_sit_out_weeks'),
+            ],
             'rival' => [
                 'booking' => (array) config('gm.ai.booking'),
                 'titles' => (array) config('gm.ai.titles'),

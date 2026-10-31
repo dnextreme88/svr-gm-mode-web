@@ -59,6 +59,28 @@ class WeekController extends Controller
     }
 
     /**
+     * House rule: cash in the briefcase during the match that is up next.
+     */
+    public function cashInDuring(Request $request, Save $save, int $week, WeekResolver $resolver): RedirectResponse
+    {
+        $data = $request->validate(['slot_id' => ['required', 'integer']]);
+        $resolver->cashInDuring($save, (int) $data['slot_id']);
+
+        return back();
+    }
+
+    /**
+     * House rule: answer the cash-in offered after a world title match.
+     */
+    public function answerCashIn(Request $request, Save $save, int $week, WeekResolver $resolver): RedirectResponse
+    {
+        $data = $request->validate(['cash_in' => ['required', 'boolean']]);
+        $resolver->answerCashIn($save, (bool) $data['cash_in']);
+
+        return back();
+    }
+
+    /**
      * Simulate every match left this week.
      */
     public function simulateAll(Save $save, int $week, WeekResolver $resolver): RedirectResponse

@@ -117,3 +117,21 @@ export function GoldTag({
         </span>
     );
 }
+
+/**
+ * "Money in the Bank cash-in" on a match's result (house rule), styled like a
+ * stipulation's outcome.
+ */
+export function CashInTag({ className }: { className?: string }) {
+    return (
+        <span
+            data-testid="cash-in-tag"
+            className={cn(
+                'font-condensed font-semibold tracking-wide text-brand-hot uppercase',
+                className,
+            )}
+        >
+            Money in the Bank cash-in
+        </span>
+    );
+}

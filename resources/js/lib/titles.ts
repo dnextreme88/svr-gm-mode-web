@@ -353,7 +353,8 @@ export function stipulationOptions(
         }
     }
 
-    return options;
+    // Listed alphabetically in the dropdown ("#1 Contender's Match" first).
+    return options.sort((a, b) => a.label.localeCompare(b.label));
 }
 
 /** The picked stipulation as the dropdown shows it. */

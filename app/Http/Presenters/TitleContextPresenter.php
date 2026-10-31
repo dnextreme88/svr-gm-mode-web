@@ -6,6 +6,7 @@ use App\Enums\Brand;
 use App\Enums\TitleShotKind;
 use App\Enums\TitleShotStatus;
 use App\Models\Championship;
+use App\Models\LastChanceLockout;
 use App\Models\MatchSlot;
 use App\Models\Save;
 use App\Models\Show;
@@ -103,6 +104,20 @@ class TitleContextPresenter
             'contenderships' => $contenderships,
             'earned_shot_title_ids' => $earned,
             'title_holder_ids' => $holders,
+            // Active Effects: who lost a Last Chance match and can't challenge
+            // that champion until the title changes hands.
+            'last_chance_lockouts' => LastChanceLockout::with('reign.championship')
+                ->where('save_id', $save->id)
+                ->orderBy('id')
+                ->get()
+                ->filter(fn (LastChanceLockout $l): bool => $l->reign->lost_week === null && $l->reign->championship->brand === $brand)
+                ->map(fn (LastChanceLockout $l): array => [
+                    'id' => $l->id,
+                    'championship' => $l->reign->championship->name,
+                    'contenders' => $names($l->wrestler_ids),
+                    'champion' => $l->reign->holderName(),
+                ])
+                ->values(),
             'briefcase' => $briefcase === null ? null : [
                 'id' => $briefcase->id,
                 'holder' => $briefcase->holder->name(),

@@ -13,6 +13,7 @@ use App\Models\WeekAiring;
 use App\Models\WeekResolution;
 use App\Services\Calendar\CalendarService;
 use App\Services\Matches\ShowResolver;
+use App\Services\Titles\MitbService;
 use App\Services\Week\Steps\AirShows;
 use Illuminate\Support\Facades\DB;
 
@@ -217,6 +218,10 @@ class WeekResolver
             $show = $this->airShows()->current($context);
             $next = $show === null ? null : $this->shows()->nextMatch($show);
 
+            if (isset($context->data['cash_in_offer'])) {
+                throw new GameRuleException('Answer the Money in the Bank cash-in first.');
+            }
+
             if ($show === null || $next === null || $next->id !== $slotId) {
                 throw new GameRuleException('That match is not up next.');
             }
@@ -229,11 +234,75 @@ class WeekResolver
                 $this->assertGauntletPicks($next, $bookedBouts);
             }
 
-            $this->shows()->airNext($show, $context, $bookedSide, $bookedBouts);
+            $aired = $this->shows()->airNext($show, $context, $bookedSide, $bookedBouts);
+
+            // House rule: after a world title match the player's briefcase
+            // holder may cash in; the week waits for the answer.
+            if ($aired !== null && $this->mitb()->afterOption($context->save, $aired->refresh(), $context->week) !== null) {
+                $context->data['cash_in_offer'] = $aired->id;
+            }
+
             $this->proceed($airing, $context);
         });
 
         $save->refresh();
+    }
+
+    /**
+     * Cash in the player's briefcase during the match that is up next: the
+     * holder joins it (house rule).
+     */
+    public function cashInDuring(Save $save, int $slotId): void
+    {
+        DB::transaction(function () use ($save, $slotId): void {
+            [, $context] = $this->resume($save);
+            $show = $this->airShows()->current($context);
+            $next = $show === null ? null : $this->shows()->nextMatch($show);
+
+            if ($next === null || $next->id !== $slotId) {
+                throw new GameRuleException('That match is not up next.');
+            }
+
+            $this->mitb()->cashInDuring($context->save, $next, $context->week);
+        });
+
+        $save->refresh();
+    }
+
+    /**
+     * Answer the cash-in offered after a world title match: cash in (a new
+     * title match follows it) or let it go, then carry on airing.
+     */
+    public function answerCashIn(Save $save, bool $cashIn): void
+    {
+        DB::transaction(function () use ($save, $cashIn): void {
+            [$airing, $context] = $this->resume($save);
+            $slotId = $context->data['cash_in_offer'] ?? null;
+
+            if ($slotId === null) {
+                throw new GameRuleException('There’s no cash-in to answer.');
+            }
+
+            unset($context->data['cash_in_offer']);
+
+            if ($cashIn) {
+                $this->mitb()->cashInAfter($context->save, MatchSlot::findOrFail((int) $slotId), $context->week);
+            }
+
+            $this->proceed($airing, $context);
+        });
+
+        $save->refresh();
+    }
+
+    /**
+     * The world title match a cash-in is being offered after, if any.
+     */
+    public function cashInOffer(Save $save): ?MatchSlot
+    {
+        $id = $this->airing($save)?->context['cash_in_offer'] ?? null;
+
+        return $id === null ? null : MatchSlot::find((int) $id);
     }
 
     /**
@@ -277,6 +346,8 @@ class WeekResolver
     {
         DB::transaction(function () use ($save): void {
             [$airing, $context] = $this->resume($save);
+            // Simulating the rest passes on a cash-in still on offer.
+            unset($context->data['cash_in_offer']);
 
             while (! $airing->isComplete() && ($show = $this->airShows()->current($context)) !== null) {
                 $this->shows()->airNext($show, $context);
@@ -294,6 +365,13 @@ class WeekResolver
      */
     private function proceed(WeekAiring $airing, WeekContext $context): void
     {
+        // A cash-in offered after a title match waits for the player.
+        if (isset($context->data['cash_in_offer'])) {
+            $airing->update(['context' => $context->data, 'rng_states' => $context->streamStates()]);
+
+            return;
+        }
+
         foreach ($this->airShows()->ordered($context) as $show) {
             if ($show->status === ShowStatus::Aired) {
                 continue;
@@ -384,6 +462,11 @@ class WeekResolver
     private function closing(): array
     {
         return array_slice(self::STEPS, (int) array_search(AirShows::class, self::STEPS, true) + 1);
+    }
+
+    private function mitb(): MitbService
+    {
+        return app(MitbService::class);
     }
 
     private function airShows(): AirShows

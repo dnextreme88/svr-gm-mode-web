@@ -176,6 +176,14 @@ export function CardBuilder({
         [roster],
     );
     const counts = bookingCounts(drafts);
+    // The Main Event is the card's last match, never a Money in the Bank
+    // cash-in placed after it.
+    const mainEventPosition = Math.max(
+        0,
+        ...slots
+            .filter((s) => s.fixed_kind !== 'mitb_cash_in')
+            .map((s) => s.position),
+    );
     const readOnly = show.status !== 'booking' || lockedByOrder;
     const complete = (d: SlotDraft) =>
         isComplete(d, d.matchTypeId ? types.get(d.matchTypeId) : undefined);
@@ -256,7 +264,7 @@ export function CardBuilder({
                 <SlotEditor
                     key={draft.position}
                     draft={draft}
-                    isMainEvent={draft.position === drafts.length}
+                    isMainEvent={draft.position === mainEventPosition}
                     drafts={drafts}
                     types={types}
                     matchTypes={matchTypes}
@@ -544,7 +552,7 @@ function SlotEditor({
                                 : 'bg-brand text-white',
                         )}
                     >
-                        {isMainEvent ? 'Main event' : label}
+                        {isMainEvent ? 'Main Event' : label}
                     </span>
                 </div>
                 <MatchTypePicker

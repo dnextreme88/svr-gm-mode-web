@@ -1,7 +1,9 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { CashInTag } from '@/components/gm/badges';
 import { BookToWinCard } from '@/components/gm/book-to-win-card';
+import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { SideNames } from '@/components/gm/champion-tag';
 import { FatigueProgress } from '@/components/gm/fatigue-progress';
 import type { FatigueStep } from '@/components/gm/fatigue-progress';
@@ -42,6 +44,8 @@ type Props = GamePageProps & {
     from_schedule?: boolean;
     /** The week is airing live: the player's matches are still being decided. */
     airing?: boolean;
+    /** House rule: the briefcase holder may cash in after the world title match that just aired. */
+    cash_in_offer?: { holder: string; champion: string; title: string } | null;
     shows: ShowResult[];
     new_emails: number;
 };
@@ -117,6 +121,7 @@ export default function Results() {
         focus_match_id,
         from_schedule,
         airing = false,
+        cash_in_offer = null,
         shows,
         new_emails,
     } = usePage<Props>().props;
@@ -124,15 +129,21 @@ export default function Results() {
     const [busy, setBusy] = useState(false);
     const reel = useMemo<ReelItem[]>(
         () =>
-            shows.flatMap((show) =>
-                show.outcomes.map((outcome, i) => ({
+            shows.flatMap((show) => {
+                // The Main Event is the last match, never a cash-in placed
+                // before or after the card's matches.
+                const main = show.outcomes.findLastIndex(
+                    (o) =>
+                        o.mitb_cash_in !== 'before' &&
+                        o.mitb_cash_in !== 'after',
+                );
+
+                return show.outcomes.map((outcome, i) => ({
                     show,
                     outcome,
-                    isMainEvent:
-                        i === show.outcomes.length - 1 &&
-                        show.outcomes.length > 1,
-                })),
-            ),
+                    isMainEvent: i === main && show.outcomes.length > 1,
+                }));
+            }),
         [shows],
     );
     // The card on the right always shows a match: the one asked for, else
@@ -229,6 +240,17 @@ export default function Results() {
             onFinish: () => setBusy(false),
         });
     };
+
+    // House rule: the briefcase holder joins the world title match up next.
+    const cashIn = (match: PendingMatch) =>
+        post(gm.results.cashIn.url({ save: game.id, week: week_number }), {
+            slot_id: match.id,
+        });
+
+    const answerCashIn = (yes: boolean) =>
+        post(gm.results.cashInOffer.url({ save: game.id, week: week_number }), {
+            cash_in: yes ? 1 : 0,
+        });
 
     const decide = (
         match: PendingMatch,
@@ -378,6 +400,11 @@ export default function Results() {
                                                     bouts,
                                                 )
                                             }
+                                            onCashIn={() =>
+                                                cashIn(
+                                                    current.outcome as PendingMatch,
+                                                )
+                                            }
                                         />
                                     ) : (
                                         <OutcomeCard
@@ -443,6 +470,20 @@ export default function Results() {
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                open={cash_in_offer !== null && !busy}
+                title="Cash in Money in the Bank?"
+                message={
+                    cash_in_offer
+                        ? `${cash_in_offer.holder} can cash in on ${cash_in_offer.champion} right now. A ${cash_in_offer.title} match goes on next, and the week waits for your answer.`
+                        : ''
+                }
+                cancelLabel="Not now"
+                confirmLabel="Cash in"
+                onCancel={() => answerCashIn(false)}
+                onConfirm={() => answerCashIn(true)}
+            />
         </>
     );
 }
@@ -568,6 +609,9 @@ function MatchRow({
                         <span className="font-bold text-gold-hot group-hover:text-white">
                             NEW CHAMPION
                         </span>
+                    )}
+                    {o.mitb_cash_in && (
+                        <CashInTag className="text-xs group-hover:text-white" />
                     )}
                 </span>
                 {o.stipulation && (

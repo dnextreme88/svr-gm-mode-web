@@ -131,6 +131,19 @@ type Props = {
             }>
         >;
     };
+    morale: {
+        thresholds: Record<
+            | 'losing_streak'
+            | 'contract_extension'
+            | 'title_match'
+            | 'inactivity',
+            [number, number, number]
+        >;
+        champions_exempt: boolean;
+        defection_unsatisfied_percent: number;
+        defection_upset_percent: number;
+        blocked_sit_out_weeks: number;
+    };
     rival: {
         booking: {
             intergender_chance: number;
@@ -214,6 +227,7 @@ type Props = {
 const tabs = [
     { key: 'matches', label: 'Match types' },
     { key: 'injuries', label: 'Fatigue & injuries' },
+    { key: 'morale', label: 'Morale' },
     { key: 'stipulations', label: 'Stipulations' },
     { key: 'promos', label: 'Promos' },
     { key: 'news', label: 'News & email' },
@@ -526,6 +540,45 @@ function MatchTypes({
                         <li>
                             On the card each entrant is labelled in gold by
                             their order, 1st Participant to 6th Participant.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel title="Money in the Bank">
+                    <ul
+                        data-testid="mitb-rules"
+                        className="list-disc space-y-2 pl-4 text-sm text-ink"
+                    >
+                        <li>
+                            A 6-man Ladder match at WrestleMania, no titles and
+                            no Divas. The winner holds a briefcase: a shot at
+                            their brand’s world title, good for 52 weeks or
+                            until the next WrestleMania. It’s voided if the
+                            holder leaves the brand.
+                        </li>
+                        <li>
+                            <strong>Before the show:</strong> Cash in from the
+                            card screen and pick where the match goes, before
+                            any match or after the Main Event. It’s an extra
+                            match, the only way past a card’s 6 matches (5 on a
+                            PPV).
+                        </li>
+                        <li>
+                            <strong>During a world title match:</strong> while
+                            it’s the match to decide, the holder runs in and
+                            joins it. The match grows by one: a singles match
+                            becomes a Triple Threat, a Triple Threat a Fatal
+                            4-Way.
+                        </li>
+                        <li>
+                            <strong>After a world title match:</strong> once
+                            it’s decided, you’re asked whether the holder cashes
+                            in on whoever walks out champion. A title match goes
+                            on straight after it.
+                        </li>
+                        <li>
+                            The briefcase is spent either way. The holder only
+                            becomes champion by winning the match. Cash-ins are
+                            for the world title only for now.
                         </li>
                     </ul>
                 </Panel>
@@ -1355,6 +1408,131 @@ const scopeLabel: Record<string, string> = {
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
+function MoraleDocs({ morale }: Pick<Props, 'morale'>) {
+    const t = morale.thresholds;
+    const complaints: Array<{
+        key: keyof typeof t;
+        name: string;
+        counts: string;
+        clears: string;
+    }> = [
+        {
+            key: 'losing_streak',
+            name: 'Losing streak',
+            counts: 'losses in a row',
+            clears: 'A win.',
+        },
+        {
+            key: 'contract_extension',
+            name: 'Contract demand',
+            counts: 'wins in a row',
+            clears: 'Renegotiating their contract.',
+        },
+        {
+            key: 'title_match',
+            name: 'No title match',
+            counts: 'weeks without a title match',
+            clears: `A title match (or Winner Takes All). Only counts with a title on their brand they can hold${morale.champions_exempt ? '; champions never ask' : ''}.`,
+        },
+        {
+            key: 'inactivity',
+            name: 'Unused',
+            counts: 'weeks not booked',
+            clears: 'Being booked in a match (managing counts).',
+        },
+    ];
+
+    return (
+        <div className="space-y-6">
+            <div className="grid items-start gap-6 md:grid-cols-2">
+                <Panel title="How morale works">
+                    <ul
+                        data-testid="morale-rules"
+                        className="list-disc space-y-2 pl-4 text-sm text-ink"
+                    >
+                        <li>
+                            Every wrestler is Happy, Content, Unsatisfied or
+                            Upset. Their morale is the worst of four complaints,
+                            each with its own clock.
+                        </li>
+                        <li>
+                            Clocks tick once a week, after the shows. Weeks
+                            spent seriously injured or sitting out (a blocked
+                            defection, Buried Alive) don’t count.
+                        </li>
+                        <li>
+                            When a complaint reaches Unsatisfied or Upset, the
+                            wrestler emails you. Content doesn’t.
+                        </li>
+                        <li>
+                            Turning Upset also makes the brand’s news ticker. A
+                            contract demand and a title demand do too.
+                        </li>
+                        <li>
+                            New signings and defectors start Happy, with fresh
+                            clocks. A traded wrestler keeps their morale.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel title="Defection">
+                    <ul
+                        data-testid="defection-rules"
+                        className="list-disc space-y-2 pl-4 text-sm text-ink"
+                    >
+                        <li>
+                            Every week, an Unsatisfied wrestler has a{' '}
+                            {morale.defection_unsatisfied_percent}% chance and
+                            an Upset one a {morale.defection_upset_percent}%
+                            chance to try to jump to the other brand.
+                        </li>
+                        <li>
+                            With room on the other roster they move, keeping
+                            their contract: their titles are vacated, a Money in
+                            the Bank briefcase is voided and a #1 contendership
+                            ends.
+                        </li>
+                        <li>
+                            With the other roster full they’re blocked and sit
+                            out {morale.blocked_sit_out_weeks} weeks.
+                        </li>
+                    </ul>
+                </Panel>
+            </div>
+            <Panel title="Complaints" bodyClassName="p-0 overflow-x-auto">
+                <table
+                    className="gm-table text-sm"
+                    data-testid="morale-thresholds"
+                >
+                    <thead>
+                        <tr>
+                            <th>Complaint</th>
+                            <th>Counts</th>
+                            <th className="text-right">Content</th>
+                            <th className="text-right">Unsatisfied</th>
+                            <th className="text-right">Upset</th>
+                            <th>Clears with</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {complaints.map((c) => (
+                            <tr key={c.key}>
+                                <td className="font-semibold">{c.name}</td>
+                                <td className="text-ink-dim">{c.counts}</td>
+                                {t[c.key].map((n, i) => (
+                                    <td key={i} className="gm-num text-right">
+                                        {n}
+                                    </td>
+                                ))}
+                                <td className="text-ink-dim">{c.clears}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </Panel>
+        </div>
+    );
+}
+
 function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
     const b = rival.booking;
     const t = rival.titles;
@@ -2044,6 +2222,7 @@ export default function Docs() {
                         specialists={props.specialists}
                     />
                 )}
+                {tab === 'morale' && <MoraleDocs morale={props.morale} />}
                 {tab === 'injuries' && (
                     <Injuries
                         injuries={props.injuries}

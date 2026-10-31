@@ -231,6 +231,8 @@ export type MatchOutcome = {
     /** Winner Takes All: the titles on the line, and what the winner took. */
     contested_titles?: string[];
     titles_won?: string[];
+    /** A Money in the Bank cash-in: before, during or after a match. */
+    mitb_cash_in?: import('./enums').MitbCashInTiming | null;
     /** A Gauntlet's bouts, in order. */
     bouts?: GauntletBout[];
     rating: number | null;
@@ -272,6 +274,9 @@ export type PendingMatch = {
     stipulation: import('./enums').Stipulation | null;
     stipulation_title?: string | null;
     contested_titles?: string[];
+    mitb_cash_in?: import('./enums').MitbCashInTiming | null;
+    /** The player's briefcase holder who can cash in during this match. */
+    cash_in_holder?: string | null;
     /** Who holds the title on the line. */
     champions: string[];
     /** Each side's captain in a Captain Fall match, for the (Cpt) tag. */
@@ -333,6 +338,13 @@ export type TitleContext = {
     earned_shot_title_ids?: number[];
     /** Everyone holding a title, on either brand. */
     title_holder_ids?: number[];
+    /** Last Chance losers who can't challenge the champion they lost to. */
+    last_chance_lockouts?: Array<{
+        id: number;
+        championship: string;
+        contenders: string;
+        champion: string;
+    }>;
     briefcase: {
         id: number;
         holder: string;

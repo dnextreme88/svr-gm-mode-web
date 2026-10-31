@@ -39,7 +39,7 @@ export function PickerButton({
 
 /** The placeholder a picker shows while nothing is picked. */
 export function PickerEmpty({ children }: { children: ReactNode }) {
-    return <span className="gm-label text-ink-faint italic">{children}</span>;
+    return <span className="gm-label text-white/80">{children}</span>;
 }
 
 export function PickerList({
