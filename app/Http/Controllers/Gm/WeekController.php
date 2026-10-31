@@ -9,6 +9,7 @@ use App\Services\Calendar\CalendarService;
 use App\Services\Week\BookingOrder;
 use App\Services\Week\WeekResolver;
 use App\Services\Week\WeekSimulator;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -105,18 +106,63 @@ class WeekController extends Controller
     {
         $target = (int) $request->validate(['week' => ['required', 'integer']])['week'];
         $result = $simulator->simulateTo($save, $target);
-        $weeks = $result['weeks'];
 
+        $this->flashSimulation($calendar, $result['weeks'], $target, $result['stopped']);
+
+        return to_route('gm.schedule', $save);
+    }
+
+    /**
+     * One week of Simulate to here (JSON), so the schedule can show
+     * progress: the week it aired, whether it's done, and why it stopped.
+     */
+    public function simulateStep(Request $request, Save $save, WeekSimulator $simulator, CalendarService $calendar): JsonResponse
+    {
+        $target = (int) $request->validate(['week' => ['required', 'integer']])['week'];
+
+        if ($save->current_week < $target) {
+            $simulator->assertCanSimulateTo($save, $target);
+        }
+
+        $step = $simulator->simulateNext($save, $target);
+
+        return response()->json([
+            ...$step,
+            'season_week' => $step['week'] === null ? null : $calendar->seasonWeek($step['week']),
+        ]);
+    }
+
+    /**
+     * After a stepped simulation: the same summary toast as `simulate`, back
+     * on the schedule.
+     */
+    public function simulateFinish(Request $request, Save $save, CalendarService $calendar): RedirectResponse
+    {
+        $data = $request->validate([
+            'week' => ['required', 'integer'],
+            'weeks' => ['array'],
+            'weeks.*' => ['integer'],
+            'stopped' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $this->flashSimulation($calendar, array_values(array_map('intval', $data['weeks'] ?? [])), (int) $data['week'], $data['stopped'] ?? null);
+
+        return to_route('gm.schedule', $save);
+    }
+
+    /**
+     * @param  list<int>  $weeks  the absolute weeks that aired
+     */
+    private function flashSimulation(CalendarService $calendar, array $weeks, int $target, ?string $stopped): void
+    {
         $summary = match (true) {
             $weeks === [] => 'No weeks were simulated.',
             count($weeks) === 1 => 'Simulated week '.$calendar->seasonWeek($weeks[0]).'.',
             default => 'Simulated weeks '.$calendar->seasonWeek($weeks[0]).'–'.$calendar->seasonWeek(end($weeks)).'.',
         };
 
-        Inertia::flash('toast', $result['stopped'] === null
+        Inertia::flash('toast', $stopped === null
             ? ['type' => 'success', 'message' => "{$summary} Week {$calendar->seasonWeek($target)} is ready to book."]
-            : ['type' => 'error', 'message' => "{$summary} Stopped: {$result['stopped']}"]);
-
-        return to_route('gm.schedule', $save);
+            : ['type' => 'error', 'message' => "{$summary} Stopped: {$stopped}"]);
     }
 }

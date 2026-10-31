@@ -1,8 +1,9 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { PageTitle } from '@/components/gm/panel';
+import { requestJson } from '@/lib/http';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { Brand, BrandScope } from '@/types/enums';
@@ -93,7 +94,16 @@ export default function Schedule() {
     const [simulate, setSimulate] = useState<{ air: Air; date: string } | null>(
         null,
     );
-    const [simulating, setSimulating] = useState(false);
+    // Simulate to here, a week at a time: how many weeks are done out of
+    // how many, and the last one aired. Null while it isn't running.
+    const [progress, setProgress] = useState<{
+        done: number;
+        total: number;
+        last: number | null;
+    } | null>(null);
+    const simulating = progress !== null;
+    // Cancel while it runs: stop after the week in progress.
+    const stopRequested = useRef(false);
     // Which way the last arrow went; null on first load, so nothing slides then.
     const [direction, setDirection] = useState<'next' | 'previous' | null>(
         null,
@@ -265,19 +275,87 @@ export default function Schedule() {
                     )
                 }
                 confirmLabel={simulating ? 'Simulating…' : 'Simulate'}
-                onCancel={() => setSimulate(null)}
-                onConfirm={() => {
-                    if (!simulate) {
+                confirmDisabled={simulating}
+                cancelLabel={simulating ? 'Stop after this week' : 'Cancel'}
+                footer={
+                    progress && (
+                        <SimulationProgress
+                            done={progress.done}
+                            total={progress.total}
+                            last={progress.last}
+                            stopping={stopRequested.current}
+                        />
+                    )
+                }
+                onCancel={() => {
+                    if (simulating) {
+                        stopRequested.current = true;
+                        setProgress((p) => (p ? { ...p } : p));
+
                         return;
                     }
 
-                    setSimulating(true);
+                    setSimulate(null);
+                }}
+                onConfirm={async () => {
+                    if (!simulate || simulating) {
+                        return;
+                    }
+
+                    const target = simulate.air.week;
+                    const total = Math.max(1, target - game.week);
+                    const aired: number[] = [];
+                    let stopped: string | null = null;
+                    stopRequested.current = false;
+                    setProgress({ done: 0, total, last: null });
+
+                    // One request per week, so the bar follows the real
+                    // simulation; Stop takes effect between weeks.
+                    while (!stopRequested.current) {
+                        try {
+                            const step = await requestJson<SimulationStep>(
+                                'POST',
+                                gm.simulate.step.url(game.id),
+                                { week: target },
+                            );
+
+                            if (step.week !== null) {
+                                aired.push(step.week);
+                                setProgress({
+                                    done: aired.length,
+                                    total,
+                                    last: step.season_week,
+                                });
+                            }
+
+                            stopped = step.stopped;
+
+                            if (step.done) {
+                                break;
+                            }
+                        } catch (e) {
+                            stopped =
+                                e instanceof Error
+                                    ? e.message
+                                    : 'Something went wrong.';
+                            break;
+                        }
+                    }
+
+                    if (
+                        stopRequested.current &&
+                        stopped === null &&
+                        aired.length < total
+                    ) {
+                        stopped = 'you stopped the simulation.';
+                    }
+
                     router.post(
-                        gm.simulate.url(game.id),
-                        { week: simulate.air.week },
+                        gm.simulate.finish.url(game.id),
+                        { week: target, weeks: aired, stopped },
                         {
                             onFinish: () => {
-                                setSimulating(false);
+                                setProgress(null);
                                 setSimulate(null);
                             },
                         },
@@ -285,6 +363,63 @@ export default function Schedule() {
                 }}
             />
         </>
+    );
+}
+
+type SimulationStep = {
+    /** The absolute week that aired, or null when nothing did. */
+    week: number | null;
+    season_week: number | null;
+    done: boolean;
+    stopped: string | null;
+};
+
+/**
+ * Simulate to here's progress: weeks aired out of the total, as a bar that
+ * fills week by week with moving stripes while it works.
+ */
+function SimulationProgress({
+    done,
+    total,
+    last,
+    stopping,
+}: {
+    done: number;
+    total: number;
+    last: number | null;
+    stopping: boolean;
+}) {
+    const percent = Math.round((done / total) * 100);
+
+    return (
+        <div className="space-y-1.5" data-testid="simulation-progress">
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+                <span className="text-ink-dim" aria-live="polite">
+                    {stopping
+                        ? 'Stopping after this week…'
+                        : last === null
+                          ? 'Booking and airing the first week…'
+                          : `Week ${last} aired.`}
+                </span>
+                <span className="gm-num text-ink">
+                    {done} / {total} weeks
+                </span>
+            </div>
+            <div
+                role="progressbar"
+                aria-label="Simulation progress"
+                aria-valuemin={0}
+                aria-valuemax={total}
+                aria-valuenow={done}
+                aria-valuetext={`${done} of ${total} weeks simulated`}
+                className="h-2.5 overflow-hidden bg-white/10"
+            >
+                <div
+                    className="gm-progress-fill h-full bg-brand transition-[width] duration-500 ease-out"
+                    style={{ width: `${Math.max(percent, 4)}%` }}
+                />
+            </div>
+        </div>
     );
 }
 

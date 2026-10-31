@@ -39,6 +39,11 @@ A second UI/UX audit covered Factions, Propose Trade, Free Agency, Financials an
 - **How rivalries work** sits under the heading: how one starts (2 meetings in 4 weeks, Start a Rivalry, a crashed Interview Space), heat (start, per meeting, per Continue Rivalry, weekly cooling, heating up, the 10-week headline, the PPV blow-off) and Rival Interference. Numbers come from `gm.rivalries`, `gm.news.rivalry_milestone_weeks` and the two promos' fatigue and cost (the `rules` prop).
 - `/gm/docs` (Promos) explains heat beside the rivalry promos (`promos.rivalry_heat`); CLAUDE.md gets a Rivalries section.
 
+### Schedule: Simulate to here progress
+
+- The confirm modal now airs the simulation a week at a time: `POST simulate/step` (`WeekSimulator::simulateNext`, the body of `simulateTo`'s loop) returns the week aired, whether it's done and why it stopped. A progress bar above the buttons fills week by week ("3 / 19 weeks", "Week 3 aired.") with sliding stripes (static with reduced motion).
+- While it runs, Simulate shows "Simulating…" (disabled) and Cancel becomes **Stop after this week**, which ends it between weeks. `POST simulate/finish` flashes the same summary toast as before and returns to the schedule. The old one-request `POST simulate` stays.
+
 ### Free Agency
 
 - A full roster gives a notice linking to the roster, and each row says **Roster full** instead of a disabled Sign.

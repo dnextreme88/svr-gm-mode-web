@@ -5,6 +5,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Schedule from '@/pages/gm/schedule';
 
 const router = vi.hoisted(() => ({ visit: vi.fn(), post: vi.fn() }));
+const requestJson = vi.hoisted(() => vi.fn());
+
+vi.mock('@/lib/http', () => ({
+    requestJson: (...args: unknown[]) => requestJson(...args),
+}));
+
+/** The step endpoint's answers for weeks 1–3 on the way to week 4. */
+const steps = [1, 2, 3].map((week) => ({
+    week,
+    season_week: week,
+    done: week === 3,
+    stopped: null,
+}));
 
 const air = (overrides: Record<string, unknown>) => ({
     week: 1,
@@ -130,6 +143,7 @@ vi.mock('@inertiajs/react', () => ({
 beforeEach(() => {
     router.visit.mockClear();
     router.post.mockClear();
+    requestJson.mockReset();
 });
 
 describe('Schedule calendar', () => {
@@ -240,7 +254,10 @@ describe('Schedule calendar', () => {
         expect(router.post).not.toHaveBeenCalled();
     });
 
-    it('asks before simulating to a future date, then posts the target week', async () => {
+    it('asks before simulating to a future date, then airs it week by week with a progress bar', async () => {
+        for (const step of steps) {
+            requestJson.mockResolvedValueOnce(step);
+        }
         const user = userEvent.setup();
         render(<Schedule />);
 
@@ -255,9 +272,59 @@ describe('Schedule calendar', () => {
             within(dialog).getByRole('button', { name: 'Simulate' }),
         );
 
-        expect(router.post).toHaveBeenCalledWith(
-            expect.stringContaining('/simulate'),
+        // One step per week toward week 4, then the summary.
+        await vi.waitFor(() => expect(router.post).toHaveBeenCalled());
+        expect(requestJson).toHaveBeenCalledTimes(3);
+        expect(requestJson).toHaveBeenCalledWith(
+            'POST',
+            '/gm/saves/1/simulate/step',
             { week: 4 },
+        );
+        expect(router.post).toHaveBeenCalledWith(
+            '/gm/saves/1/simulate/finish',
+            { week: 4, weeks: [1, 2, 3], stopped: null },
+            expect.anything(),
+        );
+
+        const bar = within(dialog).getByRole('progressbar', {
+            name: 'Simulation progress',
+        });
+        expect(bar).toHaveAttribute('aria-valuenow', '3');
+        expect(bar).toHaveAttribute('aria-valuemax', '3');
+        expect(within(dialog).getByText('3 / 3 weeks')).toBeInTheDocument();
+    });
+
+    it('stops after the week in progress when you press Stop', async () => {
+        let release: (step: unknown) => void = () => {};
+        requestJson.mockImplementationOnce(
+            () => new Promise((resolve) => (release = resolve)),
+        );
+        const user = userEvent.setup();
+        render(<Schedule />);
+
+        await user.click(screen.getByTestId('air-2005-04-24-ppv-shared'));
+        const dialog = screen.getByRole('dialog');
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Simulate' }),
+        );
+
+        expect(
+            within(dialog).getByRole('button', { name: 'Simulating…' }),
+        ).toBeDisabled();
+        await user.click(
+            within(dialog).getByRole('button', {
+                name: 'Stop after this week',
+            }),
+        );
+        expect(dialog).toHaveTextContent('Stopping after this week…');
+
+        release(steps[0]);
+
+        await vi.waitFor(() => expect(router.post).toHaveBeenCalled());
+        expect(requestJson).toHaveBeenCalledTimes(1);
+        expect(router.post).toHaveBeenCalledWith(
+            '/gm/saves/1/simulate/finish',
+            { week: 4, weeks: [1], stopped: 'you stopped the simulation.' },
             expect.anything(),
         );
     });
