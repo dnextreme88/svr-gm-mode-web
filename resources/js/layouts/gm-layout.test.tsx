@@ -200,3 +200,18 @@ describe('GM header', () => {
         );
     });
 });
+
+describe('GM footer', () => {
+    it('leaves a tall, quiet runway under the page with a sign-off', () => {
+        renderAt(500, 800);
+
+        const footer = screen.getByTestId('gm-footer');
+
+        // Tall enough for a long dropdown near the bottom to land on.
+        expect(footer.className).toContain('min-h-56');
+        expect(footer).toHaveTextContent(
+            'Smackdown vs Raw 2006 - a fan-made GM mode web version',
+        );
+        expect(within(footer).queryByRole('link')).toBeNull();
+    });
+});
