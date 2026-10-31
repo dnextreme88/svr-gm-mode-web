@@ -4,6 +4,7 @@ import { BookingAction, BookingSteps } from '@/components/gm/booking-steps';
 import type { BookingOrder } from '@/components/gm/booking-steps';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { CardBuilder } from '@/components/gm/card-builder';
+import { CashInButton } from '@/components/gm/cash-in-button';
 import { PageTitle } from '@/components/gm/panel';
 import { PromoSlots } from '@/components/gm/promo-slots';
 import type {
@@ -11,6 +12,8 @@ import type {
     PromoSlotView,
     PromoTypeOption,
 } from '@/components/gm/promo-slots';
+import { ActiveEffects } from '@/components/gm/active-effects';
+import type { BuriedAlive } from '@/components/gm/active-effects';
 import { ProposalLauncher } from '@/components/gm/proposal-launcher';
 import { TitleShotReminder } from '@/components/gm/title-shot-reminder';
 import type { ProposalResult } from '@/components/gm/proposal-launcher';
@@ -36,6 +39,7 @@ type Props = GamePageProps & {
     match_types: MatchTypeOption[];
     roster: RosterEntry[];
     title_context: TitleContext;
+    buried_alive: BuriedAlive[];
     promo_slots: PromoSlotView[];
     promo_types: PromoTypeOption[];
     promo_eligibility: Record<string, PromoEligibilityView>;
@@ -50,6 +54,7 @@ export default function CardPage() {
         match_types,
         roster,
         title_context,
+        buried_alive,
         promo_slots,
         promo_types,
         promo_eligibility,
@@ -95,7 +100,6 @@ export default function CardPage() {
         [promo_slots, promo_types, show.match_slot_count],
     );
     const pendingShots = title_context.title_shots.filter((s) => !s.booked);
-    const contenderships = title_context.contenderships ?? [];
     // Where "Book it now" puts an owed title match: the first empty slot of
     // the player's, else the last one.
     const ownSlots = slots.filter((s) => !s.fixed_kind && !s.locked);
@@ -173,26 +177,11 @@ export default function CardPage() {
                     />
                 )}
                 {briefcase && booking && !briefcase.cashed_in_here && (
-                    <button
-                        type="button"
-                        className="gm-btn gm-btn-gold gm-btn-sm"
-                        title={`Expires week ${briefcase.expires_week}`}
-                        onClick={() => {
-                            if (
-                                confirm(
-                                    `Cash in ${briefcase.holder}'s Money in the Bank briefcase on this card?`,
-                                )
-                            ) {
-                                router.post(
-                                    gm.card.cashIn.url(ids),
-                                    {},
-                                    { preserveScroll: true },
-                                );
-                            }
-                        }}
-                    >
-                        💼 Cash in: {briefcase.holder}
-                    </button>
+                    <CashInButton
+                        briefcase={briefcase}
+                        slots={slots}
+                        url={gm.card.cashIn.url(ids)}
+                    />
                 )}
                 <BookingAction
                     game={game}
@@ -228,32 +217,7 @@ export default function CardPage() {
                 }}
             />
 
-            {(pendingShots.length > 0 || contenderships.length > 0) && (
-                <div
-                    role="alert"
-                    className="mb-4 border-l-4 border-gold bg-gold/10 px-4 py-3 text-sm"
-                >
-                    <div className="gm-label text-gold-hot">
-                        {pendingShots.length > 0
-                            ? 'Required title match'
-                            : '#1 contender waiting'}
-                    </div>
-                    {pendingShots.map((shot) => (
-                        <p key={shot.id} className="mt-1">
-                            {shot.contenders} earned a{' '}
-                            <strong>{shot.championship}</strong> match. Book it
-                            before this card can air.
-                        </p>
-                    ))}
-                    {contenderships.map((c) => (
-                        <p key={`no1-${c.championship_id}`} className="mt-1">
-                            {c.contenders} await a{' '}
-                            <strong>{c.championship}</strong> match as #1
-                            contender. Only they can challenge for it.
-                        </p>
-                    ))}
-                </div>
-            )}
+            <ActiveEffects context={title_context} buriedAlive={buried_alive} />
 
             <CardBuilder
                 key={`${show.id}-${slots.map((s) => `${s.position}:${s.match_type_id}:${s.title_championship_id}:${s.stipulation}:${Object.keys(s.names ?? {}).join('.')}`).join(',')}`}

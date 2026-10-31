@@ -172,6 +172,18 @@ const props = {
             ],
         },
     },
+    morale: {
+        thresholds: {
+            losing_streak: [3, 5, 7],
+            contract_extension: [10, 15, 18],
+            title_match: [4, 8, 12],
+            inactivity: [2, 4, 8],
+        },
+        champions_exempt: true,
+        defection_unsatisfied_percent: 10,
+        defection_upset_percent: 25,
+        blocked_sit_out_weeks: 2,
+    },
     rival: {
         booking: {
             intergender_chance: 0.05,
@@ -605,6 +617,39 @@ describe('Docs page', () => {
 
         expect(screen.getByTestId('draft-teammates')).toHaveTextContent(
             '25% chance',
+        );
+    });
+
+    it('explains the three ways to cash in Money in the Bank', () => {
+        render(<Docs />);
+
+        const rules = screen.getByTestId('mitb-rules');
+        expect(rules).toHaveTextContent('Before the show');
+        expect(rules).toHaveTextContent('During a world title match');
+        expect(rules).toHaveTextContent('After a world title match');
+        expect(rules).toHaveTextContent(
+            'a singles match becomes a Triple Threat',
+        );
+    });
+
+    it('explains morale, its thresholds and defection, from config', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Morale' }));
+
+        const rows = within(screen.getByTestId('morale-thresholds'))
+            .getAllByRole('row')
+            .slice(1)
+            .map((r) => r.textContent ?? '');
+        expect(rows[0]).toContain('Losing streak');
+        expect(rows[0]).toContain('357');
+        expect(rows[3]).toContain('Unused');
+        expect(screen.getByTestId('defection-rules')).toHaveTextContent(
+            '10% chance and an Upset one a 25% chance',
+        );
+        expect(screen.getByTestId('defection-rules')).toHaveTextContent(
+            'sit out 2 weeks',
         );
     });
 

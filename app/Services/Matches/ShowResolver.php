@@ -105,7 +105,9 @@ class ShowResolver
             $this->promos->resolveBefore($show, $slot->position, $promoRng);
         }
 
-        $mainEvent = $slots->filter(fn (MatchSlot $s): bool => $s->isBooked())->last();
+        // The main event is the card's last booked match, never a Money in
+        // the Bank cash-in placed after it (house rule).
+        $mainEvent = $slots->filter(fn (MatchSlot $s): bool => $s->isBooked() && $s->fixed_kind !== FixedSlotKind::MitbCashIn)->last();
         $this->airMatch($next, $show, $context, $context->stream("show.{$show->streamKey()}"), $next->is($mainEvent), $bookedSide, $bookedBouts);
 
         return $next;

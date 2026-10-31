@@ -17,6 +17,7 @@ use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Calendar\CalendarService;
 use App\Services\Matches\ShowResolver;
+use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleService;
 use App\Services\Week\Steps\AirShows;
 use App\Services\Week\WeekContext;
@@ -44,6 +45,7 @@ class ResultsController extends Controller
         private AirShows $airShows,
         private ShowResolver $showResolver,
         private TitleService $titles,
+        private MitbService $mitb,
     ) {}
 
     public function __invoke(Request $request, Save $save, int $week): Response
@@ -73,7 +75,11 @@ class ResultsController extends Controller
                     ...CardPresenter::show($show),
                     'outcomes' => $slots->map(fn (MatchSlot $slot): array => $slot->result !== null
                         ? CardPresenter::outcome($slot)
-                        : CardPresenter::pending($slot, $slot->id === $nextId, $this->champions($save, $slot)))->values(),
+                        : [
+                            ...CardPresenter::pending($slot, $slot->id === $nextId, $this->champions($save, $slot)),
+                            // House rule: the briefcase can be cashed in during the match up next.
+                            'cash_in_holder' => $slot->id === $nextId ? $this->mitb->duringOption($save, $slot, $save->current_week)?->holder->name() : null,
+                        ])->values(),
                     'promos' => $this->promos($show),
                     'fatigue' => $this->fatigue($show, $decided, $logs),
                 ];
@@ -88,9 +94,29 @@ class ResultsController extends Controller
             'focus_match_id' => $request->integer('match') ?: null,
             'from_schedule' => $request->has('show'),
             'airing' => $airing,
+            'cash_in_offer' => $airing ? $this->cashInOffer($save) : null,
             'shows' => $shows,
             'new_emails' => Email::where('save_id', $save->id)->where('brand', $save->player_brand)->where('week_number', $week)->count(),
         ]);
+    }
+
+    /**
+     * House rule: after a world title match the player's briefcase holder
+     * may cash in; the week waits for the answer.
+     *
+     * @return array{holder: string, champion: string, title: string}|null
+     */
+    private function cashInOffer(Save $save): ?array
+    {
+        $slot = $this->resolver->cashInOffer($save);
+        $briefcase = $slot === null ? null : $this->mitb->afterOption($save, $slot, $save->current_week);
+        $reign = $briefcase === null ? null : $this->titles->currentReign($save, $this->mitb->worldTitle($briefcase->brand));
+
+        return $briefcase === null || $reign === null ? null : [
+            'holder' => $briefcase->holder->name(),
+            'champion' => $reign->holderName(),
+            'title' => $reign->championship->name,
+        ];
     }
 
     private function nextMatchId(Save $save, int $week): ?int

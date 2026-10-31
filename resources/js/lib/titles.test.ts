@@ -173,7 +173,7 @@ describe('stipulation options', () => {
             roster,
         ).map((o) => o.value);
 
-        expect(values).toEqual(['loser_leaves_show', 'champion_vs_contender']);
+        expect(values).toEqual(['champion_vs_contender', 'loser_leaves_show']);
     });
 
     it('offers Last Chance only to an eligible contender with the title on the line', () => {
@@ -354,6 +354,21 @@ describe("#1 Contender's Match (house rule)", () => {
                 new Map([...roster, [20, wrestler(20)]]),
             ).map((t) => t.id),
         ).not.toContain(10);
+    });
+});
+
+describe('stipulation order', () => {
+    it('lists the stipulations alphabetically', () => {
+        const people = new Map([20, 21].map((id) => [id, wrestler(id)]));
+        const labels = stipulationOptions(
+            draft([[20], [21]]),
+            singles,
+            context,
+            people,
+        ).map((o) => o.label);
+
+        expect(labels).toEqual([...labels].sort((a, b) => a.localeCompare(b)));
+        expect(labels).toEqual(["#1 Contender's Match", 'Loser Leaves Show']);
     });
 });
 

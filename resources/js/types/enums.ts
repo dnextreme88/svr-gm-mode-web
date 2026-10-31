@@ -394,6 +394,18 @@ export const MatchMethodLabels: Record<MatchMethod, string> = {
     'match_specific': 'Match Specific',
 };
 
+export const MitbCashInTiming = {
+    Before: 'before',
+    During: 'during',
+    After: 'after',
+} as const;
+export type MitbCashInTiming = (typeof MitbCashInTiming)[keyof typeof MitbCashInTiming];
+export const MitbCashInTimingLabels: Record<MitbCashInTiming, string> = {
+    'before': 'Before',
+    'during': 'During',
+    'after': 'After',
+};
+
 export const MitbStatus = {
     Held: 'held',
     CashedInWon: 'cashed_in_won',

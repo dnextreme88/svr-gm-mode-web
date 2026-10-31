@@ -224,8 +224,8 @@ describe('injury types (§6)', function () {
             ->and(InjuryType::where('severity', InjurySeverity::Serious)->count())->toBe(22);
     });
 
-    it('keeps minor durations within 1–4 weeks and serious within 5–52', function () {
-        expect(InjuryType::where('severity', InjurySeverity::Minor)->where(fn ($q) => $q->where('min_weeks', '<', 1)->orWhere('max_weeks', '>', 4))->count())->toBe(0)
+    it('keeps minor durations within 1–5 weeks and serious within 5–52', function () {
+        expect(InjuryType::where('severity', InjurySeverity::Minor)->where(fn ($q) => $q->where('min_weeks', '<', 1)->orWhere('max_weeks', '>', 5))->count())->toBe(0)
             ->and(InjuryType::where('severity', InjurySeverity::Serious)->where(fn ($q) => $q->where('min_weeks', '<', 5)->orWhere('max_weeks', '>', 52))->count())->toBe(0);
     });
 

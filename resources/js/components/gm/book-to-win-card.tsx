@@ -1,3 +1,5 @@
+import { CashInTag } from '@/components/gm/badges';
+import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { Fragment, useState } from 'react';
 import {
     CaptainTag,
@@ -22,11 +24,14 @@ export function BookToWinCard({
     isMainEvent,
     busy,
     onDecide,
+    onCashIn,
 }: {
     match: PendingMatch;
     showName: string;
     isMainEvent: boolean;
     busy: boolean;
+    /** House rule: the briefcase holder joins this world title match. */
+    onCashIn?: () => void;
     /**
      * `null` simulates the match; a side index books that side to win. A
      * Gauntlet passes its bout picks instead (the rest are simulated).
@@ -34,13 +39,14 @@ export function BookToWinCard({
     onDecide: (side: number | null, bouts?: number[]) => void;
 }) {
     const disabled = busy || !match.is_next;
+    const [cashing, setCashing] = useState(false);
 
     return (
         <article className="gm-panel relative overflow-hidden px-6 py-8 md:px-10">
             <div className="text-center">
                 <div className="gm-label">
                     {showName} ·{' '}
-                    {isMainEvent ? 'Main event' : `Match ${match.position}`}
+                    {isMainEvent ? 'Main Event' : `Match ${match.position}`}
                 </div>
                 <div className="mt-1 font-condensed text-sm tracking-wider text-ink-dim uppercase">
                     {match.match_type}
@@ -50,6 +56,7 @@ export function BookToWinCard({
                         </span>
                     )}
                 </div>
+                {match.mitb_cash_in && <CashInTag className="mt-1 block" />}
             </div>
 
             {match.gauntlet ? (
@@ -95,7 +102,7 @@ export function BookToWinCard({
                             : 'Decide the matches before this one first.'}
                     </p>
 
-                    <div className="mt-5 flex justify-center">
+                    <div className="mt-5 flex flex-wrap justify-center gap-2">
                         <button
                             type="button"
                             className="gm-btn"
@@ -104,7 +111,30 @@ export function BookToWinCard({
                         >
                             Simulate match
                         </button>
+                        {match.cash_in_holder && onCashIn && (
+                            <button
+                                type="button"
+                                className="gm-btn gm-btn-gold"
+                                disabled={disabled}
+                                onClick={() => setCashing(true)}
+                            >
+                                Cash in: {match.cash_in_holder}
+                            </button>
+                        )}
                     </div>
+                    {match.cash_in_holder && onCashIn && (
+                        <ConfirmDialog
+                            open={cashing}
+                            title="Cash in Money in the Bank?"
+                            message={`${match.cash_in_holder} runs in and joins this ${match.title ?? 'title'} match. It grows by one wrestler (a singles match becomes a Triple Threat, a Triple Threat a Fatal 4-Way), and whoever wins it walks out champion.`}
+                            confirmLabel="Cash in"
+                            onCancel={() => setCashing(false)}
+                            onConfirm={() => {
+                                setCashing(false);
+                                onCashIn?.();
+                            }}
+                        />
+                    )}
                 </>
             )}
         </article>

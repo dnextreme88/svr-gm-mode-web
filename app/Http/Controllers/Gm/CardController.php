@@ -14,6 +14,7 @@ use App\Models\MatchType;
 use App\Models\PromoSlot;
 use App\Models\PromoType;
 use App\Models\Save;
+use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Card\Booking;
 use App\Services\Card\CardRandomizer;
@@ -67,6 +68,7 @@ class CardController extends Controller
             $row = WrestlerPresenter::row($w, $week, $active, $reigns);
             $blocked = match (true) {
                 ($row['injury']['severity'] ?? null) === 'serious' => 'Seriously injured',
+                $row['sitting_out'] && $w->buried_week !== null => 'Buried alive',
                 $row['sitting_out'] => 'Sitting out (blocked defection)',
                 default => null,
             };
@@ -83,6 +85,20 @@ class CardController extends Controller
             'match_types' => $types,
             'roster' => $roster,
             'title_context' => $this->titleContext->forShow($save, $show, $brand),
+            // Active Effects: Buried Alive losers still sitting out.
+            'buried_alive' => SaveWrestler::with('wrestler')
+                ->where('save_id', $save->id)
+                ->where('brand', $brand)
+                ->whereNotNull('buried_week')
+                ->where('unbookable_until_week', '>', $week)
+                ->orderBy('id')
+                ->get()
+                ->map(fn (SaveWrestler $w): array => [
+                    'id' => $w->id,
+                    'name' => $w->name(),
+                    'weeks_left' => (int) $w->unbookable_until_week - $week,
+                ])
+                ->values(),
             'promo_slots' => PromoSlot::with('promoType')->where('show_id', $show->id)->orderBy('position')->get()->map(fn (PromoSlot $p): array => [
                 'position' => $p->position,
                 'promo_type_id' => $p->promo_type_id,
@@ -153,14 +169,16 @@ class CardController extends Controller
         return back();
     }
 
-    public function cashIn(Save $save, Show $show): RedirectResponse
+    public function cashIn(Request $request, Save $save, Show $show): RedirectResponse
     {
+        // Where it goes: before this match position, or after the last one.
+        $position = $request->validate(['position' => ['nullable', 'integer', 'min:1']])['position'] ?? null;
         $this->assertOwnShow($save, $show);
         $this->order->assertEditable($save, $show);
         $briefcase = $this->mitb->held($save)->first(fn ($b): bool => $b->brand === $save->player_brand)
             ?? throw new GameRuleException('You have no Money in the Bank briefcase to cash in.');
 
-        DB::transaction(fn () => $this->mitb->cashIn($show, $briefcase));
+        DB::transaction(fn () => $this->mitb->cashIn($show, $briefcase, $position === null ? null : (int) $position));
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$briefcase->holder->name()} is cashing in!"]);
 
         return back();

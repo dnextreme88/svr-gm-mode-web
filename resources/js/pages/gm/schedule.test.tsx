@@ -84,7 +84,14 @@ const props = {
                             can_simulate: true,
                         }),
                     ]),
-                    day('2005-04-25'),
+                    day('2005-04-25', [
+                        air({
+                            week: 4,
+                            season_week: 4,
+                            state: 'open',
+                            card_url: '/gm/saves/1/shows/9',
+                        }),
+                    ]),
                     day('2005-04-26'),
                     day('2005-04-27'),
                     day('2005-04-28'),
@@ -189,12 +196,23 @@ describe('Schedule calendar', () => {
         ).not.toMatch(/hover:bg-(raw|sd)/);
     });
 
+    it('marks your card this week with the moving border, without a Book label', () => {
+        render(<Schedule />);
+
+        const cell = document.querySelector('[data-date="2005-04-25"]');
+        const show = screen.getByTestId('air-2005-04-25-weekly-raw');
+
+        expect(cell).toHaveClass('gm-current-week');
+        expect(show).not.toHaveTextContent('Book');
+        expect(show).toHaveAccessibleName(/this week, to book/);
+    });
+
     it('doesn’t highlight the rival’s show this week', () => {
         render(<Schedule />);
 
         const cell = document.querySelector('[data-date="2005-04-29"]');
 
-        expect(cell?.className).not.toContain('border-brand/40');
+        expect(cell?.className).not.toContain('gm-current-week');
     });
 
     it('opens an aired show’s results, the rival’s included', async () => {

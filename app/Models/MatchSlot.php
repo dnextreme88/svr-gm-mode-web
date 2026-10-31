@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\Brand;
 use App\Enums\FixedSlotKind;
+use App\Enums\MitbCashInTiming;
 use App\Enums\ParticipantRole;
 use App\Enums\Stipulation;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
@@ -24,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property Stipulation|null $stipulation
  * @property int|null $stipulation_championship_id
  * @property list<int>|null $contested_title_ids
+ * @property MitbCashInTiming|null $mitb_cash_in
  * @property int $cost
  * @property FixedSlotKind|null $fixed_kind
  * @property Brand|null $owner_brand
@@ -161,6 +163,7 @@ class MatchSlot extends Model
         return [
             'stipulation' => Stipulation::class,
             'contested_title_ids' => 'array',
+            'mitb_cash_in' => MitbCashInTiming::class,
             'fixed_kind' => FixedSlotKind::class,
             'owner_brand' => Brand::class,
             'rating' => 'float',

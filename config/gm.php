@@ -73,6 +73,10 @@ return [
         // House rule: Randomize and Preset never pick a competitor the match
         // would leave above this fatigue (%), so they don't risk injuries.
         'randomize_max_fatigue' => 70,
+        // House rule: a Money in the Bank cash-in (before or after a match)
+        // is the one match that can go past a card's slots: 7 on a weekly
+        // show, 6 on a PPV. The GM still books 6 / 5.
+        'cash_in_extra_slots' => 1,
     ],
 
     /*
@@ -127,7 +131,7 @@ return [
         'serious_share' => 0.20,
         // ASSUMPTION: escalation odds are TBD in the spec.
         'escalation_chance' => 0.20,
-        'minor_max_weeks' => 4,
+        'minor_max_weeks' => 5,
         'serious_min_weeks' => 5,
         'serious_max_weeks' => 52,
     ],
@@ -226,7 +230,8 @@ return [
         'contract_extension' => [10, 15, 18],
         // 1 month = 4 weeks.
         'title_match' => [4, 8, 12],
-        'inactivity' => [2, 4, 8],
+        // House rule (2026-10-31): unused for 3 / 6 / 9 weeks (was 2 / 4 / 8).
+        'inactivity' => [3, 6, 9],
         // ASSUMPTION: current champions don't raise title-match demands.
         'champions_exempt_from_title_demand' => true,
     ],

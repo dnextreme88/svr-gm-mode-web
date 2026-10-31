@@ -106,8 +106,12 @@ class MatchOutcomeHandler
             $stipulationOutcome = "Team {$brand?->label()} survives";
         }
 
-        if ($slot->fixed_kind === FixedSlotKind::MitbCashIn && $reignBefore !== null) {
-            $this->mitb->settleCashIn($slot, $titleChanged, $reignBefore->holderName(), $context->week);
+        // Before, during or after a match (house rule): settled once its match resolves.
+        if ($slot->mitb_cash_in !== null && $reignBefore !== null) {
+            // In a triple threat the title can go to someone else: the cash-in
+            // only wins if the holder does.
+            $won = $titleChanged && in_array($this->mitb->cashInHolder($slot), $resolved->winners, true);
+            $this->mitb->settleCashIn($slot, $won, $reignBefore->holderName(), $context->week);
         }
 
         $result->update([
@@ -168,7 +172,7 @@ class MatchOutcomeHandler
             return [false, 'and_still', $championSide, $reign];
         }
 
-        $via = $slot->fixed_kind === FixedSlotKind::MitbCashIn ? WonVia::MitbCashIn : WonVia::Match;
+        $via = $slot->mitb_cash_in !== null && in_array($this->mitb->cashInHolder($slot), $resolved->winners, true) ? WonVia::MitbCashIn : WonVia::Match;
         $new = $this->titles->changeHands($save, $championship, $this->holderFor($save, $championship, $resolved->winners), $week, $via, $show, $slot->id);
         $this->records->checkAfterReignEnded($reign->refresh(), $week);
         $this->records->checkAfterReignStarted($new, $week);

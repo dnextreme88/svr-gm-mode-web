@@ -173,6 +173,8 @@ class CardPresenter
             'stipulation' => $slot->stipulation?->value,
             'stipulation_outcome' => $result->stipulation_outcome,
             ...self::stipulationTitles($slot),
+            // Money in the Bank cash-in: before, during or after (house rule).
+            'mitb_cash_in' => $slot->mitb_cash_in?->value,
             'titles_won' => self::titleNames(array_map(fn (array $won): int => $won['championship_id'], $result->titles_won ?? [])),
             'bouts' => self::bouts($slot),
             'rating' => $slot->rating,
@@ -222,6 +224,7 @@ class CardPresenter
             'title' => $slot->titleChampionship?->name,
             'stipulation' => $slot->stipulation?->value,
             ...self::stipulationTitles($slot),
+            'mitb_cash_in' => $slot->mitb_cash_in?->value,
             'champions' => $champions,
             'captains' => self::captains($slot),
             'factions' => self::factions($slot),

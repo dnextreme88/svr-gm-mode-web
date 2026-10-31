@@ -72,7 +72,7 @@ export function RivalryPicker({
                         <PairName pair={selected.pair} />
                     </span>
                 ) : (
-                    <span className="gm-label text-ink-faint italic">
+                    <span className="gm-label text-ink-faint">
                         Pick a rivalry
                     </span>
                 )}

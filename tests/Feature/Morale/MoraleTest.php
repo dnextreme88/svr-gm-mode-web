@@ -50,15 +50,16 @@ it('maps each complaint value to its level using the config thresholds', functio
     [MoraleComplaintType::TitleMatch, 4, ComplaintLevel::Content],
     [MoraleComplaintType::TitleMatch, 8, ComplaintLevel::Unsatisfied],
     [MoraleComplaintType::TitleMatch, 12, ComplaintLevel::Upset],
-    [MoraleComplaintType::Inactivity, 2, ComplaintLevel::Content],
-    [MoraleComplaintType::Inactivity, 4, ComplaintLevel::Unsatisfied],
-    [MoraleComplaintType::Inactivity, 8, ComplaintLevel::Upset],
+    // House rule (2026-10-31): unused for 3 / 6 / 9 weeks.
+    [MoraleComplaintType::Inactivity, 3, ComplaintLevel::Content],
+    [MoraleComplaintType::Inactivity, 6, ComplaintLevel::Unsatisfied],
+    [MoraleComplaintType::Inactivity, 9, ComplaintLevel::Upset],
 ]);
 
 it('is Happy with no complaints and otherwise takes the worst complaint level', function () {
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
     $edge = GameBuilder::wrestler($save, 'Edge');
-    $edge->update(['loss_streak' => 5, 'weeks_unused' => 7]);
+    $edge->update(['loss_streak' => 5, 'weeks_unused' => 8]);
 
     runWeek($save);
 
@@ -71,13 +72,14 @@ it('is Happy with no complaints and otherwise takes the worst complaint level', 
 
 it('has the superstar email the GM only once they are Unsatisfied or Upset', function () {
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
-    GameBuilder::wrestler($save, 'Edge')->update(['weeks_unused' => 1]);
+    GameBuilder::wrestler($save, 'Edge')->update(['weeks_unused' => 2]);
 
-    // Week 2 unused: Content, no email.
+    // Week 3 unused: Content, no email.
     runWeek($save);
     expect(Email::where('template', EmailTemplate::MoraleComplaint)->count())->toBe(0);
 
-    // Week 4 unused: Unsatisfied, Edge writes in.
+    // Week 6 unused: Unsatisfied, Edge writes in.
+    runWeek($save);
     runWeek($save);
     runWeek($save);
 
@@ -86,7 +88,7 @@ it('has the superstar email the GM only once they are Unsatisfied or Upset', fun
     expect($emails)->toHaveCount(1)
         ->and($emails[0]->sender)->toBe('Edge')
         ->and($emails[0]->subject)->toBe('Put me on the card')
-        ->and($emails[0]->body)->toContain("I haven't been used in 4 weeks")
+        ->and($emails[0]->body)->toContain("I haven't been used in 6 weeks")
         ->and(MoraleComplaint::where('type', MoraleComplaintType::Inactivity)->where('save_wrestler_id', GameBuilder::wrestler($save, 'Edge')->id)->sole()->level)->toBe(ComplaintLevel::Unsatisfied);
 });
 
