@@ -330,6 +330,12 @@ class PromoStories
             ['Chaos on {rival_brand} as {wrestler} crashes the show', "{rival_brand}'s night went sideways when {wrestler} from {brand} hit the ring."],
             ['{brand} sends a message through {wrestler}', "{wrestler} ruined part of {rival_brand}'s show, and {brand} is loving it."],
         ],
+        'interference_promotion.backfires' => [
+            ["{brand}'s invasion of {rival_brand} backfires!", "{brand} sent {wrestler} to crash {rival_brand}'s show one time too many. The fans saw it coming, booed {wrestler} out of the building, and {brand} looks desperate."],
+            ['{brand} goes to the well once too often', 'Another {brand} raid on {rival_brand}, and this time the crowd turned on {wrestler} before they reached the ring.'],
+            ['Fans sick of {brand} invading {rival_brand}', "{wrestler}'s latest trip to {rival_brand} blew up in {brand}'s face."],
+            ['{rival_brand} wins the night as {brand} overplays its hand', '{brand} sent {wrestler} after {rival_brand} again, and the fans sided with {rival_brand}.'],
+        ],
         'interference_promotion.fails' => [
             ["{brand} fails to disrupt {rival_brand}'s show!", "{brand} sent {wrestler} to crash {rival_brand}'s show, but security handled it and the show went on."],
             ['{wrestler} turned away at the {rival_brand} door', "{wrestler}'s attempt to invade {rival_brand} ended before it began."],
@@ -371,7 +377,7 @@ class PromoStories
         'failed' => 'Failed',
         'succeeds' => 'Success',
         'fails' => 'Failed',
-        'backfires' => 'Backfired (used twice in 4 weeks)',
+        'backfires' => 'Backfired (overused)',
         'disrupts' => 'Success',
     ];
 

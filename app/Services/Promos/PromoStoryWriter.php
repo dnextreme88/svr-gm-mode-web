@@ -190,8 +190,8 @@ class PromoStoryWriter
                 break;
 
             case PromoTypeKey::InterferencePromotion:
-                $situations = [$succeeded ? 'disrupts' : 'fails'];
-                $payload['outcome'] = $succeeded ? 'disrupts' : 'fails to disrupt';
+                $situations = [$slot->backfired ? 'backfires' : ($succeeded ? 'disrupts' : 'fails')];
+                $payload['outcome'] = $slot->backfired ? 'embarrasses itself on' : ($succeeded ? 'disrupts' : 'fails to disrupt');
                 [$event, $tier, $newsBrand, $priority] = [NewsEventType::InterferencePromoResult, NewsTier::Headline, NewsBrand::Both, 75];
                 break;
 

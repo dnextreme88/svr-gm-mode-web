@@ -178,6 +178,7 @@ class NewsTemplates
         'slander_result.backfires' => '{brand} ran one smear campaign too many against {rival_brand}. The fans turned on it, and it made {brand} look worse.',
         'interference_promo_result' => "{brand} sent someone to crash {rival_brand}'s show.",
         'interference_promo_result.disrupts' => "{brand} sent someone to crash {rival_brand}'s show, and it worked: the segment fell apart.",
+        'interference_promo_result.embarrasses itself on' => "{brand} sent someone to crash {rival_brand}'s show one time too many, and the fans turned on it.",
         'interference_promo_result.fails to disrupt' => "{brand} tried to crash {rival_brand}'s show, but security handled it and the show went on.",
         'season_reset' => 'WrestleMania is over. Each brand can re-draft from the rival roster before the new season starts.',
         'match_result' => 'In what was a thrilling match, {winner} got the win over {loser} as they competed in a thrilling {match_kind} match!',

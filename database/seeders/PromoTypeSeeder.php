@@ -54,13 +54,13 @@ class PromoTypeSeeder extends Seeder
             'requirement' => 'Nothing.',
         ],
         'interference_promotion' => [
-            'effect' => 'Sabotages the rival show, lowering their rating that week.',
+            'effect' => 'Sabotages the rival show, lowering their rating that week; backfires automatically on its 4th use within 5 weeks.',
             'requirement' => 'A non-Diva superstar who isn’t seriously injured. They take the fatigue and can get injured.',
             'wrestler' => true,
             'rival' => true,
         ],
         'slander_promotion' => [
-            'effect' => "Attacks the rival show's reputation; backfires automatically if used more than once in 4 weeks.",
+            'effect' => "Attacks the rival show's reputation; backfires automatically on its 4th use within 5 weeks.",
             'requirement' => 'Nothing.',
             'rival' => true,
         ],

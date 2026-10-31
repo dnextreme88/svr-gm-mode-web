@@ -30,10 +30,12 @@ The inbox (`/gm/saves/{#}/email`) was a bare list and reader:
     The Slander, trade and free agent reminders go to the player only.
 
 - All the new emails are on `/gm/docs` (News & email tab).
+- **Promo overuse (house rule):** Slander used to backfire on a second use within 4 weeks, and Interference never did. Now each backfires automatically on its 4th use within 5 weeks (that week and the 4 before it); the first 3 roll the usual 50%. Every use counts, two on one card included, in air order, and each promo keeps its own count (`gm.promos.overuse`, `PromoService::overused`). Interference gets backfire news stories like Slander's. The `/gm/docs` Promos tab, the seeded promo effects and the Slander reminder's wording follow.
 
 ## Tests
 
 - `tests/Feature/Mail/InboxTest.php`: sender kinds and category counts, category and unread filters, read-all and delete-all scoped to the view, mark unread and delete one, other saves and the rival's emails refused (404), the Low on Cash cadence after its email is deleted.
 - `tests/Feature/Mail/EmailsTest.php`: the Interference reaction (worked and foiled), the Trainer's clearance (serious only), and the four reminders with their clocks restarting.
+- `tests/Feature/Card/PromoTest.php`: the 4th Slander or Interference in 5 weeks backfires, two on one card count twice, old uses drop out of the window, and each promo counts on its own.
 - `tests/Unit/Mail/EmailTextsTest.php`: 3+ variants per situation, no unfilled placeholders, seeded draws, multi-paragraph bodies.
 - `resources/js/pages/gm/email.test.tsx`: sender block and role, list rows, the category picker, the Delete all confirmation, the empty-filter state, and the small-screen single pane.

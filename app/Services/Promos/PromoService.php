@@ -219,19 +219,36 @@ class PromoService
     }
 
     /**
-     * Slander backfires automatically if used more than once in 4 weeks (§5).
+     * The promos that backfire when overused (house rule).
      */
-    public function slanderOverused(Show $show, Brand $brand): bool
-    {
-        $window = (int) config('gm.promos.slander_overuse_window_weeks');
+    public const BACKFIRING = [PromoTypeKey::SlanderPromotion, PromoTypeKey::InterferencePromotion];
 
-        for ($week = $show->week_number - $window + 1; $week < $show->week_number; $week++) {
-            if ($this->usedIn($show, $brand, PromoTypeKey::SlanderPromotion, $week)) {
-                return true;
-            }
+    /**
+     * House rule (2026-10-31): Slander and Interference backfire automatically
+     * once the brand has already aired `max_uses` of that promo within the
+     * last `window_weeks` weeks, this one's week included. Each use counts,
+     * two on one card included; the earlier ones roll as usual.
+     */
+    public function overused(Show $show, Brand $brand, PromoSlot $slot): bool
+    {
+        $key = $slot->promoType?->key;
+
+        if (! in_array($key, self::BACKFIRING, true)) {
+            return false;
         }
 
-        return false;
+        $window = (int) config('gm.promos.overuse.window_weeks');
+
+        $earlier = PromoSlot::whereHas('show', fn ($q) => $q
+            ->where('save_id', $show->save_id)
+            ->where('brand', $brand)
+            ->whereBetween('week_number', [$show->week_number - $window + 1, $show->week_number]))
+            ->whereHas('promoType', fn ($q) => $q->where('key', $key))
+            ->whereNotNull('succeeded')
+            ->whereKeyNot($slot->id)
+            ->count();
+
+        return $earlier >= (int) config('gm.promos.overuse.max_uses');
     }
 
     private function resolveOne(Show $show, Brand $brand, PromoSlot $slot, Rng $rng): void
@@ -246,7 +263,7 @@ class PromoService
         $week = $show->week_number;
         $tier = $type->key === PromoTypeKey::MerchandiseSponsorship ? $this->merchandiseTier($rng) : null;
         $amount = $tier['amount'] ?? $type->base_amount;
-        $backfired = $type->key === PromoTypeKey::SlanderPromotion && $this->slanderOverused($show, $brand);
+        $backfired = $this->overused($show, $brand, $slot);
         $succeeded = ! $backfired && $rng->chance($tier['chance'] ?? $type->successRate());
 
         // The cost is paid whether or not the promo works.
@@ -254,7 +271,7 @@ class PromoService
             $this->ledger->post($save, $brand, LedgerCategory::PromoCost, $amount, "{$type->name} promo", $week, $slot);
         }
 
-        $note = $succeeded ? 'Success' : ($backfired ? 'Backfired (used twice in 4 weeks)' : 'Failed');
+        $note = $succeeded ? 'Success' : ($backfired ? 'Backfired (overused)' : 'Failed');
 
         $this->tire($show, $type, $slot, $rng);
 
@@ -437,13 +454,6 @@ class PromoService
         }
 
         return 'Debut made';
-    }
-
-    private function usedIn(Show $show, Brand $brand, PromoTypeKey $key, int $week): bool
-    {
-        return PromoSlot::whereHas('show', fn ($q) => $q->where('save_id', $show->save_id)->where('brand', $brand)->where('week_number', $week))
-            ->whereHas('promoType', fn ($q) => $q->where('key', $key))
-            ->exists();
     }
 
     private function rosterWrestler(Show $show, Brand $brand, int $id): SaveWrestler

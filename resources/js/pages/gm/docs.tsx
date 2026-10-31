@@ -206,6 +206,7 @@ type Props = {
         slots: number;
         types: Promo[];
         merchandise_tiers: Array<{ amount: number; chance: number }>;
+        overuse: { window_weeks: number; max_uses: number };
         rivalry_heat?: {
             auto_create_meetings: number;
             auto_create_window_weeks: number;
@@ -991,6 +992,16 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                             Interference and Slander always make the neutral
                             news headline, success or fail, unless it’s a PPV
                             week: then the PPV’s main event takes it.
+                        </li>
+                        <li>
+                            Don’t overuse them: each one backfires automatically
+                            on its {`${promos.overuse.max_uses + 1}th`} use
+                            within {promos.overuse.window_weeks} weeks (that
+                            week and the {promos.overuse.window_weeks - 1}{' '}
+                            before it). The first {promos.overuse.max_uses} roll
+                            their normal chance. Every use counts, two on one
+                            card included, and each promo keeps its own count:
+                            Slanders don’t add to Interferences.
                         </li>
                     </ul>
                 </Panel>

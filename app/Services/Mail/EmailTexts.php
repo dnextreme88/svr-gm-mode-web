@@ -40,9 +40,9 @@ class EmailTexts
 
         // JR / Tazz: no Slander for a long stretch.
         'slander_reminder' => [
-            "It's been {weeks} since we said a word about {rival}. They're getting a free ride in the press while we keep quiet.\n\nA Slander promo costs money and only works half the time, and if you run it twice in four weeks it backfires on us. But when it lands, {rival} spends the week answering questions instead of selling tickets.\n\nYou'll find it in the promo slots on your next card.",
-            "{weeks} without a single shot at {rival}. Their GM has been running his mouth, and we've been too polite to answer.\n\nA Slander promo is a gamble: half the time nobody buys it. But when it sticks, it hurts them where it counts.\n\nJust don't overdo it. Twice in four weeks and it blows up in our faces.",
-            "We haven't taken a swipe at {rival} in {weeks}. The fans love a war of words, and right now it's one-sided.\n\nRun a Slander promo when you get the chance. It's a coin flip whether it lands, and using it twice in four weeks backfires, but a good smear campaign can knock them off their game for a while.\n\nIt's in the promo slots on your next card.",
+            "It's been {weeks} since we said a word about {rival}. They're getting a free ride in the press while we keep quiet.\n\nA Slander promo costs money and only works half the time, and if you run a fourth one within five weeks it backfires on us. But when it lands, {rival} spends the week answering questions instead of selling tickets.\n\nYou'll find it in the promo slots on your next card.",
+            "{weeks} without a single shot at {rival}. Their GM has been running his mouth, and we've been too polite to answer.\n\nA Slander promo is a gamble: half the time nobody buys it. But when it sticks, it hurts them where it counts.\n\nJust don't overdo it. A fourth one within five weeks blows up in our faces.",
+            "We haven't taken a swipe at {rival} in {weeks}. The fans love a war of words, and right now it's one-sided.\n\nRun a Slander promo when you get the chance. It's a coin flip whether it lands, and a fourth one within five weeks backfires, but a good smear campaign can knock them off their game for a while.\n\nIt's in the promo slots on your next card.",
         ],
 
         // JR / Tazz: no trade offer for a long stretch.

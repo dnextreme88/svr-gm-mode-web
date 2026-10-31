@@ -159,6 +159,11 @@ class DocsController extends Controller
             'promos' => [
                 'slots' => (int) config('gm.card.weekly_promo_slots'),
                 'merchandise_tiers' => array_values((array) config('gm.promos.merchandise_tiers')),
+                // Slander and Interference backfire when overused (house rule).
+                'overuse' => [
+                    'window_weeks' => (int) config('gm.promos.overuse.window_weeks'),
+                    'max_uses' => (int) config('gm.promos.overuse.max_uses'),
+                ],
                 // Rivalry heat (RivalryService), explained beside the rivalry promos.
                 'rivalry_heat' => (array) config('gm.rivalries'),
                 'types' => PromoType::orderBy('name')->get()->map(fn (PromoType $t): array => [
@@ -250,7 +255,7 @@ class DocsController extends Controller
             ['email' => 'Welcome', 'from' => $jrTazz, 'when' => 'At the start of every season: after the titles are awarded in season 1, and after the re-draft later on.'],
             ['email' => 'Superstar specialties', 'from' => $jrTazz, 'when' => "Every {$emails['specialty_tip_every_weeks']} weeks (season weeks 1 and 27). Explains specialties and sometimes names one of your specialists."],
             ['email' => 'Interference reminder', 'from' => $jrTazz, 'when' => "Every {$emails['interference_reminder_weeks']} weeks without an Interference promo. Running the promo restarts the clock."],
-            ['email' => 'Slander reminder', 'from' => $jrTazz, 'when' => "Every {$emails['slander_reminder_weeks']} weeks without a Slander promo, with a warning that running it twice in 4 weeks backfires. Running the promo restarts the clock."],
+            ['email' => 'Slander reminder', 'from' => $jrTazz, 'when' => "Every {$emails['slander_reminder_weeks']} weeks without a Slander promo, with a warning that a 4th Slander within 5 weeks backfires. Running the promo restarts the clock."],
             ['email' => 'Trade reminder', 'from' => $jrTazz, 'when' => "Every {$emails['trade_reminder_weeks']} weeks without a trade offer to the rival GM. Proposing a trade, accepted or not, restarts the clock."],
             ['email' => 'Free agent reminder', 'from' => $jrTazz, 'when' => "Every {$emails['free_agent_reminder_weeks']} weeks without a Free Agency signing: look for superstars with match specialties and for Legends, naming one of each who is free right now. Signing anyone from Free Agency restarts the clock."],
             ['email' => 'Low on cash', 'from' => $jrTazz, 'when' => "When the budget is {$lowCash} or less, at most once every {$emails['low_cash_every_weeks']} weeks while it stays low."],
