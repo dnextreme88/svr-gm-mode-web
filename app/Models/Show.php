@@ -26,6 +26,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $name
  * @property ShowStatus $status
  * @property CarbonImmutable|null $confirmed_at the player finished booking this card
+ * @property int|null $attendance the night's crowd once it aired (a PPV's cards share it)
+ * @property array{kind: string, factors: array<string, int>, noise: int, score: int, gate: int}|null $attendance_breakdown
  * @property-read PpvEvent|null $ppvEvent
  */
 #[Unguarded]
@@ -142,6 +144,8 @@ class Show extends Model
             'show_type' => ShowType::class,
             'status' => ShowStatus::class,
             'confirmed_at' => 'immutable_datetime',
+            'attendance' => 'integer',
+            'attendance_breakdown' => 'array',
         ];
     }
 }

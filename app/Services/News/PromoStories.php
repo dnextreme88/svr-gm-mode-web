@@ -52,6 +52,9 @@ class PromoStories
             ['{wrestler} promises big things for {brand}', 'In a sit-down interview, {wrestler} talked up what is coming on {brand} and got the crowd buzzing.'],
             ['{wrestler} thanks the {brand} faithful', '{wrestler} took the interview to thank a loud, full arena for the support. No match this week, but the fans went home happy.'],
             ['{wrestler} puts the {brand} locker room on notice', 'With no match on the card, {wrestler} used the interview to warn the rest of the roster: they are coming for whoever is next.'],
+            // Fan attendance (house rule, 2026-11-01).
+            ['{wrestler} talks to {attendance} fans', "{wrestler} wasn't booked to wrestle, but had all {attendance} fans at {show} hanging on every word of the interview."],
+            ['{attendance} strong for {wrestler}', '{wrestler} grabbed the microphone in front of {attendance} fans at {show} and promised them a night to remember. The crowd took it as a promise.'],
         ],
         'interview_space.unbooked_win_streak+' => [
             ['{wrestler} wants tougher competition', '{wrestler} has won {streak} straight and used the interview to ask {brand} for a real challenge.'],

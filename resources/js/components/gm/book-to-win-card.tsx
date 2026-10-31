@@ -127,7 +127,7 @@ export function BookToWinCard({
                         <ConfirmDialog
                             open={cashing}
                             title="Cash in Money in the Bank?"
-                            message={`${match.cash_in_holder} runs in and joins this ${match.title ?? 'title'} match. It grows by one wrestler (a singles match becomes a Triple Threat, a Triple Threat a Fatal 4-Way), and whoever wins it walks out champion.`}
+                            message={`${match.cash_in_holder} runs in and joins this ${match.title ?? 'title'} match. It grows by one superstar (a singles match becomes a Triple Threat, a Triple Threat a Fatal 4-Way), and whoever wins it walks out champion.`}
                             confirmLabel="Cash in"
                             onCancel={() => setCashing(false)}
                             onConfirm={() => {

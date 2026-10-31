@@ -3,6 +3,7 @@
 namespace App\Services\Week\Steps;
 
 use App\Enums\Brand;
+use App\Enums\PpvKey;
 use App\Exceptions\GameRuleException;
 use App\Models\Show;
 use App\Services\Ai\AiGm;
@@ -10,6 +11,7 @@ use App\Services\Card\CardService;
 use App\Services\Ppv\PpvCardService;
 use App\Services\Week\ShowScheduler;
 use App\Services\Week\WeekContext;
+use App\Services\Week\WeekResolver;
 use App\Services\Week\WeekStep;
 
 /**
@@ -39,6 +41,14 @@ class PrepareShows implements WeekStep
                 continue;
             }
 
+            // A shared card (SummerSlam): the rival's own slots, if it
+            // hasn't booked them when the week opened.
+            if ($show->isInterbrand() && $show->ppvKey() === PpvKey::Summerslam) {
+                $this->ai->bookShow($show, $aiBrand);
+
+                continue;
+            }
+
             if ($show->isWrestleMania()) {
                 $this->ppvCards->refreshSeries($show, $context->rng('wm.series.refresh'));
                 $this->ai->bookShow($show, $aiBrand);
@@ -46,7 +56,9 @@ class PrepareShows implements WeekStep
                 continue;
             }
 
-            if ($show->brand === $aiBrand) {
+            // In a PPV week the rival books its weekly show after the PPV
+            // airs (`WeekResolver::continueWeek`).
+            if ($show->brand === $aiBrand && ($show->isPpv() || ($context->data['phase'] ?? null) !== WeekResolver::PHASE_PPV)) {
                 $this->ai->bookShow($show);
             }
         }

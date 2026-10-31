@@ -83,14 +83,14 @@ class FallbackStories
         'injuries.clean' => [
             ['A clean bill of health on {brand}', 'No {brand} superstar has been hurt in the last 6 months. The roster is taking care of itself, and the GM has booked it well.'],
             ['{brand} stays injury-free', 'Not a single {brand} injury in 6 months. Smart booking and good habits are paying off.'],
-            ['The {brand} trainer has a quiet job', 'Six months without an injury on {brand}. Credit to the wrestlers and to the GM.'],
+            ['The {brand} trainer has a quiet job', 'Six months without an injury on {brand}. Credit to the superstars and to the GM.'],
             ['Healthy roster, happy {brand}', '{brand} has gone 6 months without an injury, thanks to careful booking.'],
         ],
         'injuries.hurt' => [
-            ['{count} injuries on {brand} in 6 months', '{brand} has had {count} injuries in the last 6 months, most recently {wrestler} ({injury}). Rest anyone at 80% fatigue or more, and use Inactive Superstar to give tired wrestlers a week off.'],
-            ['The {brand} trainer is busy', '{count} injuries in 6 months, the latest {wrestler} ({injury}). Fewer Hardcore, Ladder and TLC matches for tired wrestlers would help.'],
+            ['{count} injuries on {brand} in 6 months', '{brand} has had {count} injuries in the last 6 months, most recently {wrestler} ({injury}). Rest anyone at 80% fatigue or more, and use Inactive Superstar to give tired superstars a week off.'],
+            ['The {brand} trainer is busy', '{count} injuries in 6 months, the latest {wrestler} ({injury}). Fewer Hardcore, Ladder and TLC matches for tired superstars would help.'],
             ['{brand} needs to protect its roster', 'With {count} injuries in 6 months, most recently {wrestler} ({injury}), the GM should lean on lighter Normal matches and keep fatigue under 80%.'],
-            ['Injury watch on {brand}', '{wrestler} ({injury}) is the latest of {count} {brand} injuries in 6 months. Booking tired wrestlers in gimmick matches is a risk.'],
+            ['Injury watch on {brand}', '{wrestler} ({injury}) is the latest of {count} {brand} injuries in 6 months. Booking tired superstars in gimmick matches is a risk.'],
         ],
 
         // Ticker: morale and contracts.
@@ -152,7 +152,7 @@ class FallbackStories
                 'injuries.hurt' => 'Injuries, with booking advice',
             ]],
             ['locker', 'Ticker: the locker room', [
-                'locker.unhappy' => 'Unsatisfied or Upset wrestlers',
+                'locker.unhappy' => 'Unsatisfied or Upset superstars',
                 'locker.expiring' => 'Contracts about to run out',
                 'locker.calm' => 'All quiet',
             ]],

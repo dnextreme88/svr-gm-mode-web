@@ -157,14 +157,14 @@ function RivalryRulesPanel({
                     <p className="mb-1.5 text-ink-dim">Starting one:</p>
                     <ul className="list-disc space-y-1.5 pl-5 marker:text-ink-faint">
                         <li>
-                            Book the same two wrestlers against each other{' '}
+                            Book the same two superstars against each other{' '}
                             {r.meetings} times within {r.window_weeks} weeks, in
-                            matches where every side is one wrestler (Gauntlet
+                            matches where every side is one superstar (Gauntlet
                             bouts count).
                         </li>
                         <li>
                             Or run a Start a Rivalry promo with two healthy
-                            wrestlers who aren’t in a rivalry yet. It always
+                            superstars who aren’t in a rivalry yet. It always
                             works, costs nothing and tires both{' '}
                             {bars(r.start_promo_bars)}.
                         </li>
@@ -207,7 +207,7 @@ function RivalryRulesPanel({
                             with a headline.
                         </li>
                         <li>
-                            In a match with ring outs, a wrestler’s rival who
+                            In a match with ring outs, a superstar’s rival who
                             isn’t in it can run in and cost them the match.
                         </li>
                     </ul>

@@ -78,7 +78,7 @@ export function PoolFilters({
                 type="search"
                 className="gm-input min-h-11 w-40 py-1 text-sm sm:min-h-0"
                 placeholder="Search…"
-                aria-label="Search wrestlers"
+                aria-label="Search superstars"
                 value={value.search}
                 disabled={disabled}
                 onChange={(e) => set({ search: e.target.value })}

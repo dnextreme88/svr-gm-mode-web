@@ -230,7 +230,7 @@ class ContractService
         }
 
         foreach ($upkeep as $brand => $line) {
-            $this->ledger->post($save, Brand::from($brand), LedgerCategory::ContractUpkeep, -$line['total'], "Contract upkeep ({$line['count']} wrestlers)", $week);
+            $this->ledger->post($save, Brand::from($brand), LedgerCategory::ContractUpkeep, -$line['total'], "Contract upkeep ({$line['count']} superstars)", $week);
         }
 
         foreach ($contracts->where('weeks_remaining', 0) as $contract) {

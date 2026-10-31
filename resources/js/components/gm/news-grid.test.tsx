@@ -58,7 +58,10 @@ function page(week: number, overrides: Partial<NewsPage> = {}): NewsPage {
             ],
         },
         ticker: [card(week * 100 + 7, 'raw', `Ticker item ${week}`, 'ticker')],
-        fan_support: null,
+        attendance: [
+            { name: 'Monday Night Raw', ppv: false, crowd: 15050 },
+            { name: 'Friday Night Smackdown', ppv: false, crowd: 9800 },
+        ],
         ...overrides,
     };
 }
@@ -85,14 +88,25 @@ describe('NewsGrid', () => {
         ).toBeInTheDocument();
     });
 
-    it('shows ticker-tier events and the fan support trend in the ticker', () => {
+    it('leads the ticker with the week’s crowds in gold, then ticker-tier events', () => {
         render(<NewsGrid pages={[page(3)]} />);
 
-        const items = screen
-            .getAllByTestId('ticker-item')
-            .map((li) => li.textContent);
+        const items = screen.getAllByTestId('ticker-item');
 
-        expect(items).toEqual(['◆Ticker item 3', '◆Fan support trend: —']);
+        expect(items.map((li) => li.textContent)).toEqual([
+            '◆Fan attendance: Monday Night Raw 15,050 · Friday Night Smackdown 9,800',
+            '◆Ticker item 3',
+        ]);
+        expect(items[0].className).toContain('text-gold-hot');
+        expect(items[1].className).not.toContain('text-gold-hot');
+    });
+
+    it('leaves the crowds out of the ticker for a week without them', () => {
+        render(<NewsGrid pages={[page(3, { attendance: [] })]} />);
+
+        expect(
+            screen.getAllByTestId('ticker-item').map((li) => li.textContent),
+        ).toEqual(['◆Ticker item 3']);
     });
 
     it('moves between weeks, newest first, with buttons and arrow keys', async () => {

@@ -63,6 +63,7 @@ class NewsCatalog
         'contender_awarded_title' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Headline, when a vacated title is awarded to its #1 contender(s)'],
         'loser_leaves' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Headline'],
 
+        'attendance' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Headline: the biggest crowd of the week. Takes the WWE headline in a week without a PPV, Slander or Interference result'],
         'ppv_upcoming' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Story 2 weeks out, Headline 1 week out (every PPV, brand or shared)'],
         'ppv_main_event_set' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Headline'],
         'ppv_results' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Headline: the PPV\'s main event (who won, the title, the gimmick) or the Royal Rumble winner. Always the WWE headline in a PPV week'],

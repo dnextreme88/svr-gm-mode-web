@@ -88,11 +88,11 @@ class PromoService
         }
 
         if ($type->needs_wrestler && $target === null) {
-            throw new GameRuleException("{$type->name} needs a wrestler.");
+            throw new GameRuleException("{$type->name} needs a superstar.");
         }
 
         if ($type->needsPair() && ($target === null || $targetB === null || $target->id === $targetB->id)) {
-            throw new GameRuleException("{$type->name} needs two different wrestlers.");
+            throw new GameRuleException("{$type->name} needs two different superstars.");
         }
 
         foreach (array_filter([$target, $targetB]) as $wrestler) {

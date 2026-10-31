@@ -254,10 +254,10 @@ describe('PromoSlots', () => {
 
         await user.click(screen.getByTestId('promo-2-interference_promotion'));
         await user.click(
-            screen.getByRole('button', { name: 'Promo 2 wrestler' }),
+            screen.getByRole('button', { name: 'Promo 2 superstar' }),
         );
         const edge = within(
-            screen.getByRole('listbox', { name: 'Promo 2 wrestler' }),
+            screen.getByRole('listbox', { name: 'Promo 2 superstar' }),
         ).getByRole('option', { name: /Edge/ });
 
         expect(edge).toHaveAttribute('aria-disabled', 'true');
@@ -342,10 +342,10 @@ describe('PromoSlots', () => {
         ).toHaveAttribute('aria-checked', 'true');
 
         await user.click(
-            screen.getByRole('button', { name: 'Promo 1 wrestler' }),
+            screen.getByRole('button', { name: 'Promo 1 superstar' }),
         );
         const options = within(
-            screen.getByRole('listbox', { name: 'Promo 1 wrestler' }),
+            screen.getByRole('listbox', { name: 'Promo 1 superstar' }),
         ).getAllByRole('option');
         expect(options.map((o) => o.textContent)).toEqual([
             'Leave vacant',
@@ -369,7 +369,7 @@ describe('PromoSlots', () => {
 
         await user.click(screen.getByTestId('promo-1-continue_rivalry'));
         expect(
-            screen.queryByRole('button', { name: 'Promo 1 second wrestler' }),
+            screen.queryByRole('button', { name: 'Promo 1 second superstar' }),
         ).toBeNull();
 
         await user.click(

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Gm;
 use App\Enums\Brand;
 use App\Enums\PromoTypeKey;
 use App\Enums\ShowStatus;
+use App\Enums\ShowType;
 use App\Http\Controllers\Controller;
 use App\Http\Presenters\CardPresenter;
 use App\Models\Email;
@@ -52,7 +53,11 @@ class ResultsController extends Controller
     {
         $brand = Brand::tryFrom((string) $request->query('brand')) ?? $save->player_brand;
         $logs = FatigueLog::where('save_id', $save->id)->where('week_number', $week)->get()->keyBy('save_wrestler_id');
-        $airing = $week === $save->current_week && $this->resolver->airing($save) !== null;
+        $current = $week === $save->current_week;
+        // After the PPV night (house rule, 2026-11-01) the week waits for the
+        // weekly show: Continue opens it.
+        $awaitingWeekly = $current && $this->resolver->awaitingWeekly($save);
+        $airing = $current && ! $awaitingWeekly && $this->resolver->airing($save) !== null;
         $nextId = $airing ? $this->nextMatchId($save, $week) : null;
 
         $shows = Show::with('ppvEvent')
@@ -82,6 +87,9 @@ class ResultsController extends Controller
                         ])->values(),
                     'promos' => $this->promos($show),
                     'fatigue' => $this->fatigue($show, $decided, $logs),
+                    // House rule (2026-11-01): the crowd, once the night has aired.
+                    'attendance' => $show->attendance,
+                    'attendance_breakdown' => $show->attendance_breakdown,
                 ];
             })
             ->values();
@@ -95,9 +103,22 @@ class ResultsController extends Controller
             'from_schedule' => $request->has('show'),
             'airing' => $airing,
             'cash_in_offer' => $airing ? $this->cashInOffer($save) : null,
+            'continue_to' => $awaitingWeekly ? $this->weeklyCard($save, $week) : null,
             'shows' => $shows,
             'new_emails' => Email::where('save_id', $save->id)->where('brand', $save->player_brand)->where('week_number', $week)->count(),
         ]);
+    }
+
+    /**
+     * The player's weekly show, booked once the PPV night has aired.
+     *
+     * @return array{name: string, url: string}|null
+     */
+    private function weeklyCard(Save $save, int $week): ?array
+    {
+        $show = Show::where('save_id', $save->id)->where('week_number', $week)->where('brand', $save->player_brand)->where('show_type', ShowType::Weekly)->first();
+
+        return $show === null ? null : ['name' => $show->name, 'url' => route('gm.card.show', [$save, $show])];
     }
 
     /**

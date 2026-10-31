@@ -7,6 +7,8 @@ use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
 use App\Models\NewsEvent;
 use App\Models\Save;
+use App\Models\Show;
+use App\Services\Attendance\AttendanceNights;
 use App\Services\Calendar\CalendarService;
 use App\Support\Rng\Rng;
 use Illuminate\Support\Collection;
@@ -28,6 +30,7 @@ class NewsComposer
     public function __construct(
         private CalendarService $calendar,
         private NewsTemplates $templates,
+        private AttendanceNights $nights,
     ) {}
 
     /**
@@ -52,17 +55,20 @@ class NewsComposer
     public function pages(Save $save): array
     {
         $byWeek = NewsEvent::where('save_id', $save->id)->get()->groupBy('week_number');
+        $shows = Show::with('ppvEvent')->where('save_id', $save->id)->whereNotNull('attendance')->orderBy('id')->get()->toBase()->groupBy('week_number');
 
-        return array_map(fn (int $week): array => $this->compose($save, $week, $byWeek->get($week, collect())), $this->weeks($save));
+        return array_map(fn (int $week): array => $this->compose($save, $week, $byWeek->get($week, collect()), $this->nights->group($shows->get($week, collect()))), $this->weeks($save));
     }
 
     /**
      * @param  Collection<int, NewsEvent>|null  $events  the week's events (queried when null)
-     * @return array{week: int, season: int, season_week: int, headlines: array<string, array<string, mixed>|null>, stories: array<string, list<array<string, mixed>>>, ticker: list<array<string, mixed>>, fan_support: null}
+     * @param  list<array{name: string, ppv: bool, crowd: int}>|null  $nights  the week's crowds (queried when null)
+     * @return array{week: int, season: int, season_week: int, headlines: array<string, array<string, mixed>|null>, stories: array<string, list<array<string, mixed>>>, ticker: list<array<string, mixed>>, attendance: list<array{name: string, ppv: bool, crowd: int}>}
      */
-    public function compose(Save $save, int $week, ?Collection $events = null): array
+    public function compose(Save $save, int $week, ?Collection $events = null, ?array $nights = null): array
     {
         $events ??= NewsEvent::where('save_id', $save->id)->where('week_number', $week)->get();
+        $nights ??= $this->nights->forWeek($save, $week);
         $rows = $this->dedupe($events->sortBy([['priority', 'desc'], ['id', 'asc']])->values());
         $matchRanks = $this->matchRanks($events);
         $rng = $save->rng('news.page', $week);
@@ -77,6 +83,8 @@ class NewsComposer
             // event (or the Royal Rumble), biggest first.
             $headline = $slot === 'neutral' ? $pool->filter(fn (array $e): bool => $e['type'] === NewsEventType::PpvResults->value)->sortByDesc('priority')->first() : null;
             $headline ??= $slot === 'neutral' ? $pool->first(fn (array $e): bool => in_array($e['type'], self::FORCED_NEUTRAL, true)) : null;
+            // House rule (2026-11-01): then the week's biggest crowd.
+            $headline ??= $slot === 'neutral' ? $pool->first(fn (array $e): bool => $e['type'] === NewsEventType::Attendance->value) : null;
             // House rule: a title change always takes its card's headline.
             $headline ??= $pool->filter(fn (array $e): bool => in_array($e['type'], [NewsEventType::TitleChange->value, NewsEventType::FactionTitleWon->value], true) && $e['tier'] === NewsTier::Headline->value)
                 ->sortByDesc('priority')
@@ -117,8 +125,9 @@ class NewsComposer
             }
         }
 
-        // Whatever wasn't picked runs in the ticker, biggest news first.
-        $ticker = array_values($rows->reject(fn (array $e): bool => isset($picked[$e['id']]))->all());
+        // Whatever wasn't picked runs in the ticker, biggest news first. The
+        // crowds have their own line there, so attendance news doesn't repeat.
+        $ticker = array_values($rows->reject(fn (array $e): bool => isset($picked[$e['id']]) || $e['type'] === NewsEventType::Attendance->value)->all());
 
         return [
             'week' => $week,
@@ -127,8 +136,8 @@ class NewsComposer
             'headlines' => $headlines,
             'stories' => $stories,
             'ticker' => $ticker,
-            // Fan support trend comes from the deferred Popularity system.
-            'fan_support' => null,
+            // The ticker's gold Fan attendance line.
+            'attendance' => array_map(fn (array $n): array => ['name' => $n['name'], 'ppv' => $n['ppv'], 'crowd' => $n['crowd']], $nights),
         ];
     }
 

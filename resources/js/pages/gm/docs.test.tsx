@@ -197,6 +197,9 @@ const props = {
             main_event_chance: { weekly: 0.6, ppv: 0.9 },
             other_slot_chance: 0.35,
             champion_vs_contender_chance: 0.1,
+            number_one_contender_chance: 0.1,
+            winner_takes_all_chance: { weekly: 0.08, ppv: 0.2 },
+            winner_takes_all_triple_chance: 0.5,
         },
         promos: {
             interference_every_weeks: 4,
@@ -285,10 +288,42 @@ const props = {
                 recovery_bars: 2,
                 targets_rival: false,
                 requirement:
-                    'A wrestler who isn’t booked anywhere on this card.',
-                effect: 'Rests a wrestler who isn’t being used.',
+                    'A superstar who isn’t booked anywhere on this card.',
+                effect: 'Rests a superstar who isn’t being used.',
             },
         ],
+    },
+    attendance: {
+        ranges: {
+            weekly: [5000, 20000],
+            brand_ppv: [10000, 30000],
+            shared_ppv: [20000, 50000],
+        },
+        points: {
+            full_card: { match_one: 3, main_event: 3, every_slot: 4 },
+            main_event: {
+                world_title: 10,
+                other_title: 6,
+                gimmick: 5,
+                rivals: 5,
+            },
+            match_one: {
+                world_title: 7,
+                other_title: 4,
+                gimmick: 4,
+                rivals: 4,
+            },
+            hot_rivalry: 10,
+            hot_rivalry_max: 20,
+            legends: { 1: 8, 2: 15 },
+            rival_promos: 10,
+            other_promos: 6,
+            win_streak: { 5: 5, 10: 10 },
+        },
+        hot_heat: 60,
+        noise: 5,
+        ticket_prices: { weekly: 30, brand_ppv: 50, shared_ppv: 75 },
+        drives_income: false,
     },
     news: {
         stories_per_brand: 2,
@@ -725,6 +760,69 @@ describe('Docs page', () => {
             'data-tone',
             'cruiser',
         );
+    });
+
+    it('explains fan attendance: the draw score, crowds, gate and SummerSlam', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Fan attendance' }));
+
+        const ranges = screen.getByTestId('attendance-ranges');
+        expect(ranges).toHaveTextContent('Weekly show5,000–20,000$30');
+        expect(ranges).toHaveTextContent('Brand-only PPV10,000–30,000$50');
+        expect(ranges).toHaveTextContent('20,000–50,000$75');
+        expect(
+            screen.getByText(/For now it’s shown, not paid/),
+        ).toBeInTheDocument();
+
+        const factors = screen.getByTestId('attendance-factors');
+        expect(factors).toHaveTextContent(
+            'Match 1 booked 3, the Main Event booked 3, every match slot booked 4.',
+        );
+        expect(factors).toHaveTextContent(
+            'a world title on the line 10 or another title 6',
+        );
+        expect(factors).toHaveTextContent(
+            '10 for each rivalry at 60+ heat whose rivals meet on the card (up to 20)',
+        );
+        expect(factors).toHaveTextContent('1+ Legends: 8, 2+ Legends: 15');
+        expect(factors).toHaveTextContent('5+ wins: 5, 10+ wins: 10');
+
+        expect(
+            screen.getByRole('heading', { name: 'SummerSlam main event' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(/it books Match 1, Match 3 and the main event/),
+        ).toBeInTheDocument();
+    });
+
+    it('explains that a PPV airs before the weekly show is booked', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(
+            screen.getByRole('tab', { name: 'Booking and Scheduling' }),
+        );
+
+        expect(screen.getByTestId('ppv-night-first')).toHaveTextContent(
+            'A PPV week airs in two steps.',
+        );
+        expect(
+            screen.getByText(/After a PPV night’s last match, Continue opens/),
+        ).toBeInTheDocument();
+    });
+
+    it('explains the rival’s #1 Contender’s Match and Winner Takes All', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Rival GM' }));
+
+        const rule = screen.getByTestId('rival-new-stipulations');
+        expect(rule).toHaveTextContent('#1 Contender’s Match for it (10%)');
+        expect(rule).toHaveTextContent('8% on a weekly show, 20% on a PPV');
+        expect(rule).toHaveTextContent('three (50% of the time)');
     });
 
     it('explains how the rival GM books, promotes, signs and trades', async () => {

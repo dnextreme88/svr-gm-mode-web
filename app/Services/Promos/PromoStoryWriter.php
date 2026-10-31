@@ -90,6 +90,8 @@ class PromoStoryWriter
             'brand' => $brand->label(),
             'rival_brand' => $rival->label(),
             'show' => $show->name,
+            // Fan attendance is tallied before the stories are written.
+            'attendance' => $show->attendance === null ? null : number_format($show->attendance),
             'promo' => $type->name,
             'wrestler' => $slot->target?->name(),
             'wrestler_b' => $slot->targetB?->name(),
@@ -205,7 +207,12 @@ class PromoStoryWriter
         foreach ($situations as $situation) {
             $key = "{$type->key->value}.{$situation}";
 
-            foreach (array_keys(PromoStories::variants($key)) as $index) {
+            foreach (PromoStories::variants($key) as $index => $variant) {
+                // A story quoting the crowd needs one.
+                if ($payload['attendance'] === null && str_contains($variant[0].$variant[1], '{attendance}')) {
+                    continue;
+                }
+
                 $pool[] = [$key, $index];
             }
         }

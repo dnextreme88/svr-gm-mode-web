@@ -73,9 +73,9 @@ class EmailTexts
 
         // JR / Tazz: contracts that ran out.
         'contract_expired' => [
-            "These contracts ran out this week. Each wrestler has been released to Free Agency.\n\nIf you want any of them back, they're on the Free Agency page, but the other brand can sign them too.",
-            "We lost some people this week: these contracts ran out, and each wrestler has been released to Free Agency.\n\nYou can still try to sign them back from Free Agency, but you won't be the only one asking.",
-            "The following contracts expired this week, and each wrestler has been released to Free Agency.\n\nAny titles they held are vacant now. If you want someone back, check the Free Agency page before the other brand does.",
+            "These contracts ran out this week. Each superstar has been released to Free Agency.\n\nIf you want any of them back, they're on the Free Agency page, but the other brand can sign them too.",
+            "We lost some people this week: these contracts ran out, and each superstar has been released to Free Agency.\n\nYou can still try to sign them back from Free Agency, but you won't be the only one asking.",
+            "The following contracts expired this week, and each superstar has been released to Free Agency.\n\nAny titles they held are vacant now. If you want someone back, check the Free Agency page before the other brand does.",
         ],
 
         // JR / Tazz: a defection attempt.
@@ -148,7 +148,7 @@ class EmailTexts
         // Superstars: morale complaints. Each is followed by a level line.
         'morale.losing_streak' => [
             "I've lost {n} matches in a row and I'm sick of it. Every week I go out there, give it everything, and walk back through the curtain with nothing to show for it.\n\nPut me in a position to win.",
-            "{n} losses. Straight. Do you know what that does to a wrestler? The fans are starting to look at me like a joke, and the boys in the back aren't much better.\n\nGive me a match I can win. I'm begging you.",
+            "{n} losses. Straight. Do you know what that does to a superstar? The fans are starting to look at me like a joke, and the boys in the back aren't much better.\n\nGive me a match I can win. I'm begging you.",
             "I lost again. That's {n} in a row. I'm not asking for a handout, but I need a win, and I need it soon.\n\nPut me in a position to win before this streak defines me.",
         ],
         'morale.contract_extension' => [

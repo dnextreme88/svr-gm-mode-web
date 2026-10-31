@@ -5,12 +5,14 @@ namespace App\Services\Week;
 use App\Enums\MatchFamily;
 use App\Enums\SaveStage;
 use App\Enums\ShowStatus;
+use App\Enums\ShowType;
 use App\Exceptions\GameRuleException;
 use App\Models\MatchSlot;
 use App\Models\Save;
 use App\Models\Show;
 use App\Models\WeekAiring;
 use App\Models\WeekResolution;
+use App\Services\Ai\AiGm;
 use App\Services\Calendar\CalendarService;
 use App\Services\Matches\ShowResolver;
 use App\Services\Titles\MitbService;
@@ -38,6 +40,8 @@ class WeekResolver
     public const STEPS = [
         Steps\PrepareShows::class,
         AirShows::class,
+        // House rule (2026-11-01): the week's biggest crowd makes the news.
+        Steps\AttendanceNews::class,
         // Right after the shows: teams that just won their 3rd match together.
         Steps\FactionFormation::class,
         Steps\RecoverFatigue::class,
@@ -73,6 +77,19 @@ class WeekResolver
     ];
 
     /**
+     * House rule (2026-11-01): a PPV week airs in two steps. The PPV night
+     * airs first (`ppv`) and the week waits (`ppv_done`) while the player
+     * books the weekly show with the PPV's results in hand; then the weekly
+     * shows air (`weekly`) and the week finishes. A week without a PPV goes
+     * straight to `weekly`.
+     */
+    public const PHASE_PPV = 'ppv';
+
+    public const PHASE_PPV_DONE = 'ppv_done';
+
+    public const PHASE_WEEKLY = 'weekly';
+
+    /**
      * @param  list<WeekStep>|null  $steps  override the step list (tests)
      */
     public function __construct(
@@ -102,7 +119,7 @@ class WeekResolver
         }
 
         if ($this->airing($save, $week) !== null) {
-            $this->simulateAll($save);
+            $this->simulateAll($save, wholeWeek: true);
 
             return WeekResolution::where('save_id', $save->id)->where('week_number', $week)->firstOrFail();
         }
@@ -151,19 +168,28 @@ class WeekResolver
     }
 
     /**
+     * The PPV night has aired and the week waits for the weekly show.
+     */
+    public function awaitingWeekly(Save $save): bool
+    {
+        return ($this->airing($save)?->context['phase'] ?? null) === self::PHASE_PPV_DONE;
+    }
+
+    /**
      * Roster moves wait until the week's results are in.
      */
     public function assertNotAiring(Save $save): void
     {
         if ($this->airing($save) !== null) {
-            throw new GameRuleException("Finish this week's results first.");
+            throw new GameRuleException("Finish this week's shows first.");
         }
     }
 
     /**
      * Start airing the current week live: book the AI's cards, air the
      * rival's shows that come before the player's first match, and wait
-     * there. Does nothing if the week already started or resolved.
+     * there. In a PPV week only the PPV night airs (see `PHASE_PPV`). Does
+     * nothing if the week already started or resolved.
      */
     public function begin(Save $save): void
     {
@@ -173,11 +199,16 @@ class WeekResolver
             return;
         }
 
+        $ppvNight = Show::where('save_id', $save->id)->where('week_number', $week)->where('show_type', ShowType::Ppv)->exists();
+
         foreach (self::GUARDS as $guard) {
-            app($guard)->check($save, $week);
+            // Earned title shots can go on the weekly show, booked after the PPV.
+            if (! ($ppvNight && $guard === Guards\TitleShotGuard::class)) {
+                app($guard)->check($save, $week);
+            }
         }
 
-        DB::transaction(function () use ($save, $week): void {
+        DB::transaction(function () use ($save, $week, $ppvNight): void {
             $locked = $this->lock($save, $week);
 
             if ($this->started($locked, $week)) {
@@ -186,6 +217,7 @@ class WeekResolver
 
             $airing = WeekAiring::create(['save_id' => $locked->id, 'week_number' => $week, 'context' => [], 'rng_states' => []]);
             $context = new WeekContext($locked, $week, $this->calendar->seasonOf($week));
+            $context->data['phase'] = $ppvNight ? self::PHASE_PPV : self::PHASE_WEEKLY;
 
             foreach ($this->opening() as $step) {
                 app($step)->handle($context);
@@ -195,12 +227,62 @@ class WeekResolver
             Show::where('save_id', $locked->id)
                 ->where('week_number', $week)
                 ->where('status', '!=', ShowStatus::Aired)
+                ->when($ppvNight, fn ($q) => $q->where('show_type', ShowType::Ppv))
                 ->update(['status' => ShowStatus::Airing]);
 
             $this->proceed($airing, $context);
         });
 
         $save->refresh();
+    }
+
+    /**
+     * After the PPV night: air the weekly shows the player has now booked,
+     * then finish the week.
+     */
+    public function continueWeek(Save $save): void
+    {
+        DB::transaction(function () use ($save): void {
+            [$airing, $context] = $this->resume($save);
+
+            if (($context->data['phase'] ?? null) !== self::PHASE_PPV_DONE) {
+                throw new GameRuleException('The PPV is still airing.');
+            }
+
+            $this->startWeekly($airing, $context, guards: true);
+        });
+
+        $save->refresh();
+    }
+
+    /**
+     * The rival books its weekly show now, with the PPV's results in hand,
+     * and the weekly shows start airing.
+     */
+    private function startWeekly(WeekAiring $airing, WeekContext $context, bool $guards): void
+    {
+        if ($guards) {
+            foreach (self::GUARDS as $guard) {
+                app($guard)->check($context->save, $context->week);
+            }
+        }
+
+        $weekly = Show::where('save_id', $context->save->id)
+            ->where('week_number', $context->week)
+            ->where('show_type', ShowType::Weekly)
+            ->where('status', '!=', ShowStatus::Aired)
+            ->get();
+
+        foreach ($weekly as $show) {
+            if ($show->brand === $context->save->rivalBrand()) {
+                app(AiGm::class)->bookShow($show);
+            }
+
+            $show->update(['status' => ShowStatus::Airing]);
+        }
+
+        $context->data['phase'] = self::PHASE_WEEKLY;
+        $this->proceed($airing, $context);
     }
 
     /**
@@ -332,7 +414,7 @@ class WeekResolver
             }
 
             if (! in_array($pick, [$holder, $order[$round + 1]], true)) {
-                throw new GameRuleException('Bout '.($round + 1).': pick one of the two wrestlers in it.');
+                throw new GameRuleException('Bout '.($round + 1).': pick one of the two superstars in it.');
             }
 
             $holder = $pick;
@@ -340,19 +422,27 @@ class WeekResolver
     }
 
     /**
-     * Simulate every match left this week, then finish the week.
+     * Simulate every match left on what's airing: the PPV night, or the
+     * weekly shows and the rest of the week. `$wholeWeek` carries on past
+     * the PPV night as booked (Simulate to here).
      */
-    public function simulateAll(Save $save): void
+    public function simulateAll(Save $save, bool $wholeWeek = false): void
     {
-        DB::transaction(function () use ($save): void {
+        DB::transaction(function () use ($save, $wholeWeek): void {
             [$airing, $context] = $this->resume($save);
             // Simulating the rest passes on a cash-in still on offer.
             unset($context->data['cash_in_offer']);
 
-            while (! $airing->isComplete() && ($show = $this->airShows()->current($context)) !== null) {
-                $this->shows()->airNext($show, $context);
-                $this->proceed($airing, $context);
-            }
+            do {
+                if ($wholeWeek && ($context->data['phase'] ?? null) === self::PHASE_PPV_DONE) {
+                    $this->startWeekly($airing, $context, guards: false);
+                }
+
+                while (! $airing->isComplete() && ($show = $this->airShows()->current($context)) !== null) {
+                    $this->shows()->airNext($show, $context);
+                    $this->proceed($airing, $context);
+                }
+            } while ($wholeWeek && ! $airing->isComplete() && ($context->data['phase'] ?? null) === self::PHASE_PPV_DONE);
         });
 
         $save->refresh();
@@ -390,6 +480,14 @@ class WeekResolver
             }
 
             $this->shows()->close($show, $context);
+        }
+
+        // The PPV night is over: wait for the player to book the weekly show.
+        if (($context->data['phase'] ?? null) === self::PHASE_PPV) {
+            $context->data['phase'] = self::PHASE_PPV_DONE;
+            $airing->update(['context' => $context->data, 'rng_states' => $context->streamStates()]);
+
+            return;
         }
 
         foreach ($this->closing() as $step) {

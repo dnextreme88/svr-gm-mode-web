@@ -16,6 +16,7 @@ use App\Services\Calendar\CalendarService;
 use App\Services\Roster\RosterService;
 use App\Services\Titles\ContendershipService;
 use App\Services\Week\BookingOrder;
+use App\Services\Week\WeekResolver;
 
 /**
  * The broadcast header shown on every GM screen.
@@ -39,7 +40,10 @@ class GamePresenter
         $rival = $save->brand($save->rivalBrand());
         $next = $this->calendar->nextPpv($week, $save->player_brand);
         $limit = (int) config('gm.finances.deficit_weeks_limit');
-        $airing = WeekAiring::where('save_id', $save->id)->where('week_number', $week)->whereNull('completed_at')->exists();
+        // Between a PPV night and the weekly show (house rule, 2026-11-01)
+        // nothing is airing: the weekly show is being booked.
+        $airingRow = WeekAiring::where('save_id', $save->id)->where('week_number', $week)->whereNull('completed_at')->first();
+        $airing = $airingRow !== null && ($airingRow->context['phase'] ?? null) !== WeekResolver::PHASE_PPV_DONE;
 
         return [
             'id' => $save->id,
@@ -127,7 +131,7 @@ class GamePresenter
             return route('gm.results', ['save' => $save, 'week' => $save->current_week]);
         }
 
-        $steps = $this->order->steps($save, $save->current_week);
+        $steps = $this->order->nightUp($save, $save->current_week);
         $show = $steps->first(fn (Show $s): bool => $s->confirmed_at === null) ?? $steps->last();
 
         return $show === null ? null : route('gm.card.show', [$save, $show]);

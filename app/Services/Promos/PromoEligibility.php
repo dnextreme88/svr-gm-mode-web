@@ -61,9 +61,9 @@ class PromoEligibility
         $healthy = $c['active'];
 
         [$ids, $pairs, $titles, $reason] = match ($type->key) {
-            PromoTypeKey::NewSuperstar => [$c['joined'], [], [], 'Only works on a freshly signed or traded-in wrestler, and nobody joined recently.'],
+            PromoTypeKey::NewSuperstar => [$c['joined'], [], [], 'Only works on a freshly signed or traded-in superstar, and nobody joined recently.'],
             PromoTypeKey::ContinueRivalry => [$this->idsIn($c['rivals']), $c['rivals'], [], 'You have no active rivalries.'],
-            PromoTypeKey::StartRivalry => [array_values(array_diff($healthy, $c['inRivalry'])), [], [], 'Needs two healthy wrestlers who aren’t already in a rivalry.'],
+            PromoTypeKey::StartRivalry => [array_values(array_diff($healthy, $c['inRivalry'])), [], [], 'Needs two healthy superstars who aren’t already in a rivalry.'],
             PromoTypeKey::InactiveSuperstar => [array_values(array_diff($c['all'], $c['booked'])), [], [], 'Everyone on your roster is booked on this card.'],
             PromoTypeKey::ComebackReminder => [$c['longOut'], [], [], 'Nobody has been out injured for more than '.(int) config('gm.promos.comeback_reminder_min_weeks_out').' weeks.'],
             PromoTypeKey::InterviewSpace => [$healthy, [], [], 'Nobody on your roster is healthy enough.'],

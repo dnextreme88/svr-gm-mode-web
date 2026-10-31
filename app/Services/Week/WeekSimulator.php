@@ -3,6 +3,7 @@
 namespace App\Services\Week;
 
 use App\Enums\SaveStage;
+use App\Enums\ShowStatus;
 use App\Exceptions\GameRuleException;
 use App\Models\PromoType;
 use App\Models\Save;
@@ -101,8 +102,9 @@ class WeekSimulator
         $week = $save->current_week;
 
         try {
-            // A week already airing live just finishes, as booked.
-            if ($this->resolver->airing($save, $week) === null) {
+            // A week already airing live just finishes, as booked. One waiting
+            // for its weekly show after the PPV gets that booked first.
+            if ($this->resolver->airing($save, $week) === null || $this->resolver->awaitingWeekly($save)) {
                 $this->bookWeek($save, $week);
             }
 
@@ -137,6 +139,10 @@ class WeekSimulator
             ->update(['deficit_choice' => TrackDeficit::CHOICE_CHEAP_MATCHES]);
 
         foreach ($this->order->steps($save, $week) as $show) {
+            if ($show->status === ShowStatus::Aired) {
+                continue;
+            }
+
             $this->cards->ensureSlots($show);
 
             if ($show->isInterbrandMainEvent()) {

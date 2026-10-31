@@ -18,22 +18,22 @@ class PromoTypeSeeder extends Seeder
     private const PROMOS = [
         'new_superstar' => [
             'effect' => 'Builds popularity without a match.',
-            'requirement' => 'A wrestler who signed or was traded in within the last 2 weeks.',
+            'requirement' => 'A superstar who signed or was traded in within the last 2 weeks.',
             'wrestler' => true,
         ],
         'continue_rivalry' => [
             'effect' => "Keeps an existing rivalry's heat alive without a match that week.",
-            'requirement' => 'Two wrestlers already in a rivalry with each other.',
+            'requirement' => 'Two superstars already in a rivalry with each other.',
             'pair' => true,
         ],
         'start_rivalry' => [
-            'effect' => 'Pairs two wrestlers into a rivalry without booking them together.',
-            'requirement' => 'Two wrestlers who aren’t in a rivalry and aren’t seriously injured. Both take the fatigue.',
+            'effect' => 'Pairs two superstars into a rivalry without booking them together.',
+            'requirement' => 'Two superstars who aren’t in a rivalry and aren’t seriously injured. Both take the fatigue.',
             'pair' => true,
         ],
         'inactive_superstar' => [
-            'effect' => 'Rests a wrestler who isn’t being used: they recover 2 extra fatigue bars at the end of the week, and their popularity decays more slowly.',
-            'requirement' => 'A wrestler who isn’t booked anywhere on this card.',
+            'effect' => 'Rests a superstar who isn’t being used: they recover 2 extra fatigue bars at the end of the week, and their popularity decays more slowly.',
+            'requirement' => 'A superstar who isn’t booked anywhere on this card.',
             'wrestler' => true,
         ],
         'advertising' => [
@@ -71,12 +71,12 @@ class PromoTypeSeeder extends Seeder
         ],
         'comeback_reminder' => [
             'effect' => 'Reminds the fans an injured star is coming back, keeping their popularity up.',
-            'requirement' => 'A seriously injured wrestler who has been out for more than 3 weeks.',
+            'requirement' => 'A seriously injured superstar who has been out for more than 3 weeks.',
             'wrestler' => true,
         ],
         'interview_space' => [
-            'effect' => 'Gives a wrestler a sit-down interview to build popularity.',
-            'requirement' => 'Any wrestler who isn’t seriously injured.',
+            'effect' => 'Gives a superstar a sit-down interview to build popularity.',
+            'requirement' => 'Any superstar who isn’t seriously injured.',
             'wrestler' => true,
         ],
         'diva_bikini_contest' => [

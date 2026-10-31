@@ -359,7 +359,7 @@ export default function Draft() {
                         <table className="gm-table">
                             <thead className="sticky top-0 z-10 bg-arena-2">
                                 <tr>
-                                    <th>Wrestler</th>
+                                    <th>Superstar</th>
                                     <th>Type</th>
                                     <th>Class</th>
                                     <th>Specialties</th>

@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Collection;
 /**
  * Creates each week's cards (§1, §13, §23): one weekly show per brand, each
  * brand's own PPV card, the interbrand Royal Rumble / Survivor Series main
- * event, and the single interbrand WrestleMania card.
+ * event, and the single interbrand SummerSlam and WrestleMania cards.
  */
 class ShowScheduler
 {
@@ -64,6 +64,17 @@ class ShowScheduler
                 $this->ppvCards->setUp($show);
                 $this->ppvCards->drawSeries($show, $save->rng('wm.series', $week));
                 $this->ppvCards->setMainEvent($show);
+            }
+
+            return;
+        }
+
+        // House rule (2026-11-01): SummerSlam is one card both brands book.
+        if ($ppv->key === PpvKey::Summerslam) {
+            $show = $this->ensureShow($save, $week, null, ShowType::Ppv, $ppv->id, $ppv->name);
+
+            if ($show->wasRecentlyCreated) {
+                $this->ppvCards->setUp($show);
             }
 
             return;

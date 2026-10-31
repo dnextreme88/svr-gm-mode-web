@@ -3,11 +3,14 @@
 namespace App\Services\Week\Steps;
 
 use App\Enums\ShowStatus;
+use App\Enums\ShowType;
+use App\Models\Rivalry;
 use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Matches\ShowResolver;
 use App\Services\Week\WeekContext;
+use App\Services\Week\WeekResolver;
 use App\Services\Week\WeekStep;
 use Illuminate\Support\Collection;
 
@@ -32,7 +35,8 @@ class AirShows implements WeekStep
     }
 
     /**
-     * Fatigue going into the week, for the results screen's fatigue log.
+     * Fatigue going into the week, for the results screen's fatigue log, and
+     * the win streaks and rivalry heat fan attendance is drawn from.
      */
     public function start(WeekContext $context): void
     {
@@ -40,17 +44,31 @@ class AirShows implements WeekStep
             ->pluck('fatigue', 'id')
             ->map(fn ($fatigue): int => (int) $fatigue)
             ->all();
+        $context->data['streaks_start'] = SaveWrestler::where('save_id', $context->save->id)
+            ->where('win_streak', '>', 0)
+            ->pluck('win_streak', 'id')
+            ->map(fn ($streak): int => (int) $streak)
+            ->all();
+        $context->data['rivalries_start'] = Rivalry::where('save_id', $context->save->id)
+            ->where('active', true)
+            ->get()
+            ->map(fn (Rivalry $r): array => ['a' => $r->wrestler_a_id, 'b' => $r->wrestler_b_id, 'heat' => $r->heat])
+            ->all();
     }
 
     /**
-     * The week's shows in air order.
+     * The week's shows in air order. While the PPV night airs (house rule,
+     * 2026-11-01), only its cards: the weekly shows are still being booked.
      *
      * @return Collection<int, Show>
      */
     public function ordered(WeekContext $context): Collection
     {
+        $ppvNight = in_array($context->data['phase'] ?? null, [WeekResolver::PHASE_PPV, WeekResolver::PHASE_PPV_DONE], true);
+
         return Show::where('save_id', $context->save->id)
             ->where('week_number', $context->week)
+            ->when($ppvNight, fn ($q) => $q->where('show_type', ShowType::Ppv))
             ->get()
             // Weeks start on Sunday: the PPV cards air first, the interbrand
             // main event closes the PPV night, then the weekly shows.

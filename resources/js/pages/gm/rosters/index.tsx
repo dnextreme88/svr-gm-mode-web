@@ -126,7 +126,7 @@ export default function Rosters() {
                             <thead>
                                 <tr>
                                     <th aria-sort={ariaSort(sort, 'name')}>
-                                        {sortHeader('name', 'Wrestler')}
+                                        {sortHeader('name', 'Superstar')}
                                     </th>
                                     <th aria-sort={ariaSort(sort, 'fatigue')}>
                                         {sortHeader('fatigue', 'Fatigue')}

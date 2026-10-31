@@ -119,7 +119,7 @@ describe('trades', function () {
         $out = SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Raw)->limit(6)->pluck('id')->all();
 
         app(TradeService::class)->propose($save, Brand::Raw, $out, []);
-    })->throws(GameRuleException::class, '5 wrestlers per side');
+    })->throws(GameRuleException::class, '5 superstars per side');
 
     it('refuses champions, including tag champions, and seriously injured wrestlers', function (string $setup) {
         $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Lance Cade', 'Trevor Murdoch'], smackdown: ['Batista']);

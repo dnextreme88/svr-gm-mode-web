@@ -110,6 +110,48 @@ return [
     ],
 
     /*
+    | Fan attendance (house rule, 2026-11-01). Once a show (or a PPV night,
+    | all its cards together) airs, it gets a 0–100 draw score, turned into a
+    | crowd within its range: min + (max - min) × score / 100. Every number
+    | here is an ASSUMPTION to tune.
+    */
+    'attendance' => [
+        'ranges' => [
+            'weekly' => [5_000, 20_000],
+            'brand_ppv' => [10_000, 30_000],
+            // Royal Rumble, WrestleMania, SummerSlam, Survivor Series.
+            'shared_ppv' => [20_000, 50_000],
+        ],
+        // Points per factor, in priority order (max 100 together).
+        'points' => [
+            // Match 1 booked, the Main Event booked, every match slot booked.
+            'full_card' => ['match_one' => 3, 'main_event' => 3, 'every_slot' => 4],
+            // What's in the Main Event and Match 1: a world title / any other
+            // title on the line, a gimmick match, two rivals facing each other.
+            'main_event' => ['world_title' => 10, 'other_title' => 6, 'gimmick' => 5, 'rivals' => 5],
+            'match_one' => ['world_title' => 7, 'other_title' => 4, 'gimmick' => 4, 'rivals' => 4],
+            // Each rivalry at hot_heat or more whose rivals meet on the card.
+            'hot_rivalry' => 10,
+            'hot_rivalry_max' => 20,
+            // Legends booked (competing, managing or refereeing): one, two or more.
+            'legends' => [1 => 8, 2 => 15],
+            // The share of Interference and Slander promos that succeeded,
+            // or with neither on the card, of the other promos (none: 0).
+            'rival_promos' => 10,
+            'other_promos' => 6,
+            // The best win streak going into the week among those booked.
+            'win_streak' => [5 => 5, 10 => 10],
+        ],
+        'hot_heat' => 60,
+        // The score moves by up to this many points either way (seeded).
+        'noise' => 5,
+        // Gate = attendance × ticket price. Shown next to attendance; it only
+        // replaces the flat weekly show income when drives_income is true.
+        'ticket_prices' => ['weekly' => 30, 'brand_ppv' => 50, 'shared_ppv' => 75],
+        'drives_income' => false,
+    ],
+
+    /*
     | §6 Fatigue & injury. Fatigue is stored 0–100 in steps of 10.
     */
     'fatigue' => [
@@ -267,7 +309,7 @@ return [
     'draft' => [
         'legends_draftable' => false,
         'ai_roll_max' => 100,
-        'ai_focus_from' => 60,
+        'ai_focus_from' => 61, // 61-100: 40% of rolls
     ],
 
     /*
@@ -443,6 +485,9 @@ return [
         // that week. The interbrand card's (Survivor Series, WrestleMania)
         // outranks a brand PPV's; the Royal Rumble result sits at 90.
         'ppv_main_event_priority' => ['interbrand' => 95, 'brand' => 85],
+        // House rule (2026-11-01): the week's biggest crowd. It takes the WWE
+        // headline after a PPV main event and a Slander/Interference result.
+        'attendance_priority' => 70,
         // House rule (2026-10-31): stipulation news. Winner Takes All and
         // #1 Contender's Match outrank the match's plain result.
         'stipulation_priority' => [
@@ -564,6 +609,14 @@ return [
             'other_slot_chance' => 0.35,
             // ASSUMPTION
             'champion_vs_contender_chance' => 0.1,
+            // ASSUMPTION (house rule, 2026-11-01): a non-title match that fits a
+            // title may become a #1 Contender's Match for it.
+            'number_one_contender_chance' => 0.1,
+            // ASSUMPTION: once per card, a Winner Takes All between the brand's
+            // singles champions (a triple threat at `winner_takes_all_triple_chance`
+            // when there are three).
+            'winner_takes_all_chance' => ['weekly' => 0.08, 'ppv' => 0.2],
+            'winner_takes_all_triple_chance' => 0.5,
         ],
         'promos' => [
             'interference_every_weeks' => 4,

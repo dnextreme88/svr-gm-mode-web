@@ -249,8 +249,9 @@ export function CardBuilder({
     return (
         <div className="space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-3 text-sm text-ink-dim">
+                {/* Only saved matches count; an unsaved draft doesn't. */}
                 <CardProgress
-                    booked={drafts.filter(complete).length}
+                    booked={slots.map(toDraft).filter(complete).length}
                     total={drafts.length}
                 />
                 <span>
@@ -445,7 +446,7 @@ function SlotEditor({
                     <CompetitorSlot
                         key={index}
                         testId={`slot-${draft.position}-side-${sideIndex}-${index}`}
-                        label={`${label} side ${sideIndex + 1} wrestler ${index + 1}`}
+                        label={`${label} side ${sideIndex + 1} superstar ${index + 1}`}
                         id={id}
                         heading={competitorHeading(
                             type,
@@ -660,7 +661,7 @@ function SlotEditor({
                     ready={complete}
                     filled={draft.matchTypeId !== null}
                     saveStatus={saveStatus}
-                    clearMessage="This removes the match type, every wrestler, the title and the stipulation from this slot."
+                    clearMessage="This removes the match type, every superstar, the title and the stipulation from this slot."
                     onSave={onSave}
                     onDiscard={onDiscard}
                     onClear={onClear}

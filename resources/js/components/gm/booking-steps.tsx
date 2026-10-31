@@ -14,14 +14,27 @@ export type BookingOrder = {
         show_type: 'weekly' | 'ppv';
         confirmed: boolean;
         current: boolean;
+        aired: boolean;
     }>;
     blocked_by: { id: number; name: string } | null;
+    /** The weekly show waits for the PPV night to air, not to be confirmed. */
+    waits_for_airing: boolean;
     next: { id: number; name: string } | null;
     confirmed: boolean;
     editable: boolean;
+    /** The last card of its night: its Air button airs that night. */
     is_last: boolean;
     airs_this_week: boolean;
+    /** House rule (2026-11-01): the PPV night airs before the weekly show is booked. */
+    night: 'ppv' | 'weekly';
 };
+
+/** The cards that air on a night, in booking order. */
+export function nightSteps(order: BookingOrder): BookingOrder['steps'] {
+    return order.steps.filter(
+        (s) => (s.show_type === 'ppv') === (order.night === 'ppv'),
+    );
+}
 
 /**
  * The week's cards in booking order (Sunday PPV first, weekly show last),
@@ -69,13 +82,19 @@ export function BookingSteps({
                                     {i + 1}
                                 </span>
                                 {step.name}
-                                {step.confirmed && (
-                                    <span
-                                        className="text-zone-safe"
-                                        aria-label="confirmed"
-                                    >
-                                        ✓
+                                {step.aired ? (
+                                    <span className="text-xs text-ink-faint">
+                                        aired
                                     </span>
+                                ) : (
+                                    step.confirmed && (
+                                        <span
+                                            className="text-zone-safe"
+                                            aria-label="confirmed"
+                                        >
+                                            ✓
+                                        </span>
+                                    )
                                 )}
                             </Link>
                         </li>
@@ -88,8 +107,19 @@ export function BookingSteps({
                     role="alert"
                     className="border-l-4 border-brand bg-brand/10 px-4 py-3 text-sm"
                 >
-                    Weeks start on Sunday, so{' '}
-                    <strong>{order.blocked_by.name}</strong> is booked first.{' '}
+                    {order.waits_for_airing ? (
+                        <>
+                            Weeks start on Sunday, so{' '}
+                            <strong>{order.blocked_by.name}</strong> airs first.
+                            This show is booked once its results are in.{' '}
+                        </>
+                    ) : (
+                        <>
+                            Weeks start on Sunday, so{' '}
+                            <strong>{order.blocked_by.name}</strong> is booked
+                            first.{' '}
+                        </>
+                    )}
                     <Link
                         href={gm.card.show.url({
                             save: game.id,
@@ -97,15 +127,17 @@ export function BookingSteps({
                         })}
                         className="font-semibold underline underline-offset-4"
                     >
-                        Book {order.blocked_by.name}
+                        {order.waits_for_airing ? 'Go to' : 'Book'}{' '}
+                        {order.blocked_by.name}
                     </Link>
                 </div>
             )}
 
             {order.confirmed && (
                 <div className="border-l-4 border-zone-safe bg-zone-safe/10 px-4 py-3 text-sm">
-                    This card is confirmed and airs with the rest of the week.
-                    Unlock it to make changes.
+                    This card is confirmed and airs with the rest of the{' '}
+                    {order.night === 'ppv' ? 'PPV night' : 'week'}. Unlock it to
+                    make changes.
                 </div>
             )}
         </div>
@@ -150,10 +182,13 @@ export function BookingAction({
     }
 
     if (order.is_last) {
+        const shows = nightSteps(order).map((s) => s.name);
+
         return (
             <AirWeekButton
                 game={game}
-                shows={order.steps.map((s) => s.name)}
+                shows={shows}
+                ppv={order.night === 'ppv' ? shows[0] : undefined}
                 disabled={order.blocked_by !== null}
             />
         );
@@ -176,9 +211,12 @@ export function BookingAction({
                 title={`Finish ${showName}?`}
                 message={
                     <>
-                        {showName} is locked in and airs with the rest of week{' '}
-                        {game.season_week}. Next up: {next}. You can unlock it
-                        again until the week airs.
+                        {showName} is locked in and airs with the rest of{' '}
+                        {order.night === 'ppv'
+                            ? 'the PPV night'
+                            : `week ${game.season_week}`}
+                        . Next up: {next}. You can unlock it again until it
+                        airs.
                     </>
                 }
                 confirmLabel={`Continue to ${next}`}

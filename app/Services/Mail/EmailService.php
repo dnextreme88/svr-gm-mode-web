@@ -13,6 +13,7 @@ use App\Models\PendingRosterMove;
 use App\Models\PpvEvent;
 use App\Models\Save;
 use App\Models\SaveWrestler;
+use App\Services\Attendance\SummerSlamMainEvent;
 use App\Services\Calendar\CalendarService;
 use App\Services\Titles\TitleService;
 
@@ -26,6 +27,7 @@ class EmailService
     public function __construct(
         private CalendarService $calendar,
         private TitleService $titles,
+        private SummerSlamMainEvent $summerSlam,
     ) {}
 
     /**
@@ -381,12 +383,29 @@ class EmailService
     }
 
     /**
+     * Who's ahead for the SummerSlam main event so far (house rule, 2026-11-01).
+     */
+    private function summerSlamRace(Save $save, Brand $brand, int $week): string
+    {
+        $totals = $this->summerSlam->totals($save, $this->calendar->seasonOf($week), $week + 1);
+        $rival = $this->rival($brand);
+        $mine = $totals[$brand->value]['crowd'];
+        $theirs = $totals[$rival->value]['crowd'];
+
+        return match (true) {
+            $mine > $theirs => 'Right now you\'re ahead: '.number_format($mine).' fans to '.number_format($theirs).'.',
+            $mine < $theirs => "Right now {$rival->label()} is ahead: ".number_format($theirs).' fans to your '.number_format($mine).'.',
+            default => "Right now it's dead even.",
+        };
+    }
+
+    /**
      * Vince's reminder ahead of a shared (Raw and SmackDown) pay-per-view.
      */
     public function ppvReminder(Save $save, Brand $brand, PpvEvent $ppv, int $weeksOut, int $week): ?Email
     {
         $body = match ($ppv->key) {
-            PpvKey::Summerslam => "SummerSlam is {$weeksOut} weeks away. It's the first pay-per-view of the season where Raw and Smackdown share the card, so the whole company is watching.\n\nGoing forward, the show with the most fans going in will get the main event slot. Make every week count.",
+            PpvKey::Summerslam => "SummerSlam is {$weeksOut} weeks away. It's the first pay-per-view of the season where Raw and Smackdown share the card, so the whole company is watching.\n\nThe brand whose weekly shows draw the most fans this season gets the main event slot. {$this->summerSlamRace($save, $brand, $week)} Make every week count.",
             PpvKey::SurvivorSeries => "Survivor Series is {$weeksOut} weeks away. The main event is our Traditional 3 vs 3 Survivor Series elimination tag match: three from Raw against three from Smackdown, eliminated one at a time until one side is left. It's a house rule, not something we've done before.\n\nChoose your team wisely.",
             PpvKey::RoyalRumble => "The Royal Rumble is {$weeksOut} weeks away. Thirty men, fifteen from each brand, and only one winner.\n\nWhoever wins the Rumble gets an automatic world title shot in the main event of WrestleMania.",
             PpvKey::Wrestlemania => "WrestleMania is {$weeksOut} weeks away. On top of the card, Raw and Smackdown go head to head in a three-match interbrand series.\n\nThe brand that wins the series gets the immunity tag (protect one superstar from the re-draft) and the manual draft pick tag (swap one random pick for one of your choosing).",

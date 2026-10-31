@@ -88,7 +88,7 @@ describe('Rosters table', () => {
             .getAllByRole('columnheader')
             .map((th) => th.textContent);
         expect(headers).toEqual([
-            'Wrestler',
+            'Superstar',
             'Fatigue',
             'Injury',
             'Morale',

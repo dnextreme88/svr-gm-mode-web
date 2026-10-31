@@ -30,8 +30,9 @@ use Illuminate\Database\Eloquent\Collection;
  * `gm.ai.titles`). Each match rolls careful (nobody ends it above 70%) or
  * aggressive (heavier gimmicks, up to 110%), and 95/5 for one of the
  * intergender shapes in `IntergenderRules`. Earned title shots go first,
- * then the card's all-Diva match, then the main event's title roll, then
- * rivalry matches, then everything else. A slot it can't fill within the
+ * then the card's all-Diva match, then the main event's title roll, then a
+ * Winner Takes All roll, then rivalry matches, then everything else (each
+ * may roll Champion vs. Contender or #1 Contender's Match). A slot it can't fill within the
  * rules stays empty. Everything is booked through `CardService::book`.
  */
 class AiBooker
@@ -97,6 +98,7 @@ class AiBooker
 
         [$open, $pairs] = $this->bookDivaMatch($open, $pairs);
         $open = $this->bookMainEventTitle($open);
+        $open = $this->bookWinnerTakesAll($open);
 
         foreach ($pairs as [$pair, $fresh]) {
             if ($open === []) {
@@ -183,7 +185,9 @@ class AiBooker
         $booking = ($titleShot ? $this->singleGender($divas, $limit, $aggressive, true, [(int) $womens->id]) : null)
             ?? $this->singleGender($divas, $limit, $aggressive);
 
-        if ($booking !== null && $this->tryBook($position, $booking)) {
+        $stipulated = $booking === null || $titleShot ? null : $this->numberOneContender($booking);
+
+        if ($booking !== null && (($stipulated !== null && $this->tryBook($position, $stipulated)) || $this->tryBook($position, $booking))) {
             return [array_values(array_diff($open, [$position])), $pairs];
         }
 
@@ -283,9 +287,9 @@ class AiBooker
                 continue;
             }
 
-            $contender = $this->championVsContender($booking);
+            $stipulated = $this->championVsContender($booking) ?? $this->numberOneContender($booking);
 
-            if (($contender !== null && $this->tryBook($position, $contender)) || $this->tryBook($position, $booking)) {
+            if (($stipulated !== null && $this->tryBook($position, $stipulated)) || $this->tryBook($position, $booking)) {
                 return;
             }
         }
@@ -488,6 +492,116 @@ class AiBooker
         return $options === []
             ? null
             : new Booking($type, $booking->sides, $booking->managers, null, Stipulation::ChampionVsContender, (int) $this->rng->pick($options), $booking->refereeId);
+    }
+
+    /**
+     * A non-title match whose sides fit a title (one per side for a singles
+     * title, 2 vs 2 or 2 vs 2 vs 2 for a tag title) may become that title's
+     * #1 Contender's Match (house rule, 2026-11-01). Nobody in it may hold
+     * the title, and the title can't already have a shot waiting.
+     */
+    private function numberOneContender(Booking $booking): ?Booking
+    {
+        $type = $booking->matchType;
+        $sides = array_values(array_unique($type->sides));
+
+        if ($booking->titleChampionshipId !== null || $booking->stipulation !== null || count($sides) !== 1) {
+            return null;
+        }
+
+        $save = $this->show->game;
+        $competitors = $booking->competitorIds();
+        $wrestlers = SaveWrestler::with('wrestler')->whereIn('id', $competitors)->get();
+        $options = [];
+
+        foreach (Championship::where('brand', $this->brand)->orderBy('sort_order')->get() as $championship) {
+            $fits = $championship->is_tag
+                ? $sides[0] === 2 && count($type->sides) <= 3
+                : $sides[0] === 1;
+            $reign = $fits ? $this->titles->currentReign($save, $championship) : null;
+
+            if ($reign === null || array_intersect($competitors, $reign->holderIds()) !== []
+                || $wrestlers->contains(fn (SaveWrestler $w): bool => ! $championship->allowsWrestler($w->wrestler))
+                || $this->lastChance->isLockedOut($reign, $competitors)
+                || $this->contention->contendership($save, $championship->id) !== null
+                || $this->contention->earnedShot($save, $championship->id) !== null) {
+                continue;
+            }
+
+            $options[] = $championship->id;
+        }
+
+        // Rolled only when a title fits, so other cards draw as before.
+        if ($options === [] || ! $this->rng->chance((float) config('gm.ai.titles.number_one_contender_chance'))) {
+            return null;
+        }
+
+        return new Booking($type, $booking->sides, $booking->managers, null, Stipulation::NumberOneContender, (int) $this->rng->pick($options), $booking->refereeId);
+    }
+
+    /**
+     * Once per card, a Winner Takes All between two (or three) of the
+     * brand's singles champions, every singles title they hold on the line
+     * (house rule, 2026-11-01). Never the main event; never a title already
+     * on the card or one with a shot waiting.
+     *
+     * @param  list<int>  $open
+     * @return list<int>
+     */
+    private function bookWinnerTakesAll(array $open): array
+    {
+        $positions = array_values(array_diff($open, [$this->mainEventPosition()]));
+
+        if ($positions === []) {
+            return $open;
+        }
+
+        $save = $this->show->game;
+        $champions = $this->men($this->pool())->filter(function (SaveWrestler $w) use ($save): bool {
+            $held = $this->contention->contestableHeld($save, $w->id)->filter(fn (Championship $c): bool => $c->brand === $this->brand);
+
+            return $held->isNotEmpty() && $held->every(fn (Championship $c): bool => ! in_array($c->id, $this->titlesOnCard, true)
+                && $this->contention->contendership($save, $c->id) === null
+                && $this->contention->earnedShot($save, $c->id) === null);
+        })->values();
+
+        // Rolled only with two champions to put in it, so other cards draw as before.
+        $chance = (float) config('gm.ai.titles.winner_takes_all_chance.'.($this->show->isPpv() ? 'ppv' : 'weekly'));
+
+        if ($champions->count() < 2 || ! $this->rng->chance($chance)) {
+            return $open;
+        }
+
+        $count = $champions->count() >= 3 && $this->rng->chance((float) config('gm.ai.titles.winner_takes_all_triple_chance')) ? 3 : 2;
+        [$limit, $aggressive] = $this->rollMode();
+        $people = $this->men($this->pool());
+        $types = $this->randomizer->eligibleTypes($this->show, $this->brand)
+            ->filter(fn (MatchType $t): bool => $t->titles_allowed && ! $t->isMoneyInTheBank() && $t->sides === array_fill(0, $count, 1)
+                && $this->fit($champions, $t, $limit)->count() >= $count)
+            ->values();
+
+        foreach ($this->typeOrder($types, $aggressive) as $type) {
+            $picked = array_slice($this->rng->shuffle($this->ids($this->fit($champions, $type, $limit))), 0, $count);
+            $sides = array_map(fn (int $id): array => [$id], $picked);
+            $managers = $this->pickManagers($type, $people, $sides);
+
+            try {
+                $referee = $this->randomizer->pickReferee($type, $people->reject(fn (SaveWrestler $w): bool => in_array($w->id, $managers, true))->values(), $sides, $this->rng);
+            } catch (GameRuleException) {
+                continue;
+            }
+
+            $booking = new Booking($type, $sides, $managers, null, Stipulation::WinnerTakesAll, refereeId: $referee);
+            $position = $this->rng->pick($positions);
+
+            if ($this->tryBook($position, $booking)) {
+                $this->titlesOnCard = [...$this->titlesOnCard, ...$this->contention->contested($save, $booking)];
+
+                return array_values(array_diff($open, [$position]));
+            }
+        }
+
+        return $open;
     }
 
     /**

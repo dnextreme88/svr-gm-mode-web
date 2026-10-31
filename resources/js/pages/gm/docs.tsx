@@ -92,6 +92,13 @@ type StoryGroup = {
     }>;
 };
 
+type AttendanceSlotPoints = {
+    world_title: number;
+    other_title: number;
+    gimmick: number;
+    rivals: number;
+};
+
 type Props = {
     match_types: Array<{
         family: MatchFamily;
@@ -157,6 +164,9 @@ type Props = {
             main_event_chance: { weekly: number; ppv: number };
             other_slot_chance: number;
             champion_vs_contender_chance: number;
+            number_one_contender_chance: number;
+            winner_takes_all_chance: { weekly: number; ppv: number };
+            winner_takes_all_triple_chance: number;
         };
         promos: {
             interference_every_weeks: number;
@@ -220,6 +230,28 @@ type Props = {
         };
     };
     news: { stories_per_brand: number; groups: string[]; events: NewsEvent[] };
+    attendance: {
+        ranges: Record<'weekly' | 'brand_ppv' | 'shared_ppv', [number, number]>;
+        points: {
+            full_card: {
+                match_one: number;
+                main_event: number;
+                every_slot: number;
+            };
+            main_event: AttendanceSlotPoints;
+            match_one: AttendanceSlotPoints;
+            hot_rivalry: number;
+            hot_rivalry_max: number;
+            legends: Record<string, number>;
+            rival_promos: number;
+            other_promos: number;
+            win_streak: Record<string, number>;
+        };
+        hot_heat: number;
+        noise: number;
+        ticket_prices: Record<'weekly' | 'brand_ppv' | 'shared_ppv', number>;
+        drives_income: boolean;
+    };
     promo_stories: StoryGroup[];
     quiet_stories: StoryGroup[];
     emails: GmEmail[];
@@ -257,6 +289,7 @@ const tabs = [
     { key: 'promos', label: 'Promos' },
     { key: 'news', label: 'News & email' },
     { key: 'schedule', label: 'Booking and Scheduling' },
+    { key: 'attendance', label: 'Fan attendance' },
     { key: 'rosters', label: 'Rosters & draft' },
     { key: 'rival', label: 'Rival GM' },
     { key: 'factions', label: 'Factions' },
@@ -269,7 +302,7 @@ const stipulationRules: Record<Stipulation, string[]> = {
     champion_vs_contender: [
         'Always 1 vs 1 (singles title) or 2 vs 2 (tag title), with the title not on the line. One side is exactly the champion(s); the other side holds no title at all.',
         'A champion with several titles can put any one of them up: pick it in the modal. Only one title per match.',
-        'If the contender wins, they earn a title match on the next weekly show or PPV, whichever comes first. The card can’t air until that match is booked, and the card reminds you when you open it.',
+        'If the contender wins, they earn a title match on the next card booked after it: won at a PPV, that week’s weekly show; won on a weekly show, next week’s. The card can’t air until that match is booked, and the card reminds you when you open it.',
         'A seriously injured contender gets the shot on the first show after they recover. Minor injuries don’t delay it.',
         'If the champion wins, nothing changes.',
     ],
@@ -290,7 +323,7 @@ const stipulationRules: Record<Stipulation, string[]> = {
         'A contested title can’t be on the line anywhere else on the card.',
     ],
     number_one_contender: [
-        'Any non-title match whose sides fit the title: one wrestler per side for a singles title (a Battle Royal or Gauntlet too), 2 vs 2 or 2 vs 2 vs 2 for a tag title, all Divas for the Women’s title. Nobody in it holds that title.',
+        'Any non-title match whose sides fit the title: one superstar per side for a singles title (a Battle Royal or Gauntlet too), 2 vs 2 or 2 vs 2 vs 2 for a tag title, all Divas for the Women’s title. Nobody in it holds that title.',
         'The winner(s) become the #1 contender(s), with no deadline. Until then, that title can only be defended against them.',
         'It’s voided if a contender leaves the brand or is seriously injured. If the title is vacated first, you choose: award it to the contender(s) or forfeit.',
     ],
@@ -359,7 +392,7 @@ const matchRules: Array<{ rule: string; detail: string }> = [
     },
     {
         rule: 'Special referee',
-        detail: 'A wrestler from your roster referees the match. They can’t compete in or manage it, can’t be seriously injured, and take no fatigue.',
+        detail: 'A superstar from your roster referees the match. They can’t compete in or manage it, can’t be seriously injured, and take no fatigue.',
     },
 ];
 
@@ -384,7 +417,7 @@ const winConditions: Array<{ rule: string; detail: string }> = [
     },
     {
         rule: 'Captain fall',
-        detail: 'Pin, submit, disqualify or count out the other team’s captain (the first wrestler on their side, tagged (Cpt) on the results screen). Partners can be eliminated along the way, but only the captain’s fall ends it: their whole team loses.',
+        detail: 'Pin, submit, disqualify or count out the other team’s captain (the first superstar on their side, tagged (Cpt) on the results screen). Partners can be eliminated along the way, but only the captain’s fall ends it: their whole team loses.',
     },
     {
         rule: 'Table',
@@ -496,9 +529,9 @@ function MatchTypes({
                             the Royal Rumble entrants card.
                         </li>
                         <li>
-                            Wrestlers are thrown over the top rope; the last one
-                            left in the ring wins. No rope breaks, count-outs or
-                            ring outs.
+                            Superstars are thrown over the top rope; the last
+                            one left in the ring wins. No rope breaks,
+                            count-outs or ring outs.
                         </li>
                         <li>No titles on the line, and no Divas.</li>
                         <li>
@@ -618,7 +651,7 @@ function MatchTypes({
                         aren’t competing in. Every manager slot must be filled,
                         like every competitor slot: Save stays greyed out until
                         it is, and Randomize and Preset fill managers from
-                        wrestlers not on the card.
+                        superstars not on the card.
                     </li>
                     <li>
                         A manager wins or loses with their side: a win or a loss
@@ -816,9 +849,9 @@ function Injuries({ injuries, fatigue }: Pick<Props, 'injuries' | 'fatigue'>) {
                         recovers as usual, with “Minor Injury: …!” beside it.
                     </li>
                     <li>
-                        A minor-injured wrestler who competes has a{' '}
+                        A minor-injured superstar who competes has a{' '}
                         {percent(fatigue.escalation_chance)} chance of the
-                        injury becoming serious. Seriously injured wrestlers
+                        injury becoming serious. Seriously injured superstars
                         can’t compete or manage.
                     </li>
                 </ul>
@@ -848,7 +881,7 @@ function Specialties({ specialists }: Pick<Props, 'specialists'>) {
             <table className="gm-table">
                 <thead>
                     <tr>
-                        <th>Wrestler</th>
+                        <th>Superstar</th>
                         <th>Specialties</th>
                     </tr>
                 </thead>
@@ -947,7 +980,7 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                             on the card screen.
                         </li>
                         <li>
-                            A wrestler can be in only one of each promo per
+                            A superstar can be in only one of each promo per
                             card: with two Interview Spaces or two Diva Bikini
                             Contests, anyone already in the other one is greyed
                             out (“In Promo 1”). Different promos are fine.
@@ -961,12 +994,13 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                         </li>
                         {promos.rivalry_heat && (
                             <li data-testid="rivalry-heat">
-                                Rivalries also start when the same two wrestlers
-                                meet {promos.rivalry_heat.auto_create_meetings}{' '}
-                                times within{' '}
+                                Rivalries also start when the same two
+                                superstars meet{' '}
+                                {promos.rivalry_heat.auto_create_meetings} times
+                                within{' '}
                                 {promos.rivalry_heat.auto_create_window_weeks}{' '}
                                 weeks in matches where every side is one
-                                wrestler. Heat runs 0 to{' '}
+                                superstar. Heat runs 0 to{' '}
                                 {promos.rivalry_heat.max_heat}: it starts at{' '}
                                 {promos.rivalry_heat.start_heat}, each meeting
                                 adds {promos.rivalry_heat.heat_per_meeting} and
@@ -1019,7 +1053,7 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                             new promo defaults to the latest spot still free.
                         </li>
                         <li>
-                            Promos with a fatigue cost tire every wrestler in
+                            Promos with a fatigue cost tire every superstar in
                             them right there, success or fail, so that fatigue
                             counts going into their later matches: Interference
                             and Start a Rivalry 2 bars, Diva Bikini Contest 2
@@ -1205,8 +1239,8 @@ function PromoStoriesPanel({ promoStories }: { promoStories: StoryGroup[] }) {
                     <p>
                         Every promo writes its own story once the show has
                         aired, based on what happened around it: how the
-                        wrestler’s match went, how the hyped main event or title
-                        match ended, or the wrestler’s form.
+                        superstar’s match went, how the hyped main event or
+                        title match ended, or the superstar’s form.
                     </p>
                     <p>
                         Each situation has at least 4 versions, and one is
@@ -1258,8 +1292,8 @@ function QuietWeekStoriesPanel({
                             booking advice if anyone got hurt.
                         </li>
                         <li>
-                            Ticker: unhappy wrestlers and contracts about to run
-                            out, or all quiet.
+                            Ticker: unhappy superstars and contracts about to
+                            run out, or all quiet.
                         </li>
                     </ul>
                     <p>
@@ -1329,7 +1363,8 @@ function NewsAndEmail({
                             gimmick, e.g. “Backlash main event: John Cena
                             defeats Edge in a Ladder match to win the WWE
                             Championship!”), or the Royal Rumble winner. Then a
-                            Slander or Interference result. Then other
+                            Slander or Interference result. Then the week’s
+                            biggest crowd (see Fan attendance). Then other
                             cross-brand news (trades, defections, the re-draft,
                             “Backlash is 1 week away.”…). Last, tickets on sale
                             for whatever airs next.
@@ -1347,9 +1382,10 @@ function NewsAndEmail({
                             why it happened. Click a story to read all of it.
                         </li>
                         <li>
-                            Whatever isn’t picked runs in the ticker. Older and
-                            Newer (or ← / →) step through every week played,
-                            quiet weeks included.
+                            Whatever isn’t picked runs in the ticker, led by a
+                            gold Fan attendance line with every night’s crowd.
+                            Older and Newer (or ← / →) step through every week
+                            played, quiet weeks included.
                         </li>
                         <li>
                             Only weeks that have fully aired are listed. News
@@ -1509,7 +1545,7 @@ function MoraleDocs({ morale }: Pick<Props, 'morale'>) {
                         className="list-disc space-y-2 pl-4 text-sm text-ink"
                     >
                         <li>
-                            Every wrestler is Happy, Content, Unsatisfied or
+                            Every superstar is Happy, Content, Unsatisfied or
                             Upset. Their morale is the worst of four complaints,
                             each with its own clock.
                         </li>
@@ -1520,7 +1556,7 @@ function MoraleDocs({ morale }: Pick<Props, 'morale'>) {
                         </li>
                         <li>
                             When a complaint reaches Unsatisfied or Upset, the
-                            wrestler emails you. Content doesn’t.
+                            superstar emails you. Content doesn’t.
                         </li>
                         <li>
                             Turning Upset also makes the brand’s news ticker. A
@@ -1528,7 +1564,7 @@ function MoraleDocs({ morale }: Pick<Props, 'morale'>) {
                         </li>
                         <li>
                             New signings and defectors start Happy, with fresh
-                            clocks. A traded wrestler keeps their morale.
+                            clocks. A traded superstar keeps their morale.
                         </li>
                     </ul>
                 </Panel>
@@ -1538,7 +1574,7 @@ function MoraleDocs({ morale }: Pick<Props, 'morale'>) {
                         className="list-disc space-y-2 pl-4 text-sm text-ink"
                     >
                         <li>
-                            Every week, an Unsatisfied wrestler has a{' '}
+                            Every week, an Unsatisfied superstar has a{' '}
                             {morale.defection_unsatisfied_percent}% chance and
                             an Upset one a {morale.defection_upset_percent}%
                             chance to try to jump to the other brand.
@@ -1638,6 +1674,25 @@ function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
                     can become Champion vs. Contender (
                     {pct(t.champion_vs_contender_chance)}).
                 </li>
+                <li data-testid="rival-new-stipulations">
+                    <strong>Contenders and Winner Takes All:</strong> a
+                    non-title match that fits one of its titles (nobody in it
+                    holds the title, and no title shot is waiting) can become a
+                    #1 Contender’s Match for it (
+                    {pct(t.number_one_contender_chance)}), its all-Diva match
+                    included. Once per card, with two or more of its singles
+                    champions free, it can book a Winner Takes All between two
+                    of them ({pct(t.winner_takes_all_chance.weekly)} on a weekly
+                    show, {pct(t.winner_takes_all_chance.ppv)} on a PPV), or
+                    three ({pct(t.winner_takes_all_triple_chance)} of the time),
+                    never as the main event. An earned #1 contendership is
+                    booked against exactly those contenders.
+                </li>
+                <li>
+                    <strong>When it books:</strong> in a PPV week it books its
+                    weekly show only after the PPV has aired, like you. It books
+                    its half of SummerSlam as soon as that week opens.
+                </li>
                 <li>
                     <strong>Promos:</strong> at or below{' '}
                     {formatMoney(rival.low_cash)}, or when it’s saving for
@@ -1672,7 +1727,7 @@ function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
                     {formatMoney(roster.cash_reserve)} in the bank.
                 </li>
                 <li>
-                    <strong>Trades:</strong> every wrestler is worth{' '}
+                    <strong>Trades:</strong> every superstar is worth{' '}
                     {rival.trades.base_value}, plus {rival.trades.legend_value}{' '}
                     for a Legend, {rival.trades.focus_value} for its division,{' '}
                     {rival.trades.specialty_value} for a match specialist,{' '}
@@ -1720,13 +1775,14 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
             <p className="max-w-3xl text-sm text-ink-dim">
                 A new game picks how both rosters are built. Either way each
                 brand starts with a {formatMoney(rosters.starting_budget)}{' '}
-                budget, granted once, and can hold up to {rosters.cap} wrestlers
-                (Superstars, Divas and Legends all count). Once each week is
-                done, both brands earn{' '}
+                budget, granted once, and can hold up to {rosters.cap}{' '}
+                superstars (Superstars, Divas and Legends all count). Once each
+                week is done, both brands earn{' '}
                 <span data-testid="weekly-show-income">
                     {formatMoney(rosters.weekly_show_income)}
                 </span>{' '}
-                for their shows.
+                for their shows (the attendance gate isn’t paid yet, see Fan
+                attendance).
             </p>
             <div className="grid items-start gap-6 md:grid-cols-2">
                 <Panel title="Manual draft pick">
@@ -1820,6 +1876,205 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
     );
 }
 
+type AttendanceKind = 'weekly' | 'brand_ppv' | 'shared_ppv';
+
+const kindLabel: Record<AttendanceKind, string> = {
+    weekly: 'Weekly show',
+    brand_ppv: 'Brand-only PPV',
+    shared_ppv:
+        'Shared PPV (Royal Rumble, SummerSlam, Survivor Series, WrestleMania)',
+};
+
+/** Fan attendance (house rule, 2026-11-01): the draw score, crowds, gate. */
+function AttendanceDocs({ attendance }: Pick<Props, 'attendance'>) {
+    const p = attendance.points;
+    const slot = (s: typeof p.main_event, label: string) =>
+        `${label}: a world title on the line ${s.world_title} or another title ${s.other_title}, a gimmick match ${s.gimmick}, two rivals facing each other ${s.rivals} (up to ${s.world_title + s.gimmick + s.rivals}).`;
+    const tiers = (t: Record<string, number>, unit: string) =>
+        Object.entries(t)
+            .map(([from, points]) => `${from}+ ${unit}: ${points}`)
+            .join(', ');
+    const factors: Array<[string, string]> = [
+        [
+            'Full card',
+            `Match 1 booked ${p.full_card.match_one}, the Main Event booked ${p.full_card.main_event}, every match slot booked ${p.full_card.every_slot}.`,
+        ],
+        ['Main Event', slot(p.main_event, 'The last match')],
+        ['Match 1', slot(p.match_one, 'The first match')],
+        [
+            'Hot rivalries',
+            `${p.hot_rivalry} for each rivalry at ${attendance.hot_heat}+ heat whose rivals meet on the card (up to ${p.hot_rivalry_max}).`,
+        ],
+        [
+            'Legends',
+            `Legends booked in any role (competing, managing, refereeing): ${tiers(p.legends, 'Legends')}.`,
+        ],
+        [
+            'Promos',
+            `The share of Interference and Slander promos that succeeded × ${p.rival_promos}. With neither on the card, the share of the other promos that succeeded × ${p.other_promos}. No promos (every PPV): 0.`,
+        ],
+        [
+            'Win streak',
+            `The best win streak going into the week among those competing: ${tiers(p.win_streak, 'wins')}.`,
+        ],
+        ['Luck', `Up to ${attendance.noise} points either way, at random.`],
+    ];
+
+    return (
+        <div className="space-y-6">
+            <p className="max-w-3xl text-sm text-ink-dim">
+                House rule: every show draws a crowd once it airs. A PPV night
+                draws one crowd for all its cards. The rival’s shows draw crowds
+                too. Attendance doesn’t use Popularity, which is its own system
+                and still to come.
+            </p>
+            <div className="grid items-start gap-6 md:grid-cols-2">
+                <Panel title="How a crowd is drawn">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            What’s on the card adds up to a draw score from 0 to
+                            100 (the factors are listed below).
+                        </li>
+                        <li>
+                            The score sets where the crowd lands in its range:
+                            the bottom of the range at 0, the top at 100.
+                        </li>
+                        <li>
+                            Win streaks and rivalry heat count as they stood
+                            going into the week.
+                        </li>
+                        <li>
+                            Example: a full weekly card with a world title
+                            Ladder match between 65-heat rivals as the main
+                            event, a tag title Match 1, one Legend, a successful
+                            Interference and a 6-win streak scores 67, about
+                            15,050 fans.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel
+                    title="Crowds and gate"
+                    bodyClassName="p-0 overflow-x-auto"
+                >
+                    <table
+                        className="gm-table text-sm"
+                        data-testid="attendance-ranges"
+                    >
+                        <thead>
+                            <tr>
+                                <th>Show</th>
+                                <th className="text-right">Crowd</th>
+                                <th className="text-right">Ticket</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {(Object.keys(kindLabel) as AttendanceKind[]).map(
+                                (kind) => (
+                                    <tr key={kind}>
+                                        <td>{kindLabel[kind]}</td>
+                                        <td className="gm-num text-right whitespace-nowrap">
+                                            {attendance.ranges[
+                                                kind
+                                            ][0].toLocaleString('en-US')}
+                                            –
+                                            {attendance.ranges[
+                                                kind
+                                            ][1].toLocaleString('en-US')}
+                                        </td>
+                                        <td className="gm-num text-right">
+                                            {formatMoney(
+                                                attendance.ticket_prices[kind],
+                                            )}
+                                        </td>
+                                    </tr>
+                                ),
+                            )}
+                        </tbody>
+                    </table>
+                    <p className="px-4 py-3 text-sm text-ink-dim">
+                        The gate is the crowd times the ticket price.{' '}
+                        {attendance.drives_income
+                            ? 'Each night’s gate is your show income, a PPV night’s split between the brands on it.'
+                            : 'For now it’s shown, not paid: show income is still the flat weekly amount (see Rosters & draft).'}
+                    </p>
+                </Panel>
+            </div>
+
+            <Panel title="Draw score" bodyClassName="p-0 overflow-x-auto">
+                <table
+                    className="gm-table text-sm"
+                    data-testid="attendance-factors"
+                >
+                    <thead>
+                        <tr>
+                            <th>Factor</th>
+                            <th>Points</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {factors.map(([name, text]) => (
+                            <tr key={name}>
+                                <td className="font-semibold whitespace-nowrap">
+                                    {name}
+                                </td>
+                                <td className="text-ink-dim">{text}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </Panel>
+
+            <div className="grid items-start gap-6 md:grid-cols-2">
+                <Panel title="Where you see it">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            Results: “Attendance · Gate” in gold beside each
+                            show’s name. Hover it for the draw score’s factors.
+                        </li>
+                        <li>
+                            News: the week’s biggest crowd is a WWE headline,
+                            after a PPV main event and a Slander or Interference
+                            result. The ticker opens with every night’s crowd in
+                            gold, and a PPV main event’s summary says how many
+                            fans were in the building.
+                        </li>
+                        <li>
+                            An unbooked Interview Space can quote the crowd.
+                        </li>
+                        <li>
+                            Reports: a Fan attendance chart of the season, both
+                            brands, with every night in a table too.
+                        </li>
+                    </ul>
+                </Panel>
+                <Panel title="SummerSlam main event">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            SummerSlam is one card both brands book, like
+                            WrestleMania.
+                        </li>
+                        <li>
+                            The brand whose weekly shows drew more fans this
+                            season, up to SummerSlam week, gets the main event:
+                            it books Match 1, Match 3 and the main event. The
+                            other brand books Matches 2 and 4.
+                        </li>
+                        <li>
+                            A tie goes to the higher total draw score, then a
+                            coin flip. Vince’s reminder 2 weeks out says who’s
+                            ahead.
+                        </li>
+                        <li>
+                            The rival books its matches as soon as SummerSlam
+                            week opens, so you book yours around them.
+                        </li>
+                    </ul>
+                </Panel>
+            </div>
+        </div>
+    );
+}
+
 function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
     const days = calendar.weekly_show_days;
 
@@ -1850,19 +2105,27 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                         <li>
                             Cards are booked in date order: your PPV card first,
                             then the interbrand card (Royal Rumble or Survivor
-                            Series entrants, or WrestleMania), then your weekly
-                            show. Divas can’t enter the Royal Rumble or a
-                            Survivor Series team.
+                            Series entrants, SummerSlam or WrestleMania), then
+                            your weekly show. Divas can’t enter the Royal Rumble
+                            or a Survivor Series team.
                         </li>
                         <li>
-                            “Continue to …” locks a card and opens the next one.
-                            Unlock it to make changes until the week airs.
+                            “Continue to …” locks a card and opens the next one
+                            of the same night. Unlock it to make changes until
+                            it airs.
+                        </li>
+                        <li data-testid="ppv-night-first">
+                            A PPV week airs in two steps. The PPV night’s last
+                            card has Air (“Air Backlash”): it airs only the PPV.
+                            Your weekly show opens once the PPV’s results are
+                            in, so you book it knowing who won (a title shot
+                            earned at the PPV is due on it).
                         </li>
                         <li>
-                            Air week on your weekly show starts the week’s live
-                            results, where you decide your matches (see Live
-                            results below). While the week airs the button reads
-                            Resume results.
+                            Air week on your weekly show airs the weekly shows
+                            and finishes the week (see Live results below). In a
+                            week without a PPV it’s the only step. While a night
+                            airs the button reads Resume results.
                         </li>
                         <li>Both buttons ask you to confirm first.</li>
                     </ul>
@@ -1968,7 +2231,7 @@ function FactionsDocs({ factions }: Pick<Props, 'factions'>) {
                         </li>
                         <li>
                             Booking stays individual: the card screen and its
-                            pickers always list each wrestler by name.
+                            pickers always list each superstar by name.
                         </li>
                         <li>
                             The Factions page opens on the factions created in
@@ -2082,9 +2345,11 @@ function ResultsDocs() {
                 <Panel title="Live results">
                     <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
                         <li>
-                            Air week opens the results with your matches still
-                            to be decided. Shows air in order: PPVs, then the
-                            interbrand card, then the weekly shows.
+                            Air week (or Air on a PPV) opens the results with
+                            your matches still to be decided. Shows air in
+                            order: PPVs, then the interbrand card, then the
+                            weekly shows. The PPV night and the weekly shows are
+                            separate steps.
                         </li>
                         <li>
                             The rival GM’s own shows always simulate on their
@@ -2103,9 +2368,11 @@ function ResultsDocs() {
                             placed in front of.
                         </li>
                         <li>
-                            After the last match the rest of the week runs
-                            (recovery, contracts, morale, news, email) and
-                            Continue opens the News.
+                            After a PPV night’s last match, Continue opens your
+                            weekly show to book. After the weekly shows’ last
+                            match the rest of the week runs (recovery,
+                            contracts, morale, news, email) and Continue opens
+                            the News.
                         </li>
                         <li>
                             Signings, releases and trades wait until the week’s
@@ -2329,6 +2596,9 @@ export default function Docs() {
                 )}
                 {tab === 'rosters' && (
                     <RostersDocs rosters={props.rosters} rival={props.rival} />
+                )}
+                {tab === 'attendance' && (
+                    <AttendanceDocs attendance={props.attendance} />
                 )}
                 {tab === 'rival' && <RivalGmPanel rival={props.rival} />}
                 {tab === 'factions' && (

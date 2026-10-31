@@ -108,7 +108,7 @@ class CardRandomizer
         $pool = $this->pool($show, $brand, array_values(array_unique([...$this->bookedIds($show, $rebooked), ...$exclude])));
 
         if ($pool->count() < 2) {
-            throw new GameRuleException("Not enough available wrestlers to book this match (need 2, have {$pool->count()}).");
+            throw new GameRuleException("Not enough available superstars to book this match (need 2, have {$pool->count()}).");
         }
 
         $fatigue = $this->plannedFatigue->forWeek($show, $brand, $this->slotIds($show, $rebooked));
@@ -121,7 +121,7 @@ class CardRandomizer
                 ->values();
 
             if ($roomy->isEmpty()) {
-                throw new GameRuleException("Not enough available wrestlers to book this match (need 2, have {$pool->count()}).");
+                throw new GameRuleException("Not enough available superstars to book this match (need 2, have {$pool->count()}).");
             }
 
             $fillable = $roomy->filter(fn (MatchType $t): bool => $this->healthyFor($t, $pool, $fatigue, $minor)->count() >= $t->competitorCount())->values();
@@ -137,7 +137,7 @@ class CardRandomizer
         $eligible = $this->poolFor($type, $pool)->count();
 
         if ($eligible < $need) {
-            throw new GameRuleException("Not enough available wrestlers to book {$type->name} (need {$need}, have {$eligible}).");
+            throw new GameRuleException("Not enough available superstars to book {$type->name} (need {$need}, have {$eligible}).");
         }
 
         $candidates = $this->healthyFor($type, $pool, $fatigue, $minor);
@@ -145,7 +145,7 @@ class CardRandomizer
         if ($candidates->count() < $need) {
             $max = (int) config('gm.card.randomize_max_fatigue');
 
-            throw new GameRuleException("Not enough fresh wrestlers to book {$type->name} without risking an injury: it would push the others past {$max}% fatigue (need {$need}, have {$candidates->count()}).");
+            throw new GameRuleException("Not enough fresh superstars to book {$type->name} without risking an injury: it would push the others past {$max}% fatigue (need {$need}, have {$candidates->count()}).");
         }
 
         $title = $this->titles->plan($show, $brand, $type, $candidates, $titlesOnCard, $rng);
@@ -244,7 +244,7 @@ class CardRandomizer
         )));
 
         if (count($left) < count($type->manager_sides)) {
-            throw new GameRuleException("Not enough available wrestlers to book {$type->name} with its managers.");
+            throw new GameRuleException("Not enough available superstars to book {$type->name} with its managers.");
         }
 
         $managers = [];
@@ -271,7 +271,7 @@ class CardRandomizer
         $left = array_values(array_diff(array_map('intval', $pool->pluck('id')->all()), array_merge(...$sides)));
 
         if ($left === []) {
-            throw new GameRuleException("Not enough available wrestlers to book {$type->name} with a special referee.");
+            throw new GameRuleException("Not enough available superstars to book {$type->name} with a special referee.");
         }
 
         return $rng->pick($left);

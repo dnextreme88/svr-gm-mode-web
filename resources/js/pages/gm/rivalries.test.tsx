@@ -33,7 +33,7 @@ describe('Rivalries rules', () => {
 
         const start = screen.getByTestId('rivalry-rules-start');
         expect(start).toHaveTextContent(
-            'Book the same two wrestlers against each other 2 times within 4 weeks',
+            'Book the same two superstars against each other 2 times within 4 weeks',
         );
         expect(start).toHaveTextContent('tires both 2 fatigue bars');
 

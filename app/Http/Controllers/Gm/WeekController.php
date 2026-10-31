@@ -21,13 +21,18 @@ class WeekController extends Controller
 {
     /**
      * Start airing the week live, then decide the player's matches on the
-     * results screen. A week already airing just reopens its results.
+     * results screen. In a PPV week this airs the PPV night; once the weekly
+     * show is booked, the rest of the week (house rule, 2026-11-01). A week
+     * already airing just reopens its results.
      */
     public function advance(Save $save, WeekResolver $resolver, BookingOrder $order): RedirectResponse
     {
         $week = $save->current_week;
 
-        if ($resolver->airing($save) === null) {
+        if ($resolver->awaitingWeekly($save)) {
+            $order->assertReadyToAir($save, $week);
+            $resolver->continueWeek($save);
+        } elseif ($resolver->airing($save) === null) {
             $order->assertReadyToAir($save, $week);
             $resolver->begin($save);
         }
@@ -94,7 +99,7 @@ class WeekController extends Controller
 
     private function assertAiring(Save $save, int $week, WeekResolver $resolver): void
     {
-        if ($week !== $save->current_week || $resolver->airing($save) === null) {
+        if ($week !== $save->current_week || $resolver->airing($save) === null || $resolver->awaitingWeekly($save)) {
             throw new GameRuleException('This week is not airing.');
         }
     }

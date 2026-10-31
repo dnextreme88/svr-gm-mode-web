@@ -19,6 +19,7 @@ use App\Models\MatchSlot;
 use App\Models\NewsEvent;
 use App\Models\SaveWrestler;
 use App\Models\Show;
+use App\Services\Attendance\AttendanceService;
 use App\Services\Factions\FactionNamer;
 use App\Services\Fatigue\FatigueZones;
 use App\Services\Finance\LedgerService;
@@ -38,12 +39,6 @@ use Illuminate\Database\Eloquent\Collection;
  */
 class ShowResolver
 {
-    /**
-     * Plain match families; everything else is a gimmick match, which ranks
-     * higher in the news.
-     */
-    private const PLAIN_FAMILIES = [MatchFamily::Single, MatchFamily::TagTeam, MatchFamily::SixManTag, MatchFamily::Handicap];
-
     public function __construct(
         private MatchResolver $matches,
         private InjuryService $injuries,
@@ -55,6 +50,7 @@ class ShowResolver
         private PromoStoryWriter $promoStories,
         private InjuryStatus $injuryStatus,
         private FactionNamer $factions,
+        private AttendanceService $attendance,
     ) {}
 
     public function air(Show $show, WeekContext $context): void
@@ -126,6 +122,8 @@ class ShowResolver
         }
 
         $this->promos->resolve($show, $promoRng);
+        // Attendance first: an unbooked Interview Space can quote the crowd.
+        $this->attendance->tally($show, $context);
         $this->promoStories->write($show, $context->rng("promo-stories.{$show->streamKey()}"));
         $this->confirmInjuredWins($show);
 
@@ -475,15 +473,9 @@ class ShowResolver
         return max(1, $priority);
     }
 
-    /**
-     * Anything but a plain singles, tag, 6-man tag or handicap match. The
-     * Table tag variants are plain families, but tables make them gimmicks.
-     */
     private function isGimmick(MatchSlot $slot): bool
     {
-        $type = $slot->matchType;
-
-        return $type !== null && (! in_array($type->family, self::PLAIN_FAMILIES, true) || str_contains($type->variant, 'Table'));
+        return $slot->matchType?->isGimmick() ?? false;
     }
 
     /**

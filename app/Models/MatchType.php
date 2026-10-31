@@ -128,6 +128,17 @@ class MatchType extends Model
         return $this->family === MatchFamily::Ladder && $this->variant === self::MITB_VARIANT;
     }
 
+    /**
+     * Anything but a plain singles, tag, 6-man tag or handicap match. The
+     * Table tag variants are plain families, but tables make them gimmicks.
+     */
+    public function isGimmick(): bool
+    {
+        $plain = [MatchFamily::Single, MatchFamily::TagTeam, MatchFamily::SixManTag, MatchFamily::Handicap];
+
+        return ! in_array($this->family, $plain, true) || str_contains($this->variant, 'Table');
+    }
+
     protected function casts(): array
     {
         return [

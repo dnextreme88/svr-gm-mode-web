@@ -104,7 +104,7 @@ it('fails with a 422 and the expected message when the pool has 0 or 1 wrestlers
 
     $this->postJson(route('gm.card.randomize', [$save, $show, 1]))
         ->assertStatus(422)
-        ->assertJson(['message' => "Not enough available wrestlers to book this match (need 2, have {$have})."]);
+        ->assertJson(['message' => "Not enough available superstars to book this match (need 2, have {$have})."]);
 
     expect(MatchSlot::where('show_id', $show->id)->whereNotNull('match_type_id')->count())->toBe(0);
 })->with([[[], 0], [['Edge'], 1]]);

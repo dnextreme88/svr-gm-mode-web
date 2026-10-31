@@ -111,7 +111,7 @@ export default function ProposeTrade() {
     const empty = out.length === 0 && incoming.length === 0;
     // Why the offer can't go yet; nothing once it can.
     const hint = empty
-        ? `Pick up to ${max_per_side} wrestlers on each side. Uneven trades are fine.`
+        ? `Pick up to ${max_per_side} superstars on each side. Uneven trades are fine.`
         : yourSize > game.roster_cap
           ? `Your roster would end at ${yourSize}/${game.roster_cap}. Send more or receive fewer.`
           : theirSize > game.roster_cap
@@ -361,7 +361,7 @@ const points = (n: number) =>
     `${signed(n)} ${Math.abs(n) === 1 ? 'point' : 'points'}`;
 
 const POINT_LABELS: Record<PointCategory, string> = {
-    base: 'Wrestlers',
+    base: 'Superstars',
     legend: 'Legends',
     focus: 'Their focus class',
     specialty: 'Match specialists',
@@ -481,8 +481,8 @@ function TradeRules({
             <div className="grid gap-x-8 gap-y-4 text-sm md:grid-cols-2">
                 <ul className="list-disc space-y-1.5 pl-5 marker:text-ink-faint">
                     <li>
-                        Up to {maxPerSide} wrestlers on each side. Uneven trades
-                        are fine, even someone for nobody.
+                        Up to {maxPerSide} superstars on each side. Uneven
+                        trades are fine, even someone for nobody.
                     </li>
                     <li>
                         Champions and seriously injured superstars can’t be
@@ -507,7 +507,7 @@ function TradeRules({
                         </p>
                         <ul className="list-disc space-y-1.5 pl-5 marker:text-ink-faint">
                             <li>
-                                Every wrestler starts at{' '}
+                                Every superstar starts at{' '}
                                 {points(judge.base_value).slice(1)}, then:
                                 <PointList
                                     items={[

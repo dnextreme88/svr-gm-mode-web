@@ -323,8 +323,8 @@ describe('CardBuilder', () => {
         const { onSave, user, pickType, pickWrestler } = setup();
 
         await pickType(1, 1);
-        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
-        await pickWrestler('Match 1 side 2 wrestler 1', 'Kane');
+        await pickWrestler('Match 1 side 1 superstar 1', 'Edge');
+        await pickWrestler('Match 1 side 2 superstar 1', 'Kane');
         const save = screen.getByRole('button', { name: 'Save match 1' });
         expect(within(save).getByTestId('floppy-icon')).toBeInTheDocument();
         await user.click(save);
@@ -366,7 +366,7 @@ describe('CardBuilder', () => {
         const { user, pickType } = setup();
         await pickType(1, 1);
 
-        const slot = 'Match 1 side 1 wrestler 1';
+        const slot = 'Match 1 side 1 superstar 1';
         await user.click(screen.getByRole('button', { name: slot }));
         expect(screen.getByRole('listbox', { name: slot })).toBeInTheDocument();
 
@@ -388,7 +388,7 @@ describe('CardBuilder', () => {
         await pickType(1, 1);
 
         expect(
-            screen.getByRole('button', { name: 'Match 1 side 1 wrestler 1' }),
+            screen.getByRole('button', { name: 'Match 1 side 1 superstar 1' }),
         ).toHaveTextContent('VACANT');
     });
 
@@ -402,8 +402,8 @@ describe('CardBuilder', () => {
         expect(slot.className).toContain('gm-panel-dirty');
         expect(within(slot).getByText('Unsaved changes')).toBeInTheDocument();
 
-        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
-        await pickWrestler('Match 1 side 2 wrestler 1', 'Kane');
+        await pickWrestler('Match 1 side 1 superstar 1', 'Edge');
+        await pickWrestler('Match 1 side 2 superstar 1', 'Kane');
         await user.click(screen.getByRole('button', { name: 'Save match 1' }));
 
         expect(slot).not.toHaveAttribute('data-dirty');
@@ -480,7 +480,7 @@ describe('CardBuilder', () => {
         const { pickType, pickWrestler } = setup();
 
         await pickType(1, 1);
-        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
+        await pickWrestler('Match 1 side 1 superstar 1', 'Edge');
 
         expect(
             screen.getByRole('button', { name: 'Save match 1' }),
@@ -513,7 +513,7 @@ describe('CardBuilder', () => {
         expect(cost.className).toContain('italic');
     });
 
-    it('labels the first wrestler on each side as Captain in a Captain Fall match', async () => {
+    it('labels the first superstar on each side as Captain in a Captain Fall match', async () => {
         const { pickType } = setup();
 
         await pickType(1, 5);
@@ -556,11 +556,11 @@ describe('CardBuilder', () => {
 
         await pickType(1, 1);
         await user.click(
-            screen.getByRole('button', { name: 'Match 1 side 1 wrestler 1' }),
+            screen.getByRole('button', { name: 'Match 1 side 1 superstar 1' }),
         );
 
         const flair = within(
-            screen.getByRole('listbox', { name: 'Match 1 side 1 wrestler 1' }),
+            screen.getByRole('listbox', { name: 'Match 1 side 1 superstar 1' }),
         ).getByRole('option', { name: /Ric Flair/ });
         expect(flair).toBeDisabled();
         expect(flair).toHaveTextContent('Seriously injured');
@@ -570,9 +570,9 @@ describe('CardBuilder', () => {
         const { pickType, pickWrestler } = setup();
 
         await pickType(1, 1);
-        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
+        await pickWrestler('Match 1 side 1 superstar 1', 'Edge');
         await pickType(2, 1);
-        await pickWrestler('Match 2 side 1 wrestler 1', 'Edge');
+        await pickWrestler('Match 2 side 1 superstar 1', 'Edge');
 
         expect(screen.getAllByText('×2 matches')).toHaveLength(2);
         expect(screen.getByTestId('slot-1-side-0-0').className).toContain(
@@ -584,14 +584,14 @@ describe('CardBuilder', () => {
         const { user, pickType, pickWrestler } = setup();
 
         await pickType(1, 1);
-        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
+        await pickWrestler('Match 1 side 1 superstar 1', 'Edge');
         await pickType(2, 1);
         await user.click(
-            screen.getByRole('button', { name: 'Match 2 side 1 wrestler 1' }),
+            screen.getByRole('button', { name: 'Match 2 side 1 superstar 1' }),
         );
 
         const list = screen.getByRole('listbox', {
-            name: 'Match 2 side 1 wrestler 1',
+            name: 'Match 2 side 1 superstar 1',
         });
         const edge = within(list).getByRole('option', { name: /Edge/ });
         const booked = within(edge).getByText('Booked');
@@ -617,7 +617,7 @@ describe('CardBuilder', () => {
         expect(
             rows.map(
                 (r) =>
-                    within(r).getAllByRole('button', { name: /wrestler/ })
+                    within(r).getAllByRole('button', { name: /superstar/ })
                         .length,
             ),
         ).toEqual([3, 3]);
@@ -658,7 +658,7 @@ describe('CardBuilder', () => {
         const row = screen.getByTestId('sides-1-row-0');
         expect(within(row).getAllByText('vs')).toHaveLength(1);
         expect(
-            within(row).getAllByRole('button', { name: /wrestler/ }),
+            within(row).getAllByRole('button', { name: /superstar/ }),
         ).toHaveLength(6);
     });
 
@@ -667,7 +667,7 @@ describe('CardBuilder', () => {
 
         // Edge is at 60%. A 3-bar ladder match takes him to 90%: minor risk.
         await pickType(1, 2);
-        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
+        await pickWrestler('Match 1 side 1 superstar 1', 'Edge');
 
         const first = screen.getByTestId('slot-1-side-0-0');
         expect(within(first).getByRole('meter')).toHaveAttribute(
@@ -679,7 +679,7 @@ describe('CardBuilder', () => {
 
         // Booked again in match 2, he goes in at 90%.
         await pickType(2, 1);
-        await pickWrestler('Match 2 side 1 wrestler 1', 'Edge');
+        await pickWrestler('Match 2 side 1 superstar 1', 'Edge');
 
         expect(screen.getByTestId('slot-2-side-0-0')).toHaveTextContent(
             'Going in: Minor risk',
@@ -714,12 +714,12 @@ describe('CardBuilder', () => {
             ).getByRole('option', { name: /^No Manager (Free|\$)/ }),
         );
         await user.click(
-            screen.getByRole('button', { name: 'Match 2 side 1 wrestler 1' }),
+            screen.getByRole('button', { name: 'Match 2 side 1 superstar 1' }),
         );
         await user.click(
             within(
                 screen.getByRole('listbox', {
-                    name: 'Match 2 side 1 wrestler 1',
+                    name: 'Match 2 side 1 superstar 1',
                 }),
             ).getByRole('option', { name: /Kane/ }),
         );
@@ -733,7 +733,7 @@ describe('CardBuilder', () => {
         const { pickType, pickWrestler } = setup();
 
         await pickType(1, 3);
-        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
+        await pickWrestler('Match 1 side 1 superstar 1', 'Edge');
 
         const manager = screen.getByTestId('manager-1-1');
         expect(manager).toHaveTextContent('Manager');
@@ -760,8 +760,8 @@ describe('CardBuilder', () => {
         const { onSave, user, pickType, pickWrestler } = setup();
 
         await pickType(1, 6);
-        await pickWrestler('Match 1 side 1 wrestler 1', 'Edge');
-        await pickWrestler('Match 1 side 2 wrestler 1', 'Kane');
+        await pickWrestler('Match 1 side 1 superstar 1', 'Edge');
+        await pickWrestler('Match 1 side 2 superstar 1', 'Kane');
 
         expect(screen.getByTestId('referee-1')).toHaveTextContent(
             'Special referee',
@@ -796,11 +796,11 @@ describe('CardBuilder', () => {
 
         await pickType(1, 4);
         await user.click(
-            screen.getByRole('button', { name: 'Match 1 side 1 wrestler 1' }),
+            screen.getByRole('button', { name: 'Match 1 side 1 superstar 1' }),
         );
 
         const names = within(
-            screen.getByRole('listbox', { name: 'Match 1 side 1 wrestler 1' }),
+            screen.getByRole('listbox', { name: 'Match 1 side 1 superstar 1' }),
         )
             .getAllByRole('option')
             .map((o) => o.textContent);
@@ -814,8 +814,8 @@ describe('CardBuilder', () => {
         await pickType(1, 6);
 
         for (const name of [
-            'Match 1 side 1 wrestler 1',
-            'Match 1 side 2 wrestler 1',
+            'Match 1 side 1 superstar 1',
+            'Match 1 side 2 superstar 1',
             'Match 1 special referee',
         ]) {
             await user.click(screen.getByRole('button', { name }));
@@ -842,6 +842,19 @@ describe('CardBuilder', () => {
         expect(bar).toHaveAttribute('aria-valuenow', '1');
         expect(bar).toHaveAttribute('aria-valuemax', '2');
         expect(screen.getByText('1 of 2 matches booked')).toBeInTheDocument();
+    });
+
+    it('leaves unsaved matches off the progress bar', async () => {
+        const { pickType, pickWrestler } = setup([emptySlot(1), emptySlot(2)]);
+
+        await pickType(1, 1);
+        await pickWrestler('Match 1 side 1 superstar 1', 'Edge');
+        await pickWrestler('Match 1 side 2 superstar 1', 'Kane');
+
+        expect(
+            screen.getByRole('progressbar', { name: 'Matches booked' }),
+        ).toHaveAttribute('aria-valuenow', '0');
+        expect(screen.getByText('0 of 2 matches booked')).toBeInTheDocument();
     });
 
     it('clears a slot with a red Clear button, after confirming', async () => {
@@ -936,10 +949,10 @@ describe('CardBuilder', () => {
             'Normal Matches → No Manager',
         );
         expect(
-            screen.getByRole('button', { name: 'Match 1 side 1 wrestler 1' }),
+            screen.getByRole('button', { name: 'Match 1 side 1 superstar 1' }),
         ).toHaveTextContent('Edge');
         expect(
-            screen.getByRole('button', { name: 'Match 1 side 2 wrestler 1' }),
+            screen.getByRole('button', { name: 'Match 1 side 2 superstar 1' }),
         ).toHaveTextContent('Kane');
         expect(slot).not.toHaveAttribute('data-dirty');
         expect(
@@ -954,7 +967,7 @@ describe('CardBuilder', () => {
         const { user, pickType, pickWrestler } = setup();
 
         await pickType(2, 1);
-        await pickWrestler('Match 2 side 1 wrestler 1', 'Edge');
+        await pickWrestler('Match 2 side 1 superstar 1', 'Edge');
         await user.click(
             screen.getByRole('button', { name: 'Discard changes to match 2' }),
         );
@@ -963,7 +976,9 @@ describe('CardBuilder', () => {
             screen.getByRole('button', { name: 'Match type for match 2' }),
         ).toHaveTextContent('Choose a match type');
         expect(
-            screen.queryByRole('button', { name: 'Match 2 side 1 wrestler 1' }),
+            screen.queryByRole('button', {
+                name: 'Match 2 side 1 superstar 1',
+            }),
         ).toBeNull();
         // Edge's other bookings no longer count this slot.
         expect(screen.queryByText('×2 matches')).toBeNull();
@@ -1027,7 +1042,7 @@ describe('CardBuilder', () => {
         );
 
         await user.click(
-            screen.getByRole('button', { name: 'Match 1 side 2 wrestler 1' }),
+            screen.getByRole('button', { name: 'Match 1 side 2 superstar 1' }),
         );
         const kane = screen.getByRole('option', { name: /Kane/ });
 
@@ -1059,7 +1074,7 @@ describe('CardBuilder', () => {
         );
 
         await user.click(
-            screen.getByRole('button', { name: 'Match 1 side 2 wrestler 1' }),
+            screen.getByRole('button', { name: 'Match 1 side 2 superstar 1' }),
         );
 
         expect(screen.getByRole('option', { name: /Kane/ })).toBeEnabled();

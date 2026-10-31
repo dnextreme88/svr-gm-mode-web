@@ -186,7 +186,7 @@ class MitbService
     {
         $briefcase = $this->duringOption($save, $slot, $week)
             ?? throw new GameRuleException('The briefcase can’t be cashed in on this match.');
-        $type = $this->grownType($slot) ?? throw new GameRuleException('This match can’t take another wrestler.');
+        $type = $this->grownType($slot) ?? throw new GameRuleException('This match can’t take another superstar.');
 
         $slot->participants()->where('role', ParticipantRole::Manager)->delete();
         MatchParticipant::create([
