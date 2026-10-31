@@ -30,4 +30,8 @@ enum EmailTemplate: string
     case InjuryReturning = 'injury_returning';
     case SlanderResult = 'slander_result';
     case RivalSlander = 'rival_slander';
+    case InterferenceResult = 'interference_result';
+    case InjuryCleared = 'injury_cleared';
+    case TradeReminder = 'trade_reminder';
+    case FreeAgentReminder = 'free_agent_reminder';
 }

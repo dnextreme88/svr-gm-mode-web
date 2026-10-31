@@ -7,15 +7,19 @@ use App\Enums\InjurySeverity;
 use App\Enums\PromoTypeKey;
 use App\Enums\ShowStatus;
 use App\Models\Injury;
+use App\Models\PendingRosterMove;
 use App\Models\PromoSlot;
+use App\Models\Trade;
 use App\Services\Calendar\CalendarService;
 use App\Services\Mail\EmailService;
 use App\Services\Week\WeekContext;
 use App\Services\Week\WeekStep;
 
 /**
- * Scheduled GM emails: the specialties tip twice a season, the Interference
- * reminder, Vince's shared-PPV reminders and superstars' return notices.
+ * Scheduled GM emails: the specialties tip twice a season, JR / Tazz's
+ * reminders (Interference, Slander, trades, free agents: every N weeks since
+ * the GM last did it), Vince's shared-PPV reminders and superstars' return
+ * notices.
  */
 class SendReminders implements WeekStep
 {
@@ -34,11 +38,34 @@ class SendReminders implements WeekStep
                 $this->emails->specialtyTip($save, $brand, $week);
             }
 
-            $unused = $week - $this->lastInterference($context, $brand);
+            $unused = $week - $this->lastPromo($context, $brand, PromoTypeKey::InterferencePromotion);
 
-            if ($unused === (int) config('gm.emails.interference_reminder_weeks')) {
+            if ($this->due($unused, 'interference_reminder_weeks')) {
                 $this->emails->interferenceReminder($save, $brand, $unused, $week);
             }
+        }
+
+        // The rest only make sense for the player: the rival GM doesn't
+        // read its email.
+        $player = $save->player_brand;
+        $unused = $week - $this->lastPromo($context, $player, PromoTypeKey::SlanderPromotion);
+
+        if ($this->due($unused, 'slander_reminder_weeks')) {
+            $this->emails->slanderReminder($save, $player, $unused, $week);
+        }
+
+        $idle = $week - (int) Trade::where('save_id', $save->id)->where('proposer_brand', $player)->max('week_number');
+
+        if ($this->due($idle, 'trade_reminder_weeks')) {
+            $this->emails->tradeReminder($save, $player, $idle, $week);
+        }
+
+        // A signing joins the roster the week after it was made.
+        $signed = PendingRosterMove::where('save_id', $save->id)->where('brand', $player)->max('effective_week');
+        $idle = $week - ($signed === null ? 0 : (int) $signed - 1);
+
+        if ($this->due($idle, 'free_agent_reminder_weeks')) {
+            $this->emails->freeAgentReminder($save, $player, $idle, $week);
         }
 
         $weeksOut = (int) config('gm.emails.ppv_reminder_weeks_before');
@@ -72,9 +99,19 @@ class SendReminders implements WeekStep
     }
 
     /**
-     * The last week this brand aired an Interference promo (0 if never).
+     * Every `gm.emails.{$key}` weeks since the GM last did it.
      */
-    private function lastInterference(WeekContext $context, Brand $brand): int
+    private function due(int $weeks, string $key): bool
+    {
+        $every = (int) config("gm.emails.{$key}");
+
+        return $weeks > 0 && $every > 0 && $weeks % $every === 0;
+    }
+
+    /**
+     * The last week this brand aired a promo of this type (0 if never).
+     */
+    private function lastPromo(WeekContext $context, Brand $brand, PromoTypeKey $key): int
     {
         return (int) PromoSlot::query()
             ->join('shows', 'shows.id', '=', 'promo_slots.show_id')
@@ -82,7 +119,7 @@ class SendReminders implements WeekStep
             ->where('shows.brand', $brand)
             ->where('shows.status', ShowStatus::Aired)
             ->whereNotNull('promo_slots.succeeded')
-            ->whereHas('promoType', fn ($q) => $q->where('key', PromoTypeKey::InterferencePromotion))
+            ->whereHas('promoType', fn ($q) => $q->where('key', $key))
             ->max('shows.week_number');
     }
 }

@@ -303,6 +303,11 @@ class PromoService
                 : $this->emails->rivalSlander($save, $save->player_brand, $brand, $succeeded, $week);
         }
 
+        // The player's Interference gets the rival GM's reaction too.
+        if ($type->key === PromoTypeKey::InterferencePromotion && $save->isHuman($brand)) {
+            $this->emails->interferenceResult($save, $brand, $succeeded, $week);
+        }
+
         // The news story is written once the show has aired, so it can tell
         // how the promo played into the night (PromoStoryWriter).
     }

@@ -97,6 +97,10 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::post('trade/odds', [TradeController::class, 'odds'])->name('trade.odds');
 
             Route::get('email', [EmailController::class, 'index'])->name('email');
+            Route::post('email/read-all', [EmailController::class, 'readAll'])->name('email.read-all');
+            Route::delete('email', [EmailController::class, 'destroyAll'])->name('email.destroy-all');
+            Route::patch('email/{email}', [EmailController::class, 'update'])->name('email.update');
+            Route::delete('email/{email}', [EmailController::class, 'destroy'])->name('email.destroy');
             Route::get('docs', DocsController::class)->name('saves.docs');
 
             Route::get('rosters', [RosterController::class, 'index'])->name('rosters.index');

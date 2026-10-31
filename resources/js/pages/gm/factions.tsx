@@ -1,6 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { Fragment, useState } from 'react';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
+import { FilterGroup } from '@/components/gm/filter-group';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { brandName, readPreference, writePreference } from '@/lib/gm';
@@ -242,44 +243,6 @@ export default function Factions() {
                 }}
             />
         </>
-    );
-}
-
-/** A row of toggle buttons for one filter. */
-function FilterGroup<T extends string>({
-    label,
-    options,
-    value,
-    onChange,
-}: {
-    label: string;
-    options: Array<{ value: T; label: string }>;
-    value: T;
-    onChange: (value: T) => void;
-}) {
-    return (
-        <div
-            className="flex flex-wrap items-center gap-1"
-            role="radiogroup"
-            aria-label={label}
-        >
-            <span className="gm-label mr-1">{label}</span>
-            {options.map((o) => (
-                <button
-                    key={o.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={value === o.value}
-                    className={cn(
-                        'gm-btn gm-btn-sm whitespace-nowrap',
-                        value !== o.value && 'gm-btn-ghost',
-                    )}
-                    onClick={() => onChange(o.value)}
-                >
-                    {o.label}
-                </button>
-            ))}
-        </div>
     );
 }
 

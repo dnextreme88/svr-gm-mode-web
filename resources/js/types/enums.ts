@@ -160,6 +160,22 @@ export const DraftPickTypeLabels: Record<DraftPickType, string> = {
     'random': 'Random',
 };
 
+export const EmailSenderKind = {
+    Commentator: 'commentator',
+    Chairman: 'chairman',
+    Trainer: 'trainer',
+    RivalGm: 'rival_gm',
+    Superstar: 'superstar',
+} as const;
+export type EmailSenderKind = (typeof EmailSenderKind)[keyof typeof EmailSenderKind];
+export const EmailSenderKindLabels: Record<EmailSenderKind, string> = {
+    'commentator': 'Commentator',
+    'chairman': 'Chairman',
+    'trainer': 'Trainer',
+    'rival_gm': 'Rival GM',
+    'superstar': 'Superstar',
+};
+
 export const EmailTemplate = {
     Hint: 'hint',
     ExpiringContracts: 'expiring_contracts',
@@ -180,6 +196,10 @@ export const EmailTemplate = {
     InjuryReturning: 'injury_returning',
     SlanderResult: 'slander_result',
     RivalSlander: 'rival_slander',
+    InterferenceResult: 'interference_result',
+    InjuryCleared: 'injury_cleared',
+    TradeReminder: 'trade_reminder',
+    FreeAgentReminder: 'free_agent_reminder',
 } as const;
 export type EmailTemplate = (typeof EmailTemplate)[keyof typeof EmailTemplate];
 export const EmailTemplateLabels: Record<EmailTemplate, string> = {
@@ -202,6 +222,10 @@ export const EmailTemplateLabels: Record<EmailTemplate, string> = {
     'injury_returning': 'Injury Returning',
     'slander_result': 'Slander Result',
     'rival_slander': 'Rival Slander',
+    'interference_result': 'Interference Result',
+    'injury_cleared': 'Injury Cleared',
+    'trade_reminder': 'Trade Reminder',
+    'free_agent_reminder': 'Free Agent Reminder',
 };
 
 export const FactionOrigin = {

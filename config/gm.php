@@ -503,7 +503,13 @@ return [
         'specialty_tip_every_weeks' => 26,
         // ASSUMPTION: how often the specialties tip names one of your specialists.
         'specialty_mention_chance' => 0.5,
-        'interference_reminder_weeks' => 13,
+        // House rule (2026-10-31): JR / Tazz remind the GM every N weeks
+        // since they last ran the promo, proposed a trade or signed a free
+        // agent; doing it restarts the clock.
+        'interference_reminder_weeks' => 12,
+        'slander_reminder_weeks' => 12,
+        'trade_reminder_weeks' => 12,
+        'free_agent_reminder_weeks' => 16,
         // ASSUMPTION: Vince's shared-PPV reminder lands 2 weeks out.
         'ppv_reminder_weeks_before' => 2,
         'low_cash_threshold' => 500_000,
