@@ -11,7 +11,7 @@ import { OutcomeCard } from '@/components/gm/outcome-card';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
-import { brandName } from '@/lib/gm';
+import { brandName, prefersReducedMotion } from '@/lib/gm';
 import gm from '@/routes/gm';
 import { StipulationLabels } from '@/types/enums';
 import type { Brand } from '@/types/enums';
@@ -111,6 +111,20 @@ function rowsFor(show: ShowResult): Row[] {
  * Simulate match; Simulate all decides the rest. Fatigue shows once the
  * whole week is in.
  */
+/** On phones the result card sits below the list: bring it into view. */
+function showCardOnSmallScreens() {
+    if (window.matchMedia?.('(max-width: 1023px)').matches !== true) {
+        return;
+    }
+
+    requestAnimationFrame(() =>
+        document.getElementById('result-card')?.scrollIntoView({
+            behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+            block: 'start',
+        }),
+    );
+}
+
 export default function Results() {
     const {
         game,
@@ -227,6 +241,7 @@ export default function Results() {
         setDecided(null);
         setDirection(open !== null && index < open ? 'left' : 'right');
         setOpen(index);
+        showCardOnSmallScreens();
     };
 
     const post = (
@@ -300,14 +315,22 @@ export default function Results() {
                         Back to schedule
                     </Link>
                 ) : airing ? (
-                    <button
-                        type="button"
-                        className="gm-btn"
-                        disabled
-                        title="Decide every match first"
-                    >
-                        Continue
-                    </button>
+                    <>
+                        <button
+                            type="button"
+                            className="gm-btn"
+                            disabled
+                            aria-describedby="continue-hint"
+                        >
+                            Continue
+                        </button>
+                        <p
+                            id="continue-hint"
+                            className="basis-full text-sm text-ink-dim sm:text-right"
+                        >
+                            Decide every match to continue.
+                        </p>
+                    </>
                 ) : (
                     <Link href={gm.news.url(game.id)} className="gm-btn">
                         Continue
@@ -320,8 +343,17 @@ export default function Results() {
             )}
 
             {reel.length > 0 && (
-                <div className="grid items-start gap-6 lg:grid-cols-2">
-                    <div className="space-y-6">
+                <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+                    <div className="min-w-0 space-y-6">
+                        {airing && !rival && current?.outcome.pending && (
+                            <button
+                                type="button"
+                                className="gm-btn gm-btn-gold w-full lg:hidden"
+                                onClick={showCardOnSmallScreens}
+                            >
+                                Decide match {current.outcome.position}
+                            </button>
+                        )}
                         {shows.map((show) => (
                             <Panel
                                 key={show.id}
@@ -330,13 +362,21 @@ export default function Results() {
                                 bodyClassName="p-0"
                             >
                                 <ol className="divide-y divide-white/5">
-                                    {rowsFor(show).map((row) => {
+                                    {rowsFor(show).map((row, _, rows) => {
                                         if (row.kind === 'promo') {
+                                            // Promos are numbered in the order they air.
+                                            const aired = rows
+                                                .filter(
+                                                    (r) => r.kind === 'promo',
+                                                )
+                                                .indexOf(row);
+
                                             return (
                                                 <PromoRow
                                                     key={`promo-${row.promo.position}`}
                                                     showId={show.id}
                                                     promo={row.promo}
+                                                    number={aired + 1}
                                                 />
                                             );
                                         }
@@ -376,9 +416,15 @@ export default function Results() {
                         )}
                     </div>
 
-                    <div className="space-y-6 lg:sticky lg:top-4">
+                    <div
+                        id="result-card"
+                        className="min-w-0 scroll-mt-4 space-y-6 lg:sticky lg:top-4"
+                    >
                         {current ? (
-                            <div data-testid="result-detail">
+                            <div
+                                data-testid="result-detail"
+                                className="overflow-x-clip"
+                            >
                                 <div
                                     key={`${open}-${current.outcome.pending ? 'pending' : 'done'}`}
                                     className={
@@ -456,8 +502,8 @@ export default function Results() {
                                     data-testid="fatigue-pending"
                                     className="text-sm text-ink-faint"
                                 >
-                                    Fatigue progression for your superstars are
-                                    updated until you resolve all matches.
+                                    Your superstars' fatigue shows here once
+                                    every match is decided.
                                 </p>
                             </Panel>
                         ) : (
@@ -516,7 +562,7 @@ function MatchRow({
                 )}
             >
                 <span className="flex items-start justify-between gap-3">
-                    <span className="text-lg font-semibold group-hover:text-white">
+                    <span className="min-w-0 text-lg font-semibold group-hover:text-white">
                         <span
                             data-testid={`match-label-${show.id}-${o.position}`}
                             className={cn(
@@ -571,7 +617,7 @@ function MatchRow({
                             </>
                         )}
                     </span>
-                    <span className="flex shrink-0 items-center gap-1 whitespace-nowrap">
+                    <span className="flex max-w-[45%] shrink-0 items-center gap-1 text-right sm:max-w-none sm:whitespace-nowrap">
                         {o.pending ? (
                             o.is_next ? (
                                 <span className="gm-btn gm-btn-gold gm-btn-sm">
@@ -603,6 +649,7 @@ function MatchRow({
                     {o.title && (
                         <span className="bg-gradient-to-b from-gold-hot to-gold px-2 py-px font-condensed text-xs font-bold tracking-[0.14em] text-arena uppercase">
                             ◆ {o.title}
+                            {!o.champions?.length && ' (vacant)'}
                         </span>
                     )}
                     {!o.pending && o.title_banner === 'new_champion' && (
@@ -643,7 +690,15 @@ function MatchRow({
     );
 }
 
-function PromoRow({ showId, promo }: { showId: number; promo: ResultPromo }) {
+function PromoRow({
+    showId,
+    promo,
+    number,
+}: {
+    showId: number;
+    promo: ResultPromo;
+    number: number;
+}) {
     const status = promo.status === null ? null : PROMO_STATUS[promo.status];
 
     return (
@@ -654,7 +709,7 @@ function PromoRow({ showId, promo }: { showId: number; promo: ResultPromo }) {
             <span className="flex items-start justify-between gap-3">
                 <span className="text-lg font-semibold">
                     <span className="gm-label mr-2 align-middle text-sm text-ink-dim">
-                        Promo {promo.position}
+                        Promo {number}
                     </span>
                     {promo.type}
                 </span>

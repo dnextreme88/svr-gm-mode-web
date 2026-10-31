@@ -30,6 +30,7 @@ export function OutcomeCard({
                 {outcome.title && (
                     <span className="ml-2 text-gold-hot">
                         · {outcome.title}
+                        {!outcome.champions?.length && ' (vacant)'}
                     </span>
                 )}
             </div>

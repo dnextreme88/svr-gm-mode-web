@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowDown, ArrowUp, ArrowUpDown, TriangleAlert } from 'lucide-react';
+import { TriangleAlert } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import {
@@ -12,6 +12,7 @@ import { BrandBug } from '@/components/gm/brand-bug';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { PoolFilters } from '@/components/gm/pool-filters';
+import { ariaSort, nextSort, SortHeader } from '@/components/gm/sort-header';
 import { StreakMeter } from '@/components/gm/streak-meter';
 import type { PoolFilter, RosterSort, RosterSortKey } from '@/lib/gm';
 import { emptyPoolFilter, filterPool, formatMoney, sortRoster } from '@/lib/gm';
@@ -51,12 +52,7 @@ export default function Rosters() {
 
         router.visit(url(id));
     };
-    const toggleSort = (key: RosterSortKey) =>
-        setSort((s) =>
-            s?.key === key
-                ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
-                : { key, dir: 'asc' },
-        );
+    const toggleSort = (key: RosterSortKey) => setSort((s) => nextSort(s, key));
     const sortHeader = (
         key: RosterSortKey,
         label: ReactNode,
@@ -280,54 +276,6 @@ export default function Rosters() {
                 </Panel>
             )}
         </>
-    );
-}
-
-function ariaSort(
-    sort: RosterSort,
-    key: RosterSortKey,
-): 'ascending' | 'descending' | 'none' {
-    if (sort?.key !== key) {
-        return 'none';
-    }
-
-    return sort.dir === 'asc' ? 'ascending' : 'descending';
-}
-
-function SortHeader({
-    label,
-    active,
-    onClick,
-    right,
-}: {
-    label: ReactNode;
-    active: 'asc' | 'desc' | null;
-    onClick: () => void;
-    right: boolean;
-}) {
-    const Icon =
-        active === 'asc'
-            ? ArrowUp
-            : active === 'desc'
-              ? ArrowDown
-              : ArrowUpDown;
-
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={cn(
-                'gm-row-link inline-flex items-center gap-1 uppercase hover:text-ink',
-                right && 'flex-row-reverse',
-                active && 'text-ink',
-            )}
-        >
-            {label}
-            <Icon
-                aria-hidden
-                className={cn('size-3.5', !active && 'opacity-50')}
-            />
-        </button>
     );
 }
 

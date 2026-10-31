@@ -4,7 +4,6 @@ import type {
     MatchFamily,
     Morale,
     RosterType,
-    WeightClass,
 } from '@/types/enums';
 import type { FatigueConfig } from '@/types/gm';
 
@@ -98,23 +97,14 @@ export function writePreference(key: string, value: string): void {
     }
 }
 
-/** Cruiserweights and Light Heavyweights (the blue names). */
-export function isCruiser(weightClass: WeightClass | null): boolean {
-    return (
-        weightClass === 'cruiserweight' || weightClass === 'light_heavyweight'
-    );
-}
-
 export type PoolFilter = {
     type: RosterType | 'all';
-    cruisers: boolean;
     specialists: boolean;
     search: string;
 };
 
 export const emptyPoolFilter: PoolFilter = {
     type: 'all',
-    cruisers: false,
     specialists: false,
     search: '',
 };
@@ -122,7 +112,6 @@ export const emptyPoolFilter: PoolFilter = {
 type Filterable = {
     name: string;
     roster_type: RosterType;
-    weight_class: WeightClass;
     specialties: MatchFamily[];
 };
 
@@ -135,7 +124,6 @@ export function filterPool<T extends Filterable>(
     return rows.filter(
         (w) =>
             (filter.type === 'all' || w.roster_type === filter.type) &&
-            (!filter.cruisers || isCruiser(w.weight_class)) &&
             (!filter.specialists || w.specialties.length > 0) &&
             w.name.toLowerCase().includes(search),
     );

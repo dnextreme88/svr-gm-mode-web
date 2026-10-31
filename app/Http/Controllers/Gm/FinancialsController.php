@@ -26,6 +26,7 @@ class FinancialsController extends Controller
         return Inertia::render('gm/financials', [
             'statement' => $report->forWeek($save, $save->player_brand, $week),
             'history' => $history,
+            'weekly_upkeep' => $report->weeklyUpkeep($save, $save->player_brand),
             'deficit_choices' => TrackDeficit::choices(),
         ]);
     }

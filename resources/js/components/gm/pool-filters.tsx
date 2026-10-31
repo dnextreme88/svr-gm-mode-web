@@ -36,9 +36,8 @@ function Chip({
 }
 
 /**
- * Filters for a wrestler pool (draft room, Free Agency): roster type,
- * Cruiserweights / Light Heavyweights, wrestlers with match specialties,
- * and a name search.
+ * Filters for a wrestler pool (draft room, Free Agency, rosters): roster
+ * type, wrestlers with match specialties, and a name search.
  */
 export function PoolFilters({
     value,
@@ -67,14 +66,6 @@ export function PoolFilters({
                 </Chip>
             ))}
             <span className="h-4 w-px bg-white/15" aria-hidden />
-            <Chip
-                active={value.cruisers}
-                pressed={value.cruisers}
-                disabled={disabled}
-                onClick={() => set({ cruisers: !value.cruisers })}
-            >
-                Cruisers / Light Heavy
-            </Chip>
             <Chip
                 active={value.specialists}
                 pressed={value.specialists}

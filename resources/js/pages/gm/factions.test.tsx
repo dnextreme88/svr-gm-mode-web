@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Factions from '@/pages/gm/factions';
 
 const post = vi.fn();
@@ -99,12 +99,15 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 describe('Factions page', () => {
+    // The view filters are remembered between visits.
+    beforeEach(() => window.localStorage.clear());
+
     it('opens on the factions created in this career, by either brand', () => {
         render(<Factions />);
 
         expect(
-            screen.getByRole('tab', { name: 'Created (2)' }),
-        ).toHaveAttribute('aria-selected', 'true');
+            screen.getByRole('radio', { name: 'Created this career (2)' }),
+        ).toHaveAttribute('aria-checked', 'true');
         expect(screen.getByTestId('faction-2')).toHaveTextContent('Yours');
         expect(screen.getByTestId('faction-4')).toHaveTextContent('Rival');
         expect(screen.getByTestId('faction-4')).toHaveTextContent('3–0');
@@ -116,7 +119,9 @@ describe('Factions page', () => {
         const user = userEvent.setup();
         render(<Factions />);
 
-        await user.click(screen.getByRole('tab', { name: 'All (4)' }));
+        await user.click(
+            screen.getByRole('radio', { name: 'All factions (4)' }),
+        );
 
         const xtreme = screen.getByTestId('faction-1');
         expect(xtreme).toHaveTextContent('Matt Hardy');
@@ -130,8 +135,10 @@ describe('Factions page', () => {
         const user = userEvent.setup();
         render(<Factions />);
 
-        await user.click(screen.getByRole('tab', { name: 'All (4)' }));
-        await user.click(screen.getByRole('tab', { name: 'Disbanded (1)' }));
+        await user.click(
+            screen.getByRole('radio', { name: 'All factions (4)' }),
+        );
+        await user.click(screen.getByRole('radio', { name: 'Disbanded (1)' }));
 
         const edgeChristian = screen.getByTestId('faction-3');
         expect(edgeChristian).toHaveTextContent('Apr 10, 2005');
@@ -140,7 +147,9 @@ describe('Factions page', () => {
         ).not.toBeInTheDocument();
         expect(screen.queryByTestId('faction-1')).not.toBeInTheDocument();
 
-        await user.click(screen.getByRole('tab', { name: 'Created (2)' }));
+        await user.click(
+            screen.getByRole('radio', { name: 'Created this career (2)' }),
+        );
 
         expect(
             screen.getByText(/No faction has disbanded in this career/),
@@ -151,7 +160,9 @@ describe('Factions page', () => {
         const user = userEvent.setup();
         render(<Factions />);
 
-        await user.click(screen.getByRole('tab', { name: 'All (4)' }));
+        await user.click(
+            screen.getByRole('radio', { name: 'All factions (4)' }),
+        );
         await user.type(
             screen.getByRole('searchbox', { name: 'Search members' }),
             'jeff',
@@ -174,7 +185,7 @@ describe('Factions page', () => {
 
         await user.click(
             within(screen.getByTestId('faction-2')).getByRole('button', {
-                name: 'Disband',
+                name: 'Disband Cenation',
             }),
         );
 
@@ -192,5 +203,30 @@ describe('Factions page', () => {
             {},
             expect.anything(),
         );
+    });
+
+    it('opens on all factions while none has been created', () => {
+        const created = props.factions;
+        props.factions = created.filter((f) => f.origin === 'seeded');
+        render(<Factions />);
+
+        expect(
+            screen.getByRole('radio', { name: 'All factions (2)' }),
+        ).toHaveAttribute('aria-checked', 'true');
+        expect(screen.getByTestId('faction-1')).toBeInTheDocument();
+        props.factions = created;
+    });
+
+    it('separates the in-game run from the real-life dates', async () => {
+        const user = userEvent.setup();
+        render(<Factions />);
+
+        await user.click(
+            screen.getByRole('radio', { name: 'All factions (4)' }),
+        );
+
+        const xtreme = screen.getByTestId('faction-1');
+        expect(xtreme).toHaveTextContent('Week 1 – now');
+        expect(xtreme).toHaveTextContent('Jan 17, 2000 – Dec 24, 2001');
     });
 });
