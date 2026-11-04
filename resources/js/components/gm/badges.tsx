@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { titleImageFor } from '@/lib/assets';
 import { cn } from '@/lib/utils';
 import { MatchFamilyLabels, MoraleLabels } from '@/types/enums';
 import type { MatchFamily, Morale } from '@/types/enums';
@@ -78,13 +79,70 @@ export function SpecialtyBadge({
     );
 }
 
+// Every belt sits on the same padded canvas, so they keep their relative sizes.
+const beltSizes = {
+    sm: 'h-6',
+    md: 'h-9',
+    lg: 'h-14',
+};
+
+/**
+ * A championship's belt, by name: the title counterpart to BrandBug. Renders
+ * nothing for a name with no belt.
+ */
+export function TitleBeltImage({
+    name,
+    size = 'sm',
+    decorative = false,
+    className,
+}: {
+    name: string;
+    size?: keyof typeof beltSizes;
+    /** Beside the title's name already: hide it from screen readers. */
+    decorative?: boolean;
+    className?: string;
+}) {
+    const src = titleImageFor(name);
+
+    if (!src) {
+        return null;
+    }
+
+    return (
+        <img
+            src={src}
+            alt={decorative ? '' : name}
+            aria-hidden={decorative || undefined}
+            title={decorative ? undefined : name}
+            data-testid="title-belt"
+            data-title={name}
+            draggable={false}
+            className={cn(
+                'inline-block w-auto max-w-none shrink-0 object-contain align-middle select-none',
+                beltSizes[size],
+                className,
+            )}
+        />
+    );
+}
+
+/** The belt in a gold title chip, or the old diamond for a name with no belt. */
+export function TitleMark({ name }: { name: string }) {
+    return titleImageFor(name) ? (
+        <TitleBeltImage name={name} decorative className="-my-1" />
+    ) : (
+        <span aria-hidden>◆</span>
+    );
+}
+
 export function TitleBelt({ name }: { name: string }) {
     return (
         <span
-            className="inline-flex items-center gap-1 bg-gradient-to-b from-gold-hot to-gold px-1.5 py-px font-condensed text-xs font-bold tracking-wider text-arena uppercase"
+            className="inline-flex items-center gap-1 px-1.5 py-px font-condensed text-sm font-bold tracking-wider text-white uppercase"
             title={name}
         >
-            ◆ {name.replace(' Championship', '')}
+            <TitleMark name={name} />
+            {name.replace(' Championship', '')}
         </span>
     );
 }

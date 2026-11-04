@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { BrandBug } from '@/components/gm/brand-bug';
 import { cn } from '@/lib/utils';
 import { NewsEventTypeLabels } from '@/types/enums';
 import type { NewsEventType, NewsTier } from '@/types/enums';
@@ -218,16 +219,13 @@ function NewsCardView({
                 className="block w-full p-4 text-left"
             >
                 <div className="flex items-center justify-between gap-2">
-                    <span
-                        className={cn(
-                            'gm-chyron py-0.5 pl-2 font-condensed font-bold tracking-[0.18em] uppercase',
-                            slot === 'neutral'
-                                ? 'bg-gold text-arena'
-                                : 'bg-brand text-white',
-                        )}
-                    >
-                        {slotLabel[slot]}
-                    </span>
+                    {slot === 'neutral' ? (
+                        <span className="gm-chyron bg-gold py-0.5 pl-2 font-condensed font-bold tracking-[0.18em] text-arena uppercase">
+                            {slotLabel[slot]}
+                        </span>
+                    ) : (
+                        <BrandBug brand={slot} size="sm" className="h-7" />
+                    )}
                     <span className="gm-label">
                         {NewsEventTypeLabels[item.type]}
                     </span>

@@ -409,7 +409,7 @@ describe('PromoSlots', () => {
         ).toBeDisabled();
 
         await user.click(
-            screen.getByRole('radio', { name: '◆ WWE Championship' }),
+            screen.getByRole('radio', { name: 'WWE Championship' }),
         );
         await user.click(screen.getByRole('button', { name: 'Save promo 1' }));
 

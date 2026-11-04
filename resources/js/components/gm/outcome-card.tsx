@@ -1,4 +1,4 @@
-import { CashInTag } from '@/components/gm/badges';
+import { CashInTag, TitleBeltImage, TitleMark } from '@/components/gm/badges';
 import { Fragment } from 'react';
 import { SideNames } from '@/components/gm/champion-tag';
 import { cn } from '@/lib/utils';
@@ -29,7 +29,13 @@ export function OutcomeCard({
                 {outcome.match_type}
                 {outcome.title && (
                     <span className="ml-2 text-gold-hot">
-                        · {outcome.title}
+                        ·{' '}
+                        <TitleBeltImage
+                            name={outcome.title}
+                            decorative
+                            className="mr-1.5 h-7"
+                        />
+                        {outcome.title}
                         {!outcome.champions?.length && ' (vacant)'}
                     </span>
                 )}
@@ -152,9 +158,10 @@ export function OutcomeCard({
                     {(outcome.titles_won ?? []).map((t) => (
                         <li
                             key={t}
-                            className="bg-gradient-to-b from-gold-hot to-gold px-2 py-px font-condensed text-xs font-bold tracking-[0.14em] text-arena uppercase"
+                            className="inline-flex items-center gap-1 bg-gradient-to-b from-gold-hot to-gold px-2 py-px font-condensed text-xs font-bold tracking-[0.14em] text-arena uppercase"
                         >
-                            ◆ {t}
+                            <TitleMark name={t} />
+                            {t}
                         </li>
                     ))}
                 </ul>

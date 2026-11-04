@@ -1,4 +1,4 @@
-import { CashInTag } from '@/components/gm/badges';
+import { CashInTag, TitleBeltImage } from '@/components/gm/badges';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { Fragment, useState } from 'react';
 import {
@@ -52,7 +52,13 @@ export function BookToWinCard({
                     {match.match_type}
                     {match.title && (
                         <span className="ml-2 text-gold-hot">
-                            · {match.title}
+                            ·{' '}
+                            <TitleBeltImage
+                                name={match.title}
+                                decorative
+                                className="mr-1.5 h-7"
+                            />
+                            {match.title}
                             {!match.champions?.length && ' (vacant)'}
                         </span>
                     )}

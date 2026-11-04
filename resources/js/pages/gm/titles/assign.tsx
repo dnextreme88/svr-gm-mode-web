@@ -1,5 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import { TitleMark } from '@/components/gm/badges';
 import { PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
@@ -200,7 +201,9 @@ function TitleCard({
         <Panel
             title={
                 <span className="flex items-center gap-2">
-                    <span className="text-gold">◆</span>
+                    <span className="text-gold">
+                        <TitleMark name={championship.name} />
+                    </span>
                     {championship.name}
                 </span>
             }

@@ -199,15 +199,36 @@ describe('Schedule calendar', () => {
     it('hovers each show in its brand colour, PPVs in gold', () => {
         render(<Schedule />);
 
-        expect(screen.getByTestId('air-2005-04-04-weekly-raw')).toHaveClass(
-            'hover:bg-raw',
-        );
+        const cell = (date: string) =>
+            document.querySelector(`[data-date="${date}"]`);
+
+        // A weekly show's hover is on its whole cell, not the logo.
+        expect(cell('2005-04-04')).toHaveClass('hover:bg-raw/25');
+        expect(cell('2005-04-08')).toHaveClass('hover:bg-sd/25');
         expect(
-            screen.getByTestId('air-2005-04-08-weekly-smackdown'),
-        ).toHaveClass('hover:bg-sd');
+            screen.getByTestId('air-2005-04-04-weekly-raw').className,
+        ).not.toMatch(/hover:bg-/);
+        // Its button stretches over the cell, so the whole cell is clickable.
+        expect(cell('2005-04-04')).toHaveClass('relative');
+        expect(screen.getByTestId('air-2005-04-04-weekly-raw')).toHaveClass(
+            'after:absolute',
+            'after:inset-0',
+        );
         expect(
             screen.getByTestId('air-2005-04-24-ppv-shared').className,
         ).not.toMatch(/hover:bg-(raw|sd)/);
+    });
+
+    it('ticks an aired weekly show in green beside the date, not on the logo', () => {
+        render(<Schedule />);
+
+        expect(screen.getByTestId('aired-2005-04-04')).toHaveClass(
+            'text-zone-safe',
+        );
+        expect(
+            screen.getByTestId('air-2005-04-04-weekly-raw'),
+        ).not.toHaveTextContent('✓');
+        expect(screen.queryByTestId('aired-2005-04-25')).toBeNull();
     });
 
     it('marks your card this week with the moving border, without a Book label', () => {

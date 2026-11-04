@@ -125,7 +125,7 @@ describe('Randomize / Preset modal (§24)', () => {
             await within(dialog).findByText('Edge vs Kane'),
         ).toBeInTheDocument();
         expect(
-            within(dialog).getByText('◆ WWE Championship'),
+            within(dialog).getByText('WWE Championship'),
         ).toBeInTheDocument();
         expect(fetchProposal).toHaveBeenCalledWith(0);
     });

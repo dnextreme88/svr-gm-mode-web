@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { TitleMark } from '@/components/gm/badges';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { Panel } from '@/components/gm/panel';
 import { RivalryPicker, sortPair } from '@/components/gm/rivalry-picker';
@@ -476,13 +477,16 @@ function PromoEditor({
                                         disabled={readOnly}
                                         onClick={() => setTitle(id)}
                                         className={cn(
-                                            'px-3 py-1 font-condensed text-sm font-bold tracking-[0.14em] uppercase',
+                                            'inline-flex items-center gap-1.5 px-3 py-1 font-condensed text-sm font-bold tracking-[0.14em] uppercase',
                                             title === id
                                                 ? 'bg-gradient-to-b from-gold-hot to-gold text-arena'
                                                 : 'bg-white/5 text-ink-dim hover:text-ink',
                                         )}
                                     >
-                                        ◆ {titleNames[id] ?? `Title ${id}`}
+                                        <TitleMark
+                                            name={titleNames[id] ?? ''}
+                                        />
+                                        {titleNames[id] ?? `Title ${id}`}
                                     </button>
                                 ))}
                             </div>
