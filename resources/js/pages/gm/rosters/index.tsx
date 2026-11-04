@@ -194,31 +194,31 @@ export default function Rosters() {
                                             {(w.roster_type === 'legend' ||
                                                 w.titles.length > 0 ||
                                                 w.sitting_out) && (
-                                                    <div className="mt-0.5 flex flex-wrap gap-1 sm:flex-nowrap sm:whitespace-nowrap">
-                                                        {w.roster_type ===
-                                                            'legend' && (
-                                                                <span className="font-condensed text-sm tracking-widest text-ink-faint uppercase">
-                                                                    {
-                                                                        RosterTypeLabels[
-                                                                        w
-                                                                            .roster_type
-                                                                        ]
-                                                                    }
-                                                                </span>
-                                                            )}
-                                                        {w.titles.map((t) => (
-                                                            <TitleBelt
-                                                                key={t}
-                                                                name={t}
-                                                            />
-                                                        ))}
-                                                        {w.sitting_out && (
-                                                            <span className="font-condensed text-sm font-bold tracking-widest text-zone-minor uppercase">
-                                                                Sitting out
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                <div className="mt-0.5 flex flex-wrap gap-1 sm:flex-nowrap sm:whitespace-nowrap">
+                                                    {w.roster_type ===
+                                                        'legend' && (
+                                                        <span className="font-condensed text-sm tracking-widest text-ink-faint uppercase">
+                                                            {
+                                                                RosterTypeLabels[
+                                                                    w
+                                                                        .roster_type
+                                                                ]
+                                                            }
+                                                        </span>
+                                                    )}
+                                                    {w.titles.map((t) => (
+                                                        <TitleBelt
+                                                            key={t}
+                                                            name={t}
+                                                        />
+                                                    ))}
+                                                    {w.sitting_out && (
+                                                        <span className="font-condensed text-sm font-bold tracking-widest text-zone-minor uppercase">
+                                                            Sitting out
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </td>
                                         <td>
                                             <FatigueMeter

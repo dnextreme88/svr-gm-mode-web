@@ -1044,7 +1044,10 @@ function CompetitorDetails({
                     showLabel
                 />
                 {championTitles.length > 0 && (
-                    <span className="ml-auto flex items-center gap-1.5">
+                    // A fixed-height box: the belt overflows it rather than
+                    // growing the row, so a champion's slot stays as tall as
+                    // the others.
+                    <span className="ml-auto flex h-5 items-center gap-1.5">
                         {championTitles.map((t) => (
                             <TitleBeltImage key={t} name={t} size="md" />
                         ))}
