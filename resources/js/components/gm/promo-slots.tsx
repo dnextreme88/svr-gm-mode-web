@@ -433,6 +433,7 @@ function PromoEditor({
                                     label={`Promo ${slot.position} ${pair ? 'first superstar' : 'superstar'}`}
                                     value={a}
                                     options={optionsFor(firstIds)}
+                                    required
                                     disabled={readOnly}
                                     onChange={(id) => {
                                         setA(id);
@@ -452,6 +453,7 @@ function PromoEditor({
                                         label={`Promo ${slot.position} second superstar`}
                                         value={b}
                                         options={optionsFor(secondIds)}
+                                        required
                                         disabled={readOnly || a === null}
                                         onChange={setB}
                                     />
