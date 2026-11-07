@@ -116,6 +116,53 @@ $freeAgents = [
     ['Jimmy Wang Yang', 'cruiserweight', 206],
     ['Chuck Palumbo', 'heavyweight', null],
     ['MVP', 'heavyweight', null],
+
+    // 2006 debuts (docs/20261107-2006-2007-roster-and-conditional-stories.md).
+    ['Festus', 'heavyweight', 290],
+    ['Dave Taylor', 'heavyweight', 256],
+    ['Gymini Jake', 'super_heavyweight', 304],
+    ['Gymini Jesse', 'super_heavyweight', 304],
+    ['Hornswoggle', 'cruiserweight', 142],
+    ['Idol Stevens', 'heavyweight', 247],
+    ['James Curtis', 'light_heavyweight', 235],
+    ['The Miz', 'light_heavyweight', 221],
+    ['Balls Mahoney', 'super_heavyweight', 305],
+    // Class set by choice: billed under 221 lbs.
+    ['CM Punk', 'light_heavyweight', 218],
+    ['Elijah Burke', 'light_heavyweight', 230],
+    ['Justin Credible', 'light_heavyweight', 225],
+    ['Kevin Thorn', 'heavyweight', 270],
+    ['Rodney Mack', 'heavyweight', 240],
+    ['The Sandman', 'heavyweight', 240],
+    ['Sylvester Terkay', 'super_heavyweight', 320],
+    ['Test', 'heavyweight', 285],
+    ['Tony Mamaluke', 'cruiserweight', 219],
+    ['Vladimir Kozlov', 'super_heavyweight', 302],
+
+    // 2007 debuts.
+    // Class set by choice: billed under 221 lbs.
+    ['Cody Rhodes', 'light_heavyweight', 220],
+    ['Drew McIntyre', 'heavyweight', 265],
+    ['Santino Marella', 'light_heavyweight', 233],
+    ['Curt Hawkins', 'light_heavyweight', 223],
+    ['Jesse', 'cruiserweight', 220],
+    ['Zack Ryder', 'light_heavyweight', 230],
+    ['Colin Delaney', 'cruiserweight', 172],
+    ['Kofi Kingston', 'cruiserweight', 212],
+    ['Marcus Cor Von', 'heavyweight', 265],
+
+    // 2004 roster additions (house rule, 2026-11-07).
+    ['Goldberg', 'heavyweight', 285],
+    ['Grandmaster Sexay', 'cruiserweight', 213],
+    ['Scott Steiner', 'heavyweight', 276],
+    ['A-Train', 'super_heavyweight', 331],
+    ['Billy Gunn', 'heavyweight', 260],
+    ['Brock Lesnar', 'heavyweight', 286],
+    ['Chavo Classic', 'light_heavyweight', 229],
+    ['Rico', 'light_heavyweight', 230],
+    ['Rikishi', 'ultra_heavyweight', 425],
+    ["Sean O'Haire", 'heavyweight', 270],
+    ['Ultimo Dragon', 'cruiserweight', 185],
 ];
 
 $rawDivas = ['Trish Stratus', 'Lita', 'Mickie James', 'Victoria', 'Torrie Wilson'];
@@ -124,6 +171,11 @@ $freeAgentDivas = [
     'Ashley Massaro', 'Maria', 'Candice Michelle', 'Hiroko', 'Ivory', 'Molly Holly',
     'Christy Hemme', 'Joy Giovanni', 'Michelle McCool', 'Stacy Keibler', 'Cherry',
     'Dawn Marie', 'Jillian Hall', 'Vickie Guerrero', 'Mae Young',
+    // 2006–2007 debuts.
+    'Beth Phoenix', 'Kristal', 'Layla', 'Ariel', 'Francine', 'Kelly Kelly',
+    'Trinity', 'Brooke Adams', 'Jazz',
+    // 2004 roster additions.
+    'Gail Kim', 'Jacqueline', 'Nidia', 'Sable', 'Shaniqua', 'The Fabulous Moolah',
 ];
 
 $legends = [
@@ -164,6 +216,7 @@ $legends = [
     ['Faarooq', 'heavyweight', 270],
     ['Brutus Beefcake', 'heavyweight', null],
     ['Bam Bam Bigelow', 'super_heavyweight', null],
+    ['Bob Backlund', 'light_heavyweight', 234],
 ];
 
 $rows = [];
@@ -203,14 +256,14 @@ return [
         'Johnny Nitro' => ['ladder'],
         'Chris Benoit' => ['submission'],
         'JBL' => ['first_blood'],
-        'Eddie Guerrero' => ['first_blood'],
+        'Eddie Guerrero' => ['first_blood', 'backstage_brawl'],
         'Spike Dudley' => ['table', 'hardcore'],
         'Bubba Ray Dudley' => ['table', 'hardcore'],
         'D-Von Dudley' => ['table', 'hardcore'],
         'Undertaker' => ['hell_in_a_cell'],
         'Bret Hart' => ['submission', 'iron_man'],
         'Stone Cold Steve Austin' => ['first_blood'],
-        'John Cena' => ['submission'],
+        'John Cena' => ['submission', 'backstage_brawl'],
         'Kurt Angle' => ['submission'],
         'Stevie Richards' => ['hardcore'],
         'Sabu' => ['hardcore'],

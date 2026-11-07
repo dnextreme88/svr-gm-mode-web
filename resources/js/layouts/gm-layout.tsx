@@ -214,7 +214,7 @@ function Header({ game }: { game: GameShell }) {
                                 'gm-num text-lg',
                                 game.budget < 0
                                     ? 'text-zone-serious'
-                                    : 'text-ink',
+                                    : 'text-zone-safe',
                             )}
                         >
                             {formatMoney(game.budget)}

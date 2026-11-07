@@ -32,7 +32,7 @@ use Tests\Support\GameBuilder;
 it('creates a save with every wrestler in Free Agency and $15M per brand, granted once', function () {
     $save = GameBuilder::newSave();
 
-    expect(SaveWrestler::where('save_id', $save->id)->count())->toBe(160)
+    expect(SaveWrestler::where('save_id', $save->id)->count())->toBe(215)
         ->and(SaveWrestler::where('save_id', $save->id)->whereNotNull('brand')->count())->toBe(0)
         ->and($save->brand(Brand::Raw)->budget)->toBe(15_000_000)
         ->and($save->brand(Brand::Smackdown)->budget)->toBe(15_000_000)
@@ -95,7 +95,7 @@ it('caps each brand at 30 picks and sends everyone undrafted to Free Agency', fu
 
     expect(SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Raw)->count())->toBe(30)
         ->and(SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Smackdown)->count())->toBe(30)
-        ->and(SaveWrestler::where('save_id', $save->id)->whereNull('brand')->count())->toBe(100)
+        ->and(SaveWrestler::where('save_id', $save->id)->whereNull('brand')->count())->toBe(155)
         ->and(DraftPick::where('save_id', $save->id)->where('brand', Brand::Smackdown)->where('pick_type', DraftPickType::Random)->count())->toBe(30)
         ->and($save->stage)->toBe(SaveStage::AssigningTitles);
 });
@@ -125,7 +125,7 @@ describe('Use WWE roster (house rule)', function () {
             ->and($signed(Brand::Smackdown))->toHaveCount(30)
             ->and($signed(Brand::Raw)->every(fn (SaveWrestler $w) => $w->wrestler->placeholder_brand === Brand::Raw))->toBeTrue()
             ->and($signed(Brand::Smackdown)->every(fn (SaveWrestler $w) => $w->wrestler->placeholder_brand === Brand::Smackdown))->toBeTrue()
-            ->and(SaveWrestler::where('save_id', $this->save->id)->whereNull('brand')->count())->toBe(100)
+            ->and(SaveWrestler::where('save_id', $this->save->id)->whereNull('brand')->count())->toBe(155)
             ->and(DraftPick::where('save_id', $this->save->id)->count())->toBe(0)
             ->and($this->save->refresh()->stage)->toBe(SaveStage::AssigningTitles);
     });
@@ -352,6 +352,43 @@ describe('Crowning champions one title at a time (house rule)', function () {
             ->assertSessionHasErrors('game');
 
         expect(app(TitleService::class)->currentRow($save, Championship::where('key', 'wwe')->firstOrFail()))->toBeNull();
+    });
+
+    it('lets a decided title be changed until the season starts (house rule, 2026-11-07)', function () {
+        $save = crowningSave();
+        $wwe = Championship::where('key', 'wwe')->firstOrFail();
+        $ic = Championship::where('key', 'intercontinental')->firstOrFail();
+        $edge = GameBuilder::wrestler($save, 'Edge');
+
+        // A world title left vacant by mistake, then the next one awarded.
+        $this->post(route('gm.titles.assign.vacant', [$save, $wwe]))->assertRedirect();
+        $this->post(route('gm.titles.assign.store', [$save, $ic]), ['save_wrestler_ids' => [$edge->id]]);
+
+        $this->post(route('gm.titles.assign.undo', [$save, $wwe]))->assertRedirect();
+        $this->post(route('gm.titles.assign.undo', [$save, $ic]))->assertRedirect();
+
+        // Both open again, in tier order, and Edge is free for the world title.
+        expect(crownStep($save))->toBe('wwe')
+            ->and(app(TitleService::class)->currentRow($save, $ic))->toBeNull()
+            ->and(app(ChampionshipAssignment::class)->eligible($save, $wwe)->pluck('id'))->toContain($edge->id);
+
+        $this->get(route('gm.titles.assign', $save))->assertInertia(fn ($page) => $page->where('current_id', $wwe->id));
+    });
+
+    it('refuses to change an undecided title, or any title once the season has started', function () {
+        $save = crowningSave();
+        $wwe = Championship::where('key', 'wwe')->firstOrFail();
+
+        $this->from(route('gm.titles.assign', $save))->post(route('gm.titles.assign.undo', [$save, $wwe]))->assertSessionHasErrors('game');
+
+        app(ChampionshipAssignment::class)->assign($save, $wwe, [GameBuilder::wrestler($save, 'Edge')->id]);
+        $this->post(route('gm.titles.assign.complete', $save))->assertRedirect();
+
+        $this->from(route('gm.titles.assign', $save))->post(route('gm.titles.assign.undo', [$save, $wwe]))->assertSessionHasErrors('game');
+        expect(app(TitleService::class)->currentReign($save->refresh(), $wwe)?->holderName())->toBe('Edge')
+            ->and($save->stage)->toBe(SaveStage::InSeason);
+
+        $this->post(route('gm.titles.assign.undo', [$save, Championship::where('key', 'world_heavyweight')->first()]))->assertForbidden();
     });
 
     it('only offers the Cruiserweight Championship to Cruiserweights and Light Heavyweights', function () {

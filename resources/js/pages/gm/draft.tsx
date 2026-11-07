@@ -278,8 +278,20 @@ export default function Draft() {
             <ConfirmDialog
                 open={confirmStop}
                 title="Stop drafting?"
-                message="Stop drafting? You can fill the remaining spots through Free Agency."
-                confirmLabel="Yes, stop"
+                message={
+                    <StopDraftSummary
+                        picks={picks.filter(
+                            (p) =>
+                                p.brand === game.player_brand &&
+                                p.save_wrestler_id !== null,
+                        )}
+                        maxPicks={max_picks}
+                        budget={yourBudget}
+                    />
+                }
+                confirmLabel="Stop and crown champions"
+                cancelLabel="Keep drafting"
+                focusCancel
                 onCancel={() => setConfirmStop(false)}
                 onConfirm={() => {
                     setConfirmStop(false);
@@ -595,6 +607,87 @@ function DraftBoard({
                     ))}
                 </ol>
             </Panel>
+        </div>
+    );
+}
+
+/**
+ * What Stop drafting locks in: the roster so far, by division, the budget
+ * left, and what happens next.
+ */
+function StopDraftSummary({
+    picks,
+    maxPicks,
+    budget,
+}: {
+    picks: Pick[];
+    maxPicks: number;
+    budget: number;
+}) {
+    const divas = picks.filter((p) => p.roster_type === 'diva').length;
+    const light = picks.filter(
+        (p) =>
+            p.roster_type !== 'diva' &&
+            (p.weight_class === 'cruiserweight' ||
+                p.weight_class === 'light_heavyweight'),
+    ).length;
+
+    return (
+        <div className="space-y-3" data-testid="stop-draft-summary">
+            <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+                <div>
+                    <dt className="gm-label">Your roster</dt>
+                    <dd className="gm-num text-lg text-ink">
+                        {picks.length} of {maxPicks}
+                    </dd>
+                </div>
+                <div>
+                    <dt className="gm-label">Superstars</dt>
+                    <dd className="gm-num text-lg text-ink">
+                        {picks.length - divas}
+                    </dd>
+                </div>
+                <div>
+                    <dt className="gm-label">Divas</dt>
+                    <dd className="gm-num text-lg text-ink">{divas}</dd>
+                </div>
+                <div>
+                    <dt className="gm-label">Cruiser / LHW</dt>
+                    <dd className="gm-num text-lg text-ink">{light}</dd>
+                </div>
+            </dl>
+            <p className="text-sm">
+                Budget left:{' '}
+                <span className="gm-num text-gold-hot">
+                    {formatMoney(budget)}
+                </span>
+            </p>
+            {picks.length > 0 && (
+                <ul
+                    className="gm-scroll max-h-40 space-y-0.5 overflow-y-auto text-sm"
+                    aria-label="Your picks"
+                >
+                    {picks.map((p) => (
+                        <li key={p.pick_number}>
+                            {p.roster_type && p.weight_class ? (
+                                <WrestlerName
+                                    wrestler={{
+                                        name: p.name ?? '',
+                                        roster_type: p.roster_type,
+                                        weight_class: p.weight_class,
+                                    }}
+                                />
+                            ) : (
+                                p.name
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <p className="text-sm">
+                The rival GM finishes its picks, then you crown your champions.
+                Open roster spots can be filled through Free Agency.
+            </p>
         </div>
     );
 }

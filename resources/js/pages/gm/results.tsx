@@ -10,6 +10,8 @@ import { SideNames } from '@/components/gm/champion-tag';
 import { FatigueProgress } from '@/components/gm/fatigue-progress';
 import type { FatigueStep } from '@/components/gm/fatigue-progress';
 import { OutcomeCard } from '@/components/gm/outcome-card';
+import { StoryModal } from '@/components/gm/story-modal';
+import type { ConditionalStoryPopup } from '@/components/gm/story-modal';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
@@ -52,6 +54,8 @@ type Props = GamePageProps & {
     continue_to?: { name: string; url: string } | null;
     /** House rule: the briefcase holder may cash in after the world title match that just aired. */
     cash_in_offer?: { holder: string; champion: string; title: string } | null;
+    /** House rule (2026-11-07): conditional match stories not yet seen, in air order. */
+    conditional_stories?: ConditionalStoryPopup[];
     shows: ShowResult[];
     new_emails: number;
 };
@@ -142,6 +146,7 @@ export default function Results() {
         from_schedule,
         airing = false,
         cash_in_offer = null,
+        conditional_stories = [],
         continue_to = null,
         shows,
         new_emails,
@@ -188,6 +193,17 @@ export default function Results() {
     // the next match to decide after a short look at the result.
     const [decided, setDecided] = useState<number | null>(null);
     const [direction, setDirection] = useState<'left' | 'right'>('right');
+    // Conditional stories (house rule, 2026-11-07): one pop-up at a time;
+    // `closed` counts this run's, for "1 of 2".
+    const [closed, setClosed] = useState(0);
+    const story = busy ? null : (conditional_stories[0] ?? null);
+    const storyOpen = story !== null;
+
+    useEffect(() => {
+        if (conditional_stories.length === 0) {
+            setClosed(0);
+        }
+    }, [conditional_stories.length]);
     const current = open === null ? undefined : reel[open];
 
     const go = useCallback(
@@ -219,7 +235,13 @@ export default function Results() {
     useEffect(() => {
         const result = reel.find((r) => r.outcome.id === decided);
 
-        if (decided === null || !result || result.outcome.pending) {
+        // The move to the next match waits while a story is up.
+        if (
+            decided === null ||
+            !result ||
+            result.outcome.pending ||
+            storyOpen
+        ) {
             return;
         }
 
@@ -240,7 +262,7 @@ export default function Results() {
         }, NEXT_MATCH_DELAY_MS);
 
         return () => clearTimeout(timer);
-    }, [decided, reel]);
+    }, [decided, reel, storyOpen]);
 
     // Picking a match shows it; there's nothing to close. It also cancels
     // the move to the next match.
@@ -268,6 +290,17 @@ export default function Results() {
         post(gm.results.cashIn.url({ save: game.id, week: week_number }), {
             slot_id: match.id,
         });
+
+    const closeStory = (id: number) => {
+        setClosed((n) => n + 1);
+        post(
+            gm.results.stories.seen.url({
+                save: game.id,
+                week: week_number,
+                trigger: id,
+            }),
+        );
+    };
 
     const answerCashIn = (yes: boolean) =>
         post(gm.results.cashInOffer.url({ save: game.id, week: week_number }), {
@@ -536,8 +569,15 @@ export default function Results() {
                 </div>
             )}
 
+            <StoryModal
+                story={story}
+                index={closed + 1}
+                total={closed + conditional_stories.length}
+                onClose={() => story && closeStory(story.id)}
+            />
+
             <ConfirmDialog
-                open={cash_in_offer !== null && !busy}
+                open={cash_in_offer !== null && !busy && !storyOpen}
                 title="Cash in Money in the Bank?"
                 message={
                     cash_in_offer

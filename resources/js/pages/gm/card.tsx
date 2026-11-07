@@ -157,7 +157,7 @@ export default function CardPage() {
             <PageTitle
                 kicker={`Week ${game.season_week} · ${show.show_type === 'ppv' ? 'PPV card' : 'Weekly show'}`}
                 title={
-                    <span className="flex flex-wrap items-center gap-4">
+                    <span className="my-3 flex flex-wrap items-center gap-4">
                         {show.brand && (
                             <BrandBug brand={show.brand} size="lg" />
                         )}

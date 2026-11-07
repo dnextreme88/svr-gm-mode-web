@@ -325,8 +325,27 @@ const props = {
         ticket_prices: { weekly: 30, brand_ppv: 50, shared_ppv: 75 },
         drives_income: false,
     },
+    rematch_clause: { weeks: 4, rival_chances: [25, 50, 75, 85] },
     news: {
         stories_per_brand: 2,
+        stories: [
+            {
+                story: "Undertaker's lights-out",
+                who: "Undertaker's rival",
+                when: 'In the rival’s simulated match when the rivalry is at 60+ heat.',
+                chances: 'The rival loses 80% of the time, else wins anyway.',
+                cooldown: 'Once it works, never again in that rivalry.',
+                changes_result: true,
+            },
+            {
+                story: "Hornswoggle's shillelagh",
+                who: 'Finlay, helped by Hornswoggle',
+                when: 'Finlay wins a simulated match decisively.',
+                chances: '50% that Hornswoggle slipped him his shillelagh.',
+                cooldown: '8 weeks after it happens.',
+                changes_result: false,
+            },
+        ],
         groups: ['Matches', 'Brand battle'],
         events: [
             {
@@ -499,6 +518,37 @@ describe('Docs page', () => {
                 /backfires automatically on its 4th use within 5 weeks/,
             ),
         ).toBeInTheDocument();
+    });
+
+    it('lists the conditional stories with their chances and cooldowns (house rule, 2026-11-07)', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'News & email' }));
+
+        const table = screen.getByRole('table', {
+            name: 'Conditional stories',
+        });
+        expect(table).toHaveTextContent("Undertaker's lights-out");
+        expect(table).toHaveTextContent('The rival loses 80% of the time');
+        expect(table).toHaveTextContent('Can change it');
+        expect(table).toHaveTextContent('Story only');
+        expect(screen.getByText(/never on Book to Win/)).toBeInTheDocument();
+    });
+
+    it('explains the Rematch Clause with the stipulations', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Stipulations' }));
+
+        expect(
+            screen.getByRole('heading', {
+                name: 'Rematch Clause (Active Effect)',
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/within 4 weeks/)).toBeInTheDocument();
+        expect(screen.getByText(/25%, 50%, 75%, 85%/)).toBeInTheDocument();
     });
 
     it('lists every news event by group with its card, tier and templates, then the emails', async () => {

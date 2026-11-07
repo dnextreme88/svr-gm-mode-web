@@ -20,6 +20,7 @@ use App\Services\Card\TitleMatchPlanner;
 use App\Services\Rivalries\RivalryService;
 use App\Services\Titles\LastChanceService;
 use App\Services\Titles\MitbService;
+use App\Services\Titles\RematchClauseService;
 use App\Services\Titles\TitleContention;
 use App\Services\Titles\TitleService;
 use App\Support\Rng\Rng;
@@ -63,6 +64,7 @@ class AiBooker
         private IntergenderRules $intergender,
         private PlannedFatigue $plannedFatigue,
         private TitleContention $contention,
+        private RematchClauseService $rematches,
     ) {}
 
     /**
@@ -93,6 +95,8 @@ class AiBooker
                 array_unshift($open, $position);
             }
         }
+
+        $open = $this->bookRematches($open);
 
         $pairs = [...array_map(fn (array $p): array => [$p, true], $freshRivalries), ...array_map(fn (array $p): array => [$p, false], $rivalryMatches)];
 
@@ -395,6 +399,95 @@ class AiBooker
             }
 
             return new Booking($type, $built['sides'], $built['managers'], refereeId: $referee);
+        }
+
+        return null;
+    }
+
+    /**
+     * Rematch Clauses (house rule, 2026-11-07): on each of the weeks after
+     * its title changed hands, the rival rolls once (`gm.ai.titles.
+     * rematch_clause_chances`, in order) to book the former champions
+     * against the new ones in a title match, 1v1 or 2v2, if every one of
+     * them can be booked within this card's fatigue limit.
+     *
+     * @param  list<int>  $open
+     * @return list<int>
+     */
+    private function bookRematches(array $open): array
+    {
+        $save = $this->show->game;
+        $week = $this->show->week_number;
+        $chances = array_values((array) config('gm.ai.titles.rematch_clause_chances'));
+        $weekShows = Show::where('save_id', $save->id)->where('week_number', $week)->pluck('id');
+
+        foreach ($this->rematches->active($save, $week, $this->brand) as $clause) {
+            $index = $week - $clause->created_week - 1;
+
+            if ($open === [] || ! isset($chances[$index]) || in_array($clause->championship_id, $this->titlesOnCard, true)) {
+                continue;
+            }
+
+            // Already booked on another of this week's cards.
+            $booked = MatchSlot::with('participants')->whereIn('show_id', $weekShows)->where('title_championship_id', $clause->championship_id)->get()
+                ->contains(fn (MatchSlot $s): bool => $this->rematches->fits($clause, $s));
+
+            // One roll a week: the same stream on every card of the week.
+            if ($booked || ! $save->rng("ai.rematch.{$clause->id}", $week)->chance((float) $chances[$index])) {
+                continue;
+            }
+
+            $booking = $this->rematchBooking($clause->former_ids, $clause->champion_ids, $clause->championship_id);
+            $position = $open[0];
+
+            if ($booking !== null && $this->tryBook($position, $booking)) {
+                $open = array_values(array_diff($open, [$position]));
+            }
+        }
+
+        return $open;
+    }
+
+    /**
+     * A title match, former champions vs new champions, in a 1v1 or 2v2
+     * type where they're all fit to go.
+     *
+     * @param  list<int>  $former
+     * @param  list<int>  $champions
+     */
+    private function rematchBooking(array $former, array $champions, int $championshipId): ?Booking
+    {
+        $pool = $this->pool();
+        $ids = [...$former, ...$champions];
+        $everyone = $pool->filter(fn (SaveWrestler $w): bool => in_array($w->id, $ids, true))->values();
+
+        if ($everyone->count() !== count($ids)) {
+            return null;
+        }
+
+        $people = $everyone->first()?->wrestler->isDiva() ? $this->divas($pool) : $this->men($pool);
+        [$limit, $aggressive] = $this->rollMode();
+        $shape = [count($former), count($champions)];
+
+        $types = $this->randomizer->eligibleTypes($this->show, $this->brand)
+            ->filter(fn (MatchType $t): bool => $t->titles_allowed && ! $t->isMoneyInTheBank()
+                && $t->sides === $shape
+                && $this->randomizer->poolFor($t, $everyone)->count() === count($ids)
+                && $this->fit($everyone, $t, $limit)->count() === count($ids)
+                && $people->count() >= count($ids) + count($t->manager_sides) + ($t->hasSpecialReferee() ? 1 : 0))
+            ->values();
+
+        foreach ($this->typeOrder($types, $aggressive) as $type) {
+            $sides = [$former, $champions];
+            $managers = $this->pickManagers($type, $people, $sides);
+
+            try {
+                $referee = $this->randomizer->pickReferee($type, $people->reject(fn (SaveWrestler $w): bool => in_array($w->id, $managers, true))->values(), $sides, $this->rng);
+            } catch (GameRuleException) {
+                continue;
+            }
+
+            return new Booking($type, $sides, $managers, $championshipId, refereeId: $referee);
         }
 
         return null;

@@ -230,6 +230,8 @@ return [
         'fulfill_your_fantasy' => ['bars' => 1, 'cost' => 22_000, 'dq' => true, 'countout' => true],
         'hardcore' => ['bars' => 3, 'cost' => 19_000, 'dq' => false, 'countout' => false],
         'hell_in_a_cell' => ['bars' => 5, 'cost' => 45_000, 'dq' => false, 'countout' => false],
+        // House rule (2026-11-07).
+        'inferno' => ['bars' => 4, 'cost' => 45_000, 'dq' => false, 'countout' => false],
         'iron_man' => ['bars' => 5, 'cost' => 37_000, 'dq' => true, 'countout' => false],
         'ladder' => ['bars' => 3, 'cost' => 12_000, 'dq' => false, 'countout' => false],
         'last_man_standing' => ['bars' => 4, 'cost' => 40_000, 'dq' => false, 'countout' => false],
@@ -254,7 +256,7 @@ return [
     */
     'match_rules' => [
         'no_rope_break_families' => ['hardcore', 'tlc', 'table', 'ladder', 'battle_royal', 'royal_rumble', 'hell_in_a_cell'],
-        'no_ring_out_families' => ['steel_cage', 'battle_royal', 'royal_rumble', 'elimination_chamber'],
+        'no_ring_out_families' => ['steel_cage', 'battle_royal', 'royal_rumble', 'elimination_chamber', 'inferno'],
         'no_titles_families' => ['handicap', 'gauntlet'],
         'no_titles_sides' => [[3, 3]],
         // A Gauntlet takes only these stipulations (house rule): a #1
@@ -332,6 +334,65 @@ return [
         // contender, the rival awards it to them (the player is asked).
         // ASSUMPTION.
         'ai_award_contender_on_vacancy' => true,
+        // House rule (2026-11-07): the former champion(s) of a title lost in a
+        // match are owed a rematch within this many weeks (Active Effect only).
+        'rematch_clause_weeks' => 4,
+    ],
+
+    /*
+    | Conditional match stories (house rule, 2026-11-07): things that happen
+    | in a simulated match (never Book to Win) because of who's in it. The
+    | helper (Hornswoggle, Undertaker, Kane) must be on that brand, not
+    | seriously injured or sitting out, and not in the match. Wrestlers are
+    | catalog slugs; factions are seeded faction names.
+    */
+    'stories' => [
+        // Off only in tests that don't want them (tests/Pest.php).
+        'enabled' => true,
+        // Result-changing stories, tried in this order; one per match.
+        'order' => ['undertaker_lights_out', 'kane_pyro', 'dudley_tables', 'hardy_ladder'],
+        // The stories that change results never happen in these families.
+        'excluded_families' => ['royal_rumble', 'elimination_chamber', 'steel_cage', 'hell_in_a_cell'],
+        'shillelagh' => [
+            'finlay' => 'fit-finlay',
+            'helper' => 'hornswoggle',
+            // When Finlay wins decisively.
+            'chance' => 0.5,
+            // A trigger in week 4 can happen again from week 12.
+            'lockout_weeks' => 8,
+        ],
+        'lights_out' => [
+            'helper' => 'undertaker',
+            // ASSUMPTION: "heat 60" means 60 or more, going into the match.
+            'min_heat' => 60,
+            // The rival loses this often; else they win anyway (the failure story).
+            'win_chance' => 0.8,
+        ],
+        'pyro' => [
+            'helper' => 'kane',
+            'min_heat' => 60,
+            'win_chance' => 0.8,
+        ],
+        'tables' => [
+            'faction' => 'Dudley Boyz',
+            'members' => ['bubba-ray-dudley', 'd-von-dudley', 'spike-dudley'],
+            // The table spot lands this often; then they win at `win_chance`
+            // (a Tables match: always).
+            'land_chance' => 0.8,
+            'win_chance' => 0.8,
+            'win_family' => 'table',
+            // After a spot that lands.
+            'cooldown_weeks' => 4,
+        ],
+        'ladder' => [
+            'faction' => 'Team Xtreme',
+            'members' => ['jeff-hardy', 'matt-hardy'],
+            'lita' => 'lita',
+            'land_chance' => 0.8,
+            'win_chance' => 0.8,
+            'win_family' => 'ladder',
+            'cooldown_weeks' => 4,
+        ],
     ],
 
     /*
@@ -617,6 +678,10 @@ return [
             // when there are three).
             'winner_takes_all_chance' => ['weekly' => 0.08, 'ppv' => 0.2],
             'winner_takes_all_triple_chance' => 0.5,
+            // House rule (2026-11-07): the rival's chance to book a Rematch
+            // Clause on each of the weeks after the title changed hands, in
+            // order, on its first card of the week. ASSUMPTION: one roll a week.
+            'rematch_clause_chances' => [0.25, 0.5, 0.75, 0.85],
         ],
         'promos' => [
             'interference_every_weeks' => 4,

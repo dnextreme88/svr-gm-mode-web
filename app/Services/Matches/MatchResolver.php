@@ -40,8 +40,9 @@ class MatchResolver
      * @param  Collection<int, Rivalry>  $activeRivalries
      * @param  int|null  $bookedSide  the side the player booked to win, or null to simulate
      * @param  list<int|null>  $bookedBouts  Gauntlet only: the side booked to win each bout, or null to simulate it
+     * @param  ForcedOutcome|null  $forced  a conditional story's result (house rule, 2026-11-07); simulated matches only
      */
-    public function resolve(MatchSlot $slot, Rng $rng, Collection $activeRivalries, ?int $bookedSide = null, array $bookedBouts = []): ResolvedMatch
+    public function resolve(MatchSlot $slot, Rng $rng, Collection $activeRivalries, ?int $bookedSide = null, array $bookedBouts = [], ?ForcedOutcome $forced = null): ResolvedMatch
     {
         if ($slot->matchType === null) {
             throw new InvalidArgumentException('Slot has no match type.');
@@ -54,14 +55,14 @@ class MatchResolver
         }
 
         if ($slot->matchType->family === MatchFamily::Gauntlet) {
-            return $this->resolveGauntlet($slot, $rng, $activeRivalries, $bookedBouts);
+            return $this->resolveGauntlet($slot, $rng, $activeRivalries, $bookedBouts, $forced);
         }
 
         if ($bookedSide !== null && ! array_key_exists($bookedSide, $sides)) {
             throw new InvalidArgumentException("Side {$bookedSide} is not in this match.");
         }
 
-        return $this->decide($slot, $sides, $rng, $activeRivalries, $bookedSide);
+        return $this->decide($slot, $sides, $rng, $activeRivalries, $bookedSide, null, $bookedSide === null ? $forced : null);
     }
 
     /**
@@ -72,7 +73,7 @@ class MatchResolver
      * @param  Collection<int, Rivalry>  $activeRivalries
      * @param  list<int|null>  $bookedBouts
      */
-    public function resolveGauntlet(MatchSlot $slot, Rng $rng, Collection $activeRivalries, array $bookedBouts = []): ResolvedMatch
+    public function resolveGauntlet(MatchSlot $slot, Rng $rng, Collection $activeRivalries, array $bookedBouts = [], ?ForcedOutcome $forced = null): ResolvedMatch
     {
         $sides = $slot->sides();
         $order = array_keys($sides);
@@ -91,7 +92,15 @@ class MatchResolver
                 throw new InvalidArgumentException('Bout '.($round + 1)." is side {$holder} vs side {$challenger}; side {$booked} isn't in it.");
             }
 
-            $last = $this->decide($slot, $pair, $rng, $activeRivalries, $booked, MatchFamily::Single);
+            // A conditional story plays out in the first bout its side is in.
+            $boutForced = null;
+
+            if ($booked === null && $forced !== null && array_key_exists((int) $forced->side(), $pair)) {
+                $boutForced = $forced->forBout(array_keys($pair));
+                $forced = null;
+            }
+
+            $last = $this->decide($slot, $pair, $rng, $activeRivalries, $booked, MatchFamily::Single, $boutForced);
             $bouts[] = [
                 'round' => $round + 1,
                 'side_a' => $holder,
@@ -149,12 +158,22 @@ class MatchResolver
      * @param  Collection<int, Rivalry>  $activeRivalries
      * @param  MatchFamily|null  $specialtyFamily  whose specialists get the bonus (default: the type's family)
      */
-    private function decide(MatchSlot $slot, array $sides, Rng $rng, Collection $activeRivalries, ?int $bookedSide, ?MatchFamily $specialtyFamily = null): ResolvedMatch
+    private function decide(MatchSlot $slot, array $sides, Rng $rng, Collection $activeRivalries, ?int $bookedSide, ?MatchFamily $specialtyFamily = null, ?ForcedOutcome $forced = null): ResolvedMatch
     {
         $before = $rng->steps();
-        $winnerSide = $bookedSide ?? (int) $rng->weightedPick($this->sideWeights($slot, $sides, $specialtyFamily));
+
+        if ($forced !== null) {
+            // A conditional story decides it: the given winner, or anyone but the given loser.
+            $winnerSide = $forced->winnerSide
+                ?? (int) $rng->pick(array_values(array_filter(array_keys($sides), fn (int $s): bool => $s !== $forced->loserSide)));
+        } else {
+            $winnerSide = $bookedSide ?? (int) $rng->weightedPick($this->sideWeights($slot, $sides, $specialtyFamily));
+        }
+
         $otherSides = array_values(array_filter(array_keys($sides), fn (int $s): bool => $s !== $winnerSide));
-        $loserSide = count($otherSides) === 1 ? $otherSides[0] : (int) $rng->pick($otherSides);
+        $loserSide = $forced?->loserSide !== null && in_array($forced->loserSide, $otherSides, true)
+            ? $forced->loserSide
+            : (count($otherSides) === 1 ? $otherSides[0] : (int) $rng->pick($otherSides));
 
         $winners = $sides[$winnerSide];
         $losers = array_merge(...array_map(fn (int $s): array => $sides[$s], $otherSides));
@@ -162,7 +181,9 @@ class MatchResolver
         $finish = null;
         $interferer = null;
 
-        if ($bookedSide !== null) {
+        if ($forced !== null) {
+            // Always clean and decisive: never a DQ or count-out.
+        } elseif ($bookedSide !== null) {
             $finish = $this->bookedFinishEvent($slot, $rng);
         } elseif (! $rng->chance((float) config('gm.outcomes.clean_finish_chance'))) {
             $candidates = $this->allowedFinishes($slot, $sides[$loserSide], $activeRivalries);
@@ -188,11 +209,15 @@ class MatchResolver
         // The finish happens to one wrestler: the captain in Captain Fall,
         // else one drawn from a team (drawn last, so the rolls above stay put).
         $loserIds = $sides[$loserSide];
-        $victimId = $captainFall || count($loserIds) === 1 ? $loserIds[0] : (int) $rng->pick($loserIds);
+        $victimId = $forced?->victimId !== null && in_array($forced->victimId, $loserIds, true)
+            ? $forced->victimId
+            : ($captainFall || count($loserIds) === 1 ? $loserIds[0] : (int) $rng->pick($loserIds));
 
         // House rule: one winner scores it, each with equal odds (2 winners
         // 50% each, 3 a third each). Drawn after the victim, for the same reason.
-        $scorerId = count($winners) === 1 ? $winners[0] : (int) $rng->pick($winners);
+        $scorerId = $forced?->scorerId !== null && in_array($forced->scorerId, $winners, true)
+            ? $forced->scorerId
+            : (count($winners) === 1 ? $winners[0] : (int) $rng->pick($winners));
 
         $names = $this->names($slot);
         $text = new FinishText(

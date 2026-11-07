@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Gm;
 
 use App\Enums\Brand;
+use App\Enums\ConditionalStory;
 use App\Enums\InjurySeverity;
 use App\Enums\PromoTypeKey;
 use App\Enums\Stipulation;
@@ -196,6 +197,13 @@ class DocsController extends Controller
                 'stories_per_brand' => (int) config('gm.news.stories_per_brand'),
                 'groups' => NewsCatalog::GROUPS,
                 'events' => $catalog->entries(),
+                // House rule (2026-11-07): conditional match stories.
+                'stories' => $this->conditionalStories(),
+            ],
+            // House rule (2026-11-07): the Rematch Clause Active Effect.
+            'rematch_clause' => [
+                'weeks' => (int) config('gm.titles.rematch_clause_weeks'),
+                'rival_chances' => array_map(fn ($c): int => (int) round((float) $c * 100), (array) config('gm.ai.titles.rematch_clause_chances')),
             ],
             'emails' => $this->emails(),
             'results' => [
@@ -235,6 +243,63 @@ class DocsController extends Controller
                 ])->values(),
             ],
         ]);
+    }
+
+    /**
+     * Conditional match stories (house rule, 2026-11-07): who, when, the
+     * chances and cooldown, and whether it changes the result. Numbers come
+     * from `gm.stories`.
+     *
+     * @return list<array{story: string, who: string, when: string, chances: string, cooldown: string, changes_result: bool}>
+     */
+    private function conditionalStories(): array
+    {
+        $pct = fn (string $key): string => round((float) config("gm.stories.{$key}") * 100).'%';
+        $heat = (int) config('gm.stories.lights_out.min_heat');
+        $rivalryWhen = "In the rival's simulated match when the rivalry is at {$heat}+ heat, a Continue Rivalry promo for it is booked on any of the brand's cards this week, and the two don't wrestle each other this week.";
+
+        return [
+            [
+                'story' => ConditionalStory::HornswoggleShillelagh->label(),
+                'who' => 'Finlay, helped by Hornswoggle',
+                'when' => 'Finlay wins a simulated match decisively.',
+                'chances' => "{$pct('shillelagh.chance')} that Hornswoggle slipped him his shillelagh.",
+                'cooldown' => (int) config('gm.stories.shillelagh.lockout_weeks').' weeks after it happens.',
+                'changes_result' => false,
+            ],
+            [
+                'story' => ConditionalStory::UndertakerLightsOut->label(),
+                'who' => "Undertaker's rival",
+                'when' => $rivalryWhen,
+                'chances' => "The lights go out for about 10 seconds, then a Chokeslam or Tombstone Piledriver. The rival loses {$pct('lights_out.win_chance')} of the time, else wins anyway.",
+                'cooldown' => 'Once it works, never again in that rivalry. If the rival wins, it tries again in their next eligible match.',
+                'changes_result' => true,
+            ],
+            [
+                'story' => ConditionalStory::KanePyro->label(),
+                'who' => "Kane's rival",
+                'when' => $rivalryWhen,
+                'chances' => "Pyro from the ramp or the ring turnbuckles. The rival loses {$pct('pyro.win_chance')} of the time, else wins anyway.",
+                'cooldown' => 'Once it works, never again in that rivalry. If the rival wins, it tries again in their next eligible match.',
+                'changes_result' => true,
+            ],
+            [
+                'story' => ConditionalStory::DudleyTables->label(),
+                'who' => '2 or 3 of Bubba Ray, D-Von and Spike Dudley teaming, while the Dudley Boyz are together',
+                'when' => 'Every simulated match they team in.',
+                'chances' => "The table spot lands {$pct('tables.land_chance')} of the time. Then they win {$pct('tables.win_chance')}, or always in a Tables match.",
+                'cooldown' => (int) config('gm.stories.tables.cooldown_weeks').' weeks after a spot that lands. A miss tries again next match.',
+                'changes_result' => true,
+            ],
+            [
+                'story' => ConditionalStory::HardyLadder->label(),
+                'who' => 'Jeff and Matt Hardy teaming, while Team Xtreme are together (Lita optional, competing or managing)',
+                'when' => 'Every simulated match they team in.',
+                'chances' => "Jeff's Swanton Bomb or Matt's Leg Drop off a ladder lands {$pct('ladder.land_chance')} of the time. Then they win {$pct('ladder.win_chance')}, or always in a Ladder match.",
+                'cooldown' => (int) config('gm.stories.ladder.cooldown_weeks').' weeks after a spot that lands. A miss tries again next match.',
+                'changes_result' => true,
+            ],
+        ];
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Gm;
 
 use App\Exceptions\GameRuleException;
 use App\Http\Controllers\Controller;
+use App\Models\ConditionalStoryTrigger;
 use App\Models\Save;
 use App\Services\Calendar\CalendarService;
 use App\Services\Week\BookingOrder;
@@ -12,6 +13,7 @@ use App\Services\Week\WeekSimulator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Inertia\Inertia;
 
 /**
@@ -84,6 +86,18 @@ class WeekController extends Controller
         $resolver->answerCashIn($save, (bool) $data['cash_in']);
 
         return back();
+    }
+
+    /**
+     * The player closed a conditional match story's pop-up (house rule,
+     * 2026-11-07): it won't show again.
+     */
+    public function seenStory(Request $request, Save $save, int $week, ConditionalStoryTrigger $trigger): RedirectResponse|Response
+    {
+        abort_unless($trigger->save_id === $save->id && $trigger->week_number === $week, 404);
+        $trigger->update(['seen_at' => now()]);
+
+        return $request->expectsJson() ? response()->noContent() : back();
     }
 
     /**

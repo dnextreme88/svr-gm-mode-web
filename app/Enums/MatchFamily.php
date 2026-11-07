@@ -26,6 +26,7 @@ enum MatchFamily: string
     case FulfillYourFantasy = 'fulfill_your_fantasy';
     case Hardcore = 'hardcore';
     case HellInACell = 'hell_in_a_cell';
+    case Inferno = 'inferno';
     case IronMan = 'iron_man';
     case Ladder = 'ladder';
     case LastManStanding = 'last_man_standing';

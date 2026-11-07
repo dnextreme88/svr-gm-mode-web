@@ -140,6 +140,20 @@ it('renders the documentation page from the catalog', function () {
             ->where('specialists', fn ($rows) => collect($rows)->contains(fn ($w) => $w['name'] === 'Edge')));
 });
 
+it('documents the conditional stories and the Rematch Clause from config (house rule, 2026-11-07)', function () {
+    GameBuilder::seedCatalog();
+    config(['gm.stories.tables.land_chance' => 0.7, 'gm.titles.rematch_clause_weeks' => 3]);
+
+    $this->get(route('gm.docs'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('news.stories', 5)
+            ->where('news.stories.0.changes_result', false)
+            ->where('news.stories.3.story', 'Dudley Boyz: get the tables!')
+            ->where('news.stories.3.chances', fn (string $c) => str_contains($c, '70%'))
+            ->where('rematch_clause.weeks', 3)
+            ->where('rematch_clause.rival_chances', [25, 50, 75, 85]));
+});
+
 it('lists the 2005 specialty additions on the documentation page', function () {
     GameBuilder::seedCatalog();
 

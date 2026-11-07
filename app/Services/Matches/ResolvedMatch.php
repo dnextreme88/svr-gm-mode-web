@@ -23,6 +23,7 @@ final readonly class ResolvedMatch
         '10-count' => 'Last Man Standing',
         'Cage escape' => 'Steel Cage',
         'Over the top rope' => 'Battle Royal',
+        'Thrown through the flames' => 'Inferno',
         'Last one in the ring' => 'Royal Rumble',
         'Buried alive' => 'Buried Alive',
         'First blood' => 'First Blood',

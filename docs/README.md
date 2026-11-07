@@ -26,3 +26,4 @@ Dated implementation and upgrade plans for this site. Each plan is a Markdown fi
 | **2026-10-31** | [Email Inbox Redesign, Richer Emails & New Reminders](20261031-email-inbox.md) |
 | **2026-11-01** | [Fan Attendance, PPV Night First, Shared SummerSlam, Rival Stipulations & "Superstar" Wording](20261101-attendance-and-rival-stipulations.md) |
 | **2026-11-04** | [Brand Logos & Title Belts in the GM UI](20261104-brand-and-title-assets.md) |
+| **2026-11-07** | [2004 & 2006–2007 Roster, Factions, Conditional Stories, Rematch Clause & Match Type Changes](20261107-2006-2007-roster-and-conditional-stories.md) |

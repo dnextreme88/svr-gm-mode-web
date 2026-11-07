@@ -347,6 +347,19 @@ export type TitleContext = {
         contenders: string;
         champion: string;
     }>;
+    /** House rule (2026-11-07): former champions owed a title rematch. */
+    rematch_clauses?: Array<{
+        id: number;
+        championship_id: number;
+        championship: string;
+        former_ids: number[];
+        former: string;
+        champion_ids: number[];
+        champions: string;
+        weeks_left: number;
+        /** The rematch is already on this card. */
+        booked: boolean;
+    }>;
     briefcase: {
         id: number;
         holder: string;

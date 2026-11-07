@@ -33,6 +33,7 @@ class ContendershipService
         private TitleService $titles,
         private ChampionshipAssignment $assignment,
         private NewsRecorder $news,
+        private RematchClauseService $rematches,
     ) {}
 
     /**
@@ -68,6 +69,10 @@ class ContendershipService
             ->get()
             ->filter(fn (TitleShot $shot): bool => in_array($wrestler->id, $shot->contender_ids, true))
             ->each(fn (TitleShot $shot) => $this->void($shot, $reason, $week, $wrestler->loadMissing('wrestler')->name()));
+
+        // House rule (2026-11-07): the same departures and injuries end a
+        // Rematch Clause the wrestler is part of.
+        $this->rematches->voidFor($wrestler, $week);
     }
 
     /**

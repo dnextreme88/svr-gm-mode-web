@@ -229,7 +229,15 @@ type Props = {
             max_heat: number;
         };
     };
-    news: { stories_per_brand: number; groups: string[]; events: NewsEvent[] };
+    news: {
+        stories_per_brand: number;
+        groups: string[];
+        events: NewsEvent[];
+        /** House rule (2026-11-07): conditional match stories. */
+        stories?: ConditionalStoryDoc[];
+    };
+    /** House rule (2026-11-07): the Rematch Clause Active Effect. */
+    rematch_clause?: { weeks: number; rival_chances: number[] };
     attendance: {
         ranges: Record<'weekly' | 'brand_ppv' | 'shared_ppv', [number, number]>;
         points: {
@@ -296,6 +304,15 @@ const tabs = [
 ] as const;
 
 type TabKey = (typeof tabs)[number]['key'];
+
+type ConditionalStoryDoc = {
+    story: string;
+    who: string;
+    when: string;
+    chances: string;
+    cooldown: string;
+    changes_result: boolean;
+};
 
 /** Rule summaries from spec §22. */
 const stipulationRules: Record<Stipulation, string[]> = {
@@ -437,7 +454,11 @@ const winConditions: Array<{ rule: string; detail: string }> = [
     },
     {
         rule: 'Over the top rope',
-        detail: 'Throw opponents over the top rope to eliminate them. The last superstar left wins.',
+        detail: 'The only way to win a Battle Royal: throw opponents over the top rope to the floor to eliminate them. The last superstar left wins.',
+    },
+    {
+        rule: 'Thrown through the flames',
+        detail: 'Throw the opponent through the flames that surround the ring (Inferno matches).',
     },
     {
         rule: 'Buried alive',
@@ -906,7 +927,10 @@ function Specialties({ specialists }: Pick<Props, 'specialists'>) {
     );
 }
 
-function Stipulations({ stipulations }: Pick<Props, 'stipulations'>) {
+function Stipulations({
+    stipulations,
+    rematch,
+}: Pick<Props, 'stipulations'> & { rematch?: Props['rematch_clause'] }) {
     return (
         <div className="space-y-6">
             <p className="max-w-3xl text-sm text-ink-dim">
@@ -925,6 +949,45 @@ function Stipulations({ stipulations }: Pick<Props, 'stipulations'>) {
                     </Panel>
                 ))}
             </div>
+            {rematch && (
+                <Panel title="Rematch Clause (Active Effect)">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            Not a stipulation: it shows under Active Effects and
+                            never stops a card from airing.
+                        </li>
+                        <li>
+                            When a title changes hands in a match (a Winner
+                            Takes All and a Money in the Bank cash-in too), the
+                            former champion(s) are owed a rematch against the
+                            new champion(s) within {rematch.weeks} weeks. A
+                            title awarded while vacant gives none.
+                        </li>
+                        <li>
+                            Any title match for that title with the former
+                            champion(s) on one side and the new champion(s) on
+                            the other settles it, whoever wins: 1 vs 1 for a
+                            singles title, 2 vs 2 for a tag title, managers
+                            allowed. A Triple Threat doesn’t count.
+                        </li>
+                        <li>
+                            It ends early if a former champion leaves the brand,
+                            anyone in it is seriously injured, or the title
+                            changes hands again or is vacated. A waiting #1
+                            contender still comes first.
+                        </li>
+                        <li>
+                            The rival GM books its rematches on its own: on each
+                            of the {rematch.rival_chances.length} weeks after,
+                            it rolls{' '}
+                            {rematch.rival_chances
+                                .map((c) => `${c}%`)
+                                .join(', ')}{' '}
+                            in turn, if everyone can be booked.
+                        </li>
+                    </ul>
+                </Panel>
+            )}
         </div>
     );
 }
@@ -1395,6 +1458,58 @@ function NewsAndEmail({
                     </ul>
                 </Panel>
             </div>
+
+            {news.stories && news.stories.length > 0 && (
+                <Panel
+                    title="Conditional stories"
+                    bodyClassName="p-0 overflow-x-auto"
+                >
+                    <p className="px-4 pt-3 text-sm text-ink-dim">
+                        Things that happen in a simulated match because of who’s
+                        in it (never on Book to Win). Hornswoggle, Undertaker
+                        and Kane must be on that brand, not seriously injured or
+                        sitting out, and not in the match. The stories that
+                        decide a result never end it by DQ (the referee was down
+                        or distracted) and stay out of the Royal Rumble,
+                        Elimination Chamber, Steel Cage and Hell in a Cell. The
+                        story is added to the match’s news, and a pop-up
+                        explains it on the live results screen.
+                    </p>
+                    <table
+                        className="gm-table text-sm"
+                        aria-label="Conditional stories"
+                    >
+                        <thead>
+                            <tr>
+                                <th>Story</th>
+                                <th>Who</th>
+                                <th>When</th>
+                                <th>Chances</th>
+                                <th>Cooldown</th>
+                                <th>Result</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {news.stories.map((s) => (
+                                <tr key={s.story}>
+                                    <td className="font-semibold whitespace-nowrap">
+                                        {s.story}
+                                    </td>
+                                    <td>{s.who}</td>
+                                    <td>{s.when}</td>
+                                    <td>{s.chances}</td>
+                                    <td>{s.cooldown}</td>
+                                    <td className="whitespace-nowrap">
+                                        {s.changes_result
+                                            ? 'Can change it'
+                                            : 'Story only'}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </Panel>
+            )}
 
             <Panel title="News events" bodyClassName="p-0 overflow-x-auto">
                 <table className="gm-table text-sm">
@@ -2227,7 +2342,7 @@ function FactionsDocs({ factions }: Pick<Props, 'factions'>) {
                             covering the most of the side wins, then the
                             smallest, then a tag team over a stable. Matt Hardy
                             & Jeff Hardy are Team Xtreme; Danny & Doug Basham
-                            are The Basham Brothers, not The Cabinet.
+                            are Basham Brothers, not The Cabinet.
                         </li>
                         <li>
                             Booking stays individual: the card screen and its
@@ -2577,7 +2692,10 @@ export default function Docs() {
                     />
                 )}
                 {tab === 'stipulations' && (
-                    <Stipulations stipulations={props.stipulations} />
+                    <Stipulations
+                        stipulations={props.stipulations}
+                        rematch={props.rematch_clause}
+                    />
                 )}
                 {tab === 'promos' && <Promos promos={props.promos} />}
                 {tab === 'news' && (

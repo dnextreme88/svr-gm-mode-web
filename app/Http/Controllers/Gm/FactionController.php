@@ -7,7 +7,9 @@ use App\Enums\FactionPromptStatus;
 use App\Enums\FactionType;
 use App\Exceptions\GameRuleException;
 use App\Http\Controllers\Controller;
+use App\Http\Presenters\CardPresenter;
 use App\Models\FactionPrompt;
+use App\Models\MatchSlot;
 use App\Models\Save;
 use App\Models\SaveFaction;
 use App\Models\SaveWrestler;
@@ -50,6 +52,42 @@ class FactionController extends Controller
             'factions' => $rows,
             'max_members' => (int) config('gm.factions.max_members'),
             'formation_wins' => (int) config('gm.factions.formation_wins'),
+        ]);
+    }
+
+    /**
+     * One faction's page (house rule, 2026-11-07): its details and every
+     * match where 2+ members teamed while it was together, both brands,
+     * newest first, in the Reports table's shape.
+     */
+    public function show(Save $save, SaveFaction $saveFaction): Response
+    {
+        abort_unless($saveFaction->save_id === $save->id, 404);
+        $saveFaction->load(['faction', 'members.wrestler']);
+
+        $slots = MatchSlot::with(['show.ppvEvent', 'matchType', 'participants.saveWrestler.wrestler', 'result', 'titleChampionship', 'gauntletBouts'])
+            ->whereIn('id', $this->factions->matchSlotIds($saveFaction))
+            ->whereHas('result')
+            ->get();
+
+        $shows = $slots->groupBy('show_id')
+            ->map(fn ($group): array => [
+                'show' => $group->first()->show,
+                'slots' => $group->sortBy('position')->values(),
+            ])
+            ->sortBy([
+                fn (array $a, array $b): int => $b['show']->week_number <=> $a['show']->week_number,
+                fn (array $a, array $b): int => strcmp($b['show']->show_type->value, $a['show']->show_type->value),
+            ])
+            ->map(fn (array $g): array => [
+                ...CardPresenter::show($g['show']),
+                'outcomes' => $g['slots']->map(fn (MatchSlot $slot): array => CardPresenter::outcome($slot))->values()->all(),
+            ])
+            ->values();
+
+        return Inertia::render('gm/faction', [
+            'faction' => $this->row($save, $saveFaction),
+            'shows' => $shows,
         ]);
     }
 
@@ -175,7 +213,7 @@ class FactionController extends Controller
     }
 
     /**
-     * "The Basham Brothers" sorts under B.
+     * "Basham Brothers" sorts under B.
      */
     private function sortName(string $name): string
     {

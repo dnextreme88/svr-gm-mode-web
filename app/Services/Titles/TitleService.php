@@ -34,6 +34,7 @@ class TitleService
     public function __construct(
         private CalendarService $calendar,
         private NewsRecorder $news,
+        private RematchClauseService $rematches,
     ) {}
 
     public function currentRow(Save $save, Championship $championship): ?TitleReign
@@ -144,7 +145,14 @@ class TitleService
             $via = WonVia::VacancyMatch;
         }
 
-        return $this->openReign($save, $championship, $newHolder, $week, $via, $show, $matchId);
+        $reign = $this->openReign($save, $championship, $newHolder, $week, $via, $show, $matchId);
+
+        // House rule (2026-11-07): the former champion(s) are owed a rematch.
+        if ($current !== null && ! $current->isVacant()) {
+            $this->rematches->create($save, $championship, $current, $reign, $week);
+        }
+
+        return $reign;
     }
 
     /**
@@ -176,6 +184,8 @@ class TitleService
             'won_via' => null,
             'end_reason' => $reason,
         ]);
+
+        $this->rematches->voidForTitle($save, $championship, $week);
 
         // §22 (to confirm): a title shot on a title that becomes vacant is voided.
         TitleShot::where('save_id', $save->id)

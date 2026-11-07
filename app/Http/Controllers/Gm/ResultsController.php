@@ -8,6 +8,7 @@ use App\Enums\ShowStatus;
 use App\Enums\ShowType;
 use App\Http\Controllers\Controller;
 use App\Http\Presenters\CardPresenter;
+use App\Models\ConditionalStoryTrigger;
 use App\Models\Email;
 use App\Models\FatigueLog;
 use App\Models\Injury;
@@ -105,8 +106,55 @@ class ResultsController extends Controller
             'cash_in_offer' => $airing ? $this->cashInOffer($save) : null,
             'continue_to' => $awaitingWeekly ? $this->weeklyCard($save, $week) : null,
             'shows' => $shows,
+            // House rule (2026-11-07): conditional match stories not yet seen.
+            'conditional_stories' => $this->stories($save, $week, $brand),
             'new_emails' => Email::where('save_id', $save->id)->where('brand', $save->player_brand)->where('week_number', $week)->count(),
         ]);
+    }
+
+    /**
+     * Conditional match stories (house rule, 2026-11-07) the player hasn't
+     * seen yet, in air order, for the results screen's pop-up.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function stories(Save $save, int $week, Brand $brand): array
+    {
+        return array_values(ConditionalStoryTrigger::with(['slot.show', 'slot.matchType', 'slot.participants.saveWrestler.wrestler', 'slot.result', 'slot.titleChampionship', 'slot.gauntletBouts'])
+            ->where('save_id', $save->id)
+            ->where('week_number', $week)
+            ->whereNull('seen_at')
+            ->get()
+            ->filter(fn (ConditionalStoryTrigger $t): bool => $t->slot->show->brand === null || $t->slot->show->brand === $brand)
+            ->sortBy([
+                fn (ConditionalStoryTrigger $a, ConditionalStoryTrigger $b): int => $this->airOrder($a->slot->show) <=> $this->airOrder($b->slot->show),
+                fn (ConditionalStoryTrigger $a, ConditionalStoryTrigger $b): int => $a->slot->position <=> $b->slot->position,
+                fn (ConditionalStoryTrigger $a, ConditionalStoryTrigger $b): int => $a->id <=> $b->id,
+            ])
+            ->map(function (ConditionalStoryTrigger $t): array {
+                $outcome = CardPresenter::outcome($t->slot);
+
+                return [
+                    'id' => $t->id,
+                    'story' => $t->story->value,
+                    'outcome' => $t->outcome->value,
+                    'match_slot_id' => $t->match_slot_id,
+                    'show' => $t->slot->show->name,
+                    'position' => $t->slot->position,
+                    'championship' => $t->slot->titleChampionship?->name,
+                    'result' => "{$outcome['winners_label']} def. ".implode(', ', $outcome['losers'])." · {$outcome['method_label']}",
+                    ...$t->tokens,
+                ];
+            })
+            ->all());
+    }
+
+    /**
+     * The PPV airs first, then the interbrand card, then the weekly show.
+     */
+    private function airOrder(Show $show): int
+    {
+        return $show->isInterbrand() ? 1 : ($show->isPpv() ? 0 : 2);
     }
 
     /**

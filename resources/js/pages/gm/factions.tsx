@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Fragment, useState } from 'react';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { FilterGroup } from '@/components/gm/filter-group';
@@ -16,7 +16,7 @@ import type {
 } from '@/types/enums';
 import type { GamePageProps } from '@/types/gm';
 
-type FactionRow = {
+export type FactionRow = {
     id: number;
     name: string;
     type: FactionType;
@@ -203,6 +203,7 @@ export default function Factions() {
                                             {rows.map((f) => (
                                                 <FactionTableRow
                                                     key={f.id}
+                                                    saveId={game.id}
                                                     faction={f}
                                                     actions={rows.some(
                                                         (r) => r.active,
@@ -247,10 +248,12 @@ export default function Factions() {
 }
 
 function FactionTableRow({
+    saveId,
     faction: f,
     actions,
     onDisband,
 }: {
+    saveId: number;
     faction: FactionRow;
     /** Whether the table has a Disband column. */
     actions: boolean;
@@ -261,7 +264,15 @@ function FactionTableRow({
     return (
         <tr data-testid={`faction-${f.id}`} className="group">
             <td className="font-semibold whitespace-nowrap">
-                {f.name}
+                <Link
+                    href={gm.factions.show.url({
+                        save: saveId,
+                        saveFaction: f.id,
+                    })}
+                    className="hover:text-gold-hot hover:underline focus-visible:text-gold-hot"
+                >
+                    {f.name}
+                </Link>
                 {!seeded && (
                     <span className="gm-label ml-2 text-gold">
                         {f.origin === 'player' ? 'Yours' : 'Rival'}

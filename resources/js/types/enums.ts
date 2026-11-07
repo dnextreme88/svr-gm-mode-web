@@ -68,6 +68,32 @@ export const ComplaintLevelLabels: Record<ComplaintLevel, string> = {
     'upset': 'Upset',
 };
 
+export const ConditionalStory = {
+    HornswoggleShillelagh: 'hornswoggle_shillelagh',
+    UndertakerLightsOut: 'undertaker_lights_out',
+    KanePyro: 'kane_pyro',
+    DudleyTables: 'dudley_tables',
+    HardyLadder: 'hardy_ladder',
+} as const;
+export type ConditionalStory = (typeof ConditionalStory)[keyof typeof ConditionalStory];
+export const ConditionalStoryLabels: Record<ConditionalStory, string> = {
+    'hornswoggle_shillelagh': 'Hornswoggle\'s shillelagh',
+    'undertaker_lights_out': 'Undertaker\'s lights-out',
+    'kane_pyro': 'Kane\'s pyro',
+    'dudley_tables': 'Dudley Boyz: get the tables!',
+    'hardy_ladder': 'Team Xtreme\'s ladder spot',
+};
+
+export const ConditionalStoryOutcome = {
+    Success: 'success',
+    Failure: 'failure',
+} as const;
+export type ConditionalStoryOutcome = (typeof ConditionalStoryOutcome)[keyof typeof ConditionalStoryOutcome];
+export const ConditionalStoryOutcomeLabels: Record<ConditionalStoryOutcome, string> = {
+    'success': 'Success',
+    'failure': 'Failure',
+};
+
 export const ContendershipVoidReason = {
     Released: 'released',
     ContractExpired: 'contract_expired',
@@ -363,6 +389,7 @@ export const MatchFamily = {
     FulfillYourFantasy: 'fulfill_your_fantasy',
     Hardcore: 'hardcore',
     HellInACell: 'hell_in_a_cell',
+    Inferno: 'inferno',
     IronMan: 'iron_man',
     Ladder: 'ladder',
     LastManStanding: 'last_man_standing',
@@ -390,6 +417,7 @@ export const MatchFamilyLabels: Record<MatchFamily, string> = {
     'fulfill_your_fantasy': 'Fulfill Your Fantasy',
     'hardcore': 'Hardcore',
     'hell_in_a_cell': 'Hell In A Cell',
+    'inferno': 'Inferno',
     'iron_man': 'Iron Man',
     'ladder': 'Ladder',
     'last_man_standing': 'Last Man Standing',
@@ -754,6 +782,18 @@ export const ReignEndReasonLabels: Record<ReignEndReason, string> = {
     'loser_leaves': 'Loser Leaves',
     'released': 'Released',
     'contract_expired': 'Contract Expired',
+};
+
+export const RematchClauseStatus = {
+    Pending: 'pending',
+    Resolved: 'resolved',
+    Voided: 'voided',
+} as const;
+export type RematchClauseStatus = (typeof RematchClauseStatus)[keyof typeof RematchClauseStatus];
+export const RematchClauseStatusLabels: Record<RematchClauseStatus, string> = {
+    'pending': 'Pending',
+    'resolved': 'Resolved',
+    'voided': 'Voided',
 };
 
 export const RosterType = {

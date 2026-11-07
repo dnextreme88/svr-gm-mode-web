@@ -779,3 +779,93 @@ describe('Results page', () => {
         );
     });
 });
+
+describe('Conditional story pop-up (house rule, 2026-11-07)', () => {
+    const story = (id: number, title: string, text: string) => ({
+        id,
+        story: 'hornswoggle_shillelagh',
+        outcome: 'success' as const,
+        match_slot_id: 2,
+        show: 'Friday Night Smackdown',
+        position: 3,
+        championship: 'Cruiserweight Championship',
+        result: 'Fit Finlay def. Psicosis · Pinfall',
+        title,
+        text,
+        what_changed: 'Nothing about the result: Fit Finlay won on his own.',
+        next_label: 'Next chance',
+        next: 'Week 14.',
+    });
+
+    it('opens after a simulated match with the story and its facts', () => {
+        page.props = {
+            ...props,
+            conditional_stories: [
+                story(
+                    5,
+                    'Hornswoggle to the rescue!',
+                    'Hornswoggle slid out from under the ring holding the shillelagh.',
+                ),
+            ],
+        };
+        render(<Results />);
+
+        const modal = screen.getByTestId('story-modal');
+        expect(
+            screen.getByRole('heading', { name: 'Hornswoggle to the rescue!' }),
+        ).toBeInTheDocument();
+        expect(modal).toHaveTextContent(
+            'Hornswoggle slid out from under the ring holding the shillelagh.',
+        );
+        expect(modal).toHaveTextContent('Fit Finlay def. Psicosis · Pinfall');
+        expect(modal).toHaveTextContent('Week 14.');
+        expect(modal).toHaveTextContent('Cruiserweight Championship');
+        // One story: no counter.
+        expect(modal).not.toHaveTextContent('1 of 1');
+    });
+
+    it('steps through every story from Simulate all, posting each as seen', async () => {
+        const user = userEvent.setup();
+        page.props = {
+            ...props,
+            conditional_stories: [
+                story(5, 'Get the tables!', 'D-Von pulled a table.'),
+                story(6, 'Hornswoggle to the rescue!', 'The shillelagh.'),
+            ],
+        };
+        const { rerender } = render(<Results />);
+
+        expect(screen.getByTestId('story-modal')).toHaveTextContent('1 of 2');
+        expect(
+            screen.getByRole('heading', { name: 'Get the tables!' }),
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Got it' }));
+        expect(post).toHaveBeenCalledWith(
+            '/gm/saves/1/results/1/stories/5/seen',
+            {},
+            expect.objectContaining({ preserveState: true }),
+        );
+
+        // The server answers with the stories still unseen.
+        post.mock.calls[0][2].onFinish();
+        page.props = {
+            ...props,
+            conditional_stories: [
+                story(6, 'Hornswoggle to the rescue!', 'The shillelagh.'),
+            ],
+        };
+        rerender(<Results />);
+
+        expect(screen.getByTestId('story-modal')).toHaveTextContent('2 of 2');
+        expect(
+            screen.getByRole('heading', { name: 'Hornswoggle to the rescue!' }),
+        ).toBeInTheDocument();
+    });
+
+    it('shows nothing when no story played out', () => {
+        render(<Results />);
+
+        expect(screen.queryByTestId('story-modal')).toBeNull();
+    });
+});

@@ -96,6 +96,24 @@ function CrownSteps({
     currentId: number | null;
 }) {
     const current = championships.find((c) => c.id === currentId) ?? null;
+    // House rule (2026-11-07): any decided title can be taken back and
+    // decided again until the season starts.
+    const change = (c: ChampionshipRow) =>
+        router.post(
+            gm.titles.assign.undo.url({ save: saveId, championship: c.id }),
+            {},
+            { preserveScroll: true },
+        );
+    const changeButton = (c: ChampionshipRow) => (
+        <button
+            type="button"
+            className="gm-btn gm-btn-ghost gm-btn-sm"
+            aria-label={`Change ${c.name}`}
+            onClick={() => change(c)}
+        >
+            Change
+        </button>
+    );
 
     return (
         <div className="space-y-6">
@@ -136,6 +154,9 @@ function CrownSteps({
                                           ? 'Deciding…'
                                           : 'Up next')}
                             </div>
+                            {c.decided && (
+                                <div className="mt-2">{changeButton(c)}</div>
+                            )}
                         </li>
                     );
                 })}
@@ -149,11 +170,43 @@ function CrownSteps({
                     allowVacant
                 />
             ) : (
-                <Panel>
-                    <p className="text-sm text-ink-dim">
-                        Every title is decided. Start the season when you’re
-                        ready.
+                <Panel title="Review your champions">
+                    <p className="mb-3 text-sm text-ink-dim">
+                        Every title is decided. Change any of them, or start the
+                        season when you’re ready.
                     </p>
+                    <ul
+                        className="divide-y divide-white/5"
+                        aria-label="Your champions"
+                    >
+                        {championships.map((c) => (
+                            <li
+                                key={c.id}
+                                data-testid={`review-${c.key}`}
+                                className="flex flex-wrap items-center justify-between gap-2 py-2"
+                            >
+                                <span className="flex min-w-0 items-center gap-2">
+                                    <span className="text-gold">
+                                        <TitleMark name={c.name} />
+                                    </span>
+                                    <span className="font-semibold">
+                                        {c.name}
+                                    </span>
+                                    <span
+                                        className={cn(
+                                            'text-sm',
+                                            c.holder
+                                                ? 'text-gold-hot'
+                                                : 'text-ink-faint',
+                                        )}
+                                    >
+                                        {c.holder ?? 'Vacant'}
+                                    </span>
+                                </span>
+                                {changeButton(c)}
+                            </li>
+                        ))}
+                    </ul>
                 </Panel>
             )}
         </div>

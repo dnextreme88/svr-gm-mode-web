@@ -241,11 +241,14 @@ class NewsTemplates
         $payload['others'] ??= '';
         $story = $this->promoStory($payload);
 
-        if ($story !== null) {
-            return $this->fill($story[1], $payload);
-        }
+        $summary = $story !== null
+            ? $this->fill($story[1], $payload)
+            : $this->fill(self::SUMMARIES[$this->variant($type, $payload, self::SUMMARIES)], $payload);
 
-        return $this->fill(self::SUMMARIES[$this->variant($type, $payload, self::SUMMARIES)], $payload);
+        // House rule (2026-11-07): a conditional match story adds how it happened.
+        $aside = trim((string) ($payload['aside_text'] ?? ''));
+
+        return $aside === '' ? $summary : "{$summary} {$aside}";
     }
 
     /**

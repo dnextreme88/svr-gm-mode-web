@@ -85,6 +85,23 @@ class ChampionshipAssignment
     }
 
     /**
+     * Take back a title decided after the draft (house rule, 2026-11-07), so
+     * it can be decided again: its reign #1, or its vacancy, is removed and
+     * the holder is free for another title. Only until the season starts.
+     */
+    public function undo(Save $save, Championship $championship): void
+    {
+        if ($save->stage !== SaveStage::AssigningTitles) {
+            throw new GameRuleException('Titles can only be changed before the season starts.');
+        }
+
+        $row = $this->titles->currentRow($save, $championship)
+            ?? throw new GameRuleException("{$championship->name} hasn't been decided yet.");
+
+        $row->delete();
+    }
+
+    /**
      * Award a title that has no current holder.
      *
      * @param  list<int>  $saveWrestlerIds  one id for singles titles, two for tag titles
