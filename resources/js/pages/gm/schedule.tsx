@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { BrandBug } from '@/components/gm/brand-bug';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { PageTitle } from '@/components/gm/panel';
 import { requestJson } from '@/lib/http';
@@ -240,12 +241,6 @@ export default function Schedule() {
                     <li className="flex items-center gap-1.5">
                         <span className="size-2.5 bg-gold" /> PPV (Sunday)
                     </li>
-                    <li className="flex items-center gap-1.5">
-                        <span className="size-2.5 bg-brand" /> Your shows
-                    </li>
-                    <li className="flex items-center gap-1.5">
-                        <span className="size-2.5 bg-white/25" /> Rival shows
-                    </li>
                     <li>
                         Click an aired show for its results, this week’s show to
                         book it, or one of your later shows to simulate to it.
@@ -433,8 +428,19 @@ function hoverFor(air: Air): string {
     }
 
     return air.brand === 'raw'
-        ? 'hover:bg-raw hover:text-white hover:brightness-125'
-        : 'hover:bg-sd hover:text-white hover:brightness-125';
+        ? 'hover:bg-raw/25 hover:text-white hover:brightness-125'
+        : 'hover:bg-sd/25 hover:text-white hover:brightness-125';
+}
+
+function isClickable(air: Air): boolean {
+    return (
+        air.results_url !== null || air.card_url !== null || air.can_simulate
+    );
+}
+
+/** A weekly show, drawn as its brand's logo (PPVs keep their gold name). */
+function isLogo(air: Air): boolean {
+    return air.kind !== 'ppv' && air.brand !== null;
 }
 
 function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
@@ -442,6 +448,10 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
     const thisWeek = day.airs.some((a) =>
         ['open', 'confirmed', 'waiting'].includes(a.state),
     );
+    // A lone weekly show owns its whole cell: the cell takes its hover, and
+    // its button stretches over the cell so a click anywhere opens it.
+    const only = day.airs.length === 1 ? day.airs[0] : null;
+    const cellShow = only && isLogo(only) && isClickable(only) ? only : null;
 
     return (
         <div
@@ -454,22 +464,37 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
                 'flex min-h-16 flex-col gap-1 border border-transparent p-1 sm:min-h-24 sm:p-1.5',
                 day.in_month ? 'bg-white/[0.03]' : 'opacity-35',
                 thisWeek && 'gm-current-week',
+                cellShow && cn('relative cursor-pointer', hoverFor(cellShow)),
             )}
         >
-            <span
-                className={cn(
-                    'gm-num text-sm',
-                    day.in_month ? 'text-ink' : 'text-ink-faint',
+            <div className="flex items-center justify-between">
+                <span
+                    className={cn(
+                        'gm-num text-sm',
+                        day.in_month ? 'text-ink' : 'text-ink-faint',
+                    )}
+                >
+                    {day.day}
+                </span>
+                {day.airs.some(
+                    (a) =>
+                        a.kind !== 'ppv' &&
+                        a.brand !== null &&
+                        a.state === 'aired',
+                ) && (
+                    <span
+                        aria-hidden
+                        data-testid={`aired-${day.date}`}
+                        className="text-sm font-bold text-zone-safe"
+                    >
+                        ✓
+                    </span>
                 )}
-            >
-                {day.day}
-            </span>
+            </div>
             {day.airs.map((air) => {
-                const clickable =
-                    air.results_url !== null ||
-                    air.card_url !== null ||
-                    air.can_simulate;
+                const clickable = isClickable(air);
                 const label = stateLabel[air.state];
+                const logo = isLogo(air);
 
                 return (
                     <button
@@ -485,29 +510,45 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
                         aria-label={`${air.name}, week ${air.season_week}${label ? `: ${label}` : ''}${air.state === 'open' ? ': this week, to book' : ''}${air.can_simulate ? ': simulate to here' : ''}`}
                         onClick={() => onOpen(air)}
                         className={cn(
-                            'w-full truncate px-1 py-0.5 text-left font-condensed text-xs leading-tight tracking-wide uppercase sm:px-1.5',
-                            air.kind === 'ppv'
-                                ? 'bg-gold/90 font-bold text-arena'
-                                : air.mine
-                                  ? 'bg-brand font-semibold text-white'
-                                  : 'bg-white/12 text-ink-dim',
-                            air.state === 'aired' && 'opacity-70',
-                            clickable
-                                ? cn('cursor-pointer', hoverFor(air))
-                                : 'cursor-default',
+                            'w-full font-condensed text-xs leading-tight tracking-wide uppercase',
+                            logo
+                                ? 'flex flex-1 flex-col items-center justify-center gap-0.5 p-0.5 text-ink-dim'
+                                : 'truncate bg-gold/90 px-1 py-0.5 text-left font-bold text-arena sm:px-1.5',
+                            air.state === 'aired' && 'opacity-20',
+                            !clickable
+                                ? 'cursor-default'
+                                : air === cellShow
+                                  ? "cursor-pointer after:absolute after:inset-0 after:content-['']"
+                                  : cn('cursor-pointer', hoverFor(air)),
                             air.state === 'waiting' && 'opacity-60',
                         )}
                     >
-                        {air.state === 'aired' && (
-                            <span aria-hidden className="mr-1">
-                                ✓
-                            </span>
-                        )}
-                        {shortName(air)}
-                        {label && air.state !== 'aired' && (
-                            <span className="ml-1 hidden font-normal normal-case opacity-80 sm:inline">
-                                · {label}
-                            </span>
+                        {logo ? (
+                            <>
+                                <BrandBug
+                                    brand={air.brand!}
+                                    className="h-auto max-h-16 w-full max-w-full"
+                                />
+                                {label && air.state !== 'aired' && (
+                                    <span className="hidden font-normal normal-case sm:inline">
+                                        {label}
+                                    </span>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                {air.state === 'aired' && (
+                                    <span aria-hidden className="mr-1">
+                                        ✓
+                                    </span>
+                                )}
+                                {shortName(air)}
+                                {label && air.state !== 'aired' && (
+                                    <span className="ml-1 hidden font-normal normal-case opacity-80 sm:inline">
+                                        · {label}
+                                    </span>
+                                )}
+                            </>
                         )}
                     </button>
                 );

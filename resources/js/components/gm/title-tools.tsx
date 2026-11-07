@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { TitleMark } from '@/components/gm/badges';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import {
     PickerButton,
@@ -98,7 +99,7 @@ export function TitleCycler({
                 )}
             >
                 {current
-                    ? `◆ ${current.name}`
+                    ? current.name
                     : titles.length > 0
                       ? 'Select title'
                       : 'No title eligible'}
@@ -278,8 +279,9 @@ export function StipulationPicker({
                                             onChange={() => setTitleId(t.id)}
                                             className="accent-[var(--color-gold)]"
                                         />
-                                        <span className="font-semibold">
-                                            ◆ {t.name}
+                                        <span className="inline-flex items-center gap-1.5 font-semibold">
+                                            <TitleMark name={t.name} />
+                                            {t.name}
                                         </span>
                                     </span>
                                     <span className="font-condensed text-sm tracking-wide text-ink-dim uppercase">

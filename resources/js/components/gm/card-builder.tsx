@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { GoldTag, SpecialtyBadge } from '@/components/gm/badges';
+import { SpecialtyBadge, TitleBeltImage } from '@/components/gm/badges';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { PopoverPanel, usePopover } from '@/components/gm/popover';
@@ -362,19 +362,22 @@ function SlotEditor({
     const titleOnLine = championships.find(
         (c) => c.id === draft.titleChampionshipId,
     );
-    // Tagged "Champion" on their slots: the holders of the title on the line,
-    // the champion a Champion vs. Contender is against, and every champion in
-    // a Winner Takes All.
-    const champions =
+    // Belts shown on their holders' slots: the title on the line, the title a
+    // Champion vs. Contender is for, and every title in a Winner Takes All.
+    const featuredTitles =
         draft.stipulation === 'winner_takes_all'
-            ? championships
-                  .filter((c) => contestable(c))
-                  .flatMap((c) => c.holder_ids)
+            ? championships.filter((c) => contestable(c))
             : draft.stipulation === 'champion_vs_contender'
-              ? (championships.find(
+              ? championships.filter(
                     (c) => c.id === draft.stipulationChampionshipId,
-                )?.holder_ids ?? [])
-              : (titleOnLine?.holder_ids ?? []);
+                )
+              : titleOnLine
+                ? [titleOnLine]
+                : [];
+    const championTitles = (id: number) =>
+        featuredTitles
+            .filter((c) => c.holder_ids.includes(id))
+            .map((c) => c.name);
 
     const note = (w: RosterEntry) =>
         w.blocked_reason ??
@@ -476,7 +479,7 @@ function SlotEditor({
                                     )}
                                     config={fatigueConfig}
                                     matches={counts.get(id) ?? 0}
-                                    champion={champions.includes(id)}
+                                    championTitles={championTitles(id)}
                                 />
                             ) : null
                         }
@@ -1004,15 +1007,15 @@ function CompetitorDetails({
     fatigue,
     config,
     matches,
-    champion,
+    championTitles,
 }: {
     wrestler: RosterEntry;
     type: MatchTypeOption;
     fatigue: { goingIn: number; after: number };
     config: FatigueConfig;
     matches: number;
-    /** Defending the title on the line in this match. */
-    champion: boolean;
+    /** The titles they hold that this match is about: shown as belts. */
+    championTitles: string[];
 }) {
     const goingInZone = fatigueZone(fatigue.goingIn, config);
 
@@ -1040,7 +1043,16 @@ function CompetitorDetails({
                     config={config}
                     showLabel
                 />
-                {champion && <GoldTag className="ml-auto">Champion</GoldTag>}
+                {championTitles.length > 0 && (
+                    // A fixed-height box: the belt overflows it rather than
+                    // growing the row, so a champion's slot stays as tall as
+                    // the others.
+                    <span className="ml-auto flex h-5 items-center gap-1.5">
+                        {championTitles.map((t) => (
+                            <TitleBeltImage key={t} name={t} size="md" />
+                        ))}
+                    </span>
+                )}
             </div>
             {goingInZone !== 'safe' && (
                 <p

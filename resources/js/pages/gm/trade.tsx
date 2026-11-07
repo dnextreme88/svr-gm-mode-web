@@ -743,7 +743,7 @@ function RosterPicker({
                                 >
                                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
                                         <WrestlerName wrestler={w} />
-                                        {w.roster_type !== 'superstar' && (
+                                        {w.roster_type === 'legend' && (
                                             <span className="font-condensed text-xs tracking-widest text-ink-faint uppercase">
                                                 {
                                                     RosterTypeLabels[

@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Fragment, useState } from 'react';
 import type { MouseEvent } from 'react';
+import { TitleBeltImage } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import type { Named } from '@/components/gm/wrestler-name';
@@ -186,11 +187,19 @@ export default function TitleHistory() {
                                             aria-label={`${h.name}: ${h.holder ?? 'Vacant'}. Show lineage`}
                                             className="gm-row-link block h-full w-full border-l-2 border-gold/60 bg-white/[0.03] px-3 py-2 text-left transition-colors hover:bg-white/[0.07]"
                                         >
-                                            <span className="block font-condensed text-sm tracking-[0.04em] break-words text-gold uppercase sm:text-xl sm:tracking-[0.14em]">
-                                                {h.name.replace(
-                                                    ' Championship',
-                                                    '',
-                                                )}
+                                            <span className="flex flex-col items-start gap-1 font-condensed text-sm tracking-[0.04em] break-words text-gold uppercase sm:text-xl sm:tracking-[0.14em]">
+                                                <TitleBeltImage
+                                                    name={h.name}
+                                                    size="md"
+                                                    decorative
+                                                    className="h-8 sm:h-10"
+                                                />
+                                                <span className="min-w-0">
+                                                    {h.name.replace(
+                                                        ' Championship',
+                                                        '',
+                                                    )}
+                                                </span>
                                             </span>
                                             <span className="gm-heading mt-0.5 block text-base sm:text-lg">
                                                 {h.holder ? (
@@ -285,12 +294,16 @@ export default function TitleHistory() {
                                             onClick={() => select(t.id)}
                                             aria-pressed={t.id === title?.id}
                                             className={cn(
-                                                'gm-row-link block min-h-11 shrink-0 px-3 py-2 text-left text-sm whitespace-nowrap transition-colors lg:min-h-0 lg:w-full lg:whitespace-normal',
+                                                'gm-row-link flex min-h-11 shrink-0 items-center gap-2 px-3 py-2 text-left text-sm whitespace-nowrap transition-colors lg:min-h-0 lg:w-full lg:whitespace-normal',
                                                 t.id === title?.id
                                                     ? 'bg-brand/15 text-ink shadow-[inset_0_-3px_0_var(--gm-brand)] lg:shadow-[inset_3px_0_0_var(--gm-brand)]'
                                                     : 'text-ink-dim hover:text-ink',
                                             )}
                                         >
+                                            <TitleBeltImage
+                                                name={t.name}
+                                                decorative
+                                            />
                                             {t.name}
                                         </button>
                                     ))}
@@ -302,7 +315,16 @@ export default function TitleHistory() {
                 {title && (
                     <div id="lineage" className="min-w-0 scroll-mt-4 space-y-6">
                         <Panel
-                            title={`${title.name} lineage`}
+                            title={
+                                <span className="flex items-center gap-2">
+                                    <TitleBeltImage
+                                        name={title.name}
+                                        size="md"
+                                        decorative
+                                    />
+                                    {title.name} lineage
+                                </span>
+                            }
                             bodyClassName="p-0"
                         >
                             {title.lineage.length === 0 ? (

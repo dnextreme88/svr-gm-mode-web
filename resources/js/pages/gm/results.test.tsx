@@ -190,8 +190,8 @@ describe('Results page', () => {
             screen.getByRole('heading', { name: 'Monday Night Raw' }).className,
         ).toContain('text-2xl');
         expect(
-            screen.getByText('◆ World Tag Team Championship').className,
-        ).toContain('from-gold-hot');
+            screen.getByText('World Tag Team Championship').className,
+        ).toContain('text-gold-hot');
         expect(screen.queryByText(/press enter/i)).toBeNull();
         // The card always shows a match: the first one here.
         expect(
@@ -734,7 +734,7 @@ describe('Results page', () => {
 
         expect(
             within(screen.getByTestId('result-7-1')).getByText(
-                '◆ United States Championship (vacant)',
+                'United States Championship (vacant)',
             ),
         ).toBeInTheDocument();
     });
@@ -775,7 +775,7 @@ describe('Results page', () => {
         render(<Results />);
 
         expect(screen.getByTestId('promo-title-7-1')).toHaveTextContent(
-            '◆ WWE Championship',
+            'WWE Championship',
         );
     });
 });

@@ -1004,7 +1004,7 @@ describe('CardBuilder', () => {
             screen.queryByRole('button', { name: /Save/ }),
         ).not.toBeInTheDocument();
     });
-    it('tags the champion defending the title on the line', () => {
+    it("shows the belt of the title on the line on its champion's slot", () => {
         const titleMatch = (
             position: number,
             title: number | null,
@@ -1016,15 +1016,21 @@ describe('CardBuilder', () => {
         });
         setup([titleMatch(1, 1), titleMatch(2, null)]);
 
-        expect(screen.getByTestId('slot-1-side-0-0')).toHaveTextContent(
-            'Champion',
-        );
-        expect(screen.getByTestId('slot-1-side-1-0')).not.toHaveTextContent(
-            'Champion',
-        );
-        expect(screen.getByTestId('slot-2-side-0-0')).not.toHaveTextContent(
-            'Champion',
-        );
+        expect(
+            within(screen.getByTestId('slot-1-side-0-0')).getByRole('img', {
+                name: 'Intercontinental Championship',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            within(screen.getByTestId('slot-1-side-1-0')).queryByTestId(
+                'title-belt',
+            ),
+        ).toBeNull();
+        expect(
+            within(screen.getByTestId('slot-2-side-0-0')).queryByTestId(
+                'title-belt',
+            ),
+        ).toBeNull();
     });
     it("greys out who can't challenge for the title on the line", async () => {
         const user = userEvent.setup();

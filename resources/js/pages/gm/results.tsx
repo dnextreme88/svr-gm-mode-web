@@ -3,7 +3,7 @@ import { ChevronRight } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { AttendanceChip } from '@/components/gm/attendance-chip';
 import type { AttendanceBreakdown } from '@/components/gm/attendance-chip';
-import { CashInTag } from '@/components/gm/badges';
+import { CashInTag, TitleMark } from '@/components/gm/badges';
 import { BookToWinCard } from '@/components/gm/book-to-win-card';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { SideNames } from '@/components/gm/champion-tag';
@@ -666,8 +666,9 @@ function MatchRow({
                 <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-dim group-hover:text-white/85">
                     <span>{o.match_type}</span>
                     {o.title && (
-                        <span className="bg-gradient-to-b from-gold-hot to-gold px-2 py-px font-condensed text-xs font-bold tracking-[0.14em] text-arena uppercase">
-                            ◆ {o.title}
+                        <span className="inline-flex items-center gap-1 px-2 py-px font-condensed text-sm font-bold tracking-[0.14em] text-gold-hot uppercase">
+                            <TitleMark name={o.title} />
+                            {o.title}
                             {!o.champions?.length && ' (vacant)'}
                         </span>
                     )}
@@ -694,9 +695,10 @@ function MatchRow({
                             <span
                                 key={t}
                                 data-testid="contested-title"
-                                className="bg-gradient-to-b from-gold-hot to-gold px-2 py-px font-condensed text-xs font-bold tracking-[0.14em] text-arena uppercase"
+                                className="inline-flex items-center gap-1 px-2 py-px font-condensed text-sm font-bold tracking-[0.14em] text-gold-hot uppercase"
                             >
-                                ◆ {t}
+                                <TitleMark name={t} />
+                                {t}
                             </span>
                         ))}
                         {!o.pending && o.stipulation_outcome && (
@@ -762,9 +764,10 @@ function PromoRow({
                     {promo.title && (
                         <span
                             data-testid={`promo-title-${showId}-${promo.position}`}
-                            className="bg-gradient-to-b from-gold-hot to-gold px-2 py-px font-condensed text-xs font-bold tracking-[0.14em] text-arena uppercase"
+                            className="inline-flex items-center gap-1 bg-gradient-to-b from-gold-hot to-gold px-2 py-px font-condensed text-sm font-bold tracking-[0.14em] text-arena uppercase"
                         >
-                            ◆ {promo.title}
+                            <TitleMark name={promo.title} />
+                            {promo.title}
                         </span>
                     )}
                 </span>

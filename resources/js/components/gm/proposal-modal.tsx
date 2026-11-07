@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { TitleMark } from '@/components/gm/badges';
 import { Dice } from '@/components/gm/dice';
 import type { DiceFace } from '@/components/gm/dice';
 import { Spinner } from '@/components/ui/spinner';
@@ -162,8 +163,14 @@ export function ProposalModal({
                                         </div>
                                     )}
                                     {p.title_championship_id !== null && (
-                                        <div className="mt-1 text-xs font-bold text-gold-hot uppercase">
-                                            ◆{' '}
+                                        <div className="mt-1 flex items-center gap-1.5 text-xs font-bold text-gold-hot uppercase">
+                                            <TitleMark
+                                                name={
+                                                    titleNames[
+                                                        p.title_championship_id
+                                                    ] ?? ''
+                                                }
+                                            />
                                             {titleNames[
                                                 p.title_championship_id
                                             ] ?? 'Title match'}

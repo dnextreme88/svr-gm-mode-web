@@ -56,6 +56,10 @@ const types = [
     promo(5, 'title_match_hype', 'Title Match Hype', {
         needs_championship: true,
     }),
+    promo(6, 'start_a_rivalry', 'Start a Rivalry', {
+        needs_rival_pair: true,
+        fatigue_bars: 2,
+    }),
 ];
 
 function rules(
@@ -87,6 +91,7 @@ const eligibility: Record<string, PromoEligibilityView> = {
         ],
     }),
     title_match_hype: rules({ championship_ids: [7] }),
+    start_a_rivalry: rules({ wrestler_ids: [10, 11, 12] }),
 };
 
 function wrestler(id: number, name: string): RosterEntry {
@@ -302,6 +307,7 @@ describe('PromoSlots', () => {
             'Continue Rivalry',
             'Inactive Superstar',
             'Interference Promotion',
+            'Start a Rivalry',
             'Title Match Hype',
         ]);
     });
@@ -347,11 +353,9 @@ describe('PromoSlots', () => {
         const options = within(
             screen.getByRole('listbox', { name: 'Promo 1 superstar' }),
         ).getAllByRole('option');
-        expect(options.map((o) => o.textContent)).toEqual([
-            'Leave vacant',
-            'Edge',
-        ]);
-        await user.click(options[1]);
+        // A promo's superstar is required: no row to leave it vacant.
+        expect(options.map((o) => o.textContent)).toEqual(['Edge']);
+        await user.click(options[0]);
         await user.click(screen.getByRole('radio', { name: 'Before match 2' }));
         await user.click(screen.getByRole('button', { name: 'Save promo 1' }));
 
@@ -362,6 +366,37 @@ describe('PromoSlots', () => {
             target_championship_id: null,
             before_position: 2,
         });
+    });
+
+    it('requires both superstars of a two-superstar promo', async () => {
+        const { user } = setup();
+
+        await user.click(screen.getByTestId('promo-1-start_a_rivalry'));
+
+        for (const name of [
+            'Promo 1 first superstar',
+            'Promo 1 second superstar',
+        ]) {
+            if (name.includes('second')) {
+                await user.click(
+                    screen.getByRole('button', {
+                        name: 'Promo 1 first superstar',
+                    }),
+                );
+                await user.click(screen.getByRole('option', { name: 'Edge' }));
+            }
+
+            await user.click(screen.getByRole('button', { name }));
+            const options = within(
+                screen.getByRole('listbox', { name }),
+            ).getAllByRole('option');
+
+            expect(options.length).toBeGreaterThan(0);
+            expect(options.map((o) => o.textContent).join('|')).not.toContain(
+                'Leave vacant',
+            );
+            await user.keyboard('{Escape}');
+        }
     });
 
     it('picks a Continue Rivalry from one list of rivalries, named alphabetically', async () => {
@@ -409,7 +444,7 @@ describe('PromoSlots', () => {
         ).toBeDisabled();
 
         await user.click(
-            screen.getByRole('radio', { name: '◆ WWE Championship' }),
+            screen.getByRole('radio', { name: 'WWE Championship' }),
         );
         await user.click(screen.getByRole('button', { name: 'Save promo 1' }));
 
