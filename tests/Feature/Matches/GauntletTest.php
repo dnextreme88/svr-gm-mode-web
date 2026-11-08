@@ -110,3 +110,22 @@ it('takes no stipulation but a #1 Contender’s Match', function () {
     expect(fn () => Card::book($save, Card::show($save), 1, Card::type('gauntlet', '6-Man Gauntlet'), array_map(fn (string $n): array => [$n], GAUNTLET), [], null, Stipulation::LoserLeavesShow))
         ->toThrow(GameRuleException::class, "Gauntlet can't have a Loser Leaves Show stipulation");
 });
+
+it('runs a 4-Man and a 5-Man Gauntlet in 3 and 4 bouts (house rule, 2026-11-08)', function (string $variant, int $entrants) {
+    $save = GameBuilder::inSeason(raw: GAUNTLET, smackdown: ['Batista', 'JBL']);
+    GameBuilder::passiveRival();
+    $names = array_slice(GAUNTLET, 0, $entrants);
+    $slot = Card::book($save, Card::show($save), 1, Card::type('gauntlet', $variant), array_map(fn (string $n): array => [$n], $names));
+
+    app(WeekResolver::class)->resolve($save->refresh());
+
+    $bouts = GauntletBout::where('match_slot_id', $slot->id)->orderBy('round')->get();
+    $winner = MatchResult::where('match_slot_id', $slot->id)->sole()->winner_side;
+
+    expect($bouts)->toHaveCount($entrants - 1)
+        ->and($bouts->last()->winner_side)->toBe($winner)
+        ->and($slot->refresh()->matchType->fatigue_cost_bars)->toBe(3);
+})->with([
+    ['4-Man Gauntlet', 4],
+    ['5-Man Gauntlet', 5],
+]);

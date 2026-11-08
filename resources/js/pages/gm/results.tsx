@@ -5,11 +5,14 @@ import { AttendanceChip } from '@/components/gm/attendance-chip';
 import type { AttendanceBreakdown } from '@/components/gm/attendance-chip';
 import { CashInTag, TitleMark } from '@/components/gm/badges';
 import { BookToWinCard } from '@/components/gm/book-to-win-card';
+import { BusyLabel } from '@/components/gm/busy-label';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { SideNames } from '@/components/gm/champion-tag';
 import { FatigueProgress } from '@/components/gm/fatigue-progress';
 import type { FatigueStep } from '@/components/gm/fatigue-progress';
 import { OutcomeCard } from '@/components/gm/outcome-card';
+import { StoryModal } from '@/components/gm/story-modal';
+import type { ConditionalStoryPopup } from '@/components/gm/story-modal';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
@@ -52,6 +55,8 @@ type Props = GamePageProps & {
     continue_to?: { name: string; url: string } | null;
     /** House rule: the briefcase holder may cash in after the world title match that just aired. */
     cash_in_offer?: { holder: string; champion: string; title: string } | null;
+    /** House rule (2026-11-07): conditional match stories not yet seen, in air order. */
+    conditional_stories?: ConditionalStoryPopup[];
     shows: ShowResult[];
     new_emails: number;
 };
@@ -142,12 +147,14 @@ export default function Results() {
         from_schedule,
         airing = false,
         cash_in_offer = null,
+        conditional_stories = [],
         continue_to = null,
         shows,
         new_emails,
     } = usePage<Props>().props;
     const rival = brand !== undefined && brand !== game.player_brand;
     const [busy, setBusy] = useState(false);
+    const [action, setAction] = useState<string | null>(null);
     const reel = useMemo<ReelItem[]>(
         () =>
             shows.flatMap((show) => {
@@ -188,6 +195,17 @@ export default function Results() {
     // the next match to decide after a short look at the result.
     const [decided, setDecided] = useState<number | null>(null);
     const [direction, setDirection] = useState<'left' | 'right'>('right');
+    // Conditional stories (house rule, 2026-11-07): one pop-up at a time;
+    // `closed` counts this run's, for "1 of 2".
+    const [closed, setClosed] = useState(0);
+    const story = busy ? null : (conditional_stories[0] ?? null);
+    const storyOpen = story !== null;
+
+    useEffect(() => {
+        if (conditional_stories.length === 0) {
+            setClosed(0);
+        }
+    }, [conditional_stories.length]);
     const current = open === null ? undefined : reel[open];
 
     const go = useCallback(
@@ -197,9 +215,22 @@ export default function Results() {
             }
 
             setDirection(delta < 0 ? 'left' : 'right');
-            setOpen((open + delta + reel.length) % reel.length);
+
+            // Step over matches still waiting their turn: they can't be
+            // opened from the list either.
+            let next = open;
+
+            for (let i = 0; i < reel.length; i++) {
+                next = (next + delta + reel.length) % reel.length;
+
+                if (!isWaiting(reel[next].outcome)) {
+                    setOpen(next);
+
+                    return;
+                }
+            }
         },
-        [open, reel.length],
+        [open, reel],
     );
 
     useEffect(() => {
@@ -219,7 +250,13 @@ export default function Results() {
     useEffect(() => {
         const result = reel.find((r) => r.outcome.id === decided);
 
-        if (decided === null || !result || result.outcome.pending) {
+        // The move to the next match waits while a story is up.
+        if (
+            decided === null ||
+            !result ||
+            result.outcome.pending ||
+            storyOpen
+        ) {
             return;
         }
 
@@ -240,7 +277,7 @@ export default function Results() {
         }, NEXT_MATCH_DELAY_MS);
 
         return () => clearTimeout(timer);
-    }, [decided, reel]);
+    }, [decided, reel, storyOpen]);
 
     // Picking a match shows it; there's nothing to close. It also cancels
     // the move to the next match.
@@ -251,23 +288,43 @@ export default function Results() {
         showCardOnSmallScreens();
     };
 
+    // `action` names the request in flight, so the button that sent it can
+    // show it's working (like Air week's "On air…").
     const post = (
         url: string,
         data: Record<string, number | null | Array<number | null>> = {},
+        name: string | null = null,
     ) => {
         setBusy(true);
+        setAction(name);
         router.post(url, data, {
             preserveScroll: true,
             preserveState: true,
-            onFinish: () => setBusy(false),
+            onFinish: () => {
+                setBusy(false);
+                setAction(null);
+            },
         });
     };
 
     // House rule: the briefcase holder joins the world title match up next.
     const cashIn = (match: PendingMatch) =>
-        post(gm.results.cashIn.url({ save: game.id, week: week_number }), {
-            slot_id: match.id,
-        });
+        post(
+            gm.results.cashIn.url({ save: game.id, week: week_number }),
+            { slot_id: match.id },
+            'cash-in',
+        );
+
+    const closeStory = (id: number) => {
+        setClosed((n) => n + 1);
+        post(
+            gm.results.stories.seen.url({
+                save: game.id,
+                week: week_number,
+                trigger: id,
+            }),
+        );
+    };
 
     const answerCashIn = (yes: boolean) =>
         post(gm.results.cashInOffer.url({ save: game.id, week: week_number }), {
@@ -280,12 +337,41 @@ export default function Results() {
         bouts: Array<number | null> = [],
     ) => {
         setDecided(match.id);
-        post(gm.results.decide.url({ save: game.id, week: week_number }), {
-            slot_id: match.id,
-            winner_side: side,
-            ...(match.gauntlet ? { bouts } : {}),
-        });
+        post(
+            gm.results.decide.url({ save: game.id, week: week_number }),
+            {
+                slot_id: match.id,
+                winner_side: side,
+                ...(match.gauntlet ? { bouts } : {}),
+            },
+            side === null ? 'simulate' : `side-${side}`,
+        );
     };
+
+    // Simulate all, while the player's matches wait to be decided. It shows
+    // a spinner and "Simulating…" until the results are in.
+    const simulateAll = airing && !rival && (
+        <button
+            type="button"
+            className="gm-btn gm-btn-ghost"
+            disabled={busy}
+            aria-busy={action === 'simulate-all' || undefined}
+            onClick={() =>
+                post(
+                    gm.results.simulateAll.url({
+                        save: game.id,
+                        week: week_number,
+                    }),
+                    {},
+                    'simulate-all',
+                )
+            }
+        >
+            <BusyLabel busy={action === 'simulate-all'} busyText="Simulating…">
+                Simulate all
+            </BusyLabel>
+        </button>
+    );
 
     return (
         <>
@@ -300,43 +386,27 @@ export default function Results() {
                           : 'That’s a wrap'
                 }
             >
-                {airing && !rival && (
-                    <button
-                        type="button"
-                        className="gm-btn gm-btn-ghost"
-                        disabled={busy}
-                        onClick={() =>
-                            post(
-                                gm.results.simulateAll.url({
-                                    save: game.id,
-                                    week: week_number,
-                                }),
-                            )
-                        }
-                    >
-                        Simulate all
-                    </button>
-                )}
                 {from_schedule ? (
-                    <Link href={gm.schedule.url(game.id)} className="gm-btn">
-                        Back to schedule
-                    </Link>
+                    <>
+                        {simulateAll}
+                        <Link
+                            href={gm.schedule.url(game.id)}
+                            className="gm-btn"
+                        >
+                            Back to schedule
+                        </Link>
+                    </>
                 ) : airing ? (
                     <>
+                        {simulateAll}
                         <button
                             type="button"
                             className="gm-btn"
                             disabled
-                            aria-describedby="continue-hint"
+                            title="Decide every match to continue"
                         >
                             Continue
                         </button>
-                        <p
-                            id="continue-hint"
-                            className="basis-full text-sm text-ink-dim sm:text-right"
-                        >
-                            Decide every match to continue.
-                        </p>
                     </>
                 ) : continue_to ? (
                     <Link href={continue_to.url} className="gm-btn">
@@ -458,6 +528,7 @@ export default function Results() {
                                             showName={current.show.name}
                                             isMainEvent={current.isMainEvent}
                                             busy={busy}
+                                            action={action}
                                             onDecide={(side, bouts) =>
                                                 decide(
                                                     current.outcome as PendingMatch,
@@ -536,8 +607,15 @@ export default function Results() {
                 </div>
             )}
 
+            <StoryModal
+                story={story}
+                index={closed + 1}
+                total={closed + conditional_stories.length}
+                onClose={() => story && closeStory(story.id)}
+            />
+
             <ConfirmDialog
-                open={cash_in_offer !== null && !busy}
+                open={cash_in_offer !== null && !busy && !storyOpen}
                 title="Cash in Money in the Bank?"
                 message={
                     cash_in_offer
@@ -553,6 +631,11 @@ export default function Results() {
     );
 }
 
+/** A match still waiting its turn: not up next and not decided. */
+function isWaiting(o: MatchOutcome | PendingMatch): boolean {
+    return o.pending === true && !o.is_next;
+}
+
 function MatchRow({
     show,
     outcome: o,
@@ -565,6 +648,9 @@ function MatchRow({
     onSelect: () => void;
 }) {
     const mainEvent = o.position === show.match_slot_count;
+    // Results come in one match at a time: a match still waiting its turn
+    // is greyed out and can't be opened (no hover, skipped by Tab).
+    const waiting = isWaiting(o);
 
     return (
         <li data-testid={`result-${show.id}-${o.position}`}>
@@ -572,12 +658,19 @@ function MatchRow({
             <button
                 type="button"
                 onClick={onSelect}
+                disabled={waiting}
                 aria-current={selected || undefined}
-                aria-label={`Show details for ${show.name} match ${o.position}`}
+                aria-label={
+                    waiting
+                        ? `${show.name} match ${o.position} is waiting for the matches before it`
+                        : `Show details for ${show.name} match ${o.position}`
+                }
                 className={cn(
-                    'group block w-full border-l-2 px-4 py-3 text-left transition-colors hover:bg-brand',
+                    'block w-full border-l-2 px-4 py-3 text-left transition-colors',
+                    waiting
+                        ? 'cursor-not-allowed opacity-60'
+                        : 'group hover:bg-brand',
                     selected ? 'border-brand bg-white/5' : 'border-transparent',
-                    o.pending && !o.is_next && 'opacity-60',
                 )}
             >
                 <span className="flex items-start justify-between gap-3">
@@ -697,7 +790,7 @@ function MatchRow({
                                 data-testid="contested-title"
                                 className="inline-flex items-center gap-1 px-2 py-px font-condensed text-sm font-bold tracking-[0.14em] text-gold-hot uppercase"
                             >
-                                <TitleMark name={t} />
+                                <TitleMark name={t} /> fasfas
                                 {t}
                             </span>
                         ))}
@@ -725,7 +818,12 @@ function PromoRow({
     return (
         <li
             data-testid={`promo-${showId}-${promo.position}`}
-            className="border-l-2 border-transparent px-4 py-3"
+            data-waiting={status === null || undefined}
+            className={cn(
+                'border-l-2 border-transparent px-4 py-3',
+                // Greyed out like a waiting match until it airs.
+                status === null && 'opacity-60',
+            )}
         >
             <span className="flex items-start justify-between gap-3">
                 <span className="text-lg font-semibold">

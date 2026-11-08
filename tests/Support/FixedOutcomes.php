@@ -6,6 +6,7 @@ use App\Enums\MatchFamily;
 use App\Enums\MatchMethod;
 use App\Models\MatchSlot;
 use App\Services\Factions\FactionNamer;
+use App\Services\Matches\ForcedOutcome;
 use App\Services\Matches\MatchResolver;
 use App\Services\Matches\ResolvedMatch;
 use App\Support\Rng\Rng;
@@ -36,10 +37,11 @@ class FixedOutcomes extends MatchResolver
         return $fake;
     }
 
-    public function resolve(MatchSlot $slot, Rng $rng, Collection $activeRivalries, ?int $bookedSide = null, array $bookedBouts = []): ResolvedMatch
+    public function resolve(MatchSlot $slot, Rng $rng, Collection $activeRivalries, ?int $bookedSide = null, array $bookedBouts = [], ?ForcedOutcome $forced = null): ResolvedMatch
     {
-        if ($slot->matchType?->family === MatchFamily::Gauntlet) {
-            return parent::resolve($slot, $rng, $activeRivalries, $bookedSide, $bookedBouts);
+        // A conditional story decides the match itself (house rule, 2026-11-07).
+        if ($slot->matchType?->family === MatchFamily::Gauntlet || ($forced !== null && $bookedSide === null)) {
+            return parent::resolve($slot, $rng, $activeRivalries, $bookedSide, $bookedBouts, $forced);
         }
 
         $sides = $slot->sides();

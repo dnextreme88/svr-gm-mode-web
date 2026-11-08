@@ -111,11 +111,36 @@ describe('naming', function () {
         $namer = app(FactionNamer::class);
 
         expect($namer->name($save->id, factionIds($save, ['Matt Hardy', 'Jeff Hardy']), 1))->toBe('Team Xtreme')
-            ->and($namer->name($save->id, factionIds($save, ['Danny Basham', 'Doug Basham']), 1))->toBe('The Basham Brothers')
+            ->and($namer->name($save->id, factionIds($save, ['Danny Basham', 'Doug Basham']), 1))->toBe('Basham Brothers')
             ->and($namer->name($save->id, factionIds($save, ['Shelton Benjamin', 'Charlie Haas']), 1))->toBe("The World's Greatest Tag Team")
             ->and($namer->name($save->id, factionIds($save, ['Batista', 'Kane', 'Randy Orton']), 1))->toBe('Evolution & Kane')
             ->and($namer->name($save->id, factionIds($save, ['John Cena', 'Kane']), 1))->toBe('John Cena & Kane')
             ->and($namer->name($save->id, factionIds($save, ['Edge']), 1))->toBe('Edge');
+    });
+
+    it('names the 2005–2007 teams without stealing older ones (house rule, 2026-11-07)', function () {
+        $save = GameBuilder::newSave();
+        $namer = app(FactionNamer::class);
+
+        expect($namer->name($save->id, factionIds($save, ['Big Show', 'Kane']), 1))->toBe('Show & Kane')
+            ->and($namer->name($save->id, factionIds($save, ['Undertaker', 'Kane']), 1))->toBe('Brothers of Destruction')
+            ->and($namer->name($save->id, factionIds($save, ['Johnny Nitro', 'The Miz']), 1))->toBe('Dirt Sheets')
+            ->and($namer->name($save->id, factionIds($save, ['Johnny Nitro', 'Joey Mercury']), 1))->toBe('MNM')
+            ->and($namer->name($save->id, factionIds($save, ['Curt Hawkins', 'Zack Ryder']), 1))->toBe('La Familia')
+            ->and($namer->name($save->id, factionIds($save, ['Edge', 'Randy Orton']), 1))->toBe('Rated-RKO')
+            ->and(factionNamed($save, 'Full Blooded Italians')->members->map->name()->all())->toBe(['Nunzio', 'Vito', 'Chuck Palumbo', 'Tony Mamaluke'])
+            ->and(factionNamed($save, 'Gymini')->members->map->name()->all())->toBe(['Gymini Jake', 'Gymini Jesse', 'Simon Dean'])
+            // 2004 teams: Team Angle grows, but its pairs keep their own names.
+            ->and($namer->name($save->id, factionIds($save, ['Shelton Benjamin', 'Charlie Haas']), 1))->toBe("The World's Greatest Tag Team")
+            ->and($namer->name($save->id, factionIds($save, ['Kurt Angle', 'Luther Reigns']), 1))->toBe('Angle & Reigns')
+            ->and($namer->name($save->id, factionIds($save, ['Luther Reigns', 'Mark Jindrak']), 1))->toBe('Team Angle')
+            ->and(factionNamed($save, 'Team Angle')->faction_type)->toBe(FactionType::Stable)
+            ->and($namer->name($save->id, factionIds($save, ['Scotty 2 Hotty', 'Rikishi']), 1))->toBe('Too Cool')
+            ->and($namer->name($save->id, factionIds($save, ['Billy Gunn', 'Chuck Palumbo']), 1))->toBe('Billy & Chuck')
+            ->and($namer->name($save->id, factionIds($save, ['Chuck Palumbo', 'Nunzio']), 1))->toBe('Full Blooded Italians')
+            ->and($namer->name($save->id, factionIds($save, ['Kenzo Suzuki', 'Rene Dupree']), 1))->toBe('Suzuki & Duprée')
+            ->and($namer->name($save->id, factionIds($save, ['Mark Henry', 'Rodney Mack']), 1))->toBe("Thuggin' and Buggin' Enterprises")
+            ->and($namer->name($save->id, factionIds($save, ['The Fabulous Moolah', 'Mae Young']), 1))->toBe('The Fabulous Moolah & Mae Young');
     });
 
     it('only names a faction from members on the same side', function () {
@@ -137,21 +162,21 @@ describe('naming', function () {
 
     it('names the faction in the match news', function () {
         GameBuilder::passiveRival();
-        $save = GameBuilder::inSeason(raw: ['Matt Hardy', 'Jeff Hardy', 'Carlito', 'Chris Masters'], smackdown: ['Batista']);
-        winTogether($save, Brand::Raw, ['Matt Hardy', 'Jeff Hardy'], ['Carlito', 'Chris Masters'], 1);
+        $save = GameBuilder::inSeason(raw: ['Matt Hardy', 'Jeff Hardy', 'Carlito', 'Snitsky'], smackdown: ['Batista']);
+        winTogether($save, Brand::Raw, ['Matt Hardy', 'Jeff Hardy'], ['Carlito', 'Snitsky'], 1);
 
         factionWeek($save);
 
         expect(NewsEvent::where('type', NewsEventType::MatchResult)->where('brand', 'raw')->sole()->rendered_text)
-            ->toStartWith('Team Xtreme defeat Carlito & Chris Masters in decisive fashion.');
+            ->toStartWith('Team Xtreme defeat Carlito & Snitsky in decisive fashion.');
     });
 });
 
 describe('forming', function () {
     it('asks the player to name a team after its 3rd win together', function () {
         GameBuilder::passiveRival();
-        $save = GameBuilder::inSeason(raw: ['John Cena', 'Kane', 'Carlito', 'Chris Masters'], smackdown: ['Batista']);
-        winTogether($save, Brand::Raw, ['John Cena', 'Kane'], ['Carlito', 'Chris Masters'], 3);
+        $save = GameBuilder::inSeason(raw: ['John Cena', 'Kane', 'Carlito', 'Snitsky'], smackdown: ['Batista']);
+        winTogether($save, Brand::Raw, ['John Cena', 'Kane'], ['Carlito', 'Snitsky'], 3);
 
         factionWeek($save);
 
@@ -165,8 +190,8 @@ describe('forming', function () {
 
     it('waits for the 3rd win', function () {
         GameBuilder::passiveRival();
-        $save = GameBuilder::inSeason(raw: ['John Cena', 'Kane', 'Carlito', 'Chris Masters'], smackdown: ['Batista']);
-        winTogether($save, Brand::Raw, ['John Cena', 'Kane'], ['Carlito', 'Chris Masters'], 2);
+        $save = GameBuilder::inSeason(raw: ['John Cena', 'Kane', 'Carlito', 'Snitsky'], smackdown: ['Batista']);
+        winTogether($save, Brand::Raw, ['John Cena', 'Kane'], ['Carlito', 'Snitsky'], 2);
 
         factionWeek($save);
 
@@ -195,8 +220,8 @@ describe('forming', function () {
 
     it('skips Divas, and teams that are already a faction', function () {
         GameBuilder::passiveRival();
-        $save = GameBuilder::inSeason(raw: ['Matt Hardy', 'Jeff Hardy', 'Carlito', 'Chris Masters', 'Trish Stratus', 'Mickie James', 'Victoria', 'Torrie Wilson'], smackdown: ['Batista']);
-        winTogether($save, Brand::Raw, ['Matt Hardy', 'Jeff Hardy'], ['Carlito', 'Chris Masters'], 3);
+        $save = GameBuilder::inSeason(raw: ['Matt Hardy', 'Jeff Hardy', 'Carlito', 'Snitsky', 'Trish Stratus', 'Mickie James', 'Victoria', 'Torrie Wilson'], smackdown: ['Batista']);
+        winTogether($save, Brand::Raw, ['Matt Hardy', 'Jeff Hardy'], ['Carlito', 'Snitsky'], 3);
         $show = Card::show($save, Brand::Raw);
         Card::book($save, $show, 4, Card::type('tag_team', 'Normal Tag'), [['Trish Stratus', 'Mickie James'], ['Victoria', 'Torrie Wilson']]);
         Card::book($save, $show, 5, Card::type('tag_team', 'Normal Tag'), [['Trish Stratus', 'Mickie James'], ['Victoria', 'Torrie Wilson']]);
@@ -210,8 +235,8 @@ describe('forming', function () {
 
     it('asks again after the next win when the player says Not now', function () {
         GameBuilder::passiveRival();
-        $save = GameBuilder::inSeason(raw: ['John Cena', 'Kane', 'Carlito', 'Chris Masters'], smackdown: ['Batista']);
-        winTogether($save, Brand::Raw, ['John Cena', 'Kane'], ['Carlito', 'Chris Masters'], 3);
+        $save = GameBuilder::inSeason(raw: ['John Cena', 'Kane', 'Carlito', 'Snitsky'], smackdown: ['Batista']);
+        winTogether($save, Brand::Raw, ['John Cena', 'Kane'], ['Carlito', 'Snitsky'], 3);
         factionWeek($save);
         $prompt = FactionPrompt::where('save_id', $save->id)->sole();
 
@@ -222,7 +247,7 @@ describe('forming', function () {
         app(FactionFormation::class)->handle(new WeekContext($save->refresh(), 1, 1));
         expect($prompt->refresh()->status)->toBe(FactionPromptStatus::Deferred);
 
-        winTogether($save, Brand::Raw, ['John Cena', 'Kane'], ['Carlito', 'Chris Masters'], 1);
+        winTogether($save, Brand::Raw, ['John Cena', 'Kane'], ['Carlito', 'Snitsky'], 1);
         factionWeek($save);
 
         expect($prompt->refresh()->status)->toBe(FactionPromptStatus::Pending)
@@ -231,8 +256,8 @@ describe('forming', function () {
 
     it('forms the player’s faction from the prompt, dated from the deciding show', function () {
         GameBuilder::passiveRival();
-        $save = GameBuilder::inSeason(raw: ['John Cena', 'Kane', 'Carlito', 'Chris Masters'], smackdown: ['Batista']);
-        winTogether($save, Brand::Raw, ['John Cena', 'Kane'], ['Carlito', 'Chris Masters'], 3);
+        $save = GameBuilder::inSeason(raw: ['John Cena', 'Kane', 'Carlito', 'Snitsky'], smackdown: ['Batista']);
+        winTogether($save, Brand::Raw, ['John Cena', 'Kane'], ['Carlito', 'Snitsky'], 3);
         factionWeek($save);
         $prompt = FactionPrompt::where('save_id', $save->id)->sole();
 
@@ -257,8 +282,8 @@ describe('forming', function () {
 
     it('refuses a name another faction already has', function () {
         GameBuilder::passiveRival();
-        $save = GameBuilder::inSeason(raw: ['John Cena', 'Kane', 'Carlito', 'Chris Masters'], smackdown: ['Batista']);
-        winTogether($save, Brand::Raw, ['John Cena', 'Kane'], ['Carlito', 'Chris Masters'], 3);
+        $save = GameBuilder::inSeason(raw: ['John Cena', 'Kane', 'Carlito', 'Snitsky'], smackdown: ['Batista']);
+        winTogether($save, Brand::Raw, ['John Cena', 'Kane'], ['Carlito', 'Snitsky'], 3);
         factionWeek($save);
         $prompt = FactionPrompt::where('save_id', $save->id)->sole();
 
@@ -286,7 +311,7 @@ describe('disbanding', function () {
 
     it('lists active and disbanded factions on the Factions page', function () {
         $save = GameBuilder::inSeason(raw: ['Matt Hardy', 'Jeff Hardy'], smackdown: ['Batista']);
-        app(FactionService::class)->disband($save, factionNamed($save, 'Edge & Christian'));
+        app(FactionService::class)->disband($save, factionNamed($save, 'E & C'));
 
         $this->get(route('gm.factions.index', $save))
             ->assertInertia(fn (Assert $page) => $page
@@ -294,17 +319,65 @@ describe('disbanding', function () {
                 ->has('factions', Faction::count())
                 ->where('factions', fn ($rows) => collect($rows)->firstWhere('name', 'Team Xtreme')['formed'] === 'Jan 17, 2000'
                     && collect($rows)->firstWhere('name', 'Team Xtreme')['members'][0]['brand'] === 'raw'
-                    && collect($rows)->firstWhere('name', 'Edge & Christian')['active'] === false));
+                    && collect($rows)->firstWhere('name', 'E & C')['active'] === false));
+    });
+});
+
+describe('match history page (house rule, 2026-11-07)', function () {
+    it('lists only the matches where 2+ members teamed, matching the record', function () {
+        GameBuilder::passiveRival();
+        $save = GameBuilder::inSeason(raw: ['Matt Hardy', 'Jeff Hardy', 'Carlito', 'Snitsky', 'Edge'], smackdown: ['Batista']);
+        $show = Card::show($save);
+        // Two tag matches together (a win and a loss), and one singles match.
+        Card::book($save, $show, 1, Card::type('tag_team', 'Normal Tag'), [['Matt Hardy', 'Jeff Hardy'], ['Carlito', 'Snitsky']]);
+        FixedOutcomes::queue('Matt Hardy');
+        Card::book($save, $show, 2, Card::type('tag_team', 'Tornado Tag'), [['Jeff Hardy', 'Matt Hardy'], ['Carlito', 'Snitsky']]);
+        FixedOutcomes::queue('Carlito');
+        Card::book($save, $show, 3, Card::singles(), [['Jeff Hardy'], ['Edge']]);
+        FixedOutcomes::queue('Edge');
+        factionWeek($save);
+
+        $faction = factionNamed($save, 'Team Xtreme');
+
+        $this->get(route('gm.factions.show', [$save, $faction]))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('gm/faction')
+                ->where('faction.name', 'Team Xtreme')
+                ->where('faction.wins', 1)
+                ->where('faction.losses', 1)
+                ->has('shows', 1)
+                ->has('shows.0.outcomes', 2)
+                ->where('shows.0.outcomes.0.position', 1)
+                ->where('shows.0.outcomes.1.position', 2));
+    });
+
+    it('leaves out matches after the faction disbanded', function () {
+        GameBuilder::passiveRival();
+        $save = GameBuilder::inSeason(raw: ['Matt Hardy', 'Jeff Hardy', 'Carlito', 'Snitsky'], smackdown: ['Batista']);
+        $faction = factionNamed($save, 'Team Xtreme');
+        app(FactionService::class)->disband($save, $faction);
+        winTogether($save, Brand::Raw, ['Matt Hardy', 'Jeff Hardy'], ['Carlito', 'Snitsky'], 1);
+        factionWeek($save);
+
+        $this->get(route('gm.factions.show', [$save, $faction->refresh()]))
+            ->assertInertia(fn (Assert $page) => $page->has('shows', 0)->where('faction.wins', 0));
+    });
+
+    it("refuses another save's faction", function () {
+        $save = GameBuilder::inSeason(raw: ['Matt Hardy'], smackdown: ['Batista']);
+        $other = GameBuilder::newSave();
+
+        $this->get(route('gm.factions.show', [$save, factionNamed($other, 'Team Xtreme')]))->assertNotFound();
     });
 });
 
 describe('title news', function () {
     it('gives a faction that wins a tag title its own headline in place of the title change', function () {
         GameBuilder::passiveRival();
-        $save = GameBuilder::inSeason(raw: ['Matt Hardy', 'Jeff Hardy', 'Carlito', 'Chris Masters'], smackdown: ['Batista']);
-        GameBuilder::giveTitle($save, 'world_tag_team', ['Carlito', 'Chris Masters']);
+        $save = GameBuilder::inSeason(raw: ['Matt Hardy', 'Jeff Hardy', 'Carlito', 'Snitsky'], smackdown: ['Batista']);
+        GameBuilder::giveTitle($save, 'world_tag_team', ['Carlito', 'Snitsky']);
         $title = Championship::where('key', 'world_tag_team')->sole();
-        Card::book($save, Card::show($save), 1, Card::type('tag_team', 'Normal Tag'), [['Matt Hardy', 'Jeff Hardy'], ['Carlito', 'Chris Masters']], titleId: $title->id);
+        Card::book($save, Card::show($save), 1, Card::type('tag_team', 'Normal Tag'), [['Matt Hardy', 'Jeff Hardy'], ['Carlito', 'Snitsky']], titleId: $title->id);
         FixedOutcomes::queue('Matt Hardy');
 
         factionWeek($save);
@@ -312,22 +385,22 @@ describe('title news', function () {
         $news = NewsEvent::where('type', NewsEventType::FactionTitleWon)->sole();
 
         expect($news->tier)->toBe(NewsTier::Headline)
-            ->and($news->rendered_text)->toBe('NEW CHAMPIONS! Team Xtreme defeat Carlito & Chris Masters for the World Tag Team Championship via pinfall!')
+            ->and($news->rendered_text)->toBe('NEW CHAMPIONS! Team Xtreme defeat Carlito & Snitsky for the World Tag Team Championship via pinfall!')
             ->and(NewsEvent::where('type', NewsEventType::TitleChange)->exists())->toBeFalse();
     });
 
     it('tells the story of a faction losing its tag title', function () {
         GameBuilder::passiveRival();
-        $save = GameBuilder::inSeason(raw: ['Matt Hardy', 'Jeff Hardy', 'Carlito', 'Chris Masters'], smackdown: ['Batista']);
+        $save = GameBuilder::inSeason(raw: ['Matt Hardy', 'Jeff Hardy', 'Carlito', 'Snitsky'], smackdown: ['Batista']);
         GameBuilder::giveTitle($save, 'world_tag_team', ['Matt Hardy', 'Jeff Hardy']);
         $title = Championship::where('key', 'world_tag_team')->sole();
-        Card::book($save, Card::show($save), 1, Card::type('tag_team', 'Normal Tag'), [['Matt Hardy', 'Jeff Hardy'], ['Carlito', 'Chris Masters']], titleId: $title->id);
+        Card::book($save, Card::show($save), 1, Card::type('tag_team', 'Normal Tag'), [['Matt Hardy', 'Jeff Hardy'], ['Carlito', 'Snitsky']], titleId: $title->id);
         FixedOutcomes::queue('Carlito');
 
         factionWeek($save);
 
-        expect(NewsEvent::where('type', NewsEventType::FactionTitleLost)->sole()->rendered_text)->toBe('Team Xtreme lose the World Tag Team Championship to Carlito & Chris Masters.')
-            ->and(NewsEvent::where('type', NewsEventType::TitleChange)->sole()->rendered_text)->toStartWith('NEW CHAMPION! Carlito & Chris Masters defeats Team Xtreme');
+        expect(NewsEvent::where('type', NewsEventType::FactionTitleLost)->sole()->rendered_text)->toBe('Team Xtreme lose the World Tag Team Championship to Carlito & Snitsky.')
+            ->and(NewsEvent::where('type', NewsEventType::TitleChange)->sole()->rendered_text)->toStartWith('NEW CHAMPION! Carlito & Snitsky defeats Team Xtreme');
     });
 });
 

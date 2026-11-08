@@ -1,6 +1,11 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { TitleMark } from '@/components/gm/badges';
+import { CardProgress } from '@/components/gm/card-builder';
+import {
+    LOADING_OVERLAY_DELAY_MS,
+    LoadingOverlay,
+} from '@/components/gm/loading-overlay';
 import { PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
@@ -28,13 +33,30 @@ type Props = GamePageProps & {
 
 const tierLabels = [
     'World title',
-    'Second tier',
+    'Secondary title',
     'Tag titles',
     'Special title',
 ];
 
 export default function AssignTitles() {
     const { game, championships, initial, current_id } = usePage<Props>().props;
+    // Starting the season sets up week 1 on the server, which takes a moment:
+    // an overlay covers the page until the schedule opens.
+    const [starting, setStarting] = useState(false);
+    const startSeason = () => {
+        // The overlay shows at once and stays at least this long before the
+        // season starts, so it doesn't just flash.
+        setStarting(true);
+        window.setTimeout(
+            () =>
+                router.post(
+                    gm.titles.assign.complete.url(game.id),
+                    {},
+                    { onFinish: () => setStarting(false) },
+                ),
+            LOADING_OVERLAY_DELAY_MS,
+        );
+    };
 
     return (
         <>
@@ -47,14 +69,19 @@ export default function AssignTitles() {
                     <button
                         type="button"
                         className="gm-btn gm-btn-gold"
-                        onClick={() =>
-                            router.post(gm.titles.assign.complete.url(game.id))
-                        }
+                        disabled={starting}
+                        onClick={startSeason}
                     >
                         Start the season
                     </button>
                 )}
             </PageTitle>
+            {starting && (
+                <LoadingOverlay
+                    testId="starting-season"
+                    text="Starting the season. Please wait..."
+                />
+            )}
             <p className="-mt-3 mb-6 max-w-2xl text-sm text-ink-dim">
                 {initial
                     ? 'Decide each title in turn: crown a champion or leave it vacant. Each assignment opens reign #1. A superstar can only hold one title.'
@@ -96,10 +123,42 @@ function CrownSteps({
     currentId: number | null;
 }) {
     const current = championships.find((c) => c.id === currentId) ?? null;
+    // House rule (2026-11-07): any decided title can be taken back and
+    // decided again until the season starts.
+    const change = (c: ChampionshipRow) =>
+        router.post(
+            gm.titles.assign.undo.url({ save: saveId, championship: c.id }),
+            {},
+            { preserveScroll: true },
+        );
+    const changeButton = (c: ChampionshipRow) => (
+        <button
+            type="button"
+            className="gm-btn gm-btn-ghost gm-btn-sm"
+            aria-label={`Change ${c.name}`}
+            onClick={() => change(c)}
+        >
+            Change
+        </button>
+    );
+
+    const progress = championsProgress(championships);
 
     return (
         <div className="space-y-6">
-            <ol className="grid gap-2 sm:grid-cols-4" aria-label="Title steps">
+            <div data-testid="champions-progress" className="flex">
+                <CardProgress
+                    booked={progress.assigned}
+                    total={progress.total}
+                    label={`${progress.assigned}/${progress.total} champions assigned`}
+                    ariaLabel="Champions assigned"
+                />
+            </div>
+            {/* 2 × 2 on sm and md, four in a row from lg, so names don't cut off. */}
+            <ol
+                className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+                aria-label="Title steps"
+            >
                 {championships.map((c, i) => {
                     const active = c.id === currentId;
 
@@ -109,16 +168,16 @@ function CrownSteps({
                             aria-current={active ? 'step' : undefined}
                             data-testid={`step-${c.key}`}
                             className={cn(
-                                'border px-3 py-2',
+                                'flex flex-col border px-3 py-2',
                                 active
                                     ? 'border-gold/60 bg-gold/10'
                                     : 'border-white/8 bg-black/20',
                             )}
                         >
-                            <div className="gm-label">
+                            <div className="gm-label text-xl whitespace-nowrap">
                                 {i + 1}. {tierLabels[i] ?? 'Title'}
                             </div>
-                            <div className="truncate font-semibold">
+                            <div className="text-lg font-semibold">
                                 {c.name}
                             </div>
                             <div
@@ -127,6 +186,10 @@ function CrownSteps({
                                     c.holder
                                         ? 'text-gold-hot'
                                         : 'text-ink-faint',
+                                    // Only the title being decided pulses.
+                                    active &&
+                                        !c.decided &&
+                                        'motion-safe:animate-gm-pulse',
                                 )}
                             >
                                 {c.holder ??
@@ -149,14 +212,68 @@ function CrownSteps({
                     allowVacant
                 />
             ) : (
-                <Panel>
-                    <p className="text-sm text-ink-dim">
-                        Every title is decided. Start the season when you’re
-                        ready.
+                <Panel title="Review your champions">
+                    <p className="mb-3 text-sm text-ink-dim">
+                        Every title is decided. Change any of them, or start the
+                        season when you’re ready.
                     </p>
+                    <ul
+                        className="divide-y divide-white/5"
+                        aria-label="Your champions"
+                    >
+                        {championships.map((c) => (
+                            <li
+                                key={c.id}
+                                data-testid={`review-${c.key}`}
+                                // Fixed columns, so every holder (or Vacant)
+                                // starts at the same point. On phones the
+                                // holder sits under the title instead.
+                                className="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-x-3 py-2 sm:grid-cols-[3rem_16rem_minmax(0,1fr)_auto]"
+                            >
+                                <span className="row-span-2 flex justify-center text-gold sm:row-span-1">
+                                    <TitleMark name={c.name} />
+                                </span>
+                                <span className="font-semibold">{c.name}</span>
+                                <span
+                                    data-testid={`review-holder-${c.key}`}
+                                    className={cn(
+                                        'col-start-2 text-sm sm:col-start-3 sm:row-start-1',
+                                        c.holder
+                                            ? 'text-gold-hot'
+                                            : 'text-ink-faint',
+                                    )}
+                                >
+                                    {c.holder ?? 'Vacant'}
+                                </span>
+                                <span className="col-start-3 row-span-2 row-start-1 sm:col-start-4 sm:row-span-1">
+                                    {changeButton(c)}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
                 </Panel>
             )}
         </div>
+    );
+}
+
+/**
+ * Champions crowned so far, out of every champion still needed: one per
+ * title, two for the tag titles (so 0/5 to start). A vacant title
+ * stays in the total, unfilled.
+ */
+export function championsProgress(championships: ChampionshipRow[]): {
+    assigned: number;
+    total: number;
+} {
+    const needed = (c: ChampionshipRow) => (c.is_tag ? 2 : 1);
+
+    return championships.reduce(
+        (sum, c) => ({
+            assigned: sum.assigned + (c.holder ? needed(c) : 0),
+            total: sum.total + needed(c),
+        }),
+        { assigned: 0, total: 0 },
     );
 }
 
@@ -208,7 +325,7 @@ function TitleCard({
                 </span>
             }
             actions={
-                <span className="font-condensed text-xs tracking-wider text-ink-faint uppercase">
+                <span className="font-condensed text-sm tracking-wider text-ink-faint uppercase">
                     {ChampionshipEligibilityLabels[championship.eligibility]}
                     {championship.is_tag && ' · pick 2'}
                 </span>
@@ -231,7 +348,7 @@ function TitleCard({
                 </div>
             ) : (
                 <>
-                    <div className="gm-scroll grid max-h-72 grid-cols-2 gap-1 overflow-y-auto sm:grid-cols-3">
+                    <div className="gm-scroll grid max-h-72 grid-cols-1 gap-1 overflow-y-auto md:grid-cols-2 lg:max-h-none lg:grid-cols-3 lg:overflow-visible">
                         {championship.eligible.map((w) => (
                             <button
                                 key={w.id}

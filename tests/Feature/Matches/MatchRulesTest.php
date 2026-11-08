@@ -30,13 +30,13 @@ describe('catalog', function () {
 
         expect(MatchType::whereIn('family', $families)->where(fn ($q) => $q->where('rope_breaks', true)->orWhere('countout_enabled', true))->count())->toBe(0)
             ->and(MatchType::where('family', 'single')->where('rope_breaks', false)->count())->toBe(0)
-            ->and(Card::type('tag_team', 'Table Tornado Tag Elimination')->rope_breaks)->toBeFalse();
+            ->and(Card::type('table', 'Tornado Tag Elimination')->rope_breaks)->toBeFalse();
     });
 
-    it('allows ring outs everywhere except Steel Cage, Battle Royal, Royal Rumble and Elimination Chamber', function () {
+    it('allows ring outs everywhere except Steel Cage, Battle Royal, Royal Rumble, Elimination Chamber and Inferno', function () {
         $noRingOut = MatchType::where('ring_out', false)->pluck('family')->map->value->unique()->sort()->values()->all();
 
-        expect($noRingOut)->toBe(['battle_royal', 'elimination_chamber', 'royal_rumble', 'steel_cage']);
+        expect($noRingOut)->toBe(['battle_royal', 'elimination_chamber', 'inferno', 'royal_rumble', 'steel_cage']);
     });
 
     it('bars titles from 3 vs 3, handicap and Gauntlet matches', function () {
@@ -45,23 +45,23 @@ describe('catalog', function () {
         expect($threeOnThree)->not->toBeEmpty()
             ->and($threeOnThree->every(fn (MatchType $t): bool => ! $t->titles_allowed))->toBeTrue()
             ->and(MatchType::where('family', 'handicap')->where('titles_allowed', true)->count())->toBe(0)
-            ->and(MatchType::where('family', 'handicap')->count())->toBe(5)
+            ->and(MatchType::where('family', 'handicap')->count())->toBe(3)
             ->and(Card::type('gauntlet', '6-Man Gauntlet')->titles_allowed)->toBeFalse()
-            ->and(Card::type('tag_team', 'Tag vs Tag w/Manager')->titles_allowed)->toBeTrue();
+            ->and(Card::type('tag_team', 'Normal Tag vs. w/ Manager')->titles_allowed)->toBeTrue();
     });
 
-    it('turns DQs and count-outs off in Normal Triple Threat and Normal Fatal 4-Way', function () {
-        expect(Card::type('single', 'Normal Triple Threat')->dq_enabled)->toBeFalse()
-            ->and(Card::type('single', 'Normal Triple Threat')->countout_enabled)->toBeFalse()
-            ->and(Card::type('single', 'Normal Fatal 4-Way')->dq_enabled)->toBeFalse()
-            ->and(Card::type('single', 'Normal Fatal 4-Way')->countout_enabled)->toBeFalse()
-            ->and(Card::type('single', 'No Manager')->dq_enabled)->toBeTrue();
+    it('turns DQs and count-outs off in the Normal Matches Triple Threat and Fatal 4-Way', function () {
+        expect(Card::type('single', 'Triple Threat')->dq_enabled)->toBeFalse()
+            ->and(Card::type('single', 'Triple Threat')->countout_enabled)->toBeFalse()
+            ->and(Card::type('single', 'Fatal 4-Way')->dq_enabled)->toBeFalse()
+            ->and(Card::type('single', 'Fatal 4-Way')->countout_enabled)->toBeFalse()
+            ->and(Card::type('single', 'Single')->dq_enabled)->toBeTrue();
     });
 
     it('folds Elimination Tag, Triple Threat and Fatal 4-Way into other categories', function () {
         expect(MatchType::whereIn('family', ['elimination_tag', 'triple_threat', 'fatal_four_way'])->count())->toBe(0)
             ->and(MatchFamily::Single->label())->toBe('Normal Matches')
-            ->and(MatchType::where('variant', 'like', '%Tag Elimination')->count())->toBe(7)
+            ->and(MatchType::where('variant', 'like', '%Tag Elimination')->count())->toBe(8)
             ->and(Card::type('six_man_tag', 'Captain Fall Tornado 6-Man Tag Elimination')->captain_fall)->toBeTrue()
             ->and(Card::type('elimination_chamber', 'Triple Threat Tornado Tag Chamber')->sides)->toBe([2, 2, 2])
             ->and(Card::type('hell_in_a_cell', 'Armageddon Hell in a Cell')->competitorCount())->toBe(6);
@@ -70,14 +70,16 @@ describe('catalog', function () {
     it('costs the house-rule fatigue bars per variant, never more than 5', function (string $family, string $variant, int $bars) {
         expect(Card::type($family, $variant)->fatigue_cost_bars)->toBe($bars);
     })->with([
-        ['tag_team', 'Table Tornado Tag Elimination', 3],
-        ['six_man_tag', 'Normal', 2],
+        ['table', 'Tornado Tag Elimination', 3],
+        ['six_man_tag', 'Normal Tag', 2],
         ['six_man_tag', 'Tornado 6-Man Tag Elimination', 2],
         ['six_man_tag', 'Captain Fall Tornado 6-Man Tag Elimination', 3],
-        ['six_man_tag', 'Table Tornado 6-Man Tag Elimination', 3],
-        ['handicap', 'One on Two (Tornado)', 1],
-        ['handicap', 'One on Three (Tornado)', 2],
-        ['handicap', 'Two on Trio', 2],
+        ['table', 'Tornado 6-Man Tag Elimination', 3],
+        ['ladder', 'Tornado 6-Man Tag', 4],
+        ['tlc', 'Tornado 6-Man Tag', 4],
+        ['handicap', 'One vs. Two', 1],
+        ['handicap', 'One vs. Three', 2],
+        ['handicap', 'Two vs. Three', 2],
         ['royal_rumble', '30-Man', 5],
         ['hell_in_a_cell', 'Armageddon Hell in a Cell', 5],
         ['elimination_chamber', 'Normal 6-Man Chamber', 5],
@@ -85,6 +87,9 @@ describe('catalog', function () {
         ['three_stages_of_hell', 'Single', 5],
         ['backstage_brawl', 'Bar Brawl', 4],
         ['battle_royal', '6-Man Over the Top Rope', 4],
+        ['inferno', 'Single', 4],
+        ['backstage_brawl', 'Boiler Room Brawl', 4],
+        ['ladder', 'Fatal 5-Way', 3],
         ['last_man_standing', 'Single', 4],
         ['buried_alive', 'Single', 5],
         ['first_blood', 'Single', 3],
@@ -95,11 +100,18 @@ describe('catalog', function () {
         ['tlc', 'Single', 3],
         ['table', 'Tornado 6-Man Tag', 4],
         ['gauntlet', '6-Man Gauntlet', 3],
+        ['gauntlet', '4-Man Gauntlet', 3],
+        ['gauntlet', '5-Man Gauntlet', 3],
+        ['six_man_tag', 'Triple Threat Tornado Tag Elimination', 2],
+        ['submission', 'Triple Threat', 2],
+        ['submission', 'Fatal 4-Way', 2],
+        ['hell_in_a_cell', 'Fatal 5-Way', 5],
+        ['single', 'Six-Pack Challenge', 2],
         ['special_referee', 'Iron Man', 5],
         ['special_referee', 'Single', 2],
-        ['steel_cage', 'Fatal 4-Way Pin & Give Up', 4],
+        ['steel_cage', 'Fatal 5-Way', 4],
         ['survivor_series_elimination', 'Traditional 3 vs 3', 3],
-        ['single', 'No Manager', 1],
+        ['single', 'Single', 1],
     ]);
 
     it('makes every Royal Rumble variant an elimination match', function () {
@@ -114,8 +126,6 @@ describe('catalog', function () {
     it('marks Iron Man and Ultimate Submission as timed', function () {
         expect(MatchType::where('timed', true)->get()->map(fn (MatchType $t): string => $t->name)->sort()->values()->all())->toBe([
             'Iron Man — Single',
-            'Iron Man — Single No Manager vs. w/Manager',
-            'Iron Man — Single w/Manager vs. w/Manager',
             'Special Referee — Iron Man',
             'Submission — Ultimate Submission',
         ]);
@@ -130,7 +140,7 @@ describe('sim', function () {
     it('never ends a no-ring-out match by count-out or a run-in', function () {
         $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito'], smackdown: ['Batista']);
         config(['gm.outcomes.clean_finish_chance' => 0.0]);
-        $slot = rulesSlot(Card::book($save, Card::show($save), 1, Card::type('steel_cage', 'Single Pin & Give Up'), [['Edge'], ['Kane']]));
+        $slot = rulesSlot(Card::book($save, Card::show($save), 1, Card::type('steel_cage', 'Single'), [['Edge'], ['Kane']]));
         // Force count-outs on, to prove ring outs gate them.
         $slot->matchType->countout_enabled = true;
         $rivalries = collect([

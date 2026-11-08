@@ -29,7 +29,7 @@ it('names the match for a win by its own condition', function (string $family, s
     expect(resolvedBy($method)->how($type))->toBe($how);
 })->with([
     'Tables' => ['table', 'Single', MatchMethod::MatchSpecific, 'in a Tables match'],
-    'Table tag' => ['tag_team', 'Table Tornado Tag Elimination', MatchMethod::MatchSpecific, 'in a Tables match'],
+    'Table tag' => ['table', 'Tornado Tag Elimination', MatchMethod::MatchSpecific, 'in a Tables match'],
     'Ladder' => ['ladder', 'Single', MatchMethod::MatchSpecific, 'in a Ladder match'],
     'First Blood' => ['first_blood', 'Single', MatchMethod::MatchSpecific, 'in a First Blood match'],
     'Last Man Standing' => ['last_man_standing', 'Single', MatchMethod::MatchSpecific, 'in a Last Man Standing match'],
@@ -50,19 +50,19 @@ it('keeps "via" for pinfalls, submissions and DQs', function () {
 
 it('writes a Tables title change as "in a Tables match"', function () {
     GameBuilder::passiveRival();
-    $save = GameBuilder::inSeason(raw: ['Lance Cade', 'Trevor Murdoch', 'Rene Dupree', 'Rob Conway'], smackdown: ['Batista']);
+    $save = GameBuilder::inSeason(raw: ['Snitsky', 'Val Venis', 'Rene Dupree', 'Rob Conway'], smackdown: ['Batista']);
     GameBuilder::giveTitle($save, 'world_tag_team', ['Rene Dupree', 'Rob Conway']);
     $title = Championship::where('key', 'world_tag_team')->sole();
-    Card::book($save, Card::show($save), 1, Card::type('table', 'Tornado Tag'), [['Lance Cade', 'Trevor Murdoch'], ['Rene Dupree', 'Rob Conway']], titleId: $title->id);
-    FixedOutcomes::queue('Lance Cade', MatchMethod::MatchSpecific);
+    Card::book($save, Card::show($save), 1, Card::type('table', 'Tornado Tag'), [['Snitsky', 'Val Venis'], ['Rene Dupree', 'Rob Conway']], titleId: $title->id);
+    FixedOutcomes::queue('Snitsky', MatchMethod::MatchSpecific);
 
     app(WeekResolver::class)->resolve($save->refresh());
 
     $news = NewsEvent::where('type', NewsEventType::TitleChange)->sole();
 
-    expect($news->rendered_text)->toBe('NEW CHAMPION! Lance Cade & Trevor Murdoch defeats La Résistance for the World Tag Team Championship in a Tables match!')
+    expect($news->rendered_text)->toBe('NEW CHAMPION! Snitsky & Val Venis defeats La Résistance for the World Tag Team Championship in a Tables match!')
         ->and(app(NewsTemplates::class)->summary(NewsEventType::TitleChange, $news->payload))
-        ->toStartWith('Lance Cade & Trevor Murdoch beat La Résistance in a Tables match and walk out with the World Tag Team Championship!');
+        ->toStartWith('Snitsky & Val Venis beat La Résistance in a Tables match and walk out with the World Tag Team Championship!');
 });
 
 it('keeps the wording of news recorded before, which has only "via"', function () {

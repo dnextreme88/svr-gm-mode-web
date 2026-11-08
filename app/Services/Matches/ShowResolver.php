@@ -25,6 +25,7 @@ use App\Services\Fatigue\FatigueZones;
 use App\Services\Finance\LedgerService;
 use App\Services\Injuries\InjuryService;
 use App\Services\Injuries\InjuryStatus;
+use App\Services\Matches\Stories\ConditionalStories;
 use App\Services\News\NewsRecorder;
 use App\Services\Promos\PromoService;
 use App\Services\Promos\PromoStoryWriter;
@@ -51,6 +52,7 @@ class ShowResolver
         private InjuryStatus $injuryStatus,
         private FactionNamer $factions,
         private AttendanceService $attendance,
+        private ConditionalStories $stories,
     ) {}
 
     public function air(Show $show, WeekContext $context): void
@@ -168,7 +170,10 @@ class ShowResolver
             fn (Injury $injury): bool => $injury->severity === InjurySeverity::Minor,
         ));
 
-        $resolved = $this->matches->resolve($slot, $rng, $this->rivalries->active($context->save), $bookedSide, $bookedBouts);
+        $rivalries = $this->rivalries->active($context->save);
+        // House rule (2026-11-07): a conditional story may decide a simulated match.
+        $story = $this->stories->before($slot, $show, $context, $rivalries, $bookedSide, $bookedBouts);
+        $resolved = $this->matches->resolve($slot, $rng, $rivalries, $bookedSide, $bookedBouts, $story?->forced);
 
         $result = MatchResult::create([
             'match_slot_id' => $slot->id,
@@ -179,6 +184,8 @@ class ShowResolver
             // A Gauntlet counts as booked when its deciding bout was.
             'booked' => $resolved->bouts === [] ? $bookedSide !== null : $resolved->bouts[array_key_last($resolved->bouts)]['booked'],
             'summary' => $resolved->summary,
+            'winner_score' => $resolved->winnerScore,
+            'loser_score' => $resolved->loserScore,
             'rng_seed_step' => $rng->steps(),
         ]);
 
@@ -264,6 +271,9 @@ class ShowResolver
         if ($show->isInterbrand() && $resolved->isDecisive()) {
             $this->announceFactionInterbrandWin($slot, $show, $resolved, $week);
         }
+
+        // Once its news is in, so a story can add to it.
+        $this->stories->after($slot, $show, $context, $rivalries, $resolved, $story, $bookedSide, $bookedBouts);
 
         $brand = $slot->owner_brand ?? $show->brand;
 
@@ -426,7 +436,7 @@ class ShowResolver
     /**
      * The match in a word or two for the news: the family ("Ladder",
      * "Hardcore", "TLC"), with Normal Matches told apart by how many sides
-     * there are (singles, Triple Threat, Fatal 4-Way).
+     * there are (singles, Triple Threat, Fatal 4-Way, Fatal 5-Way).
      */
     private function matchKind(MatchSlot $slot): string
     {
@@ -436,6 +446,8 @@ class ShowResolver
             return match (count($slot->sides())) {
                 3 => 'Triple Threat',
                 4 => 'Fatal 4-Way',
+                5 => 'Fatal 5-Way',
+                6 => 'Six-Pack Challenge',
                 default => 'singles',
             };
         }

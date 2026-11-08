@@ -17,9 +17,10 @@ namespace App\Services\Attendance;
  *     match_one: SlotDraw|null,
  *     hot_rivalries: int,
  *     legends: int,
- *     rival_promos: array{booked: int, succeeded: int},
- *     other_promos: array{booked: int, succeeded: int},
+ *     rival_promos: array{succeeded: int, backfired: int},
+ *     other_promos: array{succeeded: int, failed: int},
  *     best_streak: int,
+ *     repeats: int,
  * }
  */
 class AttendanceCalculator
@@ -30,7 +31,7 @@ class AttendanceCalculator
      * Points per factor, before noise.
      *
      * @param  DrawFacts  $facts
-     * @return array{full_card: int, main_event: int, match_one: int, hot_rivalries: int, legends: int, promos: int, win_streak: int}
+     * @return array{full_card: int, main_event: int, match_one: int, hot_rivalries: int, legends: int, promos: int, win_streak: int, repeats: int}
      */
     public function factors(array $facts): array
     {
@@ -46,6 +47,8 @@ class AttendanceCalculator
             'legends' => $this->tiered($facts['legends'], (array) $p['legends']),
             'promos' => $this->promos($facts['rival_promos'], $facts['other_promos'], $p),
             'win_streak' => $this->tiered($facts['best_streak'], (array) $p['win_streak']),
+            // House rule (2026-11-08): a deduction, so 0 or less.
+            'repeats' => -min((int) $p['repeat_max'], $facts['repeats'] * (int) $p['repeat_slot']),
         ];
     }
 
@@ -117,23 +120,23 @@ class AttendanceCalculator
     }
 
     /**
-     * Interference and Slander first: the share that succeeded. With
-     * neither, the share of the other promos that did. No promos: nothing.
+     * Each promo on its own (house rule, 2026-11-08): a successful
+     * Interference or Slander adds, a backfired one takes away; another
+     * promo that could fail adds on a success and takes away on a failure.
+     * Promos that always succeed score nothing.
      *
-     * @param  array{booked: int, succeeded: int}  $rival
-     * @param  array{booked: int, succeeded: int}  $other
+     * @param  array{succeeded: int, backfired: int}  $rival
+     * @param  array{succeeded: int, failed: int}  $other
      * @param  array<string, mixed>  $points
      */
     private function promos(array $rival, array $other, array $points): int
     {
-        if ($rival['booked'] > 0) {
-            return (int) round((int) $points['rival_promos'] * $rival['succeeded'] / $rival['booked']);
-        }
+        $r = (array) $points['rival_promos'];
+        $o = (array) $points['other_promos'];
 
-        if ($other['booked'] > 0) {
-            return (int) round((int) $points['other_promos'] * $other['succeeded'] / $other['booked']);
-        }
-
-        return 0;
+        return $rival['succeeded'] * (int) $r['success']
+            + $rival['backfired'] * (int) $r['backfire']
+            + $other['succeeded'] * (int) $o['success']
+            + $other['failed'] * (int) $o['failure'];
     }
 }

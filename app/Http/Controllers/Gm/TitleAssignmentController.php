@@ -64,6 +64,19 @@ class TitleAssignmentController extends Controller
         return back();
     }
 
+    /**
+     * Change a title decided after the draft (house rule, 2026-11-07): it
+     * opens again, and the season can't start until it's decided again.
+     */
+    public function undo(Save $save, Championship $championship): RedirectResponse
+    {
+        abort_unless($championship->brand === $save->player_brand, 403);
+
+        $this->assignment->undo($save, $championship);
+
+        return back();
+    }
+
     public function store(Request $request, Save $save, Championship $championship): RedirectResponse
     {
         $data = $request->validate([

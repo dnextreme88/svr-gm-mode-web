@@ -24,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $stipulation_outcome
  * @property list<array{championship_id: int, reign_id: int}>|null $titles_won
  * @property string $summary
+ * @property int|null $winner_score a timed match's score (house rule, 2026-11-08)
+ * @property int|null $loser_score
  * @property int $rng_seed_step
  * @property-read MatchSlot $matchSlot
  * @property-read SaveWrestler|null $interferer

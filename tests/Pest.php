@@ -16,6 +16,10 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    // Conditional match stories (house rule, 2026-11-07) would change scripted
+    // results whenever the Hardys, Dudleys, Finlay… are booked: off unless a
+    // test turns them on (tests/Feature/News/ConditionalStoriesTest.php).
+    ->beforeEach(fn () => config(['gm.stories.enabled' => false]))
     ->in('Feature');
 
 /*

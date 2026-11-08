@@ -16,6 +16,7 @@ use App\Models\PromoType;
 use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\Show;
+use App\Services\Attendance\RepeatMatches;
 use App\Services\Attendance\SummerSlamMainEvent;
 use App\Services\Card\Booking;
 use App\Services\Card\CardRandomizer;
@@ -50,6 +51,7 @@ class CardController extends Controller
         private PromoEligibility $promoEligibility,
         private BookingOrder $order,
         private SummerSlamMainEvent $summerSlam,
+        private RepeatMatches $repeats,
     ) {}
 
     public function show(Save $save, Show $show): Response|RedirectResponse
@@ -91,6 +93,8 @@ class CardController extends Controller
             'summerslam' => ($headliner = $this->summerSlam->cardHeadliner($show)) === null
                 ? null
                 : ['main_event' => $headliner === $save->player_brand, 'headliner' => $headliner->label()],
+            // House rule (2026-11-08): slots in the same category as last week's.
+            'repeats' => ['slots' => $this->repeats->forShow($show), 'per_slot' => (int) config('gm.attendance.points.repeat_slot'), 'max' => (int) config('gm.attendance.points.repeat_max')],
             // Active Effects: Buried Alive losers still sitting out.
             'buried_alive' => SaveWrestler::with('wrestler')
                 ->where('save_id', $save->id)

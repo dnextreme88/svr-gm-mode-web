@@ -23,6 +23,7 @@ final readonly class ResolvedMatch
         '10-count' => 'Last Man Standing',
         'Cage escape' => 'Steel Cage',
         'Over the top rope' => 'Battle Royal',
+        'Thrown through the flames' => 'Inferno',
         'Last one in the ring' => 'Royal Rumble',
         'Buried alive' => 'Buried Alive',
         'First blood' => 'First Blood',
@@ -47,7 +48,17 @@ final readonly class ResolvedMatch
         public string $summary,
         public int $rngSteps,
         public array $bouts = [],
+        public ?int $winnerScore = null,
+        public ?int $loserScore = null,
     ) {}
+
+    /**
+     * A timed match's score, "3–1", or null (house rule, 2026-11-08).
+     */
+    public function score(): ?string
+    {
+        return $this->winnerScore === null ? null : "{$this->winnerScore}–{$this->loserScore}";
+    }
 
     public function isDecisive(): bool
     {
@@ -76,6 +87,11 @@ final readonly class ResolvedMatch
      */
     public function how(?MatchType $type): string
     {
+        if ($type !== null && $this->winnerScore !== null) {
+            // House rule (2026-11-08): "in an Iron Man match with a 3-1 score".
+            return self::inA($this->matchName($type))." with a {$this->winnerScore}-{$this->loserScore} score";
+        }
+
         return $type !== null && $this->wonByOwnCondition($type)
             ? self::inA($this->matchName($type))
             : 'via '.$this->via($type);
@@ -99,6 +115,10 @@ final readonly class ResolvedMatch
      */
     public function matchName(MatchType $type): string
     {
+        if ($type->timed && $type->win_condition === 'Submission') {
+            return 'Ultimate Submission';
+        }
+
         return self::MATCH_NAMES[(string) $type->win_condition] ?? $type->family->label();
     }
 

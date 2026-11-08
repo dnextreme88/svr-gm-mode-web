@@ -33,7 +33,11 @@ class DraftController extends Controller
 
     public function show(Save $save): Response|RedirectResponse
     {
-        if ($save->stage !== SaveStage::Drafting) {
+        // Once the draft is over the page shows only for the moment that
+        // says so (see concluded()), then the champions open.
+        $concluded = (bool) session('draft_concluded');
+
+        if ($save->stage !== SaveStage::Drafting && ! $concluded) {
             return to_route('gm.saves.show', $save);
         }
 
@@ -72,6 +76,7 @@ class DraftController extends Controller
             'draft_order' => $save->draft_order,
             'contract_length' => $length->value,
             'player_done' => ! $this->draft->canStillPick($save, $save->player_brand),
+            'concluded' => $concluded,
         ]);
     }
 
@@ -86,7 +91,7 @@ class DraftController extends Controller
             $this->draft->finalize($save);
         });
 
-        return to_route('gm.saves.show', $save);
+        return $this->concluded($save);
     }
 
     public function finish(Save $save): RedirectResponse
@@ -100,7 +105,7 @@ class DraftController extends Controller
             $this->draft->finalize($save);
         });
 
-        return to_route('gm.saves.show', $save);
+        return $this->concluded($save);
     }
 
     /**
@@ -138,7 +143,21 @@ class DraftController extends Controller
             DB::transaction(fn () => $this->draft->runAi($save));
         }
 
-        return to_route('gm.saves.show', $save);
+        return $this->concluded($save);
+    }
+
+    /**
+     * Where a draft action goes next. When it ended the draft, the draft
+     * page shows once more with its "Draft picks are finished" overlay
+     * before the champions open.
+     */
+    private function concluded(Save $save): RedirectResponse
+    {
+        $save->refresh();
+
+        return $save->stage === SaveStage::Drafting
+            ? to_route('gm.saves.show', $save)
+            : to_route('gm.draft.show', $save)->with('draft_concluded', true);
     }
 
     /**

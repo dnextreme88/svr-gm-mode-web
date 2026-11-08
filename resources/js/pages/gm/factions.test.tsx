@@ -59,7 +59,7 @@ const props = {
         },
         {
             id: 3,
-            name: 'Edge & Christian',
+            name: 'E & C',
             type: 'tag_team',
             origin: 'seeded',
             active: false,
@@ -94,6 +94,19 @@ const props = {
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
+    Link: ({
+        href,
+        children,
+        className,
+    }: {
+        href: string;
+        children: React.ReactNode;
+        className?: string;
+    }) => (
+        <a href={href} className={className}>
+            {children}
+        </a>
+    ),
     router: { post: (...args: unknown[]) => post(...args) },
     usePage: () => ({ props }),
 }));
@@ -113,6 +126,15 @@ describe('Factions page', () => {
         expect(screen.getByTestId('faction-4')).toHaveTextContent('3–0');
         expect(screen.queryByTestId('faction-1')).not.toBeInTheDocument();
         expect(screen.queryByTestId('faction-3')).not.toBeInTheDocument();
+    });
+
+    it('links each faction to its match history page', () => {
+        render(<Factions />);
+
+        expect(screen.getByRole('link', { name: 'Cenation' })).toHaveAttribute(
+            'href',
+            '/gm/saves/3/factions/2',
+        );
     });
 
     it('shows every faction under All, with record, dates and titles', async () => {

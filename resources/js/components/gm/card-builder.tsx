@@ -114,20 +114,23 @@ export function MatchCost({ cost }: { cost: number }) {
 export function CardProgress({
     booked,
     total,
+    label = `${booked} of ${total} matches booked`,
+    ariaLabel = 'Matches booked',
 }: {
     booked: number;
     total: number;
+    /** The line above the bar; the card's "N of 6 matches booked" by default. */
+    label?: string;
+    ariaLabel?: string;
 }) {
     const percent = total > 0 ? Math.round((booked / total) * 100) : 0;
 
     return (
         <div className="min-w-56 flex-1 space-y-1.5">
-            <span>
-                {booked} of {total} matches booked
-            </span>
+            <span>{label}</span>
             <div
                 role="progressbar"
-                aria-label="Matches booked"
+                aria-label={ariaLabel}
                 aria-valuemin={0}
                 aria-valuemax={total}
                 aria-valuenow={booked}

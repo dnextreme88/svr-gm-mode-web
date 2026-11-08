@@ -16,6 +16,7 @@ const FACTOR_LABELS: Record<string, string> = {
     legends: 'Legends',
     promos: 'Promos',
     win_streak: 'Win streak',
+    repeats: 'Repeated matches',
 };
 
 /** The draw score by factor, for the chip's hover text. */

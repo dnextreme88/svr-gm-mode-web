@@ -52,6 +52,7 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::get('titles/assign', [TitleAssignmentController::class, 'show'])->name('titles.assign');
             Route::post('titles/assign/{championship}', [TitleAssignmentController::class, 'store'])->name('titles.assign.store')->withoutScopedBindings();
             Route::post('titles/assign/{championship}/vacant', [TitleAssignmentController::class, 'vacant'])->name('titles.assign.vacant')->withoutScopedBindings();
+            Route::post('titles/assign/{championship}/undo', [TitleAssignmentController::class, 'undo'])->name('titles.assign.undo')->withoutScopedBindings();
             Route::post('titles/assign-complete', [TitleAssignmentController::class, 'complete'])->name('titles.assign.complete');
 
             Route::get('schedule', ScheduleController::class)->name('schedule');
@@ -62,6 +63,7 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::get('results/{week}', ResultsController::class)->whereNumber('week')->name('results');
             Route::post('results/{week}/decide', [WeekController::class, 'decide'])->whereNumber('week')->name('results.decide');
             Route::post('results/{week}/simulate-all', [WeekController::class, 'simulateAll'])->whereNumber('week')->name('results.simulate-all');
+            Route::post('results/{week}/stories/{trigger}/seen', [WeekController::class, 'seenStory'])->whereNumber('week')->name('results.stories.seen')->withoutScopedBindings();
             Route::post('results/{week}/cash-in', [WeekController::class, 'cashInDuring'])->whereNumber('week')->name('results.cash-in');
             Route::post('results/{week}/cash-in-offer', [WeekController::class, 'answerCashIn'])->whereNumber('week')->name('results.cash-in-offer');
 
@@ -86,6 +88,7 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::post('redraft/run', [PpvController::class, 'runRedraft'])->name('redraft.run');
             Route::get('rivalries', RivalryController::class)->name('rivalries');
             Route::get('factions', [FactionController::class, 'index'])->name('factions.index');
+            Route::get('factions/{saveFaction}', [FactionController::class, 'show'])->name('factions.show');
             Route::post('factions/{saveFaction}/disband', [FactionController::class, 'disband'])->name('factions.disband');
             Route::post('faction-prompts/{factionPrompt}/form', [FactionController::class, 'form'])->name('factions.prompts.form');
             Route::post('faction-prompts/{factionPrompt}/defer', [FactionController::class, 'defer'])->name('factions.prompts.defer');

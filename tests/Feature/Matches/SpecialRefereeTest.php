@@ -27,7 +27,7 @@ it('seeds every Special Referee type as GM-bookable on weekly shows', function (
 
     $types = MatchType::where('family', 'special_referee')->get();
 
-    expect($types)->toHaveCount(5)
+    expect($types)->toHaveCount(8)
         ->and($types->every(fn (MatchType $t): bool => $t->gm_bookable && ! $t->ppv_only))->toBeTrue();
 });
 

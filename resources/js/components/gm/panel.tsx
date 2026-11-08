@@ -57,7 +57,7 @@ export function PageTitle({ kicker, title, children }: PageTitleProps) {
                 </h1>
             </div>
             {children && (
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap content-end items-center gap-2">
                     {children}
                 </div>
             )}

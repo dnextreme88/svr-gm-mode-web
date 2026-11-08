@@ -178,30 +178,58 @@ class FactionService
      */
     public function record(SaveFaction $faction): array
     {
-        $members = $faction->memberIds();
+        $wins = 0;
+        $losses = 0;
+
+        foreach ($this->teamedSides($faction) as $result) {
+            $result === 'win' ? $wins++ : $losses++;
+        }
+
+        return ['wins' => $wins, 'losses' => $losses];
+    }
+
+    /**
+     * The match slots behind `record()`, for the faction's match history page.
+     *
+     * @return list<int>
+     */
+    public function matchSlotIds(SaveFaction $faction): array
+    {
+        return array_values(array_unique(array_map(
+            fn (string $key): int => (int) explode(':', $key)[0],
+            array_keys($this->teamedSides($faction)),
+        )));
+    }
+
+    /**
+     * Each decided match side where 2+ members teamed while the faction was
+     * together, keyed "slot:side", with that side's result.
+     *
+     * @return array<string, string>
+     */
+    private function teamedSides(SaveFaction $faction): array
+    {
         $rows = MatchParticipant::query()
             ->join('match_slots', 'match_slots.id', '=', 'match_participants.match_slot_id')
             ->join('shows', 'shows.id', '=', 'match_slots.show_id')
             ->where('shows.save_id', $faction->save_id)
             ->where('shows.week_number', '>=', $faction->record_from_week)
             ->when($faction->disbanded_week !== null, fn ($q) => $q->where('shows.week_number', '<', $faction->disbanded_week))
-            ->whereIn('match_participants.save_wrestler_id', $members)
+            ->whereIn('match_participants.save_wrestler_id', $faction->memberIds())
             ->where('match_participants.role', ParticipantRole::Competitor->value)
             ->whereNotNull('match_participants.result')
+            ->orderBy('match_participants.match_slot_id')
             ->get(['match_participants.match_slot_id', 'match_participants.side', 'match_participants.result']);
 
-        $wins = 0;
-        $losses = 0;
+        $sides = [];
 
-        foreach ($rows->groupBy(fn ($r): string => "{$r->match_slot_id}:{$r->side}") as $group) {
-            if ($group->count() < 2) {
-                continue;
+        foreach ($rows->groupBy(fn ($r): string => "{$r->match_slot_id}:{$r->side}") as $key => $group) {
+            if ($group->count() >= 2) {
+                $sides[(string) $key] = (string) $group->first()->result;
             }
-
-            $group->first()->result === 'win' ? $wins++ : $losses++;
         }
 
-        return ['wins' => $wins, 'losses' => $losses];
+        return $sides;
     }
 
     /**

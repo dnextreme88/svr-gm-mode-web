@@ -1,6 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import { AttendanceChart } from '@/components/gm/attendance-chart';
 import type { AttendancePoint } from '@/components/gm/attendance-chart';
+import { OutcomeTable } from '@/components/gm/outcome-table';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import type { CardShow, GamePageProps, MatchOutcome } from '@/types/gm';
 
@@ -41,58 +42,7 @@ export default function Reports() {
                                     No matches.
                                 </p>
                             ) : (
-                                <table className="gm-table">
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Match</th>
-                                            <th>Result</th>
-                                            <th>Method</th>
-                                            <th>Stars</th>
-                                            <th>Fan support</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {show.outcomes.map((o) => (
-                                            <tr key={o.position}>
-                                                <td className="gm-num text-ink-faint">
-                                                    {o.position}
-                                                </td>
-                                                <td className="text-ink-dim">
-                                                    {o.match_type}
-                                                    {o.title && (
-                                                        <div className="text-xs text-gold-hot">
-                                                            {o.title}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td>
-                                                    <span className="font-semibold">
-                                                        {o.winners_label}
-                                                    </span>
-                                                    <span className="mx-1.5 text-ink-faint">
-                                                        def.
-                                                    </span>
-                                                    {o.losers.join(', ')}
-                                                </td>
-                                                <td className="text-ink-dim">
-                                                    {o.method_label}
-                                                    {o.finish_label && (
-                                                        <div className="text-xs">
-                                                            {o.finish_label}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td className="text-ink-faint">
-                                                    {o.rating ?? '—'}
-                                                </td>
-                                                <td className="text-ink-faint">
-                                                    {o.fan_delta ?? '—'}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                <OutcomeTable outcomes={show.outcomes} />
                             )}
                         </Panel>
                     ))}

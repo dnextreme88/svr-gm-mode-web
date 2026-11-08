@@ -82,7 +82,7 @@ it('names one member of each team: the winner who scores it and the one it happe
 it('gives every winner the same odds of scoring the finish (house rule)', function () {
     $save = GameBuilder::inSeason(raw: ['Rob Conway', 'Rene Dupree', 'Tajiri', 'The Hurricane'], smackdown: ['Batista']);
     onlyFinish(null);
-    $slot = finishSlot(Card::book($save, Card::show($save), 1, Card::type('handicap', 'One on Three (Tornado)'), [['The Hurricane'], ['Rob Conway', 'Rene Dupree', 'Tajiri']]));
+    $slot = finishSlot(Card::book($save, Card::show($save), 1, Card::type('handicap', 'One vs. Three'), [['The Hurricane'], ['Rob Conway', 'Rene Dupree', 'Tajiri']]));
 
     $scorers = collect(range(1, 300))
         ->map(fn (int $i) => app(MatchResolver::class)->resolve($slot, new SeededRng("score-{$i}"), collect(), 1)->summary)
@@ -95,14 +95,29 @@ it('gives every winner the same odds of scoring the finish (house rule)', functi
         ->and($scorers->every(fn (int $n) => $n >= 70 && $n <= 130))->toBeTrue();
 });
 
+it('ends an Inferno match by throwing the loser through the flames (house rule, 2026-11-07)', function () {
+    $save = GameBuilder::inSeason(raw: ['Kane', 'Edge'], smackdown: ['Batista']);
+    onlyFinish(null);
+    $slot = finishSlot(Card::book($save, Card::show($save), 1, Card::type('inferno', 'Single'), [['Kane'], ['Edge']]));
+
+    $resolved = app(MatchResolver::class)->resolve($slot, new SeededRng('inferno'), collect(), 0);
+
+    expect($resolved->summary)->toMatch('/^(Kane throws Edge|Edge throws Kane) through the flames\.$/')
+        ->and($resolved->method)->toBe(MatchMethod::MatchSpecific)
+        ->and($resolved->how($slot->matchType))->toBe('in an Inferno match')
+        ->and($slot->matchType->ring_out)->toBeFalse()
+        ->and($slot->matchType->dq_enabled)->toBeFalse()
+        ->and($slot->matchType->countout_enabled)->toBeFalse();
+});
+
 it('ends a Battle Royal with the last elimination', function () {
     $save = GameBuilder::inSeason(raw: ['Triple H', 'Big Show', 'Kane', 'Edge'], smackdown: ['Batista']);
     onlyFinish(null);
-    $slot = finishSlot(Card::book($save, Card::show($save), 1, Card::type('battle_royal', '4-Man'), [['Triple H'], ['Big Show'], ['Kane'], ['Edge']]));
+    $slot = finishSlot(Card::book($save, Card::show($save), 1, Card::type('battle_royal', '4-Man Over the Top Rope'), [['Triple H'], ['Big Show'], ['Kane'], ['Edge']]));
 
     $summary = app(MatchResolver::class)->resolve($slot, new SeededRng('royal'), collect(), 0)->summary;
 
-    expect($summary)->toMatch('/^Triple H last eliminates (Big Show|Kane|Edge) via (pinfall|submission)\.$/');
+    expect($summary)->toMatch('/^Triple H last eliminates (Big Show|Kane|Edge) over the top rope\.$/');
 });
 
 it('ends a Last Man Standing match on the 10-count', function () {

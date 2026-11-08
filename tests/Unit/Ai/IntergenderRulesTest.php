@@ -9,10 +9,10 @@ use App\Support\Rng\SeededRng;
  * @param  list<int>  $sides
  * @param  list<int>  $managers
  */
-function igType(array $sides, array $managers = [], string $variant = 'Test', bool $divasOnly = false, bool $divasAllowed = true): MatchType
+function igType(array $sides, array $managers = [], string $variant = 'Test', bool $divasOnly = false, bool $divasAllowed = true, MatchFamily $family = MatchFamily::Single): MatchType
 {
     return new MatchType([
-        'family' => MatchFamily::Single,
+        'family' => $family,
         'variant' => $variant,
         'sides' => $sides,
         'manager_sides' => $managers,
@@ -54,14 +54,16 @@ it('builds bookings that fit their own shape', function (array $sides, array $ma
     }
 })->with('shapes');
 
-it('never goes intergender for singles, triple threats, handicaps or the Table Tornado 6-man', function () {
+it('never goes intergender for singles, triple threats, handicaps or the Table 6-man elimination', function () {
     $rules = app(IntergenderRules::class);
 
     expect($rules->shape(igType([1, 1])))->toBeNull()
         ->and($rules->shape(igType([1, 1, 1])))->toBeNull()
         ->and($rules->shape(igType([1, 1, 1, 1])))->toBeNull()
         ->and($rules->shape(igType([1, 2])))->toBeNull()
-        ->and($rules->shape(igType([3, 3], [], IntergenderRules::EXCLUDED_SIX_MAN)))->toBeNull()
+        ->and($rules->shape(igType([3, 3], [], IntergenderRules::EXCLUDED_SIX_MAN, family: MatchFamily::Table)))->toBeNull()
+        // The plain 6-Man Tag elimination shares the name, and can go intergender.
+        ->and($rules->shape(igType([3, 3], [], IntergenderRules::EXCLUDED_SIX_MAN, family: MatchFamily::SixManTag)))->toBe(4)
         ->and($rules->shape(igType([2, 2], [], 'Test', divasOnly: true)))->toBeNull()
         ->and($rules->shape(igType([2, 2], [], 'Test', divasAllowed: false)))->toBeNull()
         ->and($rules->allows(igType([1, 1]), [[1], [101]], [], IG_DIVAS))->toBeFalse();

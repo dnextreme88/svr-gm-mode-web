@@ -8,6 +8,7 @@ use App\Enums\TitleShotStatus;
 use App\Models\Championship;
 use App\Models\LastChanceLockout;
 use App\Models\MatchSlot;
+use App\Models\RematchClause;
 use App\Models\Save;
 use App\Models\Show;
 use App\Models\TitleReign;
@@ -15,6 +16,7 @@ use App\Models\TitleShot;
 use App\Services\Factions\FactionNamer;
 use App\Services\Titles\LastChanceService;
 use App\Services\Titles\MitbService;
+use App\Services\Titles\RematchClauseService;
 use App\Services\Titles\TitleContention;
 use App\Services\Titles\TitleService;
 use App\Services\Titles\TitleShotService;
@@ -31,6 +33,7 @@ class TitleContextPresenter
         private MitbService $mitb,
         private FactionNamer $factions,
         private TitleContention $contention,
+        private RematchClauseService $rematches,
     ) {}
 
     /**
@@ -116,6 +119,20 @@ class TitleContextPresenter
                     'championship' => $l->reign->championship->name,
                     'contenders' => $names($l->wrestler_ids),
                     'champion' => $l->reign->holderName(),
+                ])
+                ->values(),
+            // House rule (2026-11-07): former champions owed a rematch.
+            'rematch_clauses' => $this->rematches->active($save, $show->week_number, $brand)
+                ->map(fn (RematchClause $c): array => [
+                    'id' => $c->id,
+                    'championship_id' => $c->championship_id,
+                    'championship' => $c->championship->name,
+                    'former_ids' => $c->former_ids,
+                    'former' => $names($c->former_ids),
+                    'champion_ids' => $c->champion_ids,
+                    'champions' => $names($c->champion_ids),
+                    'weeks_left' => $c->weeksLeft($show->week_number),
+                    'booked' => $slots->contains(fn (MatchSlot $s): bool => $s->title_championship_id === $c->championship_id && $this->rematches->fits($c, $s)),
                 ])
                 ->values(),
             'briefcase' => $briefcase === null ? null : [

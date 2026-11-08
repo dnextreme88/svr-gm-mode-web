@@ -316,17 +316,38 @@ const props = {
             hot_rivalry: 10,
             hot_rivalry_max: 20,
             legends: { 1: 8, 2: 15 },
-            rival_promos: 10,
-            other_promos: 6,
+            rival_promos: { success: 10, backfire: -10 },
+            other_promos: { success: 6, failure: -2 },
             win_streak: { 5: 5, 10: 10 },
+            repeat_slot: 2,
+            repeat_max: 12,
         },
         hot_heat: 60,
         noise: 5,
         ticket_prices: { weekly: 30, brand_ppv: 50, shared_ppv: 75 },
         drives_income: false,
     },
+    rematch_clause: { weeks: 4, rival_chances: [25, 50, 75, 85] },
     news: {
         stories_per_brand: 2,
+        stories: [
+            {
+                story: "Undertaker's lights-out",
+                who: "Undertaker's rival",
+                when: 'In the rival’s simulated match when the rivalry is at 60+ heat.',
+                chances: 'The rival loses 80% of the time, else wins anyway.',
+                cooldown: 'Once it works, never again in that rivalry.',
+                changes_result: true,
+            },
+            {
+                story: "Hornswoggle's shillelagh",
+                who: 'Finlay, helped by Hornswoggle',
+                when: 'Finlay wins a simulated match decisively.',
+                chances: '50% that Hornswoggle slipped him his shillelagh.',
+                cooldown: '8 weeks after it happens.',
+                changes_result: false,
+            },
+        ],
         groups: ['Matches', 'Brand battle'],
         events: [
             {
@@ -501,6 +522,37 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
+    it('lists the conditional stories with their chances and cooldowns (house rule, 2026-11-07)', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'News & email' }));
+
+        const table = screen.getByRole('table', {
+            name: 'Conditional stories',
+        });
+        expect(table).toHaveTextContent("Undertaker's lights-out");
+        expect(table).toHaveTextContent('The rival loses 80% of the time');
+        expect(table).toHaveTextContent('Can change it');
+        expect(table).toHaveTextContent('Story only');
+        expect(screen.getByText(/never on Book to Win/)).toBeInTheDocument();
+    });
+
+    it('explains the Rematch Clause with the stipulations', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Stipulations' }));
+
+        expect(
+            screen.getByRole('heading', {
+                name: 'Rematch Clause (Active Effect)',
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/within 4 weeks/)).toBeInTheDocument();
+        expect(screen.getByText(/25%, 50%, 75%, 85%/)).toBeInTheDocument();
+    });
+
     it('lists every news event by group with its card, tier and templates, then the emails', async () => {
         const user = userEvent.setup();
         render(<Docs />);
@@ -630,14 +682,14 @@ describe('Docs page', () => {
         ).toBeLessThan(headings.findIndex((h) => h.startsWith('Normal')));
 
         expect(screen.getByTestId('gauntlet-rules')).toHaveTextContent(
-            'Six entrants in one match slot, fought as five singles bouts',
+            'Four, five or six entrants in one match slot',
         );
         expect(screen.getByTestId('gauntlet-rules')).toHaveTextContent(
             'No titles and no stipulations.',
         );
         expect(screen.getByTestId('buried-weeks')).toHaveTextContent('4');
         expect(screen.getByTestId('gauntlet-rules')).toHaveTextContent(
-            '1st Participant to 6th Participant',
+            'from 1st Participant up',
         );
     });
 
@@ -788,6 +840,13 @@ describe('Docs page', () => {
         );
         expect(factors).toHaveTextContent('1+ Legends: 8, 2+ Legends: 15');
         expect(factors).toHaveTextContent('5+ wins: 5, 10+ wins: 10');
+        expect(factors).toHaveTextContent(
+            'Interference or Slander: 10 for a success, -10 for a backfire',
+        );
+        expect(factors).toHaveTextContent('6 for a success, -2 for a failure');
+        expect(factors).toHaveTextContent('Repeated matches');
+        expect(factors).toHaveTextContent('-2 for each match slot');
+        expect(factors).toHaveTextContent('up to -12');
 
         expect(
             screen.getByRole('heading', { name: 'SummerSlam main event' }),

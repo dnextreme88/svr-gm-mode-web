@@ -131,7 +131,7 @@ class MitbService
         $slot = MatchSlot::create([
             'show_id' => $show->id,
             'position' => $position,
-            'match_type_id' => MatchType::where('family', 'single')->where('variant', 'No Manager')->value('id'),
+            'match_type_id' => MatchType::where('family', 'single')->where('variant', 'Single')->value('id'),
             'title_championship_id' => $championship->id,
             'fixed_kind' => FixedSlotKind::MitbCashIn,
             'mitb_cash_in' => MitbCashInTiming::Before,
@@ -219,7 +219,7 @@ class MitbService
         $slot = MatchSlot::create([
             'show_id' => $after->show_id,
             'position' => $position,
-            'match_type_id' => MatchType::where('family', 'single')->where('variant', 'No Manager')->value('id'),
+            'match_type_id' => MatchType::where('family', 'single')->where('variant', 'Single')->value('id'),
             'title_championship_id' => $championship->id,
             'fixed_kind' => FixedSlotKind::MitbCashIn,
             'mitb_cash_in' => MitbCashInTiming::After,

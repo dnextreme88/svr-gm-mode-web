@@ -67,8 +67,8 @@ A second UI/UX audit covered Factions, Propose Trade, Free Agency, Financials an
 
 - New: **The Super Heroes** (tag team): Rosey, The Hurricane, Stacy Keibler. Dates are approximate (2003-06 to 2005-08) _(assumption)_.
 - **Blue World Order** adds Simon Dean.
-- **Full Blooded Italians**, **Team Xtreme**, **The Mexicools** and **The Legion of Doom** become tag teams.
-- **The Dudley Boyz** become a stable and add Stacy Keibler.
+- **Full Blooded Italians**, **Team Xtreme**, **Mexicools** and **Legion of Doom** become tag teams.
+- **Dudley Boyz** become a stable and add Stacy Keibler.
 - **Ministry of Darkness** removed.
 - Existing saves keep the factions they were created with; run `php artisan migrate:fresh --seed` (wipes saves) to apply the catalog change.
 

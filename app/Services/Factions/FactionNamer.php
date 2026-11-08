@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Collection;
  * With overlapping factions, the one covering the most of the side wins,
  * then the smallest (closest fit), then a tag team over a stable, then the
  * name. Matt Hardy & Jeff Hardy are Team Xtreme; Danny & Doug Basham are
- * The Basham Brothers, not The Cabinet.
+ * Basham Brothers, not The Cabinet.
  *
  * Registered as a singleton: factions are cached per save until `forget()`.
  */

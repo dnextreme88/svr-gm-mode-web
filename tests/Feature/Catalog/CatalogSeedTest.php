@@ -28,15 +28,15 @@ function wrestler(string $name): Wrestler
 }
 
 describe('roster (§9)', function () {
-    it('seeds 160 wrestlers: the Nov 2005 brands, free agents and Legends', function () {
-        expect(Wrestler::count())->toBe(160)
+    it('seeds 215 wrestlers: the Nov 2005 brands, free agents and Legends', function () {
+        expect(Wrestler::count())->toBe(215)
             ->and(Wrestler::where('roster_type', RosterType::Superstar)->where('placeholder_brand', Brand::Raw)->count())->toBe(25)
             ->and(Wrestler::where('roster_type', RosterType::Superstar)->where('placeholder_brand', Brand::Smackdown)->count())->toBe(28)
-            ->and(Wrestler::where('roster_type', RosterType::Superstar)->whereNull('placeholder_brand')->count())->toBe(48)
+            ->and(Wrestler::where('roster_type', RosterType::Superstar)->whereNull('placeholder_brand')->count())->toBe(87)
             ->and(Wrestler::where('roster_type', RosterType::Diva)->where('placeholder_brand', Brand::Raw)->count())->toBe(5)
             ->and(Wrestler::where('roster_type', RosterType::Diva)->where('placeholder_brand', Brand::Smackdown)->count())->toBe(2)
-            ->and(Wrestler::where('roster_type', RosterType::Diva)->whereNull('placeholder_brand')->count())->toBe(15)
-            ->and(Wrestler::where('roster_type', RosterType::Legend)->count())->toBe(37);
+            ->and(Wrestler::where('roster_type', RosterType::Diva)->whereNull('placeholder_brand')->count())->toBe(30)
+            ->and(Wrestler::where('roster_type', RosterType::Legend)->count())->toBe(38);
     });
 
     it('fills each brand to the 30-wrestler roster cap', function () {
@@ -65,6 +65,9 @@ describe('roster (§9)', function () {
         ['Mae Young', null],
         ['Goldust', null],
         ['Al Snow', null],
+        ['Festus', null],
+        ['CM Punk', null],
+        ['Beth Phoenix', null],
     ]);
 
     it('puts every Legend in the Free Agency pool, not on a brand', function () {
@@ -87,7 +90,7 @@ describe('roster (§9)', function () {
     });
 
     it('has unique names', function () {
-        expect(Wrestler::distinct()->count('name'))->toBe(160);
+        expect(Wrestler::distinct()->count('name'))->toBe(215);
     });
 });
 
@@ -122,6 +125,13 @@ describe('weight classes (§12)', function () {
         ['Super Crazy', WeightClass::Cruiserweight],
         ['Nunzio', WeightClass::Cruiserweight],
         ['Psicosis', WeightClass::Cruiserweight],
+        // 2006–2007 debuts; CM Punk and Cody Rhodes set by choice.
+        ['CM Punk', WeightClass::LightHeavyweight],
+        ['Cody Rhodes', WeightClass::LightHeavyweight],
+        ['The Miz', WeightClass::LightHeavyweight],
+        ['Balls Mahoney', WeightClass::SuperHeavyweight],
+        ['Hornswoggle', WeightClass::Cruiserweight],
+        ['Bob Backlund', WeightClass::LightHeavyweight],
     ]);
 
     it('keeps Bob Orton, Roddy Piper, Tazz, Sabu and Road Warrior Hawk as Legends', function (string $name) {
@@ -185,15 +195,15 @@ describe('weight classes (§12)', function () {
         expect(Wrestler::where('roster_type', RosterType::Diva)->where('weight_class', '!=', WeightClass::Featherweight)->count())->toBe(0);
     });
 
-    it('limits Ultra Heavyweight to Andre The Giant and The Great Khali', function () {
+    it('limits Ultra Heavyweight to Andre The Giant, Rikishi and The Great Khali', function () {
         expect(Wrestler::where('weight_class', WeightClass::UltraHeavyweight)->orderBy('name')->pluck('name')->all())
-            ->toBe(['Andre The Giant', 'The Great Khali']);
+            ->toBe(['Andre The Giant', 'Rikishi', 'The Great Khali']);
     });
 });
 
 describe('specialties (§21)', function () {
     it('seeds 44 specialties across 33 wrestlers', function () {
-        expect(WrestlerSpecialty::count())->toBe(44)
+        expect(WrestlerSpecialty::count())->toBe(46)
             ->and(WrestlerSpecialty::distinct()->count('wrestler_id'))->toBe(33);
     });
 
@@ -322,9 +332,12 @@ describe('PPVs (§13)', function () {
 
 describe('match types (§10)', function () {
     it('seeds the full taxonomy', function () {
-        expect(MatchType::count())->toBe(97)
-            ->and(MatchType::where('family', MatchFamily::Hardcore)->count())->toBe(8)
-            ->and(MatchType::where('family', MatchFamily::Ladder)->count())->toBe(8)
+        expect(MatchType::count())->toBe(106)
+            ->and(MatchType::where('family', MatchFamily::Hardcore)->count())->toBe(9)
+            ->and(MatchType::where('family', MatchFamily::Ladder)->count())->toBe(10)
+            ->and(MatchType::where('family', MatchFamily::BattleRoyal)->count())->toBe(3)
+            ->and(MatchType::where('family', MatchFamily::BackstageBrawl)->count())->toBe(5)
+            ->and(MatchType::where('family', MatchFamily::Inferno)->count())->toBe(1)
             ->and(MatchType::where('family', MatchFamily::RoyalRumble)->count())->toBe(5);
     });
 
@@ -340,7 +353,8 @@ describe('match types (§10)', function () {
         $exclusive = MatchType::with('ppvExclusive')->whereNotNull('ppv_exclusive_id')->get()
             ->mapWithKeys(fn (MatchType $t) => [$t->name => $t->ppvExclusive?->key->value])->all();
 
-        expect($exclusive)->toBe([
+        // Order-free: the data file's order is free to change.
+        expect($exclusive)->toEqual([
             'Royal Rumble — 30-Man' => 'royal_rumble',
             'Buried Alive — Single' => 'no_mercy',
             'Elimination Chamber — Normal 6-Man Chamber' => 'new_years_revolution',
@@ -377,7 +391,7 @@ describe('match types (§10)', function () {
 
     it('disables DQ and count-out on no-DQ families', function () {
         expect(MatchType::whereIn('family', [MatchFamily::Hardcore, MatchFamily::Tlc, MatchFamily::Ladder])->where('dq_enabled', true)->count())->toBe(0)
-            ->and(MatchType::where('family', MatchFamily::Single)->where('dq_enabled', false)->pluck('variant')->sort()->values()->all())->toBe(['Normal Fatal 4-Way', 'Normal Triple Threat']);
+            ->and(MatchType::where('family', MatchFamily::Single)->where('dq_enabled', false)->pluck('variant')->sort()->values()->all())->toBe(['Fatal 4-Way', 'Fatal 5-Way', 'Six-Pack Challenge', 'Triple Threat']);
     });
 
     it('gives every type a fatigue cost in whole bars and a price within $0–$55,000', function () {
@@ -388,21 +402,41 @@ describe('match types (§10)', function () {
     it('prices match types per the 2026-10-20 house rules', function (string $family, string $variant, int $cost) {
         expect(MatchType::where('family', $family)->where('variant', $variant)->value('cost'))->toBe($cost);
     })->with([
-        ['single', 'No Manager', 0],
-        ['single', 'Normal Triple Threat', 1_000],
+        ['single', 'Single', 0],
+        ['single', 'Triple Threat', 1_000],
         ['tag_team', 'Tornado Tag Elimination', 2_000],
         ['six_man_tag', 'Captain Fall Tornado 6-Man Tag Elimination', 4_000],
-        ['handicap', 'Two on Trio', 1_000],
+        ['handicap', 'Two vs. Three', 1_000],
         ['backstage_brawl', 'Backstage Brawl', 16_000],
         ['backstage_brawl', 'Bar Brawl', 31_000],
         ['backstage_brawl', 'Parking Lot Brawl', 28_000],
         ['battle_royal', '6-Man Over the Top Rope', 25_000],
+        ['backstage_brawl', 'Boiler Room Brawl', 25_000],
+        ['backstage_brawl', 'Interview Area Brawl', 15_000],
+        ['inferno', 'Single', 45_000],
+        ['single', 'Fatal 5-Way', 3_000],
+        ['hardcore', 'Fatal 5-Way', 19_000],
+        ['table', 'Fatal 5-Way', 5_000],
+        ['tlc', 'Fatal 5-Way', 8_000],
+        ['ladder', 'Fatal 5-Way', 12_000],
+        ['ladder', 'Tornado 6-Man Tag', 16_000],
+        ['tlc', 'Tornado 6-Man Tag', 12_000],
+        ['table', 'Tornado Tag Elimination', 4_000],
+        ['table', 'Tornado 6-Man Tag Elimination', 4_000],
+        ['steel_cage', 'Fatal 5-Way', 25_000],
         ['first_blood', 'Single', 1_000],
         ['fulfill_your_fantasy', 'Single', 22_000],
-        ['hardcore', 'Single w/Manager vs. w/Manager', 19_000],
+        ['hardcore', 'Single w/ Manager vs. w/ Manager', 19_000],
         ['hardcore', 'Tornado 6-Man Tag', 25_000],
         ['hardcore', 'Triple Threat Tornado Tag', 25_000],
         ['hell_in_a_cell', 'Fatal 4-Way', 45_000],
+        ['hell_in_a_cell', 'Fatal 5-Way', 45_000],
+        ['single', 'Six-Pack Challenge', 5_000],
+        ['gauntlet', '4-Man Gauntlet', 5_000],
+        ['gauntlet', '5-Man Gauntlet', 5_000],
+        ['submission', 'Triple Threat', 1_000],
+        ['submission', 'Fatal 4-Way', 1_000],
+        ['six_man_tag', 'Triple Threat Tornado Tag Elimination', 2_000],
         ['hell_in_a_cell', 'Armageddon Hell in a Cell', 55_000],
         ['iron_man', 'Single', 37_000],
         ['ladder', 'Fatal 4-Way', 12_000],
@@ -412,7 +446,10 @@ describe('match types (§10)', function () {
         ['special_referee', 'Hell in a Cell', 45_000],
         ['special_referee', 'Iron Man', 37_000],
         ['special_referee', 'Last Man Standing', 40_000],
-        ['steel_cage', 'Fatal 4-Way Pin & Give Up', 25_000],
+        ['special_referee', 'Triple Threat', 1_000],
+        ['special_referee', 'Fatal 4-Way', 1_000],
+        ['special_referee', 'Fatal 5-Way', 3_000],
+        ['steel_cage', 'Fatal 4-Way', 25_000],
         ['submission', 'Single', 1_000],
         ['submission', 'Ultimate Submission', 2_000],
         ['table', 'Fatal 4-Way', 5_000],
@@ -420,6 +457,30 @@ describe('match types (§10)', function () {
         ['tlc', 'Fatal 4-Way', 8_000],
         ['tlc', 'Triple Threat Tornado Tag', 12_000],
     ]);
+
+    it('names the variants as of 2026-11-08, in order', function () {
+        $variants = fn (MatchFamily $f): array => MatchType::where('family', $f)->orderBy('id')->pluck('variant')->all();
+
+        expect(array_slice($variants(MatchFamily::Single), 0, 6))->toBe(['Single', 'Single vs. w/ Manager', 'Single w/ Manager vs. w/ Manager', 'Triple Threat', 'Fatal 4-Way', 'Fatal 5-Way'])
+            ->and(array_slice($variants(MatchFamily::TagTeam), 0, 4))->toBe(['Normal Tag', 'Tornado Tag', 'Normal Tag vs. w/ Manager', 'Normal Tag w/ Manager vs. w/ Manager'])
+            ->and($variants(MatchFamily::BattleRoyal))->toBe(['4-Man Over the Top Rope', '5-Man Over the Top Rope', '6-Man Over the Top Rope'])
+            ->and(array_slice($variants(MatchFamily::Table), 2, 4))->toBe(['Tornado Tag Elimination', 'Tornado 6-Man Tag', 'Tornado 6-Man Tag Elimination', 'Triple Threat Tornado Tag'])
+            ->and(MatchType::where('variant', 'like', '%w/Manager%')->count())->toBe(0);
+    });
+
+    it('gives Special Referee the Normal Matches multi-way singles', function () {
+        foreach (['Triple Threat' => 3, 'Fatal 4-Way' => 4, 'Fatal 5-Way' => 5] as $variant => $sides) {
+            $ref = MatchType::where('family', MatchFamily::SpecialReferee)->where('variant', $variant)->sole();
+            $normal = MatchType::where('family', MatchFamily::Single)->where('variant', $variant)->sole();
+
+            expect($ref->competitorCount())->toBe($sides)
+                ->and($ref->cost)->toBe($normal->cost)
+                ->and($ref->dq_enabled)->toBeFalse()
+                ->and($ref->countout_enabled)->toBeFalse();
+        }
+
+        expect(MatchType::where('family', MatchFamily::SpecialReferee)->where('variant', 'Normal Tag')->exists())->toBeTrue();
+    });
 
     it('records managers only on w/Manager variants', function () {
         $withManagers = MatchType::all()->filter->hasManagers();
@@ -470,9 +531,9 @@ describe('promo types (§5)', function () {
 it('is safe to run the catalog seeder twice', function () {
     $this->seed(CatalogSeeder::class);
 
-    expect(Wrestler::count())->toBe(160)
-        ->and(MatchType::count())->toBe(97)
-        ->and(WrestlerSpecialty::count())->toBe(44);
+    expect(Wrestler::count())->toBe(215)
+        ->and(MatchType::count())->toBe(106)
+        ->and(WrestlerSpecialty::count())->toBe(46);
 });
 
 it('lays the season out as Sunday-first months from April 2005 to March 2006', function () {

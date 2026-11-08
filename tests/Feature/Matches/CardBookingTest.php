@@ -51,7 +51,7 @@ it('blocks seriously injured wrestlers as competitors and as managers', function
 
     $role === 'competitor'
         ? Card::book($save, $show, 1, Card::singles(), [['Edge'], ['Ric Flair']])
-        : Card::book($save, $show, 1, Card::type('single', 'No Manager vs. w/Manager'), [['Edge'], ['Kane']], [1 => 'Ric Flair']);
+        : Card::book($save, $show, 1, Card::type('single', 'Single vs. w/ Manager'), [['Edge'], ['Kane']], [1 => 'Ric Flair']);
 })->with(['competitor', 'manager'])->throws(GameRuleException::class, 'seriously injured');
 
 it('lets minor-injured wrestlers be booked normally', function () {
@@ -73,7 +73,7 @@ it('blocks wrestlers sitting out a blocked defection', function () {
 it('lets anyone on the roster manage, but not a match they compete in', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Ric Flair'], smackdown: ['Batista']);
     $show = Card::show($save);
-    $type = Card::type('single', 'No Manager vs. w/Manager');
+    $type = Card::type('single', 'Single vs. w/ Manager');
 
     $slot = Card::book($save, $show, 1, $type, [['Edge'], ['Kane']], [1 => 'Ric Flair']);
     expect($slot->managers())->toHaveCount(1);

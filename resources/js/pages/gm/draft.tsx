@@ -3,6 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SpecialtyBadge } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
+import {
+    LOADING_OVERLAY_DELAY_MS,
+    LoadingOverlay,
+} from '@/components/gm/loading-overlay';
 import { PageTitle, Panel, Stat } from '@/components/gm/panel';
 import { PoolFilters } from '@/components/gm/pool-filters';
 import { WrestlerName } from '@/components/gm/wrestler-name';
@@ -46,6 +50,8 @@ type Props = GamePageProps & {
     draft_order: Brand[];
     contract_length: number;
     player_done: boolean;
+    /** The draft just ended: the overlay shows, then the champions open. */
+    concluded?: boolean;
 };
 
 type AiStep = {
@@ -91,6 +97,23 @@ export default function Draft() {
         brand: Brand;
     } | null>(null);
     const [flashPick, setFlashPick] = useState<number | null>(null);
+    // The draft is over on both shows: the overlay says so for a moment,
+    // then the champions open.
+    const [draftOver, setDraftOver] = useState(false);
+    const concluded = draftOver || props.concluded === true;
+
+    useEffect(() => {
+        if (!concluded) {
+            return;
+        }
+
+        const timer = window.setTimeout(
+            () => router.visit(gm.saves.show.url(props.game.id)),
+            LOADING_OVERLAY_DELAY_MS,
+        );
+
+        return () => window.clearTimeout(timer);
+    }, [concluded, props.game.id]);
     const running = useRef(false);
     // Read before every AI pick, so toggling mid-draft takes effect at once.
     const skip = useRef(skipAnimation);
@@ -158,7 +181,7 @@ export default function Draft() {
         setAnimating(true);
         setPoolFilter(emptyPoolFilter);
 
-        let draftOver = false;
+        let over = false;
 
         try {
             for (;;) {
@@ -180,9 +203,9 @@ export default function Draft() {
                 }
 
                 setNextBrand(step.next_brand);
-                draftOver = step.draft_over;
+                over = step.draft_over;
 
-                if (!step.ai_turn || draftOver || abort.current) {
+                if (!step.ai_turn || over || abort.current) {
                     break;
                 }
             }
@@ -192,8 +215,8 @@ export default function Draft() {
             setFlashPick(null);
         }
 
-        if (draftOver) {
-            router.visit(gm.saves.show.url(game.id));
+        if (over) {
+            setDraftOver(true);
         } else if (abort.current) {
             router.post(gm.draft.aiFinish.url(game.id));
         } else {
@@ -238,6 +261,12 @@ export default function Draft() {
     return (
         <>
             <Head title="Initial Draft" />
+            {concluded && (
+                <LoadingOverlay
+                    testId="draft-concluded"
+                    text="Draft picks are finished. You may now assign your brand's champions."
+                />
+            )}
             <PageTitle kicker="Initial draft" title="Build your roster">
                 <button
                     type="button"
@@ -278,8 +307,20 @@ export default function Draft() {
             <ConfirmDialog
                 open={confirmStop}
                 title="Stop drafting?"
-                message="Stop drafting? You can fill the remaining spots through Free Agency."
-                confirmLabel="Yes, stop"
+                message={
+                    <StopDraftSummary
+                        picks={picks.filter(
+                            (p) =>
+                                p.brand === game.player_brand &&
+                                p.save_wrestler_id !== null,
+                        )}
+                        maxPicks={max_picks}
+                        budget={yourBudget}
+                    />
+                }
+                confirmLabel="Stop and crown champions"
+                cancelLabel="Keep drafting"
+                focusCancel
                 onCancel={() => setConfirmStop(false)}
                 onConfirm={() => {
                     setConfirmStop(false);
@@ -595,6 +636,87 @@ function DraftBoard({
                     ))}
                 </ol>
             </Panel>
+        </div>
+    );
+}
+
+/**
+ * What Stop drafting locks in: the roster so far, by division, the budget
+ * left, and what happens next.
+ */
+function StopDraftSummary({
+    picks,
+    maxPicks,
+    budget,
+}: {
+    picks: Pick[];
+    maxPicks: number;
+    budget: number;
+}) {
+    const divas = picks.filter((p) => p.roster_type === 'diva').length;
+    const light = picks.filter(
+        (p) =>
+            p.roster_type !== 'diva' &&
+            (p.weight_class === 'cruiserweight' ||
+                p.weight_class === 'light_heavyweight'),
+    ).length;
+
+    return (
+        <div className="space-y-3" data-testid="stop-draft-summary">
+            <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+                <div>
+                    <dt className="gm-label">Your roster</dt>
+                    <dd className="gm-num text-lg text-ink">
+                        {picks.length} of {maxPicks}
+                    </dd>
+                </div>
+                <div>
+                    <dt className="gm-label">Superstars</dt>
+                    <dd className="gm-num text-lg text-ink">
+                        {picks.length - divas}
+                    </dd>
+                </div>
+                <div>
+                    <dt className="gm-label">Divas</dt>
+                    <dd className="gm-num text-lg text-ink">{divas}</dd>
+                </div>
+                <div>
+                    <dt className="gm-label">Cruiser / LHW</dt>
+                    <dd className="gm-num text-lg text-ink">{light}</dd>
+                </div>
+            </dl>
+            <p className="text-sm">
+                Budget left:{' '}
+                <span className="gm-num text-gold-hot">
+                    {formatMoney(budget)}
+                </span>
+            </p>
+            {picks.length > 0 && (
+                <ul
+                    className="gm-scroll max-h-40 space-y-0.5 overflow-y-auto text-sm"
+                    aria-label="Your picks"
+                >
+                    {picks.map((p) => (
+                        <li key={p.pick_number}>
+                            {p.roster_type && p.weight_class ? (
+                                <WrestlerName
+                                    wrestler={{
+                                        name: p.name ?? '',
+                                        roster_type: p.roster_type,
+                                        weight_class: p.weight_class,
+                                    }}
+                                />
+                            ) : (
+                                p.name
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <p className="text-sm">
+                The rival GM finishes its picks, then you crown your champions.
+                Open roster spots can be filled through Free Agency.
+            </p>
         </div>
     );
 }

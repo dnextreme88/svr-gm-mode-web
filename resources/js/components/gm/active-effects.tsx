@@ -6,8 +6,8 @@ export type BuriedAlive = { id: number; name: string; weeks_left: number };
 /**
  * Active Effects (house rule): everything in play on this card's brand that
  * shapes the booking, always shown above the match cards. Earned title
- * shots, #1 contenders, Last Chance lockouts, the Money in the Bank
- * briefcase and Buried Alive losers sitting out.
+ * shots, #1 contenders, Last Chance lockouts, Rematch Clauses, the Money in
+ * the Bank briefcase and Buried Alive losers sitting out.
  */
 export function ActiveEffects({
     context,
@@ -19,11 +19,13 @@ export function ActiveEffects({
     const shots = context.title_shots.filter((s) => !s.booked);
     const contenderships = context.contenderships ?? [];
     const lockouts = context.last_chance_lockouts ?? [];
+    const rematches = context.rematch_clauses ?? [];
     const briefcase = context.briefcase;
     const count =
         shots.length +
         contenderships.length +
         lockouts.length +
+        rematches.length +
         buriedAlive.length +
         (briefcase ? 1 : 0);
 
@@ -79,6 +81,15 @@ export function ActiveEffects({
                             {l.contenders} lost a Last Chance match and can’t
                             contend for the <strong>{l.championship}</strong>{' '}
                             while {l.champion} is champion.
+                        </Effect>
+                    ))}
+                    {rematches.map((r) => (
+                        <Effect key={`rematch-${r.id}`} kind="Rematch Clause">
+                            {r.former} vs. {r.champions} ·{' '}
+                            <strong>{r.championship}</strong> ·{' '}
+                            {r.booked
+                                ? 'booked on this card'
+                                : `${r.weeks_left} week${r.weeks_left === 1 ? '' : 's'} left`}
                         </Effect>
                     ))}
                     {briefcase && (

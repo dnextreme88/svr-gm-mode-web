@@ -29,6 +29,7 @@ use App\Services\Titles\ChampionshipAssignment;
 use App\Services\Titles\ContendershipService;
 use App\Services\Titles\LastChanceService;
 use App\Services\Titles\MitbService;
+use App\Services\Titles\RematchClauseService;
 use App\Services\Titles\TitleRecords;
 use App\Services\Titles\TitleService;
 use App\Services\Titles\TitleShotService;
@@ -52,6 +53,7 @@ class MatchOutcomeHandler
         private TitleRecords $records,
         private FactionNamer $factions,
         private ContendershipService $contenderships,
+        private RematchClauseService $rematches,
     ) {}
 
     public function apply(MatchSlot $slot, MatchResult $result, ResolvedMatch $resolved, WeekContext $context): void
@@ -73,6 +75,10 @@ class MatchOutcomeHandler
             foreach ($slot->competitorIds() as $id) {
                 $context->data['title_match'][$id] = true;
             }
+
+            // House rule (2026-11-07): any result settles a Rematch Clause,
+            // before a title change could open a new one.
+            $this->rematches->resolve($context->save, $slot, $context->week);
 
             [$titleChanged, $banner, $championSide, $reignBefore] = $this->resolveTitle($slot, $slot->titleChampionship, $resolved, $context, $nameOf);
             $this->shots->fulfil($slot, $context->week);

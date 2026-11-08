@@ -144,7 +144,7 @@ class TitleMatchPlanner
 
             $type = $shot->championship->is_tag
                 ? MatchType::where('family', 'tag_team')->where('variant', 'Normal Tag')->firstOrFail()
-                : MatchType::where('family', 'single')->where('variant', 'No Manager')->firstOrFail();
+                : MatchType::where('family', 'single')->where('variant', 'Single')->firstOrFail();
 
             $champions = $this->titles->currentReign($show->game, $shot->championship)?->holderIds() ?? $shot->champion_ids;
 

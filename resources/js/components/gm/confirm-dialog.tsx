@@ -24,6 +24,7 @@ export function ConfirmDialog({
     danger = false,
     footer,
     confirmDisabled = false,
+    focusCancel = false,
 }: {
     open: boolean;
     title: string;
@@ -38,6 +39,8 @@ export function ConfirmDialog({
     /** Shown just above the buttons (e.g. a progress bar). */
     footer?: ReactNode;
     confirmDisabled?: boolean;
+    /** Focus the cancel button first, when confirming is the bigger step. */
+    focusCancel?: boolean;
 }) {
     const brand = usePage<{ game?: GameShell }>().props.game?.player_brand;
 
@@ -60,6 +63,7 @@ export function ConfirmDialog({
                         type="button"
                         className="gm-btn gm-btn-ghost gm-btn-sm"
                         onClick={onCancel}
+                        autoFocus={focusCancel || !onConfirm}
                     >
                         {cancelLabel}
                     </button>
@@ -73,7 +77,7 @@ export function ConfirmDialog({
                             }
                             onClick={onConfirm}
                             disabled={confirmDisabled}
-                            autoFocus
+                            autoFocus={!focusCancel}
                         >
                             {confirmLabel}
                         </button>

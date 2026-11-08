@@ -4,6 +4,7 @@ namespace App\Services\Ai;
 
 use App\Enums\Brand;
 use App\Enums\ChampionshipEligibility;
+use App\Enums\MatchFamily;
 use App\Enums\Stipulation;
 use App\Exceptions\GameRuleException;
 use App\Models\Championship;
@@ -12,6 +13,7 @@ use App\Models\MatchType;
 use App\Models\MoneyInTheBank;
 use App\Models\SaveWrestler;
 use App\Models\Show;
+use App\Services\Attendance\RepeatMatches;
 use App\Services\Card\Booking;
 use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
@@ -20,6 +22,7 @@ use App\Services\Card\TitleMatchPlanner;
 use App\Services\Rivalries\RivalryService;
 use App\Services\Titles\LastChanceService;
 use App\Services\Titles\MitbService;
+use App\Services\Titles\RematchClauseService;
 use App\Services\Titles\TitleContention;
 use App\Services\Titles\TitleService;
 use App\Support\Rng\Rng;
@@ -46,6 +49,9 @@ class AiBooker
     /** @var list<int> ids already on the card */
     private array $taken = [];
 
+    /** @var array<int, MatchFamily>|null last week's categories by slot, for repeats */
+    private ?array $lastWeek = null;
+
     /** @var list<int> championship ids already on the card */
     private array $titlesOnCard = [];
 
@@ -63,6 +69,8 @@ class AiBooker
         private IntergenderRules $intergender,
         private PlannedFatigue $plannedFatigue,
         private TitleContention $contention,
+        private RematchClauseService $rematches,
+        private RepeatMatches $repeatMatches,
     ) {}
 
     /**
@@ -76,6 +84,7 @@ class AiBooker
         $this->show = $show;
         $this->brand = $brand;
         $this->rng = $show->game->rng("ai.card.{$show->streamKey()}", $show->week_number);
+        $this->lastWeek = null;
         $this->taken = $this->randomizer->bookedIds($show);
         $this->titlesOnCard = array_values(array_map('intval', MatchSlot::where('show_id', $show->id)->whereNotNull('title_championship_id')->pluck('title_championship_id')->all()));
         $this->fatigue = $this->plannedFatigue($show, $brand);
@@ -93,6 +102,8 @@ class AiBooker
                 array_unshift($open, $position);
             }
         }
+
+        $open = $this->bookRematches($open);
 
         $pairs = [...array_map(fn (array $p): array => [$p, true], $freshRivalries), ...array_map(fn (array $p): array => [$p, false], $rivalryMatches)];
 
@@ -265,6 +276,39 @@ class AiBooker
 
     private function fillSlot(int $position): void
     {
+        // House rule (2026-11-08): sometimes the rival books the same kind of
+        // match as last week in this slot, like a human GM would, attendance
+        // deduction and all. Nothing in that category fits: it books as usual.
+        $family = $this->repeatFamily($position);
+
+        if ($family !== null && $this->tryFill($position, $family)) {
+            return;
+        }
+
+        $this->tryFill($position);
+    }
+
+    /**
+     * The category last week's match in this slot was in, when the rival
+     * rolls to repeat it (weekly shows only).
+     */
+    private function repeatFamily(int $position): ?MatchFamily
+    {
+        $this->lastWeek ??= $this->repeatMatches->families($this->repeatMatches->lastWeek($this->show));
+        $family = $this->lastWeek[$position] ?? null;
+
+        if ($family === null) {
+            return null;
+        }
+
+        $chance = (int) round((float) config('gm.ai.booking.repeat_category_chance') * 100);
+        $roll = $this->show->game->rng("ai.repeat.{$this->show->streamKey()}.{$position}", $this->show->week_number)->int(1, 100);
+
+        return $roll > 100 - $chance ? $family : null;
+    }
+
+    private function tryFill(int $position, ?MatchFamily $family = null): bool
+    {
         [$limit, $aggressive] = $this->rollMode();
         $pool = $this->pool();
         $men = $this->men($pool);
@@ -272,16 +316,16 @@ class AiBooker
         $title = $this->rng->chance((float) config('gm.ai.titles.other_slot_chance'));
 
         if ($divas->isNotEmpty() && $this->rng->chance((float) config('gm.ai.booking.intergender_chance'))) {
-            $booking = $this->intergenderBooking($men, $divas, $limit, $aggressive);
+            $booking = $this->intergenderBooking($men, $divas, $limit, $aggressive, $family);
 
             if ($booking !== null && $this->tryBook($position, $booking)) {
-                return;
+                return true;
             }
         }
 
         foreach ([$men, $divas] as $people) {
-            $booking = ($title ? $this->singleGender($people, $limit, $aggressive, true) : null)
-                ?? $this->singleGender($people, $limit, $aggressive);
+            $booking = ($title ? $this->singleGender($people, $limit, $aggressive, true, family: $family) : null)
+                ?? $this->singleGender($people, $limit, $aggressive, family: $family);
 
             if ($booking === null) {
                 continue;
@@ -290,9 +334,11 @@ class AiBooker
             $stipulated = $this->championVsContender($booking) ?? $this->numberOneContender($booking);
 
             if (($stipulated !== null && $this->tryBook($position, $stipulated)) || $this->tryBook($position, $booking)) {
-                return;
+                return true;
             }
         }
+
+        return false;
     }
 
     /**
@@ -301,10 +347,10 @@ class AiBooker
      * @param  Collection<int, SaveWrestler>  $people
      * @param  list<int>|null  $order  championship ids to try, in order
      */
-    private function singleGender(Collection $people, int $limit, bool $aggressive, bool $title = false, ?array $order = null): ?Booking
+    private function singleGender(Collection $people, int $limit, bool $aggressive, bool $title = false, ?array $order = null, ?MatchFamily $family = null): ?Booking
     {
         $types = $this->randomizer->eligibleTypes($this->show, $this->brand)
-            ->filter(fn (MatchType $t): bool => (! $title || $t->titles_allowed) && ! $t->isMoneyInTheBank())
+            ->filter(fn (MatchType $t): bool => (! $title || $t->titles_allowed) && ! $t->isMoneyInTheBank() && ($family === null || $t->family === $family))
             ->filter(function (MatchType $t) use ($people, $limit): bool {
                 $eligible = $this->randomizer->poolFor($t, $people);
 
@@ -349,9 +395,10 @@ class AiBooker
      * @param  Collection<int, SaveWrestler>  $men
      * @param  Collection<int, SaveWrestler>  $divas
      */
-    private function intergenderBooking(Collection $men, Collection $divas, int $limit, bool $aggressive): ?Booking
+    private function intergenderBooking(Collection $men, Collection $divas, int $limit, bool $aggressive, ?MatchFamily $family = null): ?Booking
     {
         $types = $this->randomizer->eligibleTypes($this->show, $this->brand)
+            ->filter(fn (MatchType $t): bool => $family === null || $t->family === $family)
             ->filter(function (MatchType $t) use ($men, $divas, $limit): bool {
                 $shape = $this->intergender->shape($t);
 
@@ -395,6 +442,95 @@ class AiBooker
             }
 
             return new Booking($type, $built['sides'], $built['managers'], refereeId: $referee);
+        }
+
+        return null;
+    }
+
+    /**
+     * Rematch Clauses (house rule, 2026-11-07): on each of the weeks after
+     * its title changed hands, the rival rolls once (`gm.ai.titles.
+     * rematch_clause_chances`, in order) to book the former champions
+     * against the new ones in a title match, 1v1 or 2v2, if every one of
+     * them can be booked within this card's fatigue limit.
+     *
+     * @param  list<int>  $open
+     * @return list<int>
+     */
+    private function bookRematches(array $open): array
+    {
+        $save = $this->show->game;
+        $week = $this->show->week_number;
+        $chances = array_values((array) config('gm.ai.titles.rematch_clause_chances'));
+        $weekShows = Show::where('save_id', $save->id)->where('week_number', $week)->pluck('id');
+
+        foreach ($this->rematches->active($save, $week, $this->brand) as $clause) {
+            $index = $week - $clause->created_week - 1;
+
+            if ($open === [] || ! isset($chances[$index]) || in_array($clause->championship_id, $this->titlesOnCard, true)) {
+                continue;
+            }
+
+            // Already booked on another of this week's cards.
+            $booked = MatchSlot::with('participants')->whereIn('show_id', $weekShows)->where('title_championship_id', $clause->championship_id)->get()
+                ->contains(fn (MatchSlot $s): bool => $this->rematches->fits($clause, $s));
+
+            // One roll a week: the same stream on every card of the week.
+            if ($booked || ! $save->rng("ai.rematch.{$clause->id}", $week)->chance((float) $chances[$index])) {
+                continue;
+            }
+
+            $booking = $this->rematchBooking($clause->former_ids, $clause->champion_ids, $clause->championship_id);
+            $position = $open[0];
+
+            if ($booking !== null && $this->tryBook($position, $booking)) {
+                $open = array_values(array_diff($open, [$position]));
+            }
+        }
+
+        return $open;
+    }
+
+    /**
+     * A title match, former champions vs new champions, in a 1v1 or 2v2
+     * type where they're all fit to go.
+     *
+     * @param  list<int>  $former
+     * @param  list<int>  $champions
+     */
+    private function rematchBooking(array $former, array $champions, int $championshipId): ?Booking
+    {
+        $pool = $this->pool();
+        $ids = [...$former, ...$champions];
+        $everyone = $pool->filter(fn (SaveWrestler $w): bool => in_array($w->id, $ids, true))->values();
+
+        if ($everyone->count() !== count($ids)) {
+            return null;
+        }
+
+        $people = $everyone->first()?->wrestler->isDiva() ? $this->divas($pool) : $this->men($pool);
+        [$limit, $aggressive] = $this->rollMode();
+        $shape = [count($former), count($champions)];
+
+        $types = $this->randomizer->eligibleTypes($this->show, $this->brand)
+            ->filter(fn (MatchType $t): bool => $t->titles_allowed && ! $t->isMoneyInTheBank()
+                && $t->sides === $shape
+                && $this->randomizer->poolFor($t, $everyone)->count() === count($ids)
+                && $this->fit($everyone, $t, $limit)->count() === count($ids)
+                && $people->count() >= count($ids) + count($t->manager_sides) + ($t->hasSpecialReferee() ? 1 : 0))
+            ->values();
+
+        foreach ($this->typeOrder($types, $aggressive) as $type) {
+            $sides = [$former, $champions];
+            $managers = $this->pickManagers($type, $people, $sides);
+
+            try {
+                $referee = $this->randomizer->pickReferee($type, $people->reject(fn (SaveWrestler $w): bool => in_array($w->id, $managers, true))->values(), $sides, $this->rng);
+            } catch (GameRuleException) {
+                continue;
+            }
+
+            return new Booking($type, $sides, $managers, $championshipId, refereeId: $referee);
         }
 
         return null;

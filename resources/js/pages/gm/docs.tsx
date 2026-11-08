@@ -229,7 +229,15 @@ type Props = {
             max_heat: number;
         };
     };
-    news: { stories_per_brand: number; groups: string[]; events: NewsEvent[] };
+    news: {
+        stories_per_brand: number;
+        groups: string[];
+        events: NewsEvent[];
+        /** House rule (2026-11-07): conditional match stories. */
+        stories?: ConditionalStoryDoc[];
+    };
+    /** House rule (2026-11-07): the Rematch Clause Active Effect. */
+    rematch_clause?: { weeks: number; rival_chances: number[] };
     attendance: {
         ranges: Record<'weekly' | 'brand_ppv' | 'shared_ppv', [number, number]>;
         points: {
@@ -243,9 +251,11 @@ type Props = {
             hot_rivalry: number;
             hot_rivalry_max: number;
             legends: Record<string, number>;
-            rival_promos: number;
-            other_promos: number;
+            rival_promos: { success: number; backfire: number };
+            other_promos: { success: number; failure: number };
             win_streak: Record<string, number>;
+            repeat_slot: number;
+            repeat_max: number;
         };
         hot_heat: number;
         noise: number;
@@ -296,6 +306,15 @@ const tabs = [
 ] as const;
 
 type TabKey = (typeof tabs)[number]['key'];
+
+type ConditionalStoryDoc = {
+    story: string;
+    who: string;
+    when: string;
+    chances: string;
+    cooldown: string;
+    changes_result: boolean;
+};
 
 /** Rule summaries from spec §22. */
 const stipulationRules: Record<Stipulation, string[]> = {
@@ -388,7 +407,7 @@ const matchRules: Array<{ rule: string; detail: string }> = [
     },
     {
         rule: 'Timed',
-        detail: 'The match ends once a set amount of time has passed.',
+        detail: 'Runs to a time limit and ends on a score, such as 3–1: falls in an Iron Man (pinfall, submission, DQ or count-out all count), submissions only in an Ultimate Submission. Never a tie.',
     },
     {
         rule: 'Special referee',
@@ -437,7 +456,11 @@ const winConditions: Array<{ rule: string; detail: string }> = [
     },
     {
         rule: 'Over the top rope',
-        detail: 'Throw opponents over the top rope to eliminate them. The last superstar left wins.',
+        detail: 'The only way to win a Battle Royal: throw opponents over the top rope to the floor to eliminate them. The last superstar left wins.',
+    },
+    {
+        rule: 'Thrown through the flames',
+        detail: 'Throw the opponent through the flames that surround the ring (Inferno matches).',
     },
     {
         rule: 'Buried alive',
@@ -576,10 +599,11 @@ function MatchTypes({
                         className="list-disc space-y-2 pl-4 text-sm text-ink"
                     >
                         <li>
-                            Six entrants in one match slot, fought as five
-                            singles bouts. Entrants 1 and 2 open; each bout’s
-                            winner faces the next entrant, and whoever wins the
-                            fifth bout wins the Gauntlet.
+                            Four, five or six entrants in one match slot (4-Man,
+                            5-Man or 6-Man Gauntlet), fought as one singles bout
+                            fewer than the entrants. Entrants 1 and 2 open; each
+                            bout’s winner faces the next entrant, and whoever
+                            wins the last bout wins the Gauntlet.
                         </li>
                         <li>
                             Each bout is a normal singles match: pinfall,
@@ -587,8 +611,8 @@ function MatchTypes({
                         </li>
                         <li>
                             The record counts once: the winner gets one win, and
-                            the other five get one loss each. Every entrant
-                            takes a flat 3 fatigue bars.
+                            everyone else one loss each. Every entrant takes a
+                            flat 3 fatigue bars.
                         </li>
                         <li>No titles and no stipulations.</li>
                         <li>
@@ -597,7 +621,7 @@ function MatchTypes({
                         </li>
                         <li>
                             On the card each entrant is labelled in gold by
-                            their order, 1st Participant to 6th Participant.
+                            their order, from 1st Participant up.
                         </li>
                     </ul>
                 </Panel>
@@ -647,7 +671,7 @@ function MatchTypes({
                     className="list-disc space-y-2 pl-4 text-sm text-ink"
                 >
                     <li>
-                        Anyone on the roster can manage a w/Manager match they
+                        Anyone on the roster can manage a w/ Manager match they
                         aren’t competing in. Every manager slot must be filled,
                         like every competitor slot: Save stays greyed out until
                         it is, and Randomize and Preset fill managers from
@@ -906,7 +930,10 @@ function Specialties({ specialists }: Pick<Props, 'specialists'>) {
     );
 }
 
-function Stipulations({ stipulations }: Pick<Props, 'stipulations'>) {
+function Stipulations({
+    stipulations,
+    rematch,
+}: Pick<Props, 'stipulations'> & { rematch?: Props['rematch_clause'] }) {
     return (
         <div className="space-y-6">
             <p className="max-w-3xl text-sm text-ink-dim">
@@ -925,6 +952,45 @@ function Stipulations({ stipulations }: Pick<Props, 'stipulations'>) {
                     </Panel>
                 ))}
             </div>
+            {rematch && (
+                <Panel title="Rematch Clause (Active Effect)">
+                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                        <li>
+                            Not a stipulation: it shows under Active Effects and
+                            never stops a card from airing.
+                        </li>
+                        <li>
+                            When a title changes hands in a match (a Winner
+                            Takes All and a Money in the Bank cash-in too), the
+                            former champion(s) are owed a rematch against the
+                            new champion(s) within {rematch.weeks} weeks. A
+                            title awarded while vacant gives none.
+                        </li>
+                        <li>
+                            Any title match for that title with the former
+                            champion(s) on one side and the new champion(s) on
+                            the other settles it, whoever wins: 1 vs 1 for a
+                            singles title, 2 vs 2 for a tag title, managers
+                            allowed. A Triple Threat doesn’t count.
+                        </li>
+                        <li>
+                            It ends early if a former champion leaves the brand,
+                            anyone in it is seriously injured, or the title
+                            changes hands again or is vacated. A waiting #1
+                            contender still comes first.
+                        </li>
+                        <li>
+                            The rival GM books its rematches on its own: on each
+                            of the {rematch.rival_chances.length} weeks after,
+                            it rolls{' '}
+                            {rematch.rival_chances
+                                .map((c) => `${c}%`)
+                                .join(', ')}{' '}
+                            in turn, if everyone can be booked.
+                        </li>
+                    </ul>
+                </Panel>
+            )}
         </div>
     );
 }
@@ -1395,6 +1461,58 @@ function NewsAndEmail({
                     </ul>
                 </Panel>
             </div>
+
+            {news.stories && news.stories.length > 0 && (
+                <Panel
+                    title="Conditional stories"
+                    bodyClassName="p-0 overflow-x-auto"
+                >
+                    <p className="px-4 pt-3 text-sm text-ink-dim">
+                        Things that happen in a simulated match because of who’s
+                        in it (never on Book to Win). Hornswoggle, Undertaker
+                        and Kane must be on that brand, not seriously injured or
+                        sitting out, and not in the match. The stories that
+                        decide a result never end it by DQ (the referee was down
+                        or distracted) and stay out of the Royal Rumble,
+                        Elimination Chamber, Steel Cage and Hell in a Cell. The
+                        story is added to the match’s news, and a pop-up
+                        explains it on the live results screen.
+                    </p>
+                    <table
+                        className="gm-table text-sm"
+                        aria-label="Conditional stories"
+                    >
+                        <thead>
+                            <tr>
+                                <th>Story</th>
+                                <th>Who</th>
+                                <th>When</th>
+                                <th>Chances</th>
+                                <th>Cooldown</th>
+                                <th>Result</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {news.stories.map((s) => (
+                                <tr key={s.story}>
+                                    <td className="font-semibold whitespace-nowrap">
+                                        {s.story}
+                                    </td>
+                                    <td>{s.who}</td>
+                                    <td>{s.when}</td>
+                                    <td>{s.chances}</td>
+                                    <td>{s.cooldown}</td>
+                                    <td className="whitespace-nowrap">
+                                        {s.changes_result
+                                            ? 'Can change it'
+                                            : 'Story only'}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </Panel>
+            )}
 
             <Panel title="News events" bodyClassName="p-0 overflow-x-auto">
                 <table className="gm-table text-sm">
@@ -1911,11 +2029,15 @@ function AttendanceDocs({ attendance }: Pick<Props, 'attendance'>) {
         ],
         [
             'Promos',
-            `The share of Interference and Slander promos that succeeded × ${p.rival_promos}. With neither on the card, the share of the other promos that succeeded × ${p.other_promos}. No promos (every PPV): 0.`,
+            `Each promo scores on its own. Interference or Slander: ${p.rival_promos.success} for a success, ${p.rival_promos.backfire} for a backfire, 0 for a plain failure. A promo that can fail (Advertising, Interview Space, Merchandise Sponsorship): ${p.other_promos.success} for a success, ${p.other_promos.failure} for a failure. Promos that always succeed score 0, and PPVs have no promos.`,
         ],
         [
             'Win streak',
             `The best win streak going into the week among those competing: ${tiers(p.win_streak, 'wins')}.`,
+        ],
+        [
+            'Repeated matches',
+            `A deduction, weekly shows only: ${-p.repeat_slot} for each match slot booked in the same match category (any variant) as that slot on the brand’s weekly show the week before, up to ${-p.repeat_max}. The Air week confirmation lists them first.`,
         ],
         ['Luck', `Up to ${attendance.noise} points either way, at random.`],
     ];
@@ -2043,7 +2165,8 @@ function AttendanceDocs({ attendance }: Pick<Props, 'attendance'>) {
                         </li>
                         <li>
                             Reports: a Fan attendance chart of the season, both
-                            brands, with every night in a table too.
+                            brands, each line running through its PPV nights,
+                            with every night in a table too.
                         </li>
                     </ul>
                 </Panel>
@@ -2227,7 +2350,7 @@ function FactionsDocs({ factions }: Pick<Props, 'factions'>) {
                             covering the most of the side wins, then the
                             smallest, then a tag team over a stable. Matt Hardy
                             & Jeff Hardy are Team Xtreme; Danny & Doug Basham
-                            are The Basham Brothers, not The Cabinet.
+                            are Basham Brothers, not The Cabinet.
                         </li>
                         <li>
                             Booking stays individual: the card screen and its
@@ -2422,8 +2545,8 @@ function ResultsDocs() {
                             .
                         </li>
                         <li>
-                            A Gauntlet’s outcome card lists all five bouts under
-                            the result.
+                            A Gauntlet’s outcome card lists every bout under the
+                            result.
                         </li>
                         <li>
                             The week’s fatigue (going in, after the show, after
@@ -2577,7 +2700,10 @@ export default function Docs() {
                     />
                 )}
                 {tab === 'stipulations' && (
-                    <Stipulations stipulations={props.stipulations} />
+                    <Stipulations
+                        stipulations={props.stipulations}
+                        rematch={props.rematch_clause}
+                    />
                 )}
                 {tab === 'promos' && <Promos promos={props.promos} />}
                 {tab === 'news' && (

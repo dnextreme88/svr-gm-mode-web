@@ -77,9 +77,24 @@ export function attendanceSummary(points: AttendancePoint[]): string {
 }
 
 /**
+ * A brand's line, in week order: its weekly shows and the PPV nights it was
+ * on (a brand PPV on its brand's line, a shared PPV on both). In a PPV week
+ * the Sunday PPV comes before the weekly show.
+ */
+export function brandLine(
+    points: AttendancePoint[],
+    brand: Brand,
+): AttendancePoint[] {
+    return points
+        .filter((p) => p.brands.includes(brand))
+        .sort((a, b) => a.week - b.week || Number(b.ppv) - Number(a.ppv));
+}
+
+/**
  * Fan attendance across a season (house rule, 2026-11-01): each brand's
- * weekly shows as a line (Raw solid, Smackdown dashed, so they differ by
- * more than colour) and PPV nights as gold diamonds. Hovering or focusing a
+ * nights as a line (Raw solid, Smackdown dashed, so they differ by more
+ * than colour), running through its PPV nights (house rule, 2026-11-08),
+ * which are drawn on top as gold diamonds. Hovering or focusing a
  * point shows its night, crowd and gate; the same numbers are in a table
  * below for anyone who'd rather read them.
  */
@@ -110,7 +125,7 @@ export function AttendanceChart({ points }: { points: AttendancePoint[] }) {
 
     // Direct labels at each line's end, nudged apart when they'd overlap.
     const ends = (['raw', 'smackdown'] as Brand[])
-        .map((brand) => ({ brand, last: weekly(brand).at(-1) }))
+        .map((brand) => ({ brand, last: brandLine(shown, brand).at(-1) }))
         .filter(
             (e): e is { brand: Brand; last: AttendancePoint } =>
                 e.last !== undefined,
@@ -252,7 +267,7 @@ export function AttendanceChart({ points }: { points: AttendancePoint[] }) {
 
                                 {(['raw', 'smackdown'] as Brand[]).map(
                                     (brand) => {
-                                        const line = weekly(brand);
+                                        const line = brandLine(shown, brand);
 
                                         return (
                                             <g key={brand} data-series={brand}>
@@ -275,7 +290,7 @@ export function AttendanceChart({ points }: { points: AttendancePoint[] }) {
                                                             .join(' ')}
                                                     />
                                                 )}
-                                                {line.map((p) =>
+                                                {weekly(brand).map((p) =>
                                                     brand === 'raw' ? (
                                                         <circle
                                                             key={p.week}

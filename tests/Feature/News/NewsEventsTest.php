@@ -63,7 +63,7 @@ it('records every aired match as a story for its brand', function () {
 
 it('sums up a match result with the match in a word, not its full type name', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Christian', 'Shelton Benjamin', 'Carlito'], smackdown: ['Batista']);
-    Card::book($save, Card::show($save), 1, Card::type('ladder', 'Single w/Manager vs. w/Manager'), [['Edge'], ['Kane']], ['Carlito', 'Christian']);
+    Card::book($save, Card::show($save), 1, Card::type('ladder', 'Single w/ Manager vs. w/ Manager'), [['Edge'], ['Kane']], ['Carlito', 'Christian']);
     FixedOutcomes::queue('Edge', MatchMethod::MatchSpecific);
 
     newsWeek($save);
@@ -129,7 +129,7 @@ it('ranks an undercard title match above a non-title gimmick main event, and Tab
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Christian', 'Shelton Benjamin', 'Carlito', 'Kurt Angle', 'Chris Masters', 'Tajiri'], smackdown: ['Batista']);
     $title = GameBuilder::giveTitle($save, 'intercontinental', ['Kane'])->championship_id;
     Card::book($save, Card::show($save), 1, Card::singles(), [['Edge'], ['Kane']], titleId: $title);
-    Card::book($save, Card::show($save), 2, Card::type('tag_team', 'Table Tornado Tag Elimination'), [['Christian', 'Shelton Benjamin'], ['Chris Masters', 'Tajiri']]);
+    Card::book($save, Card::show($save), 2, Card::type('table', 'Tornado Tag Elimination'), [['Christian', 'Shelton Benjamin'], ['Chris Masters', 'Tajiri']]);
     Card::book($save, Card::show($save), 3, Card::type('ladder', 'Single'), [['Carlito'], ['Kurt Angle']]);
     FixedOutcomes::queue('Kane')->queue('Christian', MatchMethod::MatchSpecific)->queue('Carlito', MatchMethod::MatchSpecific);
 

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
     AttendanceChart,
     attendanceSummary,
+    brandLine,
     yMax,
 } from '@/components/gm/attendance-chart';
 import type { AttendancePoint } from '@/components/gm/attendance-chart';
@@ -75,6 +76,64 @@ describe('AttendanceChart', () => {
         expect(screen.getByTestId('attendance-summary')).toHaveTextContent(
             'Biggest crowd: Backlash',
         );
+    });
+
+    it('runs each brand’s line through its PPV nights (house rule, 2026-11-08)', () => {
+        const withShared = [
+            ...points,
+            night({
+                week: 5,
+                name: 'Royal Rumble',
+                ppv: true,
+                brands: ['raw', 'smackdown'],
+                crowd: 30000,
+            }),
+            night({ week: 4, crowd: 9500 }),
+        ];
+
+        // Backlash (Raw, week 4) comes before Raw's week 4 show, and the
+        // shared Royal Rumble ends both lines.
+        expect(
+            brandLine(withShared, 'raw').map((p) => `${p.week} ${p.name}`),
+        ).toEqual([
+            '1 Monday Night Raw',
+            '2 Monday Night Raw',
+            '4 Backlash',
+            '4 Monday Night Raw',
+            '5 Royal Rumble',
+        ]);
+        expect(brandLine(withShared, 'smackdown').map((p) => p.name)).toEqual([
+            'Friday Night Smackdown',
+            'Friday Night Smackdown',
+            'Royal Rumble',
+        ]);
+
+        const { container } = render(<AttendanceChart points={withShared} />);
+        const raw = container
+            .querySelector('[data-series="raw"] polyline')
+            ?.getAttribute('points')
+            ?.split(' ');
+        expect(raw).toHaveLength(5);
+        // The PPV markers stay gold diamonds, not brand markers.
+        expect(
+            container.querySelectorAll('[data-series="raw"] circle'),
+        ).toHaveLength(3);
+        expect(
+            container.querySelector('[data-ppv="Royal Rumble"]'),
+        ).not.toBeNull();
+    });
+
+    it('shows a single night as its marker alone, with no line', () => {
+        const { container } = render(
+            <AttendanceChart points={[night({ week: 1 })]} />,
+        );
+
+        expect(
+            container.querySelector('[data-series="raw"] polyline'),
+        ).toBeNull();
+        expect(
+            container.querySelectorAll('[data-series="raw"] circle'),
+        ).toHaveLength(1);
     });
 
     it('shows a night’s crowd and gate on focus or hover', () => {

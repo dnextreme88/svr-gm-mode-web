@@ -241,10 +241,6 @@ export default function Schedule() {
                     <li className="flex items-center gap-1.5">
                         <span className="size-2.5 bg-gold" /> PPV (Sunday)
                     </li>
-                    <li>
-                        Click an aired show for its results, this week’s show to
-                        book it, or one of your later shows to simulate to it.
-                    </li>
                 </ul>
             </section>
 

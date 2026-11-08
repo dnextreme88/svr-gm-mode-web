@@ -21,6 +21,44 @@ describe('Active Effects (house rule)', () => {
         expect(box.className).not.toContain('border-gold');
     });
 
+    it('lists a Rematch Clause with the weeks left (house rule, 2026-11-07)', () => {
+        const rematch = {
+            id: 4,
+            championship_id: 1,
+            championship: 'WWE Championship',
+            former_ids: [10],
+            former: 'John Cena',
+            champion_ids: [11],
+            champions: 'Edge',
+            weeks_left: 3,
+            booked: false,
+        };
+        const { rerender } = render(
+            <ActiveEffects
+                context={{ ...empty, rematch_clauses: [rematch] }}
+                buriedAlive={[]}
+            />,
+        );
+
+        const box = screen.getByRole('region', { name: 'Active Effects' });
+        expect(box).toHaveTextContent('Rematch Clause');
+        expect(box).toHaveTextContent(
+            'John Cena vs. Edge · WWE Championship · 3 weeks left',
+        );
+        expect(box.className).toContain('border-gold');
+
+        rerender(
+            <ActiveEffects
+                context={{
+                    ...empty,
+                    rematch_clauses: [{ ...rematch, booked: true }],
+                }}
+                buriedAlive={[]}
+            />,
+        );
+        expect(box).toHaveTextContent('booked on this card');
+    });
+
     it('turns gold while something is in play', () => {
         render(
             <ActiveEffects

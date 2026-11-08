@@ -157,7 +157,7 @@ it('clears inactivity when booked, including as a manager', function () {
     runWeek($save);
     expect(complaint($flair, MoraleComplaintType::Inactivity))->not->toBeNull();
 
-    Card::book($save->refresh(), Card::show($save), 1, Card::type('single', 'No Manager vs. w/Manager'), [['Edge'], ['Kane']], [1 => 'Ric Flair']);
+    Card::book($save->refresh(), Card::show($save), 1, Card::type('single', 'Single vs. w/ Manager'), [['Edge'], ['Kane']], [1 => 'Ric Flair']);
     runWeek($save);
 
     expect(complaint($flair, MoraleComplaintType::Inactivity))->toBeNull()

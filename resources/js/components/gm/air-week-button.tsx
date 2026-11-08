@@ -5,6 +5,21 @@ import { unsavedList, useUnsavedSlots } from '@/components/gm/unsaved-changes';
 import gm from '@/routes/gm';
 import type { GameShell } from '@/types/gm';
 
+/** A match slot booked in the same category as that slot last week. */
+export type RepeatedSlot = { position: number; family: string; label: string };
+
+/** Repeat matches on a weekly show (house rule, 2026-11-08). */
+export type RepeatWarning = {
+    slots: RepeatedSlot[];
+    /** Attendance points each repeat costs, and the most they can cost. */
+    per_slot: number;
+    max: number;
+};
+
+/** "Match 3", or "Main Event" for a weekly show's 6th match. */
+const slotName = (position: number) =>
+    position === 6 ? 'Main Event' : `Match ${position}`;
+
 /**
  * Airs a night, after a confirmation, and opens its live results, where the
  * player decides each match. It lives on the night's last card. In a PPV
@@ -14,13 +29,16 @@ import type { GameShell } from '@/types/gm';
  * the results.
  *
  * With unsaved matches or promos on the card, the dialog lists them instead
- * and offers no way to air until they're saved or discarded.
+ * and offers no way to air until they're saved or discarded. Repeat
+ * matches (house rule, 2026-11-08) add a warning to the confirmation; they
+ * don't stop the week airing.
  */
 export function AirWeekButton({
     game,
     shows,
     ppv,
     disabled = false,
+    repeats,
 }: {
     game: GameShell;
     /** Every card that airs on this night, in air order. */
@@ -28,6 +46,7 @@ export function AirWeekButton({
     /** The PPV this button airs, when it airs a PPV night. */
     ppv?: string;
     disabled?: boolean;
+    repeats?: RepeatWarning;
 }) {
     const [airing, setAiring] = useState(false);
     const [confirming, setConfirming] = useState(false);
@@ -107,6 +126,30 @@ export function AirWeekButton({
                         afterwards.
                         {ppv &&
                             ' The weekly show is booked once the PPV’s results are in.'}
+                        {repeats && repeats.slots.length > 0 && (
+                            <div
+                                className="mt-3 rounded border border-gold/40 bg-gold/10 p-3 text-ink"
+                                data-testid="repeat-warning"
+                            >
+                                <strong className="text-gold">
+                                    Fans have seen these before:
+                                </strong>{' '}
+                                the same kind of match as last week in the same
+                                slot. Each costs {repeats.per_slot} attendance
+                                points (up to {repeats.max}).
+                                <ul
+                                    className="mt-2 list-disc pl-5"
+                                    aria-label="Repeated matches"
+                                >
+                                    {repeats.slots.map((slot) => (
+                                        <li key={slot.position}>
+                                            {slotName(slot.position)}:{' '}
+                                            {slot.label}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
                     </>
                 }
                 confirmLabel={label}

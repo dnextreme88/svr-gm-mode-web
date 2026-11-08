@@ -218,7 +218,10 @@ export type MatchOutcome = {
     managers: string[];
     referee?: string | null;
     method: import('./enums').MatchMethod;
+    /** With a timed match's score: "Most falls · 3–1". */
     method_label: string;
+    /** A timed match's score, "3–1" (house rule, 2026-11-08). */
+    score?: string | null;
     finish_event: import('./enums').FinishEvent | null;
     finish_label: string | null;
     summary: string;
@@ -346,6 +349,19 @@ export type TitleContext = {
         championship: string;
         contenders: string;
         champion: string;
+    }>;
+    /** House rule (2026-11-07): former champions owed a title rematch. */
+    rematch_clauses?: Array<{
+        id: number;
+        championship_id: number;
+        championship: string;
+        former_ids: number[];
+        former: string;
+        champion_ids: number[];
+        champions: string;
+        weeks_left: number;
+        /** The rematch is already on this card. */
+        booked: boolean;
     }>;
     briefcase: {
         id: number;

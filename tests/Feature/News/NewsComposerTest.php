@@ -284,6 +284,8 @@ it('lists every played week, quiet ones included, newest first', function () {
 });
 
 it('only shows weeks that have aired, even once news is recorded in the current one', function () {
+    // The rival's roster upkeep would otherwise sign free agents (Kane among them).
+    GameBuilder::passiveRival();
     $save = GameBuilder::inSeason(raw: ['Edge', 'Christian'], smackdown: ['Batista']);
     $composer = app(NewsComposer::class);
 

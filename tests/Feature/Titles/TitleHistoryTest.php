@@ -125,7 +125,7 @@ it('vacates a tag title when either member leaves, keeping the members in the sn
     $old = lineage($save, 'world_tag_team')->first();
 
     expect($old->end_reason)->toBe(ReignEndReason::Released)
-        ->and($old->holderName())->toBe('Lance Cade & Trevor Murdoch');
+        ->and($old->holderName())->toBe('Cade & Murdoch');
 });
 
 it('shows vacant periods and fills them by award or by a vacancy match', function () {
