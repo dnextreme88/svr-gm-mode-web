@@ -129,7 +129,7 @@ it('ranks an undercard title match above a non-title gimmick main event, and Tab
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Christian', 'Shelton Benjamin', 'Carlito', 'Kurt Angle', 'Chris Masters', 'Tajiri'], smackdown: ['Batista']);
     $title = GameBuilder::giveTitle($save, 'intercontinental', ['Kane'])->championship_id;
     Card::book($save, Card::show($save), 1, Card::singles(), [['Edge'], ['Kane']], titleId: $title);
-    Card::book($save, Card::show($save), 2, Card::type('tag_team', 'Table Tornado Tag Elimination'), [['Christian', 'Shelton Benjamin'], ['Chris Masters', 'Tajiri']]);
+    Card::book($save, Card::show($save), 2, Card::type('table', 'Tornado Tag Elimination'), [['Christian', 'Shelton Benjamin'], ['Chris Masters', 'Tajiri']]);
     Card::book($save, Card::show($save), 3, Card::type('ladder', 'Single'), [['Carlito'], ['Kurt Angle']]);
     FixedOutcomes::queue('Kane')->queue('Christian', MatchMethod::MatchSpecific)->queue('Carlito', MatchMethod::MatchSpecific);
 

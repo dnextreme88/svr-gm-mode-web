@@ -332,9 +332,9 @@ describe('PPVs (§13)', function () {
 
 describe('match types (§10)', function () {
     it('seeds the full taxonomy', function () {
-        expect(MatchType::count())->toBe(98)
+        expect(MatchType::count())->toBe(100)
             ->and(MatchType::where('family', MatchFamily::Hardcore)->count())->toBe(9)
-            ->and(MatchType::where('family', MatchFamily::Ladder)->count())->toBe(9)
+            ->and(MatchType::where('family', MatchFamily::Ladder)->count())->toBe(10)
             ->and(MatchType::where('family', MatchFamily::BattleRoyal)->count())->toBe(3)
             ->and(MatchType::where('family', MatchFamily::BackstageBrawl)->count())->toBe(5)
             ->and(MatchType::where('family', MatchFamily::Inferno)->count())->toBe(1)
@@ -419,6 +419,10 @@ describe('match types (§10)', function () {
         ['table', 'Fatal 5-Way', 5_000],
         ['tlc', 'Fatal 5-Way', 8_000],
         ['ladder', 'Fatal 5-Way', 12_000],
+        ['ladder', 'Tornado 6-Man Tag', 16_000],
+        ['tlc', 'Tornado 6-Man Tag', 12_000],
+        ['table', 'Tornado Tag Elimination', 4_000],
+        ['table', 'Tornado 6-Man Tag Elimination', 4_000],
         ['steel_cage', 'Fatal 5-Way', 25_000],
         ['first_blood', 'Single', 1_000],
         ['fulfill_your_fantasy', 'Single', 22_000],
@@ -494,7 +498,7 @@ it('is safe to run the catalog seeder twice', function () {
     $this->seed(CatalogSeeder::class);
 
     expect(Wrestler::count())->toBe(215)
-        ->and(MatchType::count())->toBe(98)
+        ->and(MatchType::count())->toBe(100)
         ->and(WrestlerSpecialty::count())->toBe(46);
 });
 

@@ -2,6 +2,7 @@
 
 namespace App\Services\Ai;
 
+use App\Enums\MatchFamily;
 use App\Models\MatchType;
 use App\Support\Rng\Rng;
 
@@ -12,7 +13,7 @@ use App\Support\Rng\Rng;
  *  1. 1 w/Manager vs 1 w/Manager: male competitors, both managers Divas.
  *  2. 1 vs 1 w/Manager: male competitors, the one manager a Diva.
  *  3. 2v2 (no managers): each team exactly 1 man + 1 Diva.
- *  4. 3v3 (not Table Tornado 6-Man Tag Elimination): every team has the
+ *  4. 3v3 (not the Table family's Tornado 6-Man Tag Elimination): every team has the
  *     same number of Divas, at least 1, and not all Divas.
  *  5. 2 w/Manager vs 2 w/Manager: male teams, both managers Divas.
  *  6. 2 vs 2 w/Manager: male teams, the one manager a Diva.
@@ -20,7 +21,15 @@ use App\Support\Rng\Rng;
  */
 class IntergenderRules
 {
-    public const EXCLUDED_SIX_MAN = 'Table Tornado 6-Man Tag Elimination';
+    /** The Table family's 3v3 elimination never goes intergender. */
+    public const EXCLUDED_SIX_MAN_FAMILY = MatchFamily::Table;
+
+    public const EXCLUDED_SIX_MAN = 'Tornado 6-Man Tag Elimination';
+
+    private function excludedSixMan(MatchType $type): bool
+    {
+        return $type->family === self::EXCLUDED_SIX_MAN_FAMILY && $type->variant === self::EXCLUDED_SIX_MAN;
+    }
 
     /**
      * Which shape a match type allows, or null if it never goes intergender.
@@ -46,7 +55,7 @@ class IntergenderRules
                 [1] => 6,
                 default => null,
             },
-            [3, 3] => $managers === [] && $type->variant !== self::EXCLUDED_SIX_MAN ? 4 : null,
+            [3, 3] => $managers === [] && ! $this->excludedSixMan($type) ? 4 : null,
             [2, 2, 2] => $managers === [] ? 7 : null,
             default => null,
         };

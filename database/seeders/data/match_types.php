@@ -42,14 +42,12 @@ return [
     // House rule: the old Elimination Tag category is split by team size.
     ['tag_team', 'Normal Tag Elimination', $tag, [], ['cost' => 2_000, 'is_elimination' => true, 'bars' => 2]],
     ['tag_team', 'Tornado Tag Elimination', $tag, [], ['cost' => 2_000, 'is_elimination' => true, 'bars' => 2]],
-    ['tag_team', 'Table Tornado Tag Elimination', $tag, [], ['cost' => 4_000, 'is_elimination' => true, 'bars' => 3, 'dq' => false, 'countout' => false, 'rope_breaks' => false, 'win_condition' => 'Put through a table']],
 
     // 6-Man Tag. House rule: no titles in any 3 vs 3 match.
     ['six_man_tag', 'Normal Tag', $sixTag, []],
     ['six_man_tag', 'Tornado Tag', $sixTag, []],
     ['six_man_tag', 'Normal 6-Man Tag Elimination', $sixTag, [], ['cost' => 2_000, 'is_elimination' => true, 'bars' => 2]],
     ['six_man_tag', 'Tornado 6-Man Tag Elimination', $sixTag, [], ['cost' => 2_000, 'is_elimination' => true, 'bars' => 2]],
-    ['six_man_tag', 'Table Tornado 6-Man Tag Elimination', $sixTag, [], ['cost' => 4_000, 'is_elimination' => true, 'bars' => 3, 'dq' => false, 'countout' => false, 'rope_breaks' => false, 'win_condition' => 'Put through a table']],
     // House rule: the side whose captain (first wrestler) is pinned, submitted or counted out loses.
     ['six_man_tag', 'Captain Fall Tornado 6-Man Tag Elimination', $sixTag, [], ['cost' => 4_000, 'is_elimination' => true, 'bars' => 3, 'captain_fall' => true]],
 
@@ -115,6 +113,8 @@ return [
     ['ladder', 'Triple Threat', $tt, [], ['win_condition' => 'Briefcase retrieval']],
     ['ladder', 'Fatal 4-Way', $f4w, [], ['win_condition' => 'Briefcase retrieval']],
     ['ladder', 'Fatal 5-Way', $f5w, [], ['win_condition' => 'Briefcase retrieval']],
+    // House rule (2026-11-08): priced like its Triple Threat Tornado Tag, as in Tables.
+    ['ladder', 'Tornado 6-Man Tag', $sixTag, [], ['cost' => 16_000, 'win_condition' => 'Briefcase retrieval']],
     // House rule: WrestleMania only, 6-man, no titles, no Divas (§10).
     ['ladder', 'Money in the Bank', $six, [], ['ppv_exclusive' => 'wrestlemania', 'titles_allowed' => false, 'divas_allowed' => false, 'win_condition' => 'Briefcase retrieval', 'mitb' => true]],
 
@@ -144,12 +144,18 @@ return [
     ['table', 'Fatal 5-Way', $f5w, [], ['win_condition' => 'Put through a table']],
     ['table', 'Tornado 6-Man Tag', $sixTag, [], ['cost' => 8_000, 'win_condition' => 'Put through a table']],
     ['table', 'Triple Threat Tornado Tag', $ttTag, [], ['cost' => 8_000, 'win_condition' => 'Put through a table']],
+    // House rule (2026-11-08): the Table elimination tags moved here from Tag
+    // Team and 6-Man Tag (they were "Table Tornado … Elimination").
+    ['table', 'Tornado Tag Elimination', $tag, [], ['cost' => 4_000, 'is_elimination' => true, 'bars' => 3, 'dq' => false, 'countout' => false, 'rope_breaks' => false, 'win_condition' => 'Put through a table']],
+    ['table', 'Tornado 6-Man Tag Elimination', $sixTag, [], ['cost' => 4_000, 'is_elimination' => true, 'bars' => 3, 'dq' => false, 'countout' => false, 'rope_breaks' => false, 'win_condition' => 'Put through a table']],
 
     ['tlc', 'Single', $one, [], []],
     ['tlc', 'Tornado Tag', $tag, [], []],
     ['tlc', 'Triple Threat', $tt, [], []],
     ['tlc', 'Fatal 4-Way', $f4w, [], []],
     ['tlc', 'Fatal 5-Way', $f5w, [], []],
+    // House rule (2026-11-08): priced like its Triple Threat Tornado Tag, as in Tables.
+    ['tlc', 'Tornado 6-Man Tag', $sixTag, [], ['cost' => 12_000]],
     // House rule: not in the 2006 game.
     ['tlc', 'Triple Threat Tornado Tag', $ttTag, [], ['cost' => 12_000]],
 

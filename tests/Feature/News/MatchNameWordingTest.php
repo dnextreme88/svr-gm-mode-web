@@ -29,7 +29,7 @@ it('names the match for a win by its own condition', function (string $family, s
     expect(resolvedBy($method)->how($type))->toBe($how);
 })->with([
     'Tables' => ['table', 'Single', MatchMethod::MatchSpecific, 'in a Tables match'],
-    'Table tag' => ['tag_team', 'Table Tornado Tag Elimination', MatchMethod::MatchSpecific, 'in a Tables match'],
+    'Table tag' => ['table', 'Tornado Tag Elimination', MatchMethod::MatchSpecific, 'in a Tables match'],
     'Ladder' => ['ladder', 'Single', MatchMethod::MatchSpecific, 'in a Ladder match'],
     'First Blood' => ['first_blood', 'Single', MatchMethod::MatchSpecific, 'in a First Blood match'],
     'Last Man Standing' => ['last_man_standing', 'Single', MatchMethod::MatchSpecific, 'in a Last Man Standing match'],

@@ -101,3 +101,10 @@ From the [2004 roster](https://www.thesmackdownhotel.com/roster/?promotion=wwe&d
 **Not added (by choice):** Bill DeMott, Chris Kanyon, Ernest Miller, Jesús, Johnny Stamboli, Sakoda, Zach Gowen, A-1, Bobby Roode, Daniel Puder, Mikal Adryan; the Divas who were mostly managers or interviewers (Amy Weber, Carmella DeCesare, Lauren Jones, Rochelle Loewen, Rue DeBona, Terri Runnels); the teams Edge & Chris Benoit, Charlie Haas & Hardcore Holly, The Jersey Shore Crew, Paul London & Billy Kidman, Rey Mysterio & Rob Van Dam, Rob Van Dam & Booker T, The Disciples of Synn, Kyo Dai, Charlie Haas & Rico, Molly Holly & Gail Kim.
 
 **Totals:** 215 wrestlers: Raw 30, SmackDown 30, 87 free-agent superstars, 30 free-agent Divas, 38 Legends.
+
+## Match type follow-up (2026-11-08)
+
+- **New:** Ladder and TLC add a Tornado 6-Man Tag (3v3), priced like their Triple Threat Tornado Tags ($16,000 and $12,000), as in Tables. They cost 4 bars (six-competitor fatigue).
+- **Moved to Table:** Tornado Tag Elimination (2v2, was Tag Team's "Table Tornado Tag Elimination") and Tornado 6-Man Tag Elimination (3v3, was 6-Man Tag's "Table Tornado 6-Man Tag Elimination"). Same rules: 3 bars, $4,000, no DQ, count-out or rope breaks, won through a table.
+- The rival's intergender rules still keep the Table 6-man elimination single-gender; they now match it by category and name, since the plain 6-Man Tag elimination shares the name.
+- **Totals:** 100 match types.

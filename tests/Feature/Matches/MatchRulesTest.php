@@ -30,7 +30,7 @@ describe('catalog', function () {
 
         expect(MatchType::whereIn('family', $families)->where(fn ($q) => $q->where('rope_breaks', true)->orWhere('countout_enabled', true))->count())->toBe(0)
             ->and(MatchType::where('family', 'single')->where('rope_breaks', false)->count())->toBe(0)
-            ->and(Card::type('tag_team', 'Table Tornado Tag Elimination')->rope_breaks)->toBeFalse();
+            ->and(Card::type('table', 'Tornado Tag Elimination')->rope_breaks)->toBeFalse();
     });
 
     it('allows ring outs everywhere except Steel Cage, Battle Royal, Royal Rumble, Elimination Chamber and Inferno', function () {
@@ -70,11 +70,13 @@ describe('catalog', function () {
     it('costs the house-rule fatigue bars per variant, never more than 5', function (string $family, string $variant, int $bars) {
         expect(Card::type($family, $variant)->fatigue_cost_bars)->toBe($bars);
     })->with([
-        ['tag_team', 'Table Tornado Tag Elimination', 3],
+        ['table', 'Tornado Tag Elimination', 3],
         ['six_man_tag', 'Normal Tag', 2],
         ['six_man_tag', 'Tornado 6-Man Tag Elimination', 2],
         ['six_man_tag', 'Captain Fall Tornado 6-Man Tag Elimination', 3],
-        ['six_man_tag', 'Table Tornado 6-Man Tag Elimination', 3],
+        ['table', 'Tornado 6-Man Tag Elimination', 3],
+        ['ladder', 'Tornado 6-Man Tag', 4],
+        ['tlc', 'Tornado 6-Man Tag', 4],
         ['handicap', 'One vs. Two', 1],
         ['handicap', 'One vs. Three', 2],
         ['handicap', 'Two vs. Trio', 2],
