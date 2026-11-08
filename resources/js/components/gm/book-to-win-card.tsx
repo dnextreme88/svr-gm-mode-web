@@ -1,6 +1,7 @@
 import { CashInTag, TitleBeltImage } from '@/components/gm/badges';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { Fragment, useState } from 'react';
+import { BusyLabel } from '@/components/gm/busy-label';
 import {
     CaptainTag,
     ChampionTag,
@@ -23,6 +24,7 @@ export function BookToWinCard({
     showName,
     isMainEvent,
     busy,
+    action = null,
     onDecide,
     onCashIn,
 }: {
@@ -30,6 +32,11 @@ export function BookToWinCard({
     showName: string;
     isMainEvent: boolean;
     busy: boolean;
+    /**
+     * The request in flight ("simulate", "side-1", "cash-in"): its button
+     * shows a spinner and says so until the result is in.
+     */
+    action?: string | null;
     /** House rule: the briefcase holder joins this world title match. */
     onCashIn?: () => void;
     /**
@@ -71,6 +78,7 @@ export function BookToWinCard({
                     key={match.id}
                     match={match}
                     disabled={disabled}
+                    action={action}
                     onDecide={onDecide}
                 />
             ) : (
@@ -87,9 +95,18 @@ export function BookToWinCard({
                                     type="button"
                                     className="gm-btn gm-btn-gold gm-btn-sm shrink-0"
                                     disabled={disabled}
+                                    aria-busy={
+                                        action === `side-${side.side}` ||
+                                        undefined
+                                    }
                                     onClick={() => onDecide(side.side)}
                                 >
-                                    Book to Win
+                                    <BusyLabel
+                                        busy={action === `side-${side.side}`}
+                                        busyText="Booking…"
+                                    >
+                                        Book to Win
+                                    </BusyLabel>
                                 </button>
                             </li>
                         ))}
@@ -114,18 +131,30 @@ export function BookToWinCard({
                             type="button"
                             className="gm-btn"
                             disabled={disabled}
+                            aria-busy={action === 'simulate' || undefined}
                             onClick={() => onDecide(null)}
                         >
-                            Simulate match
+                            <BusyLabel
+                                busy={action === 'simulate'}
+                                busyText="Simulating…"
+                            >
+                                Simulate match
+                            </BusyLabel>
                         </button>
                         {match.cash_in_holder && onCashIn && (
                             <button
                                 type="button"
                                 className="gm-btn gm-btn-gold"
                                 disabled={disabled}
+                                aria-busy={action === 'cash-in' || undefined}
                                 onClick={() => setCashing(true)}
                             >
-                                Cash in: {match.cash_in_holder}
+                                <BusyLabel
+                                    busy={action === 'cash-in'}
+                                    busyText="Cashing in…"
+                                >
+                                    Cash in: {match.cash_in_holder}
+                                </BusyLabel>
                             </button>
                         )}
                     </div>
@@ -196,10 +225,12 @@ function SideLabel({ match, side }: { match: PendingMatch; side: Side }) {
 function GauntletBouts({
     match,
     disabled,
+    action,
     onDecide,
 }: {
     match: PendingMatch;
     disabled: boolean;
+    action: string | null;
     onDecide: (side: number | null, bouts?: number[]) => void;
 }) {
     const [picks, setPicks] = useState<number[]>([]);
@@ -270,9 +301,18 @@ function GauntletBouts({
                                     type="button"
                                     className="gm-btn gm-btn-gold gm-btn-sm shrink-0"
                                     disabled={disabled}
+                                    aria-busy={
+                                        action === `side-${side.side}` ||
+                                        undefined
+                                    }
                                     onClick={() => pick(side.side)}
                                 >
-                                    Book to Win
+                                    <BusyLabel
+                                        busy={action === `side-${side.side}`}
+                                        busyText="Booking…"
+                                    >
+                                        Book to Win
+                                    </BusyLabel>
                                 </button>
                             </li>
                         ))}
@@ -301,9 +341,17 @@ function GauntletBouts({
                     type="button"
                     className="gm-btn"
                     disabled={disabled}
+                    aria-busy={action === 'simulate' || undefined}
                     onClick={() => onDecide(null, picks)}
                 >
-                    {picks.length > 0 ? 'Simulate the rest' : 'Simulate match'}
+                    <BusyLabel
+                        busy={action === 'simulate'}
+                        busyText="Simulating…"
+                    >
+                        {picks.length > 0
+                            ? 'Simulate the rest'
+                            : 'Simulate match'}
+                    </BusyLabel>
                 </button>
             </div>
         </>

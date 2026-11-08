@@ -341,6 +341,9 @@ describe('Results page', () => {
         // The result comes back: it stays up first…
         page.props = live(outcome(1, ['Kane'], ['Carlito'], { id: 101 }), true);
         rerender(<Results />);
+        act(() => {
+            post.mock.calls[0][2].onFinish();
+        });
         expect(
             within(detail()).getByRole('heading', { name: 'Kane' }),
         ).toBeInTheDocument();
@@ -684,23 +687,97 @@ describe('Results page', () => {
             );
         });
 
-        it('can’t decide a later match first', async () => {
+        it('can’t open a match still waiting its turn', async () => {
+            page.props = live();
+            const user = userEvent.setup();
+            render(<Results />);
+
+            // Greyed out and disabled, so it can't be clicked or tabbed to.
+            const row = screen.getByRole('button', {
+                name: 'Monday Night Raw match 3 is waiting for the matches before it',
+            });
+            expect(row).toBeDisabled();
+            expect(row).toHaveClass('opacity-60', 'cursor-not-allowed');
+            await user.click(row);
+            expect(
+                within(screen.getByTestId('result-detail')).queryByText(
+                    'Decide the matches before this one first.',
+                ),
+            ).toBeNull();
+
+            // The arrows step over it too.
+            const position = () => screen.getByText(/^\d+ \/ \d+$/).textContent;
+            const before = position();
+            await user.click(
+                screen.getByRole('button', { name: 'Next result' }),
+            );
+            await user.click(
+                screen.getByRole('button', { name: 'Previous result' }),
+            );
+            expect(position()).toBe(before);
+            expect(
+                within(screen.getByTestId('result-detail')).queryByText(
+                    'Decide the matches before this one first.',
+                ),
+            ).toBeNull();
+        });
+
+        it('greys out a promo until it airs', () => {
+            const show = live().shows[0];
+            page.props = {
+                ...live(),
+                shows: [
+                    {
+                        ...show,
+                        // One aired before match 2, one waits before match 3.
+                        promos: [promo(1, 2, 'succeeded'), promo(2, 3, null)],
+                    },
+                ],
+            };
+            render(<Results />);
+
+            const waiting = screen.getByTestId(`promo-${show.id}-2`);
+            expect(waiting).toHaveClass('opacity-60');
+            expect(waiting).toHaveTextContent('Waiting');
+            expect(screen.getByTestId(`promo-${show.id}-1`)).not.toHaveClass(
+                'opacity-60',
+            );
+        });
+
+        it('shows Simulating… on Simulate all until the results are in', async () => {
             page.props = live();
             const user = userEvent.setup();
             render(<Results />);
 
             await user.click(
-                screen.getByRole('button', {
-                    name: 'Show details for Monday Night Raw match 3',
-                }),
+                screen.getByRole('button', { name: 'Simulate all' }),
             );
+            const button = screen.getByRole('button', { name: 'Simulating…' });
+            expect(button).toBeDisabled();
+            expect(button).toHaveAttribute('aria-busy', 'true');
 
-            const detail = screen.getByTestId('result-detail');
-            for (const button of within(detail).getAllByRole('button', {
-                name: /Book to Win|Simulate match/,
-            })) {
-                expect(button).toBeDisabled();
-            }
+            act(() => {
+                post.mock.calls[0][2].onFinish();
+            });
+            expect(
+                screen.getByRole('button', { name: 'Simulate all' }),
+            ).not.toHaveAttribute('aria-busy');
+        });
+
+        it('explains the held Continue on the button itself', () => {
+            page.props = live();
+            render(<Results />);
+
+            const button = screen.getByRole('button', { name: 'Continue' });
+            expect(button).toBeDisabled();
+            expect(button).toHaveAttribute(
+                'title',
+                'Decide every match to continue',
+            );
+            // Simulate all sits beside it, in the same row.
+            expect(button.parentElement).toContainElement(
+                screen.getByRole('button', { name: 'Simulate all' }),
+            );
         });
 
         it('holds Continue and the fatigue card until every match is in', () => {
