@@ -1,9 +1,11 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { LOADING_OVERLAY_DELAY_MS } from '@/components/gm/loading-overlay';
 import Draft from '@/pages/gm/draft';
 
 const post = vi.fn();
+const visit = vi.fn();
 
 const pick = (
     n: number,
@@ -41,11 +43,20 @@ const props = {
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
-    router: { post: (...args: unknown[]) => post(...args) },
-    usePage: () => ({ props }),
+    router: {
+        post: (...args: unknown[]) => post(...args),
+        visit: (...args: unknown[]) => visit(...args),
+    },
+    usePage: () => ({ props: page.props }),
 }));
 
-afterEach(() => post.mockReset());
+const page: { props: Record<string, unknown> } = { props };
+
+afterEach(() => {
+    post.mockReset();
+    visit.mockReset();
+    page.props = props;
+});
 
 describe('Stop drafting (house rule, 2026-11-07)', () => {
     it('reviews your picks before you stop', async () => {
@@ -86,5 +97,30 @@ describe('Stop drafting (house rule, 2026-11-07)', () => {
             screen.getByRole('button', { name: 'Stop and crown champions' }),
         );
         expect(post).toHaveBeenCalledWith('/gm/saves/3/draft/finish');
+    });
+});
+
+describe('End of the draft', () => {
+    it('says the draft picks are finished, then opens the champions', () => {
+        vi.useFakeTimers();
+        page.props = { ...props, player_done: true, concluded: true };
+        render(<Draft />);
+
+        expect(screen.getByTestId('draft-concluded')).toHaveTextContent(
+            "Draft picks are finished. You may now assign your brand's champions.",
+        );
+        expect(visit).not.toHaveBeenCalled();
+
+        act(() => {
+            vi.advanceTimersByTime(LOADING_OVERLAY_DELAY_MS);
+        });
+        expect(visit).toHaveBeenCalledWith('/gm/saves/3');
+        vi.useRealTimers();
+    });
+
+    it('has no overlay while the draft is on', () => {
+        render(<Draft />);
+
+        expect(screen.queryByTestId('draft-concluded')).toBeNull();
     });
 });

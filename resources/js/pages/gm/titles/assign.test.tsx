@@ -1,7 +1,9 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import AssignTitles from '@/pages/gm/titles/assign';
+import type { ChampionshipEligibility } from '@/types/enums';
+import { LOADING_OVERLAY_DELAY_MS } from '@/components/gm/loading-overlay';
+import AssignTitles, { championsProgress } from '@/pages/gm/titles/assign';
 
 const post = vi.fn();
 
@@ -16,7 +18,9 @@ const title = (
     key,
     name,
     is_tag: key === 'world_tag_team',
-    eligibility: key === 'womens' ? 'divas_only' : 'open',
+    eligibility: (key === 'womens'
+        ? 'divas_only'
+        : 'open') as ChampionshipEligibility,
     holder,
     decided,
     eligible: [],
@@ -90,24 +94,17 @@ describe('Crown your champions (house rule, 2026-11-07)', () => {
         );
     });
 
-    it('covers the page while the season starts', async () => {
-        const user = userEvent.setup();
+    it('covers the page while the season starts, for a moment first', () => {
+        vi.useFakeTimers();
         page.props = decidedProps;
         render(<AssignTitles />);
 
         expect(screen.queryByTestId('starting-season')).toBeNull();
-        await user.click(
+        fireEvent.click(
             screen.getByRole('button', { name: 'Start the season' }),
         );
 
-        expect(post).toHaveBeenCalledWith(
-            '/gm/saves/3/titles/assign-complete',
-            {},
-            expect.objectContaining({ onStart: expect.any(Function) }),
-        );
-
-        // The visit starts: the overlay shows and the button is disabled.
-        act(() => post.mock.calls[0][2].onStart());
+        // The overlay shows at once and the button is disabled.
         expect(screen.getByTestId('starting-season')).toHaveTextContent(
             'Starting the season. Please wait...',
         );
@@ -116,8 +113,22 @@ describe('Crown your champions (house rule, 2026-11-07)', () => {
             screen.getByRole('button', { name: 'Start the season' }),
         ).toBeDisabled();
 
+        // The season starts once the delay is up.
+        expect(post).not.toHaveBeenCalled();
+        act(() => {
+            vi.advanceTimersByTime(LOADING_OVERLAY_DELAY_MS);
+        });
+        expect(post).toHaveBeenCalledWith(
+            '/gm/saves/3/titles/assign-complete',
+            {},
+            expect.objectContaining({ onFinish: expect.any(Function) }),
+        );
+        vi.useRealTimers();
+
         // It failed (no redirect): the page is usable again.
-        act(() => post.mock.calls[0][2].onFinish());
+        act(() => {
+            post.mock.calls[0][2].onFinish();
+        });
         expect(screen.queryByTestId('starting-season')).toBeNull();
     });
 
@@ -137,16 +148,63 @@ describe('Crown your champions (house rule, 2026-11-07)', () => {
         expect(
             screen.queryByRole('list', { name: 'Your champions' }),
         ).toBeNull();
-        // The other decided titles can still be changed from their step.
+        // Change lives on the review only, not on the step tiles.
         expect(
-            within(screen.getByTestId('step-intercontinental')).getByRole(
+            within(screen.getByTestId('step-intercontinental')).queryByRole(
                 'button',
-                { name: 'Change Intercontinental Championship' },
             ),
-        ).toBeInTheDocument();
+        ).toBeNull();
         expect(screen.getByTestId('step-wwe')).toHaveAttribute(
             'aria-current',
             'step',
         );
+    });
+
+    it('counts champions assigned while titles are decided, from 0/5', () => {
+        const fresh = decidedProps.championships.map((c) => ({
+            ...c,
+            holder: null,
+            decided: false,
+        }));
+        page.props = { ...decidedProps, current_id: 1, championships: fresh };
+        const { unmount } = render(<AssignTitles />);
+
+        const bar = screen.getByRole('progressbar', {
+            name: 'Champions assigned',
+        });
+        expect(bar).toHaveAttribute('aria-valuenow', '0');
+        expect(bar).toHaveAttribute('aria-valuemax', '5');
+        expect(screen.getByTestId('champions-progress')).toHaveTextContent(
+            '0/5 champions assigned',
+        );
+        unmount();
+
+        // The tag champions count as two.
+        page.props = {
+            ...decidedProps,
+            current_id: 4,
+            championships: decidedProps.championships.map((c) =>
+                c.id === 4 ? { ...c, holder: null, decided: false } : c,
+            ),
+        };
+        render(<AssignTitles />);
+        // The WWE title was left vacant: it stays in the total, unfilled.
+        expect(screen.getByTestId('champions-progress')).toHaveTextContent(
+            '3/5 champions assigned',
+        );
+    });
+
+    it('keeps the progress bar on the review', () => {
+        page.props = decidedProps;
+        render(<AssignTitles />);
+
+        // The WWE title is vacant: 4 of 5.
+        expect(screen.getByTestId('champions-progress')).toHaveTextContent(
+            '4/5 champions assigned',
+        );
+        expect(championsProgress(decidedProps.championships)).toEqual({
+            assigned: 4,
+            total: 5,
+        });
     });
 });

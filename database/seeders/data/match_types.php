@@ -61,7 +61,7 @@ return [
     ['handicap', 'Two vs. Three', [2, 3], [], ['cost' => 1_000, 'bars' => 2]],
 
     // Backstage brawl
-    ['backstage_brawl', 'Backstage Brawl', $one, ['cost' => 16_000]],
+    ['backstage_brawl', 'Backstage Brawl', $one, [], ['cost' => 16_000]],
     ['backstage_brawl', 'Bar Brawl', $one, [], ['cost' => 31_000]],
     ['backstage_brawl', 'Boiler Room Brawl', $one, [], ['cost' => 25_000]],
     ['backstage_brawl', 'Interview Area Brawl', $one, [], ['cost' => 15_000]],
@@ -117,12 +117,12 @@ return [
     ['ladder', 'Single No Manager vs. w/Manager', $one, $noMgrVsMgr, ['win_condition' => 'Briefcase retrieval']],
     ['ladder', 'Single w/Manager vs. w/Manager', $one, $mgrVsMgr, ['win_condition' => 'Briefcase retrieval']],
     ['ladder', 'Tornado Tag', $tag, [], ['win_condition' => 'Briefcase retrieval']],
+    // House rule (2026-11-08): priced like its Triple Threat Tornado Tag, as in Tables.
+    ['ladder', 'Tornado 6-Man Tag', $sixTag, [], ['cost' => 16_000, 'win_condition' => 'Briefcase retrieval']],
     ['ladder', 'Triple Threat Tornado Tag', $ttTag, [], ['cost' => 16_000, 'win_condition' => 'Briefcase retrieval']],
     ['ladder', 'Triple Threat', $tt, [], ['win_condition' => 'Briefcase retrieval']],
     ['ladder', 'Fatal 4-Way', $f4w, [], ['win_condition' => 'Briefcase retrieval']],
     ['ladder', 'Fatal 5-Way', $f5w, [], ['win_condition' => 'Briefcase retrieval']],
-    // House rule (2026-11-08): priced like its Triple Threat Tornado Tag, as in Tables.
-    ['ladder', 'Tornado 6-Man Tag', $sixTag, [], ['cost' => 16_000, 'win_condition' => 'Briefcase retrieval']],
     // House rule: WrestleMania only, 6-man, no titles, no Divas (§10).
     ['ladder', 'Money in the Bank', $six, [], ['ppv_exclusive' => 'wrestlemania', 'titles_allowed' => false, 'divas_allowed' => false, 'win_condition' => 'Briefcase retrieval', 'mitb' => true]],
 
@@ -150,11 +150,11 @@ return [
     ['table', 'Single', $one, [], ['win_condition' => 'Put through a table']],
     ['table', 'Tornado Tag', $tag, [], ['win_condition' => 'Put through a table']],
     ['table', 'Tornado Tag Elimination', $tag, [], ['cost' => 4_000, 'is_elimination' => true, 'bars' => 3, 'dq' => false, 'countout' => false, 'rope_breaks' => false, 'win_condition' => 'Put through a table']],
+    ['table', 'Tornado 6-Man Tag', $sixTag, [], ['cost' => 8_000, 'win_condition' => 'Put through a table']],
     ['table', 'Tornado 6-Man Tag Elimination', $sixTag, [], ['cost' => 4_000, 'is_elimination' => true, 'bars' => 3, 'dq' => false, 'countout' => false, 'rope_breaks' => false, 'win_condition' => 'Put through a table']],
     ['table', 'Triple Threat', $tt, [], ['win_condition' => 'Put through a table']],
     ['table', 'Fatal 4-Way', $f4w, [], ['win_condition' => 'Put through a table']],
     ['table', 'Fatal 5-Way', $f5w, [], ['win_condition' => 'Put through a table']],
-    ['table', 'Tornado 6-Man Tag', $sixTag, [], ['cost' => 8_000, 'win_condition' => 'Put through a table']],
     ['table', 'Triple Threat Tornado Tag', $ttTag, [], ['cost' => 8_000, 'win_condition' => 'Put through a table']],
     // House rule (2026-11-08): the Table elimination tags moved here from Tag
     // Team and 6-Man Tag (they were "Table Tornado … Elimination").

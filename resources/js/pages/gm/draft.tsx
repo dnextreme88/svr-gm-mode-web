@@ -3,6 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SpecialtyBadge } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
+import {
+    LOADING_OVERLAY_DELAY_MS,
+    LoadingOverlay,
+} from '@/components/gm/loading-overlay';
 import { PageTitle, Panel, Stat } from '@/components/gm/panel';
 import { PoolFilters } from '@/components/gm/pool-filters';
 import { WrestlerName } from '@/components/gm/wrestler-name';
@@ -46,6 +50,8 @@ type Props = GamePageProps & {
     draft_order: Brand[];
     contract_length: number;
     player_done: boolean;
+    /** The draft just ended: the overlay shows, then the champions open. */
+    concluded?: boolean;
 };
 
 type AiStep = {
@@ -91,6 +97,23 @@ export default function Draft() {
         brand: Brand;
     } | null>(null);
     const [flashPick, setFlashPick] = useState<number | null>(null);
+    // The draft is over on both shows: the overlay says so for a moment,
+    // then the champions open.
+    const [draftOver, setDraftOver] = useState(false);
+    const concluded = draftOver || props.concluded === true;
+
+    useEffect(() => {
+        if (!concluded) {
+            return;
+        }
+
+        const timer = window.setTimeout(
+            () => router.visit(gm.saves.show.url(props.game.id)),
+            LOADING_OVERLAY_DELAY_MS,
+        );
+
+        return () => window.clearTimeout(timer);
+    }, [concluded, props.game.id]);
     const running = useRef(false);
     // Read before every AI pick, so toggling mid-draft takes effect at once.
     const skip = useRef(skipAnimation);
@@ -158,7 +181,7 @@ export default function Draft() {
         setAnimating(true);
         setPoolFilter(emptyPoolFilter);
 
-        let draftOver = false;
+        let over = false;
 
         try {
             for (;;) {
@@ -180,9 +203,9 @@ export default function Draft() {
                 }
 
                 setNextBrand(step.next_brand);
-                draftOver = step.draft_over;
+                over = step.draft_over;
 
-                if (!step.ai_turn || draftOver || abort.current) {
+                if (!step.ai_turn || over || abort.current) {
                     break;
                 }
             }
@@ -192,8 +215,8 @@ export default function Draft() {
             setFlashPick(null);
         }
 
-        if (draftOver) {
-            router.visit(gm.saves.show.url(game.id));
+        if (over) {
+            setDraftOver(true);
         } else if (abort.current) {
             router.post(gm.draft.aiFinish.url(game.id));
         } else {
@@ -238,6 +261,12 @@ export default function Draft() {
     return (
         <>
             <Head title="Initial Draft" />
+            {concluded && (
+                <LoadingOverlay
+                    testId="draft-concluded"
+                    text="Draft picks are finished. You may now assign your brand's champions."
+                />
+            )}
             <PageTitle kicker="Initial draft" title="Build your roster">
                 <button
                     type="button"

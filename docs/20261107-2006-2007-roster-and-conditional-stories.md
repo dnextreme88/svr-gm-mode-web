@@ -19,7 +19,7 @@ We compared the 2006 and 2007 WWE rosters on thesmackdownhotel.com ([2006](https
 - **Faction page:** `GET factions/{saveFaction}`. The matches where 2+ members teamed while it was together, both brands, newest first, in the Reports table.
 - **Conditional stories** (`gm.stories`): Hornswoggle's shillelagh (story only, 50% when Finlay wins, 8-week lockout); Undertaker's lights-out and Kane's pyro (the rival's match, 60+ heat, a Continue Rivalry that week, the two kept apart; the rival loses 80%, once per rivalry once it works); the Dudleys' tables and Team Xtreme's ladder (lands 80%, then wins 80% or always in a Tables / Ladder match; 4-week cooldown after it lands). Simulated matches only, never a DQ, not in the Royal Rumble, Elimination Chamber, Steel Cage or Hell in a Cell. The story goes into the match's news summary and a pop-up.
 - **Rematch Clause:** a title lost in a match gives the former champion(s) a rematch against the new one(s) within 4 weeks. An Active Effect only. Any 1v1/2v2 title match between them resolves it; it ends early if someone leaves the brand, is seriously injured, or the title moves on. The rival rolls 25/50/75/85% over its 4 weeks.
-- **Match types:** Fatal 5-Way in Normal Matches, Hardcore, Tables, TLC, Ladder and Steel Cage; Inferno (1v1, 4 bars, $45,000, thrown through the flames); Boiler Room Brawl ($25,000) and Interview Area Brawl ($15,000); One vs. Two, One vs. Three and Two vs. Trio; 6-Man Tag's Normal Tag and Tornado Tag; Battle Royals only won over the top rope (the Over the Top Rope variants are gone); no Steel Cage Pin & Give Up. John Cena and Eddie Guerrero become Backstage Brawl specialists. 98 match types, 46 specialties.
+- **Match types:** Fatal 5-Way in Normal Matches, Hardcore, Tables, TLC, Ladder and Steel Cage; Inferno (1v1, 4 bars, $45,000, thrown through the flames); Boiler Room Brawl ($25,000) and Interview Area Brawl ($15,000); One vs. Two, One vs. Three and Two vs. Three; 6-Man Tag's Normal Tag and Tornado Tag; Battle Royals only won over the top rope (the Over the Top Rope variants are gone); no Steel Cage Pin & Give Up. John Cena and Eddie Guerrero become Backstage Brawl specialists. 98 match types, 46 specialties.
 - **Titles after the draft:** any decided title can be changed until the season starts (`titles/assign/{championship}/undo`), with a Review your champions panel once all are decided.
 - **Stop drafting:** a review modal (roster count, divisions, budget left, picks, what's next).
 - **Story text rule:** text that tells a story or explains a headline is 3+ sentences, at most 3 paragraphs of 3–5 sentences.
@@ -145,7 +145,7 @@ The positive factors can now reach 110 before the clamp to 0–100. The worked e
 ### Match types (103)
 
 - **Added:**
-    - Six-Pack Challenge (Normal Matches, $1,000, no DQ or count-out);
+    - Six-Pack Challenge (Normal Matches, $5,000, 2 bars, no DQ or count-out); the Normal Fatal 5-Way is $3,000 and 2 bars;
     - Hell in a Cell Fatal 5-Way ($45,000);
     - 4-Man and 5-Man Gauntlets (3 and 4 bouts);
     - Submission Triple Threat and Fatal 4-Way ($1,000, 2 bars, _assumption_);
@@ -156,3 +156,10 @@ The positive factors can now reach 110 before the clamp to 0–100. The worked e
 
 - Each brand's line now runs through its PPV nights: a brand PPV on its brand's line, a shared PPV on both. The PPV is still drawn as a gold diamond on top. Before this, PPV weeks broke the line, and early in a season a brand with one weekly show had no line at all, so the chart read as dots.
 - A brand with a single night still shows its marker alone.
+
+### Draft and title assignment
+
+- **Champions progress bar:** the title assignment page has the card's progress bar above the title steps, the review included: "N/5 champions assigned" (one per title, two for the tag titles). A vacant title stays in the total, unfilled.
+- **End of the draft:** when the draft ends on both brands, the draft page shows the same spinner overlay as starting the season ("Draft picks are finished. You may now assign your brand's champions.") before the champions open. A pick, Stop drafting or Skip rest of draft that ends the draft redirects back to the draft once, with `draft_concluded` flashed; the rival's last animated pick shows it straight away.
+- **Overlay:** both overlays are `<LoadingOverlay>` (`components/gm/loading-overlay.tsx`) and wait `LOADING_OVERLAY_DELAY_MS` (2.5 seconds) before moving on.
+- **Title page tweaks:** only "Deciding…" pulses on the title steps, the roster pool is 1 column up to md, 2 at md and 3 from lg (with no scrollbar from lg), and Change lives on the review only.

@@ -56,7 +56,13 @@ it('skips the rest of the draft once the player has stopped', function () {
     $this->get(route('gm.draft.show', $save))
         ->assertInertia(fn (Assert $page) => $page->where('player_done', true));
 
-    $this->post(route('gm.draft.ai-finish', $save))->assertRedirect(route('gm.saves.show', $save));
+    // The draft ends: the draft page shows its overlay once, then moves on.
+    $this->post(route('gm.draft.ai-finish', $save))
+        ->assertRedirect(route('gm.draft.show', $save))
+        ->assertSessionHas('draft_concluded', true);
+    $this->get(route('gm.draft.show', $save))
+        ->assertInertia(fn (Assert $page) => $page->component('gm/draft')->where('concluded', true));
+    $this->get(route('gm.draft.show', $save))->assertRedirect(route('gm.saves.show', $save));
 
     $save->refresh();
     $rival = SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Smackdown)->count();
