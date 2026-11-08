@@ -4,6 +4,7 @@ namespace App\Services\Ai;
 
 use App\Enums\Brand;
 use App\Enums\ChampionshipEligibility;
+use App\Enums\MatchFamily;
 use App\Enums\Stipulation;
 use App\Exceptions\GameRuleException;
 use App\Models\Championship;
@@ -12,6 +13,7 @@ use App\Models\MatchType;
 use App\Models\MoneyInTheBank;
 use App\Models\SaveWrestler;
 use App\Models\Show;
+use App\Services\Attendance\RepeatMatches;
 use App\Services\Card\Booking;
 use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
@@ -47,6 +49,9 @@ class AiBooker
     /** @var list<int> ids already on the card */
     private array $taken = [];
 
+    /** @var array<int, MatchFamily>|null last week's categories by slot, for repeats */
+    private ?array $lastWeek = null;
+
     /** @var list<int> championship ids already on the card */
     private array $titlesOnCard = [];
 
@@ -65,6 +70,7 @@ class AiBooker
         private PlannedFatigue $plannedFatigue,
         private TitleContention $contention,
         private RematchClauseService $rematches,
+        private RepeatMatches $repeatMatches,
     ) {}
 
     /**
@@ -78,6 +84,7 @@ class AiBooker
         $this->show = $show;
         $this->brand = $brand;
         $this->rng = $show->game->rng("ai.card.{$show->streamKey()}", $show->week_number);
+        $this->lastWeek = null;
         $this->taken = $this->randomizer->bookedIds($show);
         $this->titlesOnCard = array_values(array_map('intval', MatchSlot::where('show_id', $show->id)->whereNotNull('title_championship_id')->pluck('title_championship_id')->all()));
         $this->fatigue = $this->plannedFatigue($show, $brand);
@@ -269,6 +276,39 @@ class AiBooker
 
     private function fillSlot(int $position): void
     {
+        // House rule (2026-11-08): sometimes the rival books the same kind of
+        // match as last week in this slot, like a human GM would, attendance
+        // deduction and all. Nothing in that category fits: it books as usual.
+        $family = $this->repeatFamily($position);
+
+        if ($family !== null && $this->tryFill($position, $family)) {
+            return;
+        }
+
+        $this->tryFill($position);
+    }
+
+    /**
+     * The category last week's match in this slot was in, when the rival
+     * rolls to repeat it (weekly shows only).
+     */
+    private function repeatFamily(int $position): ?MatchFamily
+    {
+        $this->lastWeek ??= $this->repeatMatches->families($this->repeatMatches->lastWeek($this->show));
+        $family = $this->lastWeek[$position] ?? null;
+
+        if ($family === null) {
+            return null;
+        }
+
+        $chance = (int) round((float) config('gm.ai.booking.repeat_category_chance') * 100);
+        $roll = $this->show->game->rng("ai.repeat.{$this->show->streamKey()}.{$position}", $this->show->week_number)->int(1, 100);
+
+        return $roll > 100 - $chance ? $family : null;
+    }
+
+    private function tryFill(int $position, ?MatchFamily $family = null): bool
+    {
         [$limit, $aggressive] = $this->rollMode();
         $pool = $this->pool();
         $men = $this->men($pool);
@@ -276,16 +316,16 @@ class AiBooker
         $title = $this->rng->chance((float) config('gm.ai.titles.other_slot_chance'));
 
         if ($divas->isNotEmpty() && $this->rng->chance((float) config('gm.ai.booking.intergender_chance'))) {
-            $booking = $this->intergenderBooking($men, $divas, $limit, $aggressive);
+            $booking = $this->intergenderBooking($men, $divas, $limit, $aggressive, $family);
 
             if ($booking !== null && $this->tryBook($position, $booking)) {
-                return;
+                return true;
             }
         }
 
         foreach ([$men, $divas] as $people) {
-            $booking = ($title ? $this->singleGender($people, $limit, $aggressive, true) : null)
-                ?? $this->singleGender($people, $limit, $aggressive);
+            $booking = ($title ? $this->singleGender($people, $limit, $aggressive, true, family: $family) : null)
+                ?? $this->singleGender($people, $limit, $aggressive, family: $family);
 
             if ($booking === null) {
                 continue;
@@ -294,9 +334,11 @@ class AiBooker
             $stipulated = $this->championVsContender($booking) ?? $this->numberOneContender($booking);
 
             if (($stipulated !== null && $this->tryBook($position, $stipulated)) || $this->tryBook($position, $booking)) {
-                return;
+                return true;
             }
         }
+
+        return false;
     }
 
     /**
@@ -305,10 +347,10 @@ class AiBooker
      * @param  Collection<int, SaveWrestler>  $people
      * @param  list<int>|null  $order  championship ids to try, in order
      */
-    private function singleGender(Collection $people, int $limit, bool $aggressive, bool $title = false, ?array $order = null): ?Booking
+    private function singleGender(Collection $people, int $limit, bool $aggressive, bool $title = false, ?array $order = null, ?MatchFamily $family = null): ?Booking
     {
         $types = $this->randomizer->eligibleTypes($this->show, $this->brand)
-            ->filter(fn (MatchType $t): bool => (! $title || $t->titles_allowed) && ! $t->isMoneyInTheBank())
+            ->filter(fn (MatchType $t): bool => (! $title || $t->titles_allowed) && ! $t->isMoneyInTheBank() && ($family === null || $t->family === $family))
             ->filter(function (MatchType $t) use ($people, $limit): bool {
                 $eligible = $this->randomizer->poolFor($t, $people);
 
@@ -353,9 +395,10 @@ class AiBooker
      * @param  Collection<int, SaveWrestler>  $men
      * @param  Collection<int, SaveWrestler>  $divas
      */
-    private function intergenderBooking(Collection $men, Collection $divas, int $limit, bool $aggressive): ?Booking
+    private function intergenderBooking(Collection $men, Collection $divas, int $limit, bool $aggressive, ?MatchFamily $family = null): ?Booking
     {
         $types = $this->randomizer->eligibleTypes($this->show, $this->brand)
+            ->filter(fn (MatchType $t): bool => $family === null || $t->family === $family)
             ->filter(function (MatchType $t) use ($men, $divas, $limit): bool {
                 $shape = $this->intergender->shape($t);
 

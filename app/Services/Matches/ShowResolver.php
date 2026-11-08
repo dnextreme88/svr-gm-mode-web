@@ -184,6 +184,8 @@ class ShowResolver
             // A Gauntlet counts as booked when its deciding bout was.
             'booked' => $resolved->bouts === [] ? $bookedSide !== null : $resolved->bouts[array_key_last($resolved->bouts)]['booked'],
             'summary' => $resolved->summary,
+            'winner_score' => $resolved->winnerScore,
+            'loser_score' => $resolved->loserScore,
             'rng_seed_step' => $rng->steps(),
         ]);
 
@@ -445,6 +447,7 @@ class ShowResolver
                 3 => 'Triple Threat',
                 4 => 'Fatal 4-Way',
                 5 => 'Fatal 5-Way',
+                6 => 'Six-Pack Challenge',
                 default => 'singles',
             };
         }

@@ -28,7 +28,7 @@ type Props = GamePageProps & {
 
 const tierLabels = [
     'World title',
-    'Second tier',
+    'Secondary title',
     'Tag titles',
     'Special title',
 ];
@@ -149,10 +149,10 @@ function CrownSteps({
                                     : 'border-white/8 bg-black/20',
                             )}
                         >
-                            <div className="gm-label whitespace-nowrap">
+                            <div className="gm-label whitespace-nowrap text-xl">
                                 {i + 1}. {tierLabels[i] ?? 'Title'}
                             </div>
-                            <div className="font-semibold">{c.name}</div>
+                            <div className="font-semibold text-lg">{c.name}</div>
                             <div
                                 className={cn(
                                     'truncate text-sm',
@@ -165,16 +165,9 @@ function CrownSteps({
                                     (c.decided
                                         ? 'Vacant'
                                         : active
-                                          ? 'Deciding…'
-                                          : 'Up next')}
+                                            ? 'Deciding…'
+                                            : 'Up next')}
                             </div>
-                            {c.decided && (
-                                // Pinned to the bottom, so every tile's
-                                // button lines up when names wrap.
-                                <div className="mt-auto pt-2">
-                                    {changeButton(c)}
-                                </div>
-                            )}
                         </li>
                     );
                 })}
@@ -281,7 +274,7 @@ function TitleCard({
                 </span>
             }
             actions={
-                <span className="font-condensed text-xs tracking-wider text-ink-faint uppercase">
+                <span className="font-condensed text-sm tracking-wider text-ink-faint uppercase">
                     {ChampionshipEligibilityLabels[championship.eligibility]}
                     {championship.is_tag && ' · pick 2'}
                 </span>

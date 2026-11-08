@@ -108,3 +108,51 @@ From the [2004 roster](https://www.thesmackdownhotel.com/roster/?promotion=wwe&d
 - **Moved to Table:** Tornado Tag Elimination (2v2, was Tag Team's "Table Tornado Tag Elimination") and Tornado 6-Man Tag Elimination (3v3, was 6-Man Tag's "Table Tornado 6-Man Tag Elimination"). Same rules: 3 bars, $4,000, no DQ, count-out or rope breaks, won through a table.
 - The rival's intergender rules still keep the Table 6-man elimination single-gender; they now match it by category and name, since the plain 6-Man Tag elimination shares the name.
 - **Totals:** 100 match types.
+
+## Fan attendance, timed matches and more match types (2026-11-08)
+
+### Repeat matches
+
+- A match slot on a brand's weekly show is a **repeat** when that slot on its weekly show the week before was in the same match category (`match_types.family`, any variant). Every category counts, Normal Matches included.
+- Only last week counts. PPVs and interbrand cards never do, and week 1 has none.
+- It costs **2 attendance points per slot, up to 12** (`gm.attendance.points.repeat_slot`, `repeat_max`), as a negative `repeats` factor (`RepeatMatches`, `AttendanceService::facts`).
+- The Air week confirmation lists the repeated slots under "Fans have seen these before" (the card's `repeats` prop). It's a warning only: the week still airs.
+- **Rival GM:** on a weekly show, each slot it fills itself rolls 1–100 on `ai.repeat.{show}.{position}`. On 76+ (25%, `gm.ai.booking.repeat_category_chance`) it books last week's category in that slot. When nothing in that category fits, it books as usual.
+
+### Promos, one by one
+
+The share-based promo factor is gone. Each aired promo now scores on its own:
+
+| Promo | Success | Failure | Backfire |
+| --- | --- | --- | --- |
+| Interference, Slander | +10 | 0 _(assumption)_ | −10 |
+| Advertising, Interview Space, Merchandise Sponsorship (success chance below 100%) | +6 | −2 | — |
+| Promos that always succeed (fizzled ones included) | 0 | 0 | — |
+
+The positive factors can now reach 110 before the clamp to 0–100. The worked example still scores 67.
+
+### Timed matches
+
+- **Which:** the Iron Man, Special Referee Iron Man and Ultimate Submission. They end on a score when time runs out: the winner scores 1–10 and the loser 0 to one less, so never a tie.
+- **Iron Man:** every fall counts (pinfall, submission, DQ, count-out). It never ends on a DQ or count-out. The family now allows count-outs.
+- **Ultimate Submission:** only submissions count, and it's always won by submission.
+- **Special Referee Iron Man:** gets the "Most falls" win condition.
+- **Storage:** `match_results.winner_score` / `loser_score` (migration `2026_11_08_000001`).
+- **Finish text:** "{W} scores the deciding fall on {L} as time runs out, winning 3–1."
+- **News:** "…in an Iron Man match with a 3-1 score".
+- **Results:** "Most falls · 3–1".
+
+### Match types (103)
+
+- **Added:**
+    - Six-Pack Challenge (Normal Matches, $1,000, no DQ or count-out);
+    - Hell in a Cell Fatal 5-Way ($45,000);
+    - 4-Man and 5-Man Gauntlets (3 and 4 bouts);
+    - Submission Triple Threat and Fatal 4-Way ($1,000, 2 bars, _assumption_);
+    - Triple Threat Tornado Tag Elimination (6-Man Tag, 2v2v2, $2,000, 2 bars).
+- **Removed:** Iron Man's and Last Man Standing's two manager variants.
+
+### Reports chart
+
+- Each brand's line now runs through its PPV nights: a brand PPV on its brand's line, a shared PPV on both. The PPV is still drawn as a gold diamond on top. Before this, PPV weeks broke the line, and early in a season a brand with one weekly show had no line at all, so the chart read as dots.
+- A brand with a single night still shows its marker alone.

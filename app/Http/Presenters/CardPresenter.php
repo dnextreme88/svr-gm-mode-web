@@ -164,7 +164,10 @@ class CardPresenter
             'loser_side_managers' => array_map(fn (int $side): ?string => $managers[$side] ?? null, array_keys($losers)),
             'referee' => $referee,
             'method' => $result->method->value,
-            'method_label' => $result->method === MatchMethod::MatchSpecific && $slot->matchType?->win_condition !== null ? $slot->matchType->win_condition : $result->method->label(),
+            // A timed match adds its score (house rule, 2026-11-08): "Most falls · 3–1".
+            'method_label' => ($result->method === MatchMethod::MatchSpecific && $slot->matchType?->win_condition !== null ? $slot->matchType->win_condition : $result->method->label())
+                .($result->winner_score === null ? '' : " · {$result->winner_score}–{$result->loser_score}"),
+            'score' => $result->winner_score === null ? null : "{$result->winner_score}–{$result->loser_score}",
             'finish_event' => $result->finish_event?->value,
             'finish_label' => $result->finish_event?->label(),
             'summary' => $result->summary,

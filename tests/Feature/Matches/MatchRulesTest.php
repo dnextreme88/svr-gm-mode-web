@@ -61,7 +61,7 @@ describe('catalog', function () {
     it('folds Elimination Tag, Triple Threat and Fatal 4-Way into other categories', function () {
         expect(MatchType::whereIn('family', ['elimination_tag', 'triple_threat', 'fatal_four_way'])->count())->toBe(0)
             ->and(MatchFamily::Single->label())->toBe('Normal Matches')
-            ->and(MatchType::where('variant', 'like', '%Tag Elimination')->count())->toBe(7)
+            ->and(MatchType::where('variant', 'like', '%Tag Elimination')->count())->toBe(8)
             ->and(Card::type('six_man_tag', 'Captain Fall Tornado 6-Man Tag Elimination')->captain_fall)->toBeTrue()
             ->and(Card::type('elimination_chamber', 'Triple Threat Tornado Tag Chamber')->sides)->toBe([2, 2, 2])
             ->and(Card::type('hell_in_a_cell', 'Armageddon Hell in a Cell')->competitorCount())->toBe(6);
@@ -100,6 +100,13 @@ describe('catalog', function () {
         ['tlc', 'Single', 3],
         ['table', 'Tornado 6-Man Tag', 4],
         ['gauntlet', '6-Man Gauntlet', 3],
+        ['gauntlet', '4-Man Gauntlet', 3],
+        ['gauntlet', '5-Man Gauntlet', 3],
+        ['six_man_tag', 'Triple Threat Tornado Tag Elimination', 2],
+        ['submission', 'Triple Threat', 2],
+        ['submission', 'Fatal 4-Way', 2],
+        ['hell_in_a_cell', 'Fatal 5-Way', 5],
+        ['single', 'Six-Pack Challenge', 1],
         ['special_referee', 'Iron Man', 5],
         ['special_referee', 'Single', 2],
         ['steel_cage', 'Fatal 5-Way', 4],
@@ -119,8 +126,6 @@ describe('catalog', function () {
     it('marks Iron Man and Ultimate Submission as timed', function () {
         expect(MatchType::where('timed', true)->get()->map(fn (MatchType $t): string => $t->name)->sort()->values()->all())->toBe([
             'Iron Man — Single',
-            'Iron Man — Single No Manager vs. w/Manager',
-            'Iron Man — Single w/Manager vs. w/Manager',
             'Special Referee — Iron Man',
             'Submission — Ultimate Submission',
         ]);

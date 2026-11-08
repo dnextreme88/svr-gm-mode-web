@@ -243,3 +243,34 @@ describe('titles', function () {
             ->and($slots->firstWhere('position', 6)->titleChampionship?->key->value)->toBe('intercontinental');
     });
 });
+
+/**
+ * The rival's week 2 Raw card after a week 1 card of Hardcore singles.
+ *
+ * @return list<string>
+ */
+function rivalRepeatFamilies(float $chance): array
+{
+    config(['gm.ai.booking.repeat_category_chance' => $chance]);
+    $save = rivalSave(array_slice(RIVAL_MEN, 0, 14));
+    GameBuilder::passiveRival();
+    $week1 = Card::show($save, Brand::Raw, week: 1);
+
+    foreach (range(1, 6) as $position) {
+        Card::book($save, $week1, $position, Card::type('hardcore', 'Single'), [[RIVAL_MEN[$position * 2 - 2]], [RIVAL_MEN[$position * 2 - 1]]]);
+    }
+
+    $show = Card::show($save, Brand::Raw, week: 2);
+    app(AiGm::class)->bookShow($show);
+
+    return rivalSlots($show)->map(fn (MatchSlot $s): string => $s->matchType->family->value)->all();
+}
+
+it('books last week’s category in a slot when it rolls a repeat (house rule, 2026-11-08)', function () {
+    $always = rivalRepeatFamilies(1.0);
+    $never = rivalRepeatFamilies(0.0);
+
+    expect($always)->not->toBeEmpty()
+        ->and(array_unique($always))->toBe(['hardcore'])
+        ->and(array_unique($never))->not->toBe(['hardcore']);
+});

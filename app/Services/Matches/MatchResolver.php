@@ -181,7 +181,11 @@ class MatchResolver
         $finish = null;
         $interferer = null;
 
-        if ($forced !== null) {
+        // House rule (2026-11-08): a timed match runs out the clock and ends
+        // on the score, never on a DQ or count-out.
+        $timed = (bool) $slot->matchType?->timed;
+
+        if ($forced !== null || $timed) {
             // Always clean and decisive: never a DQ or count-out.
         } elseif ($bookedSide !== null) {
             $finish = $this->bookedFinishEvent($slot, $rng);
@@ -232,6 +236,15 @@ class MatchResolver
                 '{T}' => $names[$winners[0]] ?? '?',
             ],
         );
+
+        if ($timed) {
+            // The winner scores 1-10, the loser fewer: never a tie. Drawn last.
+            $winnerScore = $rng->int(1, 10);
+            $loserScore = $rng->int(0, $winnerScore - 1);
+            [$method, $summary] = $this->timedFinish($slot, $text, $winnerScore, $loserScore);
+
+            return new ResolvedMatch($winnerSide, $loserSide, $winners, $losers, $method, null, null, $summary, $rng->steps() - $before, winnerScore: $winnerScore, loserScore: $loserScore);
+        }
 
         // House rule: a Submission specialist wins a clean finish by submission.
         [$method, $summary] = $finish === null
@@ -398,6 +411,24 @@ class MatchResolver
         }
 
         return [$method, $text->render($submission ? '{W} [makes|make] {L} tap out.' : '{W} [pins|pin] {L} clean in the middle of the ring.')];
+    }
+
+    /**
+     * A timed match's finish (house rule, 2026-11-08): an Iron Man counts
+     * every fall (pinfall, submission, DQ, count-out), an Ultimate Submission
+     * only submissions, and both end when time runs out.
+     *
+     * @return array{0: MatchMethod, 1: string}
+     */
+    private function timedFinish(MatchSlot $slot, FinishText $text, int $winnerScore, int $loserScore): array
+    {
+        $score = "{$winnerScore}–{$loserScore}";
+
+        if ($slot->matchType?->win_condition === 'Submission') {
+            return [MatchMethod::Submission, $text->render("{W} [makes|make] {L} tap out for the last time as time runs out, winning {$score}.")];
+        }
+
+        return [MatchMethod::MatchSpecific, $text->render("{W} [scores|score] the deciding fall on {L} as time runs out, winning {$score}.")];
     }
 
     /**

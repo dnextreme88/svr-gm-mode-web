@@ -251,9 +251,11 @@ type Props = {
             hot_rivalry: number;
             hot_rivalry_max: number;
             legends: Record<string, number>;
-            rival_promos: number;
-            other_promos: number;
+            rival_promos: { success: number; backfire: number };
+            other_promos: { success: number; failure: number };
             win_streak: Record<string, number>;
+            repeat_slot: number;
+            repeat_max: number;
         };
         hot_heat: number;
         noise: number;
@@ -405,7 +407,7 @@ const matchRules: Array<{ rule: string; detail: string }> = [
     },
     {
         rule: 'Timed',
-        detail: 'The match ends once a set amount of time has passed.',
+        detail: 'Runs to a time limit and ends on a score, such as 3–1: falls in an Iron Man (pinfall, submission, DQ or count-out all count), submissions only in an Ultimate Submission. Never a tie.',
     },
     {
         rule: 'Special referee',
@@ -597,10 +599,11 @@ function MatchTypes({
                         className="list-disc space-y-2 pl-4 text-sm text-ink"
                     >
                         <li>
-                            Six entrants in one match slot, fought as five
-                            singles bouts. Entrants 1 and 2 open; each bout’s
-                            winner faces the next entrant, and whoever wins the
-                            fifth bout wins the Gauntlet.
+                            Four, five or six entrants in one match slot (4-Man,
+                            5-Man or 6-Man Gauntlet), fought as one singles bout
+                            fewer than the entrants. Entrants 1 and 2 open; each
+                            bout’s winner faces the next entrant, and whoever
+                            wins the last bout wins the Gauntlet.
                         </li>
                         <li>
                             Each bout is a normal singles match: pinfall,
@@ -608,8 +611,8 @@ function MatchTypes({
                         </li>
                         <li>
                             The record counts once: the winner gets one win, and
-                            the other five get one loss each. Every entrant
-                            takes a flat 3 fatigue bars.
+                            everyone else one loss each. Every entrant takes a
+                            flat 3 fatigue bars.
                         </li>
                         <li>No titles and no stipulations.</li>
                         <li>
@@ -618,7 +621,7 @@ function MatchTypes({
                         </li>
                         <li>
                             On the card each entrant is labelled in gold by
-                            their order, 1st Participant to 6th Participant.
+                            their order, from 1st Participant up.
                         </li>
                     </ul>
                 </Panel>
@@ -2026,11 +2029,15 @@ function AttendanceDocs({ attendance }: Pick<Props, 'attendance'>) {
         ],
         [
             'Promos',
-            `The share of Interference and Slander promos that succeeded × ${p.rival_promos}. With neither on the card, the share of the other promos that succeeded × ${p.other_promos}. No promos (every PPV): 0.`,
+            `Each promo scores on its own. Interference or Slander: ${p.rival_promos.success} for a success, ${p.rival_promos.backfire} for a backfire, 0 for a plain failure. A promo that can fail (Advertising, Interview Space, Merchandise Sponsorship): ${p.other_promos.success} for a success, ${p.other_promos.failure} for a failure. Promos that always succeed score 0, and PPVs have no promos.`,
         ],
         [
             'Win streak',
             `The best win streak going into the week among those competing: ${tiers(p.win_streak, 'wins')}.`,
+        ],
+        [
+            'Repeated matches',
+            `A deduction, weekly shows only: ${-p.repeat_slot} for each match slot booked in the same match category (any variant) as that slot on the brand’s weekly show the week before, up to ${-p.repeat_max}. The Air week confirmation lists them first.`,
         ],
         ['Luck', `Up to ${attendance.noise} points either way, at random.`],
     ];
@@ -2158,7 +2165,8 @@ function AttendanceDocs({ attendance }: Pick<Props, 'attendance'>) {
                         </li>
                         <li>
                             Reports: a Fan attendance chart of the season, both
-                            brands, with every night in a table too.
+                            brands, each line running through its PPV nights,
+                            with every night in a table too.
                         </li>
                     </ul>
                 </Panel>
@@ -2537,8 +2545,8 @@ function ResultsDocs() {
                             .
                         </li>
                         <li>
-                            A Gauntlet’s outcome card lists all five bouts under
-                            the result.
+                            A Gauntlet’s outcome card lists every bout under the
+                            result.
                         </li>
                         <li>
                             The week’s fatigue (going in, after the show, after

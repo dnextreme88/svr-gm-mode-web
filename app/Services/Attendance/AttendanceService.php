@@ -30,6 +30,7 @@ class AttendanceService
     public function __construct(
         private AttendanceCalculator $calculator,
         private NewsRecorder $news,
+        private RepeatMatches $repeats,
     ) {}
 
     /**
@@ -138,7 +139,9 @@ class AttendanceService
         $participants = $booked->flatMap(fn (MatchSlot $s) => $s->participants)->unique('save_wrestler_id');
         $promos = PromoSlot::with('promoType')->whereIn('show_id', $cards->pluck('id'))->whereNotNull('promo_type_id')->get();
         $rival = $promos->filter(fn (PromoSlot $p): bool => in_array($p->promoType?->key, [PromoTypeKey::InterferencePromotion, PromoTypeKey::SlanderPromotion], true));
-        $other = $promos->diff($rival);
+        // Only promos that can fail score (house rule, 2026-11-08).
+        $chancy = $promos->diff($rival)->filter(fn (PromoSlot $p): bool => $p->promoType !== null
+            && ($p->promoType->successRate() < 1 || $p->promoType->successRange() !== null));
 
         return [
             'match_one_booked' => $matchOne?->isBooked() ?? false,
@@ -149,9 +152,16 @@ class AttendanceService
             'hot_rivalries' => count(array_filter($rivalries, fn (array $r): bool => $r['heat'] >= $hot
                 && $booked->contains(fn (MatchSlot $s): bool => $this->faceEachOther($s, $r)))),
             'legends' => $participants->filter(fn ($p): bool => $p->saveWrestler->wrestler->isLegend())->count(),
-            'rival_promos' => ['booked' => $rival->count(), 'succeeded' => $rival->where('succeeded', true)->count()],
-            'other_promos' => ['booked' => $other->count(), 'succeeded' => $other->where('succeeded', true)->count()],
+            'rival_promos' => [
+                'succeeded' => $rival->filter(fn (PromoSlot $p): bool => $p->status() === 'succeeded')->count(),
+                'backfired' => $rival->filter(fn (PromoSlot $p): bool => $p->status() === 'backfired')->count(),
+            ],
+            'other_promos' => [
+                'succeeded' => $chancy->filter(fn (PromoSlot $p): bool => $p->status() === 'succeeded')->count(),
+                'failed' => $chancy->filter(fn (PromoSlot $p): bool => $p->status() === 'failed')->count(),
+            ],
             'best_streak' => $streaks === [] ? 0 : max($streaks),
+            'repeats' => $cards->count() === 1 ? count($this->repeats->forShow($cards->first())) : 0,
         ];
     }
 

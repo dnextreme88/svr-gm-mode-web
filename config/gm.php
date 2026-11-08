@@ -135,12 +135,20 @@ return [
             'hot_rivalry_max' => 20,
             // Legends booked (competing, managing or refereeing): one, two or more.
             'legends' => [1 => 8, 2 => 15],
-            // The share of Interference and Slander promos that succeeded,
-            // or with neither on the card, of the other promos (none: 0).
-            'rival_promos' => 10,
-            'other_promos' => 6,
+            // Each promo on its own (house rule, 2026-11-08). Interference and
+            // Slander: a success adds, a backfire takes away, a plain failure
+            // is 0 (ASSUMPTION). Other promos with a success chance below 100%
+            // (Advertising, Interview Space, Merchandise Sponsorship): a
+            // success adds, a failure takes away. Promos that always succeed: 0.
+            'rival_promos' => ['success' => 10, 'backfire' => -10],
+            'other_promos' => ['success' => 6, 'failure' => -2],
             // The best win streak going into the week among those booked.
             'win_streak' => [5 => 5, 10 => 10],
+            // House rule (2026-11-08): each match slot of a weekly show in the
+            // same match category as that slot on the brand's weekly show the
+            // week before costs this much, up to repeat_max.
+            'repeat_slot' => 2,
+            'repeat_max' => 12,
         ],
         'hot_heat' => 60,
         // The score moves by up to this many points either way (seeded).
@@ -232,7 +240,8 @@ return [
         'hell_in_a_cell' => ['bars' => 5, 'cost' => 45_000, 'dq' => false, 'countout' => false],
         // House rule (2026-11-07).
         'inferno' => ['bars' => 4, 'cost' => 45_000, 'dq' => false, 'countout' => false],
-        'iron_man' => ['bars' => 5, 'cost' => 37_000, 'dq' => true, 'countout' => false],
+        // House rule (2026-11-08): count-outs happen (and count as falls).
+        'iron_man' => ['bars' => 5, 'cost' => 37_000, 'dq' => true, 'countout' => true],
         'ladder' => ['bars' => 3, 'cost' => 12_000, 'dq' => false, 'countout' => false],
         'last_man_standing' => ['bars' => 4, 'cost' => 40_000, 'dq' => false, 'countout' => false],
         // House rule: five singles bouts; every entrant takes a flat 3 bars.
@@ -655,6 +664,9 @@ return [
         'booking' => [
             // Each match rolls 95/5 for an intergender shape.
             'intergender_chance' => 0.05,
+            // House rule (2026-11-08): on a weekly show, each open slot rolls 1-100;
+            // 76+ (25%) books the same match category as that slot last week.
+            'repeat_category_chance' => 0.25,
             // At least this many all-Diva matches per card, with 2+ bookable Divas.
             'min_diva_matches' => 1,
             // 85% careful (nobody ends the match above 70%), 15% aggressive (up to 110%).

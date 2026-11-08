@@ -332,7 +332,7 @@ describe('PPVs (§13)', function () {
 
 describe('match types (§10)', function () {
     it('seeds the full taxonomy', function () {
-        expect(MatchType::count())->toBe(100)
+        expect(MatchType::count())->toBe(103)
             ->and(MatchType::where('family', MatchFamily::Hardcore)->count())->toBe(9)
             ->and(MatchType::where('family', MatchFamily::Ladder)->count())->toBe(10)
             ->and(MatchType::where('family', MatchFamily::BattleRoyal)->count())->toBe(3)
@@ -391,7 +391,7 @@ describe('match types (§10)', function () {
 
     it('disables DQ and count-out on no-DQ families', function () {
         expect(MatchType::whereIn('family', [MatchFamily::Hardcore, MatchFamily::Tlc, MatchFamily::Ladder])->where('dq_enabled', true)->count())->toBe(0)
-            ->and(MatchType::where('family', MatchFamily::Single)->where('dq_enabled', false)->pluck('variant')->sort()->values()->all())->toBe(['Normal Fatal 4-Way', 'Normal Fatal 5-Way', 'Normal Triple Threat']);
+            ->and(MatchType::where('family', MatchFamily::Single)->where('dq_enabled', false)->pluck('variant')->sort()->values()->all())->toBe(['Normal Fatal 4-Way', 'Normal Fatal 5-Way', 'Normal Triple Threat', 'Six-Pack Challenge']);
     });
 
     it('gives every type a fatigue cost in whole bars and a price within $0–$55,000', function () {
@@ -430,6 +430,13 @@ describe('match types (§10)', function () {
         ['hardcore', 'Tornado 6-Man Tag', 25_000],
         ['hardcore', 'Triple Threat Tornado Tag', 25_000],
         ['hell_in_a_cell', 'Fatal 4-Way', 45_000],
+        ['hell_in_a_cell', 'Fatal 5-Way', 45_000],
+        ['single', 'Six-Pack Challenge', 1_000],
+        ['gauntlet', '4-Man Gauntlet', 5_000],
+        ['gauntlet', '5-Man Gauntlet', 5_000],
+        ['submission', 'Triple Threat', 1_000],
+        ['submission', 'Fatal 4-Way', 1_000],
+        ['six_man_tag', 'Triple Threat Tornado Tag Elimination', 2_000],
         ['hell_in_a_cell', 'Armageddon Hell in a Cell', 55_000],
         ['iron_man', 'Single', 37_000],
         ['ladder', 'Fatal 4-Way', 12_000],
@@ -498,7 +505,7 @@ it('is safe to run the catalog seeder twice', function () {
     $this->seed(CatalogSeeder::class);
 
     expect(Wrestler::count())->toBe(215)
-        ->and(MatchType::count())->toBe(100)
+        ->and(MatchType::count())->toBe(103)
         ->and(WrestlerSpecialty::count())->toBe(46);
 });
 

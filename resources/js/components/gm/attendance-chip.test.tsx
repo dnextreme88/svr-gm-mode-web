@@ -13,6 +13,7 @@ const breakdown: AttendanceBreakdown = {
         legends: 8,
         promos: 10,
         win_streak: 5,
+        repeats: -4,
     },
     noise: -2,
     score: 65,
@@ -29,6 +30,7 @@ describe('AttendanceChip', () => {
         expect(chip.className).toContain('text-gold-hot');
         expect(chip.getAttribute('title')).toContain('Main Event: 20');
         expect(chip.getAttribute('title')).toContain('Luck: -2');
+        expect(chip.getAttribute('title')).toContain('Repeated matches: -4');
         expect(chip.getAttribute('title')).toContain('Draw score: 65 / 100');
     });
 

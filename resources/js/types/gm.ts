@@ -218,7 +218,10 @@ export type MatchOutcome = {
     managers: string[];
     referee?: string | null;
     method: import('./enums').MatchMethod;
+    /** With a timed match's score: "Most falls · 3–1". */
     method_label: string;
+    /** A timed match's score, "3–1" (house rule, 2026-11-08). */
+    score?: string | null;
     finish_event: import('./enums').FinishEvent | null;
     finish_label: string | null;
     summary: string;

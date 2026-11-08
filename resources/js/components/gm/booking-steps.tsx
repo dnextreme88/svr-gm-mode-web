@@ -1,6 +1,7 @@
 import { Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { AirWeekButton } from '@/components/gm/air-week-button';
+import type { RepeatWarning } from '@/components/gm/air-week-button';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
@@ -153,11 +154,13 @@ export function BookingAction({
     showId,
     showName,
     order,
+    repeats,
 }: {
     game: GameShell;
     showId: number;
     showName: string;
     order: BookingOrder;
+    repeats?: RepeatWarning;
 }) {
     const [confirming, setConfirming] = useState(false);
 
@@ -190,6 +193,7 @@ export function BookingAction({
                 shows={shows}
                 ppv={order.night === 'ppv' ? shows[0] : undefined}
                 disabled={order.blocked_by !== null}
+                repeats={repeats}
             />
         );
     }

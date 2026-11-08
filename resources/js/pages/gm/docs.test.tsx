@@ -316,9 +316,11 @@ const props = {
             hot_rivalry: 10,
             hot_rivalry_max: 20,
             legends: { 1: 8, 2: 15 },
-            rival_promos: 10,
-            other_promos: 6,
+            rival_promos: { success: 10, backfire: -10 },
+            other_promos: { success: 6, failure: -2 },
             win_streak: { 5: 5, 10: 10 },
+            repeat_slot: 2,
+            repeat_max: 12,
         },
         hot_heat: 60,
         noise: 5,
@@ -680,14 +682,14 @@ describe('Docs page', () => {
         ).toBeLessThan(headings.findIndex((h) => h.startsWith('Normal')));
 
         expect(screen.getByTestId('gauntlet-rules')).toHaveTextContent(
-            'Six entrants in one match slot, fought as five singles bouts',
+            'Four, five or six entrants in one match slot',
         );
         expect(screen.getByTestId('gauntlet-rules')).toHaveTextContent(
             'No titles and no stipulations.',
         );
         expect(screen.getByTestId('buried-weeks')).toHaveTextContent('4');
         expect(screen.getByTestId('gauntlet-rules')).toHaveTextContent(
-            '1st Participant to 6th Participant',
+            'from 1st Participant up',
         );
     });
 
@@ -838,6 +840,13 @@ describe('Docs page', () => {
         );
         expect(factors).toHaveTextContent('1+ Legends: 8, 2+ Legends: 15');
         expect(factors).toHaveTextContent('5+ wins: 5, 10+ wins: 10');
+        expect(factors).toHaveTextContent(
+            'Interference or Slander: 10 for a success, -10 for a backfire',
+        );
+        expect(factors).toHaveTextContent('6 for a success, -2 for a failure');
+        expect(factors).toHaveTextContent('Repeated matches');
+        expect(factors).toHaveTextContent('-2 for each match slot');
+        expect(factors).toHaveTextContent('up to -12');
 
         expect(
             screen.getByRole('heading', { name: 'SummerSlam main event' }),

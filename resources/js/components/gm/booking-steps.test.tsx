@@ -211,6 +211,70 @@ describe('Booking order', () => {
         );
     });
 
+    it('warns about repeated matches but still airs (house rule, 2026-11-08)', async () => {
+        const user = userEvent.setup();
+        render(
+            <BookingAction
+                game={game}
+                showId={7}
+                showName="Monday Night Raw"
+                order={weekly()}
+                repeats={{
+                    slots: [
+                        { position: 3, family: 'tlc', label: 'TLC' },
+                        {
+                            position: 6,
+                            family: 'single',
+                            label: 'Normal Matches',
+                        },
+                    ],
+                    per_slot: 2,
+                    max: 12,
+                }}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: /Air week 4/ }));
+        const dialog = screen.getByRole('dialog');
+        const warning = within(dialog).getByTestId('repeat-warning');
+        expect(warning).toHaveTextContent('Fans have seen these before');
+        expect(warning).toHaveTextContent(
+            'Each costs 2 attendance points (up to 12)',
+        );
+        const items = within(
+            within(dialog).getByRole('list', { name: 'Repeated matches' }),
+        ).getAllByRole('listitem');
+        expect(items.map((li) => li.textContent)).toEqual([
+            'Match 3: TLC',
+            'Main Event: Normal Matches',
+        ]);
+
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Air week 4' }),
+        );
+        expect(router.post).toHaveBeenCalledWith(
+            expect.stringContaining('/advance'),
+            {},
+            expect.anything(),
+        );
+    });
+
+    it('has no repeat warning without repeats', async () => {
+        const user = userEvent.setup();
+        render(
+            <BookingAction
+                game={game}
+                showId={7}
+                showName="Monday Night Raw"
+                order={weekly()}
+                repeats={{ slots: [], per_slot: 2, max: 12 }}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: /Air week 4/ }));
+        expect(screen.queryByTestId('repeat-warning')).toBeNull();
+    });
+
     it('won’t air the week while slots have unsaved changes, and lists them', async () => {
         const user = userEvent.setup();
 

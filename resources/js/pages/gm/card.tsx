@@ -2,6 +2,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { BookingAction, BookingSteps } from '@/components/gm/booking-steps';
 import type { BookingOrder } from '@/components/gm/booking-steps';
+import type { RepeatWarning } from '@/components/gm/air-week-button';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { CardBuilder } from '@/components/gm/card-builder';
 import { CashInButton } from '@/components/gm/cash-in-button';
@@ -47,6 +48,8 @@ type Props = GamePageProps & {
     booking_order: BookingOrder;
     /** A brand's SummerSlam card: whether it has the night's main event. */
     summerslam: { main_event: boolean; headliner: string } | null;
+    /** Slots in the same match category as last week's (house rule, 2026-11-08). */
+    repeats?: RepeatWarning;
 };
 
 export default function CardPage() {
@@ -63,6 +66,7 @@ export default function CardPage() {
         promo_eligibility,
         booking_order,
         summerslam,
+        repeats,
     } = usePage<Props>().props;
     const types = useMemo(
         () => new Map(match_types.map((t) => [t.id, t])),
@@ -192,6 +196,7 @@ export default function CardPage() {
                     showId={show.id}
                     showName={show.name}
                     order={booking_order}
+                    repeats={repeats}
                 />
             </PageTitle>
 
