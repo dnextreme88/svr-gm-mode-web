@@ -35,6 +35,18 @@ const tierLabels = [
 
 export default function AssignTitles() {
     const { game, championships, initial, current_id } = usePage<Props>().props;
+    // Starting the season sets up week 1 on the server, which takes a moment:
+    // an overlay covers the page until the schedule opens.
+    const [starting, setStarting] = useState(false);
+    const startSeason = () =>
+        router.post(
+            gm.titles.assign.complete.url(game.id),
+            {},
+            {
+                onStart: () => setStarting(true),
+                onFinish: () => setStarting(false),
+            },
+        );
 
     return (
         <>
@@ -47,14 +59,14 @@ export default function AssignTitles() {
                     <button
                         type="button"
                         className="gm-btn gm-btn-gold"
-                        onClick={() =>
-                            router.post(gm.titles.assign.complete.url(game.id))
-                        }
+                        disabled={starting}
+                        onClick={startSeason}
                     >
                         Start the season
                     </button>
                 )}
             </PageTitle>
+            {starting && <StartingSeasonOverlay />}
             <p className="-mt-3 mb-6 max-w-2xl text-sm text-ink-dim">
                 {initial
                     ? 'Decide each title in turn: crown a champion or leave it vacant. Each assignment opens reign #1. A superstar can only hold one title.'
@@ -117,7 +129,11 @@ function CrownSteps({
 
     return (
         <div className="space-y-6">
-            <ol className="grid gap-2 sm:grid-cols-4" aria-label="Title steps">
+            {/* 2 × 2 on sm and md, four in a row from lg, so names don't cut off. */}
+            <ol
+                className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+                aria-label="Title steps"
+            >
                 {championships.map((c, i) => {
                     const active = c.id === currentId;
 
@@ -127,18 +143,16 @@ function CrownSteps({
                             aria-current={active ? 'step' : undefined}
                             data-testid={`step-${c.key}`}
                             className={cn(
-                                'border px-3 py-2',
+                                'flex flex-col border px-3 py-2',
                                 active
                                     ? 'border-gold/60 bg-gold/10'
                                     : 'border-white/8 bg-black/20',
                             )}
                         >
-                            <div className="gm-label">
+                            <div className="gm-label whitespace-nowrap">
                                 {i + 1}. {tierLabels[i] ?? 'Title'}
                             </div>
-                            <div className="truncate font-semibold">
-                                {c.name}
-                            </div>
+                            <div className="font-semibold">{c.name}</div>
                             <div
                                 className={cn(
                                     'truncate text-sm',
@@ -155,7 +169,11 @@ function CrownSteps({
                                           : 'Up next')}
                             </div>
                             {c.decided && (
-                                <div className="mt-2">{changeButton(c)}</div>
+                                // Pinned to the bottom, so every tile's
+                                // button lines up when names wrap.
+                                <div className="mt-auto pt-2">
+                                    {changeButton(c)}
+                                </div>
                             )}
                         </li>
                     );
@@ -183,27 +201,29 @@ function CrownSteps({
                             <li
                                 key={c.id}
                                 data-testid={`review-${c.key}`}
-                                className="flex flex-wrap items-center justify-between gap-2 py-2"
+                                // Fixed columns, so every holder (or Vacant)
+                                // starts at the same point. On phones the
+                                // holder sits under the title instead.
+                                className="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-x-3 py-2 sm:grid-cols-[3rem_16rem_minmax(0,1fr)_auto]"
                             >
-                                <span className="flex min-w-0 items-center gap-2">
-                                    <span className="text-gold">
-                                        <TitleMark name={c.name} />
-                                    </span>
-                                    <span className="font-semibold">
-                                        {c.name}
-                                    </span>
-                                    <span
-                                        className={cn(
-                                            'text-sm',
-                                            c.holder
-                                                ? 'text-gold-hot'
-                                                : 'text-ink-faint',
-                                        )}
-                                    >
-                                        {c.holder ?? 'Vacant'}
-                                    </span>
+                                <span className="row-span-2 flex justify-center text-gold sm:row-span-1">
+                                    <TitleMark name={c.name} />
                                 </span>
-                                {changeButton(c)}
+                                <span className="font-semibold">{c.name}</span>
+                                <span
+                                    data-testid={`review-holder-${c.key}`}
+                                    className={cn(
+                                        'col-start-2 text-sm sm:col-start-3 sm:row-start-1',
+                                        c.holder
+                                            ? 'text-gold-hot'
+                                            : 'text-ink-faint',
+                                    )}
+                                >
+                                    {c.holder ?? 'Vacant'}
+                                </span>
+                                <span className="col-start-3 row-span-2 row-start-1 sm:col-start-4 sm:row-span-1">
+                                    {changeButton(c)}
+                                </span>
                             </li>
                         ))}
                     </ul>
@@ -322,5 +342,30 @@ function TitleCard({
                 </>
             )}
         </Panel>
+    );
+}
+
+/**
+ * Covers the page while the season starts (house rule, 2026-11-08): a
+ * spinner and a line saying so, until the schedule opens.
+ */
+function StartingSeasonOverlay() {
+    return (
+        <div
+            role="status"
+            aria-live="polite"
+            data-testid="starting-season"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-arena/80 px-4 backdrop-blur-[2px]"
+        >
+            <div className="gm-panel flex items-center gap-4 border-t-2 border-t-gold px-6 py-5">
+                <span
+                    aria-hidden
+                    className="size-8 shrink-0 rounded-full border-4 border-white/10 border-t-gold motion-safe:animate-spin"
+                />
+                <span className="font-condensed tracking-wider text-ink uppercase">
+                    Starting the season. Please wait...
+                </span>
+            </div>
+        </div>
     );
 }

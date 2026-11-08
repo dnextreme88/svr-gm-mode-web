@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import AssignTitles from '@/pages/gm/titles/assign';
@@ -88,6 +88,37 @@ describe('Crown your champions (house rule, 2026-11-07)', () => {
             {},
             { preserveScroll: true },
         );
+    });
+
+    it('covers the page while the season starts', async () => {
+        const user = userEvent.setup();
+        page.props = decidedProps;
+        render(<AssignTitles />);
+
+        expect(screen.queryByTestId('starting-season')).toBeNull();
+        await user.click(
+            screen.getByRole('button', { name: 'Start the season' }),
+        );
+
+        expect(post).toHaveBeenCalledWith(
+            '/gm/saves/3/titles/assign-complete',
+            {},
+            expect.objectContaining({ onStart: expect.any(Function) }),
+        );
+
+        // The visit starts: the overlay shows and the button is disabled.
+        act(() => post.mock.calls[0][2].onStart());
+        expect(screen.getByTestId('starting-season')).toHaveTextContent(
+            'Starting the season. Please wait...',
+        );
+        expect(screen.getByRole('status')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Start the season' }),
+        ).toBeDisabled();
+
+        // It failed (no redirect): the page is usable again.
+        act(() => post.mock.calls[0][2].onFinish());
+        expect(screen.queryByTestId('starting-season')).toBeNull();
     });
 
     it('hides Start the season while a title is being decided again', () => {
