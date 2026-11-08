@@ -18,20 +18,20 @@ use Tests\Support\GameBuilder;
 it('refuses a w/Manager match without its manager', function () {
     $save = GameBuilder::inSeason(raw: ['Shelton Benjamin', 'Snitsky', 'Eugene'], smackdown: ['Batista']);
 
-    Card::book($save, Card::show($save), 1, Card::type('single', 'No Manager vs. w/Manager'), [['Shelton Benjamin'], ['Snitsky']]);
+    Card::book($save, Card::show($save), 1, Card::type('single', 'Single vs. w/ Manager'), [['Shelton Benjamin'], ['Snitsky']]);
 })->throws(GameRuleException::class, 'needs a manager for each w/Manager side');
 
 it('books a w/Manager match once the manager is in', function () {
     $save = GameBuilder::inSeason(raw: ['Shelton Benjamin', 'Snitsky', 'Eugene'], smackdown: ['Batista']);
 
-    $slot = Card::book($save, Card::show($save), 1, Card::type('single', 'No Manager vs. w/Manager'), [['Shelton Benjamin'], ['Snitsky']], [1 => 'Eugene']);
+    $slot = Card::book($save, Card::show($save), 1, Card::type('single', 'Single vs. w/ Manager'), [['Shelton Benjamin'], ['Snitsky']], [1 => 'Eugene']);
 
     expect($slot->participants()->where('role', 'manager')->count())->toBe(1);
 });
 
 it('has Randomize fill every manager slot of a w/Manager type', function () {
     $save = GameBuilder::inSeason(size: 12);
-    $type = Card::type('single', 'w/Manager vs. w/Manager');
+    $type = Card::type('single', 'Single w/ Manager vs. w/ Manager');
 
     foreach (range(1, 10) as $seed) {
         $proposal = app(CardRandomizer::class)->proposeSlot(Card::show($save), 1, $type, new SeededRng("mgr-{$seed}"));
@@ -47,7 +47,7 @@ it('has Randomize fill every manager slot of a w/Manager type', function () {
 it('names each side’s manager on the results', function () {
     GameBuilder::passiveRival();
     $save = GameBuilder::inSeason(raw: ['Shelton Benjamin', 'Snitsky', 'Eugene'], smackdown: ['Batista']);
-    $slot = Card::book($save, Card::show($save), 1, Card::type('single', 'No Manager vs. w/Manager'), [['Shelton Benjamin'], ['Snitsky']], [1 => 'Eugene']);
+    $slot = Card::book($save, Card::show($save), 1, Card::type('single', 'Single vs. w/ Manager'), [['Shelton Benjamin'], ['Snitsky']], [1 => 'Eugene']);
     FixedOutcomes::queue('Shelton Benjamin');
 
     app(WeekResolver::class)->resolve($save->refresh());
@@ -63,7 +63,7 @@ it('names each side’s manager on the results', function () {
 it('gives a manager the win or the loss with their side, but no streak or fatigue', function () {
     GameBuilder::passiveRival();
     $save = GameBuilder::inSeason(raw: ['Shelton Benjamin', 'Snitsky', 'Eugene', 'Kane'], smackdown: ['Batista']);
-    Card::book($save, Card::show($save), 1, Card::type('single', 'w/Manager vs. w/Manager'), [['Shelton Benjamin'], ['Snitsky']], [0 => 'Kane', 1 => 'Eugene']);
+    Card::book($save, Card::show($save), 1, Card::type('single', 'Single w/ Manager vs. w/ Manager'), [['Shelton Benjamin'], ['Snitsky']], [0 => 'Kane', 1 => 'Eugene']);
     FixedOutcomes::queue('Shelton Benjamin');
 
     app(WeekResolver::class)->resolve($save->refresh());
@@ -79,7 +79,7 @@ it('gives a manager the win or the loss with their side, but no streak or fatigu
 
 it('names each side’s manager on a match still to be decided', function () {
     $save = GameBuilder::inSeason(raw: ['Shelton Benjamin', 'Snitsky', 'Eugene'], smackdown: ['Batista']);
-    $slot = Card::book($save, Card::show($save), 1, Card::type('single', 'No Manager vs. w/Manager'), [['Shelton Benjamin'], ['Snitsky']], [1 => 'Eugene']);
+    $slot = Card::book($save, Card::show($save), 1, Card::type('single', 'Single vs. w/ Manager'), [['Shelton Benjamin'], ['Snitsky']], [1 => 'Eugene']);
 
     $pending = CardPresenter::pending(MatchSlot::with(['participants.saveWrestler.wrestler', 'matchType', 'show'])->find($slot->id), true, []);
 

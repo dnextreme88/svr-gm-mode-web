@@ -25,7 +25,7 @@ class Card
 
     public static function singles(): MatchType
     {
-        return self::type('single', 'No Manager');
+        return self::type('single', 'Single');
     }
 
     public static function show(Save $save, Brand $brand = Brand::Raw, ShowType $type = ShowType::Weekly, ?int $week = null): Show

@@ -91,7 +91,7 @@ it('counts a w/Manager variant as the rematch', function () {
     edgeWinsTheTitle($save);
     $title = Championship::where('key', 'wwe')->sole();
 
-    Card::book($save->refresh(), Card::show($save), 1, Card::type('single', 'No Manager vs. w/Manager'), [['John Cena'], ['Edge']], titleId: $title->id, managers: [1 => 'Lita']);
+    Card::book($save->refresh(), Card::show($save), 1, Card::type('single', 'Single vs. w/ Manager'), [['John Cena'], ['Edge']], titleId: $title->id, managers: [1 => 'Lita']);
     FixedOutcomes::queue('Edge');
     rematchWeek($save);
 
@@ -121,7 +121,7 @@ it("isn't resolved by a Triple Threat", function () {
     edgeWinsTheTitle($save);
     $title = Championship::where('key', 'wwe')->sole();
 
-    Card::book($save->refresh(), Card::show($save), 1, Card::type('single', 'Normal Triple Threat'), [['John Cena'], ['Edge'], ['Kane']], titleId: $title->id);
+    Card::book($save->refresh(), Card::show($save), 1, Card::type('single', 'Triple Threat'), [['John Cena'], ['Edge'], ['Kane']], titleId: $title->id);
     FixedOutcomes::queue('Edge');
     rematchWeek($save);
 

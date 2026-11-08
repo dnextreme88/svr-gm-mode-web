@@ -113,7 +113,7 @@ it('ends an Inferno match by throwing the loser through the flames (house rule, 
 it('ends a Battle Royal with the last elimination', function () {
     $save = GameBuilder::inSeason(raw: ['Triple H', 'Big Show', 'Kane', 'Edge'], smackdown: ['Batista']);
     onlyFinish(null);
-    $slot = finishSlot(Card::book($save, Card::show($save), 1, Card::type('battle_royal', '4-Man'), [['Triple H'], ['Big Show'], ['Kane'], ['Edge']]));
+    $slot = finishSlot(Card::book($save, Card::show($save), 1, Card::type('battle_royal', '4-Man Over the Top Rope'), [['Triple H'], ['Big Show'], ['Kane'], ['Edge']]));
 
     $summary = app(MatchResolver::class)->resolve($slot, new SeededRng('royal'), collect(), 0)->summary;
 

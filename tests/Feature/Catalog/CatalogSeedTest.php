@@ -332,7 +332,7 @@ describe('PPVs (§13)', function () {
 
 describe('match types (§10)', function () {
     it('seeds the full taxonomy', function () {
-        expect(MatchType::count())->toBe(103)
+        expect(MatchType::count())->toBe(106)
             ->and(MatchType::where('family', MatchFamily::Hardcore)->count())->toBe(9)
             ->and(MatchType::where('family', MatchFamily::Ladder)->count())->toBe(10)
             ->and(MatchType::where('family', MatchFamily::BattleRoyal)->count())->toBe(3)
@@ -391,7 +391,7 @@ describe('match types (§10)', function () {
 
     it('disables DQ and count-out on no-DQ families', function () {
         expect(MatchType::whereIn('family', [MatchFamily::Hardcore, MatchFamily::Tlc, MatchFamily::Ladder])->where('dq_enabled', true)->count())->toBe(0)
-            ->and(MatchType::where('family', MatchFamily::Single)->where('dq_enabled', false)->pluck('variant')->sort()->values()->all())->toBe(['Normal Fatal 4-Way', 'Normal Fatal 5-Way', 'Normal Triple Threat', 'Six-Pack Challenge']);
+            ->and(MatchType::where('family', MatchFamily::Single)->where('dq_enabled', false)->pluck('variant')->sort()->values()->all())->toBe(['Fatal 4-Way', 'Fatal 5-Way', 'Six-Pack Challenge', 'Triple Threat']);
     });
 
     it('gives every type a fatigue cost in whole bars and a price within $0–$55,000', function () {
@@ -402,19 +402,19 @@ describe('match types (§10)', function () {
     it('prices match types per the 2026-10-20 house rules', function (string $family, string $variant, int $cost) {
         expect(MatchType::where('family', $family)->where('variant', $variant)->value('cost'))->toBe($cost);
     })->with([
-        ['single', 'No Manager', 0],
-        ['single', 'Normal Triple Threat', 1_000],
+        ['single', 'Single', 0],
+        ['single', 'Triple Threat', 1_000],
         ['tag_team', 'Tornado Tag Elimination', 2_000],
         ['six_man_tag', 'Captain Fall Tornado 6-Man Tag Elimination', 4_000],
         ['handicap', 'Two vs. Three', 1_000],
         ['backstage_brawl', 'Backstage Brawl', 16_000],
         ['backstage_brawl', 'Bar Brawl', 31_000],
         ['backstage_brawl', 'Parking Lot Brawl', 28_000],
-        ['battle_royal', '6-Man', 25_000],
+        ['battle_royal', '6-Man Over the Top Rope', 25_000],
         ['backstage_brawl', 'Boiler Room Brawl', 25_000],
         ['backstage_brawl', 'Interview Area Brawl', 15_000],
         ['inferno', 'Single', 45_000],
-        ['single', 'Normal Fatal 5-Way', 3_000],
+        ['single', 'Fatal 5-Way', 3_000],
         ['hardcore', 'Fatal 5-Way', 19_000],
         ['table', 'Fatal 5-Way', 5_000],
         ['tlc', 'Fatal 5-Way', 8_000],
@@ -426,7 +426,7 @@ describe('match types (§10)', function () {
         ['steel_cage', 'Fatal 5-Way', 25_000],
         ['first_blood', 'Single', 1_000],
         ['fulfill_your_fantasy', 'Single', 22_000],
-        ['hardcore', 'Single w/Manager vs. w/Manager', 19_000],
+        ['hardcore', 'Single w/ Manager vs. w/ Manager', 19_000],
         ['hardcore', 'Tornado 6-Man Tag', 25_000],
         ['hardcore', 'Triple Threat Tornado Tag', 25_000],
         ['hell_in_a_cell', 'Fatal 4-Way', 45_000],
@@ -446,6 +446,9 @@ describe('match types (§10)', function () {
         ['special_referee', 'Hell in a Cell', 45_000],
         ['special_referee', 'Iron Man', 37_000],
         ['special_referee', 'Last Man Standing', 40_000],
+        ['special_referee', 'Triple Threat', 1_000],
+        ['special_referee', 'Fatal 4-Way', 1_000],
+        ['special_referee', 'Fatal 5-Way', 3_000],
         ['steel_cage', 'Fatal 4-Way', 25_000],
         ['submission', 'Single', 1_000],
         ['submission', 'Ultimate Submission', 2_000],
@@ -454,6 +457,30 @@ describe('match types (§10)', function () {
         ['tlc', 'Fatal 4-Way', 8_000],
         ['tlc', 'Triple Threat Tornado Tag', 12_000],
     ]);
+
+    it('names the variants as of 2026-11-08, in order', function () {
+        $variants = fn (MatchFamily $f): array => MatchType::where('family', $f)->orderBy('id')->pluck('variant')->all();
+
+        expect(array_slice($variants(MatchFamily::Single), 0, 6))->toBe(['Single', 'Single vs. w/ Manager', 'Single w/ Manager vs. w/ Manager', 'Triple Threat', 'Fatal 4-Way', 'Fatal 5-Way'])
+            ->and(array_slice($variants(MatchFamily::TagTeam), 0, 4))->toBe(['Normal Tag', 'Tornado Tag', 'Normal Tag vs. w/ Manager', 'Normal Tag w/ Manager vs. w/ Manager'])
+            ->and($variants(MatchFamily::BattleRoyal))->toBe(['4-Man Over the Top Rope', '5-Man Over the Top Rope', '6-Man Over the Top Rope'])
+            ->and(array_slice($variants(MatchFamily::Table), 2, 4))->toBe(['Tornado Tag Elimination', 'Tornado 6-Man Tag', 'Tornado 6-Man Tag Elimination', 'Triple Threat Tornado Tag'])
+            ->and(MatchType::where('variant', 'like', '%w/Manager%')->count())->toBe(0);
+    });
+
+    it('gives Special Referee the Normal Matches multi-way singles', function () {
+        foreach (['Triple Threat' => 3, 'Fatal 4-Way' => 4, 'Fatal 5-Way' => 5] as $variant => $sides) {
+            $ref = MatchType::where('family', MatchFamily::SpecialReferee)->where('variant', $variant)->sole();
+            $normal = MatchType::where('family', MatchFamily::Single)->where('variant', $variant)->sole();
+
+            expect($ref->competitorCount())->toBe($sides)
+                ->and($ref->cost)->toBe($normal->cost)
+                ->and($ref->dq_enabled)->toBeFalse()
+                ->and($ref->countout_enabled)->toBeFalse();
+        }
+
+        expect(MatchType::where('family', MatchFamily::SpecialReferee)->where('variant', 'Normal Tag')->exists())->toBeTrue();
+    });
 
     it('records managers only on w/Manager variants', function () {
         $withManagers = MatchType::all()->filter->hasManagers();
@@ -505,7 +532,7 @@ it('is safe to run the catalog seeder twice', function () {
     $this->seed(CatalogSeeder::class);
 
     expect(Wrestler::count())->toBe(215)
-        ->and(MatchType::count())->toBe(103)
+        ->and(MatchType::count())->toBe(106)
         ->and(WrestlerSpecialty::count())->toBe(46);
 });
 

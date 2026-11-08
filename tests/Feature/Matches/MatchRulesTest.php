@@ -47,15 +47,15 @@ describe('catalog', function () {
             ->and(MatchType::where('family', 'handicap')->where('titles_allowed', true)->count())->toBe(0)
             ->and(MatchType::where('family', 'handicap')->count())->toBe(3)
             ->and(Card::type('gauntlet', '6-Man Gauntlet')->titles_allowed)->toBeFalse()
-            ->and(Card::type('tag_team', 'Tag vs Tag w/Manager')->titles_allowed)->toBeTrue();
+            ->and(Card::type('tag_team', 'Normal Tag vs. w/ Manager')->titles_allowed)->toBeTrue();
     });
 
-    it('turns DQs and count-outs off in Normal Triple Threat and Normal Fatal 4-Way', function () {
-        expect(Card::type('single', 'Normal Triple Threat')->dq_enabled)->toBeFalse()
-            ->and(Card::type('single', 'Normal Triple Threat')->countout_enabled)->toBeFalse()
-            ->and(Card::type('single', 'Normal Fatal 4-Way')->dq_enabled)->toBeFalse()
-            ->and(Card::type('single', 'Normal Fatal 4-Way')->countout_enabled)->toBeFalse()
-            ->and(Card::type('single', 'No Manager')->dq_enabled)->toBeTrue();
+    it('turns DQs and count-outs off in the Normal Matches Triple Threat and Fatal 4-Way', function () {
+        expect(Card::type('single', 'Triple Threat')->dq_enabled)->toBeFalse()
+            ->and(Card::type('single', 'Triple Threat')->countout_enabled)->toBeFalse()
+            ->and(Card::type('single', 'Fatal 4-Way')->dq_enabled)->toBeFalse()
+            ->and(Card::type('single', 'Fatal 4-Way')->countout_enabled)->toBeFalse()
+            ->and(Card::type('single', 'Single')->dq_enabled)->toBeTrue();
     });
 
     it('folds Elimination Tag, Triple Threat and Fatal 4-Way into other categories', function () {
@@ -86,7 +86,7 @@ describe('catalog', function () {
         ['iron_man', 'Single', 5],
         ['three_stages_of_hell', 'Single', 5],
         ['backstage_brawl', 'Bar Brawl', 4],
-        ['battle_royal', '6-Man', 4],
+        ['battle_royal', '6-Man Over the Top Rope', 4],
         ['inferno', 'Single', 4],
         ['backstage_brawl', 'Boiler Room Brawl', 4],
         ['ladder', 'Fatal 5-Way', 3],
@@ -111,7 +111,7 @@ describe('catalog', function () {
         ['special_referee', 'Single', 2],
         ['steel_cage', 'Fatal 5-Way', 4],
         ['survivor_series_elimination', 'Traditional 3 vs 3', 3],
-        ['single', 'No Manager', 1],
+        ['single', 'Single', 1],
     ]);
 
     it('makes every Royal Rumble variant an elimination match', function () {

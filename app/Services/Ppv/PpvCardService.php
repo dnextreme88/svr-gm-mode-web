@@ -209,7 +209,7 @@ class PpvCardService
         $champions = array_values(array_map('intval', $this->titles->currentReigns($show->game)->flatMap(fn ($r) => $r->holderIds())->all()));
         $taken = [];
         $plans = [
-            7 => [$this->type('single', 'No Manager'), [1, 1]],
+            7 => [$this->type('single', 'Single'), [1, 1]],
             8 => [$this->type('tag_team', 'Normal Tag'), [2, 2]],
             9 => [$this->type('ladder', MatchType::MITB_VARIANT), [3, 3]],
         ];
@@ -299,7 +299,7 @@ class PpvCardService
         }
 
         $slot->update([
-            'match_type_id' => $this->type('single', 'No Manager')->id,
+            'match_type_id' => $this->type('single', 'Single')->id,
             'title_championship_id' => $championship->id,
             'fixed_kind' => FixedSlotKind::WrestlemaniaMainEvent,
         ]);
@@ -378,7 +378,7 @@ class PpvCardService
                 'owner_brand' => $owner,
                 'fixed_kind' => $series ? FixedSlotKind::InterbrandSeries : ($position === self::WM_MAIN_EVENT ? FixedSlotKind::WrestlemaniaMainEvent : null),
                 'match_type_id' => match ($position) {
-                    7 => $this->type('single', 'No Manager')->id,
+                    7 => $this->type('single', 'Single')->id,
                     8 => $this->type('tag_team', 'Normal Tag')->id,
                     9 => $this->type('ladder', MatchType::MITB_VARIANT)->id,
                     default => null,

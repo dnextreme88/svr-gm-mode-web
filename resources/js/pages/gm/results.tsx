@@ -185,8 +185,8 @@ export default function Results() {
             focus_match_id
                 ? r.outcome.id === focus_match_id
                 : focus_show_id
-                    ? r.show.id === focus_show_id
-                    : r.outcome.pending === true && r.outcome.is_next,
+                  ? r.show.id === focus_show_id
+                  : r.outcome.pending === true && r.outcome.is_next,
         );
 
         return index === -1 ? 0 : index;
@@ -382,8 +382,8 @@ export default function Results() {
                     rival
                         ? 'Rival results'
                         : airing
-                            ? 'On air'
-                            : 'That’s a wrap'
+                          ? 'On air'
+                          : 'That’s a wrap'
                 }
             >
                 {from_schedule ? (
@@ -475,7 +475,7 @@ export default function Results() {
                                             (r) =>
                                                 r.show.id === show.id &&
                                                 r.outcome.position ===
-                                                o.position,
+                                                    o.position,
                                         );
 
                                         return (

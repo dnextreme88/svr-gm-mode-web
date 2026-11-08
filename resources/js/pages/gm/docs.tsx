@@ -671,7 +671,7 @@ function MatchTypes({
                     className="list-disc space-y-2 pl-4 text-sm text-ink"
                 >
                     <li>
-                        Anyone on the roster can manage a w/Manager match they
+                        Anyone on the roster can manage a w/ Manager match they
                         aren’t competing in. Every manager slot must be filled,
                         like every competitor slot: Save stays greyed out until
                         it is, and Randomize and Preset fill managers from

@@ -315,7 +315,7 @@ describe("Team Xtreme's ladder spot", function () {
     it('tells it with Lita when she manages them, and wins a Ladder match outright', function () {
         config(['gm.stories.ladder.win_chance' => 0.0]);
         $save = GameBuilder::inSeason(raw: ['Jeff Hardy', 'Matt Hardy', 'Lita', 'Carlito', 'Snitsky'], smackdown: ['Batista']);
-        $slot = Card::book($save, Card::show($save), 1, Card::type('tag_team', 'Tag vs Tag w/Manager'), [['Carlito', 'Snitsky'], ['Jeff Hardy', 'Matt Hardy']], managers: [1 => 'Lita']);
+        $slot = Card::book($save, Card::show($save), 1, Card::type('tag_team', 'Normal Tag vs. w/ Manager'), [['Carlito', 'Snitsky'], ['Jeff Hardy', 'Matt Hardy']], managers: [1 => 'Lita']);
 
         conditionalStoryWeek($save);
 

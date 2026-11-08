@@ -156,7 +156,7 @@ describe('Winner Takes All', function () {
 
     it('gives the winner of a triple threat every contested title', function () {
         $save = threeChamps();
-        bookStip($save, Card::type('single', 'Normal Triple Threat'), [['Daivari'], ['Eugene'], ['Jamie Noble']], Stipulation::WinnerTakesAll);
+        bookStip($save, Card::type('single', 'Triple Threat'), [['Daivari'], ['Eugene'], ['Jamie Noble']], Stipulation::WinnerTakesAll);
         FixedOutcomes::queue('Eugene');
 
         airTitleWeek($save);
@@ -209,7 +209,7 @@ describe('Winner Takes All', function () {
 describe('#1 Contender\'s Match', function () {
     function battleRoyal(): MatchType
     {
-        return Card::type('battle_royal', '6-Man');
+        return Card::type('battle_royal', '6-Man Over the Top Rope');
     }
 
     it('makes the winner of a 6-man Battle Royal the #1 contender, with no deadline', function () {
@@ -254,7 +254,7 @@ describe('#1 Contender\'s Match', function () {
 
         expect(fn () => bookStip($save, Card::singles(), [['Batista'], ['Kurt Angle']], null, null, 'world_heavyweight'))
             ->toThrow(GameRuleException::class, 'reserved for its #1 contender')
-            ->and(fn () => bookStip($save, Card::type('single', 'Normal Triple Threat'), [['Batista'], ['Vito'], ['Kurt Angle']], null, null, 'world_heavyweight'))
+            ->and(fn () => bookStip($save, Card::type('single', 'Triple Threat'), [['Batista'], ['Vito'], ['Kurt Angle']], null, null, 'world_heavyweight'))
             ->toThrow(GameRuleException::class, 'reserved for its #1 contender')
             ->and(fn () => bookStip($save, Card::singles(), [['Kurt Angle'], ['Chris Benoit']], Stipulation::NumberOneContender, 'world_heavyweight'))
             ->toThrow(GameRuleException::class, 'already has a #1 contender');

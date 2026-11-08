@@ -163,3 +163,13 @@ The positive factors can now reach 110 before the clamp to 0–100. The worked e
 - **End of the draft:** when the draft ends on both brands, the draft page shows the same spinner overlay as starting the season ("Draft picks are finished. You may now assign your brand's champions.") before the champions open. A pick, Stop drafting or Skip rest of draft that ends the draft redirects back to the draft once, with `draft_concluded` flashed; the rival's last animated pick shows it straight away.
 - **Overlay:** both overlays are `<LoadingOverlay>` (`components/gm/loading-overlay.tsx`) and wait `LOADING_OVERLAY_DELAY_MS` (2.5 seconds) before moving on.
 - **Title page tweaks:** only "Deciding…" pulses on the title steps, the roster pool is 1 column up to md, 2 at md and 3 from lg (with no scrollbar from lg), and Change lives on the review only.
+
+### Match type names (2026-11-08, 106 types)
+
+- **Normal Matches:** No Manager → Single, No Manager vs. w/Manager → Single vs. w/ Manager, w/Manager vs. w/Manager → Single w/ Manager vs. w/ Manager; the Triple Threat, Fatal 4-Way and Fatal 5-Way drop their "Normal" prefix.
+- **Tag Team:** Tag vs Tag w/Manager → Normal Tag vs. w/ Manager and Tag w/Manager vs Tag w/Manager → Normal Tag w/ Manager vs. w/ Manager, both moved right after Tornado Tag.
+- **Battle Royal:** 4-, 5- and 6-Man Over the Top Rope.
+- **Hardcore and Ladder:** "w/Manager" is written "w/ Manager". Ladder's Tornado 6-Man Tag stays right after Tornado Tag.
+- **Special Referee:** Tag Match → Normal Tag. New Triple Threat, Fatal 4-Way and Fatal 5-Way: the Normal Matches sides and prices ($1,000, $1,000, $3,000), no DQ or count-out, and the family's 2 bars _(assumption: fatigue wasn't specified)_.
+- **Table:** Tornado Tag Elimination, Tornado 6-Man Tag, Tornado 6-Man Tag Elimination, then Triple Threat Tornado Tag.
+- Code that looked up `'single', 'No Manager'` (PPV cards, title match planning, MITB cash-ins) now looks up `'Single'`. Apply with `php artisan migrate:fresh --seed`.

@@ -80,7 +80,7 @@ it('does select minor-injured wrestlers when needed', function () {
 it('never selects a wrestler already booked on the card, as competitor or manager', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Ric Flair', 'Carlito', 'Big Show'], smackdown: ['Batista']);
     $show = Card::show($save);
-    Card::book($save, $show, 1, Card::type('single', 'No Manager vs. w/Manager'), [['Edge'], ['Kane']], [1 => 'Ric Flair']);
+    Card::book($save, $show, 1, Card::type('single', 'Single vs. w/ Manager'), [['Edge'], ['Kane']], [1 => 'Ric Flair']);
     $booked = [GameBuilder::wrestler($save, 'Edge')->id, GameBuilder::wrestler($save, 'Kane')->id, GameBuilder::wrestler($save, 'Ric Flair')->id];
 
     foreach (range(1, 30) as $seed) {
