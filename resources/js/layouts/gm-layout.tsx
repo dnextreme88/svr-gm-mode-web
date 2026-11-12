@@ -114,7 +114,7 @@ function SaveCareerButton({ game }: { game: GameShell }) {
 function WeekChip({ game }: { game: GameShell }) {
     // Container queries on the header (`@container` there): smaller on phones.
     const chip =
-        'gm-chyron-both flex w-fit items-center gap-2 bg-white/6 py-1.5 font-condensed text-base tracking-wider whitespace-nowrap uppercase @md:gap-3 @md:text-xl';
+        'gm-chyron-both flex w-fit items-center gap-2 py-1.5 [--gm-chyron-bg:rgb(255_255_255/0.06)] font-condensed text-base tracking-wider whitespace-nowrap uppercase @md:gap-3 @md:text-xl';
     const content = (
         <>
             <span className="text-ink-dim">Season</span>
@@ -482,16 +482,27 @@ function Footer() {
 }
 
 export default function GmLayout({ children }: { children: ReactNode }) {
-    const page = usePage<{ game?: GameShell }>();
+    const page = usePage<{
+        game?: GameShell;
+        airing?: boolean;
+        continue_to?: unknown;
+    }>();
     const game = page.props.game;
+    // House rule (2026-11-12): while a night airs on the live results (its
+    // matches being decided, or a PPV night aired with the weekly show still
+    // to book), the header and menu bar are hidden so the player stays on
+    // the show. Results of past weeks keep them.
+    const onAir =
+        page.component === 'gm/results' &&
+        (page.props.airing === true || Boolean(page.props.continue_to));
 
     return (
         <div
             className="gm-root gm-stage min-h-screen"
             data-brand={game?.player_brand ?? 'raw'}
         >
-            {game && <Header game={game} />}
-            {game && <Nav game={game} url={page.url} />}
+            {game && !onAir && <Header game={game} />}
+            {game && !onAir && <Nav game={game} url={page.url} />}
             {game?.deficit.blocked && (
                 <div className="relative z-10 border-b border-zone-serious/40 bg-zone-serious/15 px-6 py-2 text-center font-condensed text-sm tracking-wide text-zone-serious uppercase">
                     {pluralize(game.deficit.weeks, 'week')} in the red. Choose a

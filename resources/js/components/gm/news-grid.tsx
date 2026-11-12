@@ -220,7 +220,7 @@ function NewsCardView({
             >
                 <div className="flex items-center justify-between gap-2">
                     {slot === 'neutral' ? (
-                        <span className="gm-chyron bg-gold py-0.5 pl-2 font-condensed font-bold tracking-[0.18em] text-arena uppercase">
+                        <span className="gm-chyron py-0.5 pl-2 font-condensed font-bold tracking-[0.18em] text-arena uppercase [--gm-chyron-bg:var(--color-gold)]">
                             {slotLabel[slot]}
                         </span>
                     ) : (

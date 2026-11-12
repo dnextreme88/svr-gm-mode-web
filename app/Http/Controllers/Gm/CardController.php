@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Gm;
 
+use App\Enums\ShowStatus;
 use App\Enums\Stipulation;
 use App\Exceptions\GameRuleException;
 use App\Http\Controllers\Controller;
@@ -63,6 +64,17 @@ class CardController extends Controller
 
         if ($show->isInterbrandMainEvent()) {
             return to_route('gm.ppv.entrants', [$save, $show]);
+        }
+
+        // PPV week (house rule, 2026-11-12): the weekly show doesn't open
+        // until the PPV night has aired, so it goes to the PPV night's card
+        // still to book.
+        if ($show->status === ShowStatus::Booking && $this->order->waitsForAiring($save, $show)) {
+            $blocker = $this->order->blocker($save, $show);
+
+            if ($blocker !== null) {
+                return to_route('gm.card.show', [$save, $blocker]);
+            }
         }
 
         $this->cards->ensureSlots($show);

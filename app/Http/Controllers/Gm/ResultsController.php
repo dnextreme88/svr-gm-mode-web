@@ -59,6 +59,30 @@ class ResultsController extends Controller
         // weekly show: Continue opens it.
         $awaitingWeekly = $current && $this->resolver->awaitingWeekly($save);
         $airing = $current && ! $awaitingWeekly && $this->resolver->airing($save) !== null;
+
+        // The week's fatigue is logged once it's over. Until then (the PPV
+        // night has aired and the weekly show waits, house rule 2026-11-12),
+        // each superstar's fatigue so far: going in, and now. Recovery comes
+        // at the end of the week, so there's no after-recovery figure yet.
+        if ($current && $logs->isEmpty() && ($start = $this->resolver->airing($save)?->context['fatigue_start'] ?? null) !== null) {
+            $logs = SaveWrestler::where('save_id', $save->id)
+                ->get(['id', 'fatigue'])
+                ->mapWithKeys(fn (SaveWrestler $w): array => [$w->id => [
+                    'start' => (int) ($start[$w->id] ?? $w->fatigue),
+                    'after_shows' => (int) $w->fatigue,
+                    'end' => null,
+                    'recovered_bars' => 0,
+                ]]);
+        } else {
+            $logs = $logs->map(fn (FatigueLog $log): array => [
+                'start' => $log->start,
+                'after_shows' => $log->after_shows,
+                'end' => $log->end,
+                'recovered_bars' => $log->recovered_bars,
+            ]);
+        }
+
+        $logs = $logs->all();
         $nextId = $airing ? $this->nextMatchId($save, $week) : null;
 
         $shows = Show::with('ppvEvent')
@@ -244,10 +268,10 @@ class ResultsController extends Controller
      * with their fatigue going in, after the show, and after recovery.
      *
      * @param  Collection<int, MatchSlot>  $slots
-     * @param  Collection<int, FatigueLog>  $logs
+     * @param  array<array-key, array{start: int, after_shows: int, end: int|null, recovered_bars: int}>  $logs
      * @return list<array<string, mixed>>
      */
-    private function fatigue(Show $show, Collection $slots, Collection $logs): array
+    private function fatigue(Show $show, Collection $slots, array $logs): array
     {
         $ids = $slots->flatMap(fn (MatchSlot $s): array => $s->participantIds())->all();
         $promos = PromoSlot::with('promoType')->where('show_id', $show->id)->whereNotNull('promo_type_id')->orderBy('position')->get();
@@ -274,7 +298,7 @@ class ResultsController extends Controller
             ->keyBy('save_wrestler_id');
 
         return array_values(array_filter(array_map(function (int $id) use ($logs, $wrestlers, $rested, $injuries): ?array {
-            $log = $logs->get($id);
+            $log = $logs[$id] ?? null;
             $wrestler = $wrestlers->get($id);
             $injury = $injuries->get($id);
 
@@ -287,11 +311,12 @@ class ResultsController extends Controller
                 'name' => $wrestler->name(),
                 'roster_type' => $wrestler->wrestler->roster_type->value,
                 'weight_class' => $wrestler->wrestler->weight_class->value,
-                'start' => $log->start,
+                'start' => $log['start'],
                 // Uncapped when an injury came from going over 100%.
-                'after_shows' => max($log->after_shows, $injury->fatigue_after ?? 0),
-                'end' => $log->end,
-                'recovered_bars' => $log->recovered_bars,
+                'after_shows' => max($log['after_shows'], $injury->fatigue_after ?? 0),
+                // Null until the week is over and everyone has recovered.
+                'end' => $log['end'],
+                'recovered_bars' => $log['recovered_bars'],
                 'rested' => isset($rested[$id]),
                 'injury' => $injury === null ? null : [
                     'severity' => $injury->severity->value,

@@ -43,6 +43,12 @@ type ShowResult = CardShow & {
     attendance_breakdown?: AttendanceBreakdown | null;
 };
 
+type Night = 'ppv' | 'weekly';
+
+/** Which night a show airs on: a PPV week's PPV night, or the weekly shows. */
+const nightOf = (show: { show_type: string }): Night =>
+    show.show_type === 'ppv' ? 'ppv' : 'weekly';
+
 /** How long a decided match's result stays up before the next match shows. */
 export const NEXT_MATCH_DELAY_MS = 5000;
 
@@ -249,6 +255,46 @@ export default function Results() {
     }, [shows]);
     const current = open === null ? undefined : reel[open];
 
+    // A PPV week's results hold two nights (house rule, 2026-11-12): the
+    // PPV night and the weekly show. A toggle shows one at a time, starting
+    // on the night of the match open (the one to decide while a night airs).
+    const nights = useMemo(() => [...new Set(shows.map(nightOf))], [shows]);
+    const [night, setNight] = useState<Night>(() =>
+        current ? nightOf(current.show) : (nights[0] ?? 'weekly'),
+    );
+
+    useEffect(() => {
+        if (current) {
+            setNight(nightOf(current.show));
+        }
+    }, [current]);
+
+    const split = nights.length > 1;
+    const inNight = useCallback(
+        (item: ReelItem) => !split || nightOf(item.show) === night,
+        [split, night],
+    );
+    const visibleShows = split
+        ? shows.filter((show) => nightOf(show) === night)
+        : shows;
+    const nightReel = reel.filter(inNight);
+
+    const showNight = (next: Night) => {
+        const items = reel
+            .map((item, index) => ({ item, index }))
+            .filter(({ item }) => nightOf(item.show) === next);
+        const first =
+            items.find(({ item }) => !isWaiting(item.outcome)) ?? items[0];
+
+        setNight(next);
+        setDecided(null);
+
+        if (first) {
+            setDirection(next === 'ppv' ? 'left' : 'right');
+            setOpen(first.index);
+        }
+    };
+
     const go = useCallback(
         (delta: number) => {
             if (open === null || reel.length === 0) {
@@ -264,14 +310,15 @@ export default function Results() {
             for (let i = 0; i < reel.length; i++) {
                 next = (next + delta + reel.length) % reel.length;
 
-                if (!isWaiting(reel[next].outcome)) {
+                // Only this night's matches, while a toggle splits them.
+                if (inNight(reel[next]) && !isWaiting(reel[next].outcome)) {
                     setOpen(next);
 
                     return;
                 }
             }
         },
-        [open, reel],
+        [open, reel, inNight],
     );
 
     useEffect(() => {
@@ -476,7 +523,36 @@ export default function Results() {
                                 Decide match {current.outcome.position}
                             </button>
                         )}
-                        {shows.map((show) => (
+                        {split && (
+                            <div
+                                role="group"
+                                aria-label="Results to show"
+                                className="flex flex-wrap gap-1"
+                            >
+                                {nights.map((n) => (
+                                    <button
+                                        key={n}
+                                        type="button"
+                                        aria-pressed={night === n}
+                                        onClick={() => showNight(n)}
+                                        className={cn(
+                                            'min-h-11 px-3 py-1 font-condensed text-sm font-semibold tracking-wider uppercase sm:min-h-0',
+                                            night === n
+                                                ? 'bg-brand text-white'
+                                                : 'text-ink-dim hover:text-ink',
+                                        )}
+                                    >
+                                        {shows
+                                            .filter(
+                                                (show) => nightOf(show) === n,
+                                            )
+                                            .map((show) => show.name)
+                                            .join(' · ')}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {visibleShows.map((show) => (
                             <Panel
                                 key={show.id}
                                 title={show.name}
@@ -593,7 +669,10 @@ export default function Results() {
                                 </div>
                                 <div className="mt-3 flex items-center justify-between">
                                     <span className="gm-num text-lg text-ink-dim">
-                                        {(open ?? 0) + 1} / {reel.length}
+                                        {current
+                                            ? nightReel.indexOf(current) + 1
+                                            : 1}{' '}
+                                        / {nightReel.length}
                                     </span>
                                     <div className="flex gap-2">
                                         <button

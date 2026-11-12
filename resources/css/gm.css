@@ -412,14 +412,65 @@
     }
 
     /* Angled lower-third label. */
+    /* Chyrons: a straight left edge and a slanted right one (gm-chyron), or
+       both slanted (gm-chyron-both). Like .gm-btn, the shape is painted on
+       a ::before layer, never a clip-path: with a clip-path Chrome sometimes
+       painted one frame of the uncut box as the element moved between GPU
+       layers (the page title's wipe-in). The colour is --gm-chyron-bg, not
+       a bg-* utility. */
+    .gm-chyron,
+    .gm-chyron-both {
+        --gm-chyron-bg: var(--gm-brand);
+        --gm-chyron-cut: 0.9rem;
+        position: relative;
+        isolation: isolate;
+    }
+
+    .gm-chyron::before,
+    .gm-chyron-both::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+    }
+
     .gm-chyron {
-        clip-path: polygon(0 0, 100% 0, calc(100% - 0.9rem) 100%, 0 100%);
         padding-right: 1.4rem;
     }
 
+    .gm-chyron::before {
+        background:
+            linear-gradient(var(--gm-chyron-bg), var(--gm-chyron-bg)) left /
+                calc(100% - var(--gm-chyron-cut)) 100% no-repeat,
+            linear-gradient(
+                    to bottom right,
+                    var(--gm-chyron-bg) 50%,
+                    transparent 50%
+                )
+                right / var(--gm-chyron-cut) 100% no-repeat;
+    }
+
     .gm-chyron-both {
-        clip-path: polygon(0.9rem 0, 100% 0, calc(100% - 0.9rem) 100%, 0 100%);
         padding-inline: 1.4rem;
+    }
+
+    .gm-chyron-both::before {
+        background:
+            linear-gradient(
+                    to top left,
+                    var(--gm-chyron-bg) 50%,
+                    transparent 50%
+                )
+                left / var(--gm-chyron-cut) 100% no-repeat,
+            linear-gradient(var(--gm-chyron-bg), var(--gm-chyron-bg)) center /
+                calc(100% - 2 * var(--gm-chyron-cut)) 100% no-repeat,
+            linear-gradient(
+                    to bottom right,
+                    var(--gm-chyron-bg) 50%,
+                    transparent 50%
+                )
+                right / var(--gm-chyron-cut) 100% no-repeat;
     }
 
     .gm-heading {

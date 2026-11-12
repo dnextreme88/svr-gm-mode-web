@@ -3,6 +3,7 @@
 use App\Enums\Brand;
 use App\Enums\PpvKey;
 use App\Enums\ShowType;
+use App\Models\MatchResult;
 use App\Models\MatchSlot;
 use App\Models\PpvEvent;
 use App\Models\Save;
@@ -11,6 +12,8 @@ use App\Services\Attendance\SummerSlamMainEvent;
 use App\Services\Week\ShowScheduler;
 use App\Services\Week\Steps\AdvanceWeek;
 use App\Services\Week\WeekContext;
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Support\Card;
 use Tests\Support\GameBuilder;
 
 /*
@@ -94,4 +97,36 @@ it('has the rival book its SummerSlam matches as soon as the week opens', functi
 
     // The rival (SmackDown) has Matches 2 and 4; the player's are left to book.
     expect($booked)->toBe([1 => false, 2 => true, 3 => false, 4 => true, 5 => false]);
+});
+
+it('lets the player decide their SummerSlam matches while the rival’s simulate', function () {
+    GameBuilder::passiveRival();
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Christian', 'Chris Jericho', 'Shawn Michaels', 'Carlito'], smackdown: ['Batista', 'Rey Mysterio', 'Booker T', 'JBL', 'Chris Benoit', 'Orlando Jordan', 'Kurt Angle', 'Randy Orton']);
+    drawCrowds($save, ['raw' => [15_000, 60], 'smackdown' => [8_000, 20]]);
+    $week = summerSlamWeek();
+    $save->update(['current_week' => $week - 1]);
+    app(AdvanceWeek::class)->handle(new WeekContext($save->refresh(), $week - 1, 1));
+    $save->refresh();
+
+    $card = Show::where('save_id', $save->id)->where('week_number', $week)->whereNull('brand')->sole();
+    Card::book($save, $card, 1, Card::singles(), [['Edge'], ['Kane']]);
+    Card::book($save, $card, 3, Card::singles(), [['Christian'], ['Chris Jericho']]);
+    Card::book($save, $card, 5, Card::singles(), [['Shawn Michaels'], ['Carlito']]);
+    $first = MatchSlot::where('show_id', $card->id)->where('position', 1)->sole();
+    $rivals = MatchSlot::where('show_id', $card->id)->whereIn('position', [2, 4])->get();
+
+    $this->post(route('gm.advance', $save));
+    $this->post(route('gm.results.decide', [$save, $week]), ['slot_id' => $first->id, 'winner_side' => 0]);
+
+    // House rule (2026-11-12): the rival's Match 2 simulates on its own, and
+    // the player's Match 3 is up next.
+    $this->get(route('gm.results', [$save, $week]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('airing', true)
+            ->where('shows.0.outcomes.1.pending', false)
+            ->where('shows.0.outcomes.1.booked', false)
+            ->where('shows.0.outcomes.2.pending', true)
+            ->where('shows.0.outcomes.2.is_next', true));
+
+    expect(MatchResult::whereIn('match_slot_id', $rivals->pluck('id'))->count())->toBe(1);
 });

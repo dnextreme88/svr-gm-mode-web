@@ -199,7 +199,14 @@ class WeekResolver
             return;
         }
 
-        $ppvNight = Show::where('save_id', $save->id)->where('week_number', $week)->where('show_type', ShowType::Ppv)->exists();
+        // A PPV night of its own only when the player has a card on it (house
+        // rule, 2026-11-12): the rival's brand-only PPV airs with the weekly
+        // shows, simulated, so the player goes straight to their weekly show.
+        $ppvNight = Show::where('save_id', $save->id)
+            ->where('week_number', $week)
+            ->where('show_type', ShowType::Ppv)
+            ->where(fn ($q) => $q->where('brand', $save->player_brand)->orWhereNull('brand'))
+            ->exists();
 
         foreach (self::GUARDS as $guard) {
             // Earned title shots can go on the weekly show, booked after the PPV.
@@ -422,6 +429,14 @@ class WeekResolver
     }
 
     /**
+     * A slot an interbrand card gives the rival GM: it simulates on its own.
+     */
+    private function isRivalSlot(MatchSlot $slot, Save $save): bool
+    {
+        return $slot->owner_brand !== null && $slot->owner_brand !== $save->player_brand;
+    }
+
+    /**
      * Simulate every match left on what's airing: the PPV night, or the
      * weekly shows and the rest of the week. `$wholeWeek` carries on past
      * the PPV night as booked (Simulate to here).
@@ -471,6 +486,19 @@ class WeekResolver
                 $this->shows()->air($show, $context);
 
                 continue;
+            }
+
+            // On an interbrand card (house rule, 2026-11-12) the rival's own
+            // slots simulate when their turn comes; the player decides theirs
+            // and the shared ones (WrestleMania's series, the main events).
+            while (($next = $this->shows()->nextMatch($show)) !== null && $this->isRivalSlot($next, $context->save)) {
+                $this->shows()->airNext($show, $context);
+
+                if (isset($context->data['cash_in_offer'])) {
+                    $airing->update(['context' => $context->data, 'rng_states' => $context->streamStates()]);
+
+                    return;
+                }
             }
 
             if ($this->shows()->nextMatch($show) !== null) {

@@ -374,6 +374,37 @@ describe('Results page', () => {
         );
     });
 
+    it('shows a PPV night’s fatigue in two stages, before anyone recovers', () => {
+        vi.useFakeTimers();
+        page.props = {
+            ...props,
+            shows: [
+                {
+                    ...props.shows[0],
+                    fatigue: props.shows[0].fatigue.map((w) => ({
+                        ...w,
+                        end: null,
+                        recovered_bars: 0,
+                    })),
+                },
+            ],
+        };
+        render(<Results />);
+
+        const stages = screen.getByRole('list', { name: 'Fatigue stage' });
+        expect(within(stages).getAllByRole('listitem')).toHaveLength(2);
+        expect(stages).not.toHaveTextContent('After recovery');
+        expect(screen.getByTestId('recovery-pending')).toHaveTextContent(
+            'Everyone recovers at the end of the week',
+        );
+        expect(screen.getByTestId('fatigue-10')).not.toHaveTextContent(
+            'Recovered',
+        );
+        expect(
+            screen.queryByText('Nobody wrestled or cut a promo on this show.'),
+        ).toBeNull();
+    });
+
     it('shows a serious injury instead of recovery, and a minor one beside it', () => {
         vi.useFakeTimers();
         page.props = {
@@ -985,5 +1016,67 @@ describe('Conditional story pop-up (house rule, 2026-11-07)', () => {
         render(<Results />);
 
         expect(screen.queryByTestId('story-modal')).toBeNull();
+    });
+});
+
+describe('PPV week toggle (house rule, 2026-11-12)', () => {
+    const ppvWeek = (airingWeekly: boolean) => ({
+        ...props,
+        airing: airingWeekly,
+        shows: [
+            {
+                ...props.shows[0],
+                id: 9,
+                name: 'Backlash',
+                show_type: 'ppv',
+                outcomes: [outcome(1, ['Edge'], ['John Cena'], { id: 901 })],
+            },
+            {
+                ...props.shows[0],
+                outcomes: airingWeekly
+                    ? [
+                          pending(1, [['Kane'], ['Carlito']], {
+                              is_next: true,
+                          }),
+                      ]
+                    : props.shows[0].outcomes,
+            },
+        ],
+    });
+
+    it('shows the weekly show while it airs, and the PPV with the toggle', async () => {
+        page.props = ppvWeek(true);
+        const user = userEvent.setup();
+        render(<Results />);
+
+        const toggle = screen.getByRole('group', { name: 'Results to show' });
+        expect(
+            within(toggle).getByRole('button', { name: 'Monday Night Raw' }),
+        ).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.queryByRole('heading', { name: 'Backlash' })).toBeNull();
+        expect(screen.getByText('1 / 1')).toBeInTheDocument();
+
+        await user.click(
+            within(toggle).getByRole('button', { name: 'Backlash' }),
+        );
+
+        expect(
+            within(toggle).getByRole('button', { name: 'Backlash' }),
+        ).toHaveAttribute('aria-pressed', 'true');
+        expect(
+            screen.getByRole('heading', { name: 'Backlash' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('heading', { name: 'Monday Night Raw' }),
+        ).toBeNull();
+    });
+
+    it('has no toggle in a week without a PPV', () => {
+        page.props = props;
+        render(<Results />);
+
+        expect(
+            screen.queryByRole('group', { name: 'Results to show' }),
+        ).toBeNull();
     });
 });

@@ -1,4 +1,4 @@
-# Air Week Overlay, Fatigue Modal, One-off Buttons & Draft Room
+# Air Week Overlay, Fatigue Modal, One-off Buttons, Draft Room & PPV Week Flow
 
 ## Context
 
@@ -60,6 +60,27 @@ The button audit had missed `/gm`. A new rule: major buttons pressed only once i
     - On the player's turn, `POST draft/random` (`DraftController::random`, `DraftService::randomPick`) draws one superstar or Diva the player can afford from the pool. It uses the seeded RNG (stream `draft.random.{brand}.{n}`) and records the pick with `pick_type` random. Legends can't be drafted.
 - **New game reel order:** **Start the draft** plays the who-picks-first reel first, then the "Setting up the draft" overlay, then the draft room.
 
+### PPV week, one night at a time
+
+- **PPV night fatigue:** after Air Backlash, the fatigue card said "Nobody wrestled or cut a promo on this show". The week's fatigue is logged (`RecoverFatigue`, `FatigueLog`) only once the week is over, so a PPV night had no rows.
+    - `ResultsController` now builds each superstar's fatigue so far from the airing's `fatigue_start` and their current fatigue, with `end` null.
+    - `FatigueProgress` then shows two stages (Going in, After the show), any injury beside the fatigue, and "Everyone recovers at the end of the week, once the weekly show has aired."
+- **No card switcher:** the list of the week's cards above the card ("1 Backlash → 2 Monday Night Raw") is gone. Continue moves between a night's cards.
+- **Weekly show redirect:** on a PPV week, the weekly show's card redirects to the PPV night's card still to book until the PPV has aired (`CardController::show`). The flow:
+    1. book the PPV;
+    2. air it;
+    3. Continue opens the weekly show;
+    4. air it;
+    5. the News.
+- **Night toggle:** while the weekly show aired, the results listed the PPV's matches above it. A PPV week's results now have a toggle ("Backlash" / "Monday Night Raw") that shows one night at a time. The list, the outcome card's arrows and its count stay within that night. It starts on the night of the match open and follows the card as it moves on. Weeks without a PPV have no toggle.
+- **The rival's PPV:** a week with the rival's brand-only PPV (Backlash for a SmackDown player) was still split into a PPV night. The player got an empty "That's a wrap" with Continue to their weekly show. Only a PPV the player has a card on now splits the week (`WeekResolver::begin`). The rival's PPV airs, simulated, with the weekly shows, and the player goes straight to their weekly show.
+- **Interbrand cards:** the slots an interbrand card gives the rival (`owner_brand`: SummerSlam's Matches 2 and 4, WrestleMania's rival brand slots) simulate on their own when their turn comes (`WeekResolver::proceed`, `isRivalSlot`). The player decides their own slots and the shared ones: WrestleMania's interbrand series and main event, the Royal Rumble, Survivor Series.
+- **On air:** while a night airs on the results screen (`airing`, or `continue_to` after a PPV night), the GM header and menu bar are hidden. Results of past weeks keep them.
+
+### Chyron flash (2026-11-13)
+
+The page title's kicker ("Week 13 · Weekly show") flashed a square box for a frame, like the slanted buttons did. Chyrons cut their slant with a `clip-path`, inside the title's clip-path wipe-in. `.gm-chyron` and `.gm-chyron-both` now paint the shape on `::before`: a solid fill plus a diagonal hard-stop gradient for each slanted edge. The colour comes from `--gm-chyron-bg`; the default is the brand, and gold, translucent gold and white tints are set per use. This covers the kicker, the match labels, the news ribbon, the week chip and the outcome tags.
+
 ## Verification
 
 - `booking-steps.test.tsx`: Air week and Air {PPV} show the overlay, then post after the pause.
@@ -73,6 +94,14 @@ The button audit had missed `/gm`. A new rule: major buttons pressed only once i
     - the Random button drafts an affordable, draftable superstar as a random pick;
     - the same seed draws the same pick;
     - Random is refused when it isn't the player's turn.
+- `BookingOrderTest`:
+    - a PPV night's fatigue so far, with `end` null;
+    - the weekly card redirects to the PPV until it has aired, then opens.
+- `BookingOrderTest`: a rival's brand-only PPV airs with the weekly shows in one step.
+- `SummerSlamMainEventTest`: on SummerSlam the rival's Match 2 simulates on its own and the player's Match 3 is next.
+- `booking-steps.test.tsx`: no card switcher.
+- `gm-layout.test.tsx`: the header and menu are hidden while airing or after a PPV night, and kept on past results.
+- `results.test.tsx`: two-stage fatigue before recovery; the night toggle (starts on the airing weekly show, switches to the PPV, absent without a PPV).
 - `results.test.tsx`:
     - the modal opens when the last match is in, with the card pending;
     - Got it fills the card;

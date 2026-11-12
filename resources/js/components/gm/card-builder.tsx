@@ -555,8 +555,8 @@ function SlotEditor({
                         className={cn(
                             'gm-chyron mt-0.5 inline-block py-1 pr-7 pl-3 font-condensed font-bold tracking-[0.18em] uppercase',
                             isMainEvent
-                                ? 'bg-gold text-arena'
-                                : 'bg-brand text-white',
+                                ? 'text-arena [--gm-chyron-bg:var(--color-gold)]'
+                                : 'text-white',
                         )}
                     >
                         {isMainEvent ? 'Main Event' : label}

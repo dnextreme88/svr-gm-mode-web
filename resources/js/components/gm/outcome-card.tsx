@@ -108,16 +108,16 @@ export function OutcomeCard({
             </div>
 
             <div className="mx-auto mt-8 flex max-w-2xl flex-wrap items-center justify-center gap-3">
-                <span className="gm-chyron-both bg-brand py-1 font-condensed text-sm font-bold tracking-[0.15em] text-white uppercase">
+                <span className="gm-chyron-both py-1 font-condensed text-sm font-bold tracking-[0.15em] text-white uppercase">
                     {outcome.method_label}
                 </span>
                 {outcome.booked && (
-                    <span className="gm-chyron-both bg-gold/20 py-1 font-condensed text-sm font-semibold tracking-[0.15em] text-gold-hot uppercase">
+                    <span className="gm-chyron-both py-1 font-condensed text-sm font-semibold tracking-[0.15em] text-gold-hot uppercase [--gm-chyron-bg:color-mix(in_srgb,var(--color-gold)_20%,transparent)]">
                         Booked to win
                     </span>
                 )}
                 {outcome.finish_label && (
-                    <span className="gm-chyron-both bg-white/10 py-1 font-condensed text-sm font-semibold tracking-[0.15em] text-ink uppercase">
+                    <span className="gm-chyron-both py-1 font-condensed text-sm font-semibold tracking-[0.15em] text-ink uppercase [--gm-chyron-bg:rgb(255_255_255/0.1)]">
                         {outcome.finish_label}
                     </span>
                 )}

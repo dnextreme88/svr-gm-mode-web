@@ -4,7 +4,6 @@ import { AirWeekButton } from '@/components/gm/air-week-button';
 import type { RepeatWarning } from '@/components/gm/air-week-button';
 import { BusyLabel } from '@/components/gm/busy-label';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
-import { cn } from '@/lib/utils';
 import { useBusy } from '@/lib/use-busy';
 import gm from '@/routes/gm';
 import type { GameShell } from '@/types/gm';
@@ -40,8 +39,10 @@ export function nightSteps(order: BookingOrder): BookingOrder['steps'] {
 }
 
 /**
- * The week's cards in booking order (Sunday PPV first, weekly show last),
- * plus a banner when this card has to wait for an earlier one.
+ * A banner when this card has to wait for an earlier one. There's no card
+ * switcher (house rule, 2026-11-12): on a PPV week the PPV night is booked
+ * and aired first, then the weekly show opens; Continue moves between a
+ * night's cards.
  */
 export function BookingSteps({
     game,
@@ -56,55 +57,6 @@ export function BookingSteps({
 
     return (
         <div className="mb-4 space-y-3">
-            {order.steps.length > 1 && (
-                <ol
-                    aria-label="This week’s cards"
-                    className="flex flex-wrap items-center gap-2 text-sm"
-                >
-                    {order.steps.map((step, i) => (
-                        <li key={step.id} className="flex items-center gap-2">
-                            {i > 0 && (
-                                <span aria-hidden className="text-ink-faint">
-                                    →
-                                </span>
-                            )}
-                            <Link
-                                href={gm.card.show.url({
-                                    save: game.id,
-                                    show: step.id,
-                                })}
-                                aria-current={step.current ? 'step' : undefined}
-                                className={cn(
-                                    'flex items-center gap-2 border px-3 py-1 font-condensed tracking-wider uppercase',
-                                    step.current
-                                        ? 'border-brand bg-brand/15 text-white'
-                                        : 'border-white/10 text-ink-dim hover:text-ink',
-                                )}
-                            >
-                                <span className="gm-num text-xs text-ink-faint">
-                                    {i + 1}
-                                </span>
-                                {step.name}
-                                {step.aired ? (
-                                    <span className="text-xs text-ink-faint">
-                                        aired
-                                    </span>
-                                ) : (
-                                    step.confirmed && (
-                                        <span
-                                            className="text-zone-safe"
-                                            aria-label="confirmed"
-                                        >
-                                            ✓
-                                        </span>
-                                    )
-                                )}
-                            </Link>
-                        </li>
-                    ))}
-                </ol>
-            )}
-
             {order.blocked_by && (
                 <div
                     role="alert"

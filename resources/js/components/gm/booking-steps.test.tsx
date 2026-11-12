@@ -89,7 +89,7 @@ async function waitOutAiringOverlay() {
 }
 
 describe('Booking order', () => {
-    it('lists the week’s cards in order and has the weekly show wait for the PPV to air', () => {
+    it('has no card switcher, and the weekly show waits for the PPV to air', () => {
         render(
             <BookingSteps
                 game={game}
@@ -100,11 +100,10 @@ describe('Booking order', () => {
             />,
         );
 
+        // House rule (2026-11-12): no switching between the week's cards.
         expect(
-            within(screen.getByRole('list', { name: 'This week’s cards' }))
-                .getAllByRole('link')
-                .map((l) => l.textContent),
-        ).toEqual(['1Backlash', '2Monday Night Raw']);
+            screen.queryByRole('list', { name: 'This week’s cards' }),
+        ).toBeNull();
         expect(screen.getByRole('alert')).toHaveTextContent(
             'Weeks start on Sunday, so Backlash airs first. This show is booked once its results are in.',
         );
@@ -121,26 +120,6 @@ describe('Booking order', () => {
         expect(screen.getByRole('alert')).toHaveTextContent(
             'Weeks start on Sunday, so Backlash is booked first.',
         );
-    });
-
-    it('marks a card that has aired', () => {
-        render(
-            <BookingSteps
-                game={game}
-                order={weekly({
-                    steps: weekly().steps.map((s) => ({
-                        ...s,
-                        aired: s.id === 9,
-                    })),
-                })}
-            />,
-        );
-
-        expect(
-            within(screen.getByRole('list', { name: 'This week’s cards' }))
-                .getAllByRole('link')
-                .map((l) => l.textContent),
-        ).toEqual(['1Backlashaired', '2Monday Night Raw']);
     });
 
     it('confirms a PPV card before moving on to the next card of the night', async () => {

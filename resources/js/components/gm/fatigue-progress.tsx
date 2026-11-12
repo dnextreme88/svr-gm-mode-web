@@ -17,7 +17,8 @@ export type FatigueStep = {
     weight_class: WeightClass;
     start: number;
     after_shows: number;
-    end: number;
+    /** Null until the week is over: a PPV night's fatigue before recovery. */
+    end: number | null;
     recovered_bars: number;
     /** Got an Inactive Superstar promo's extra recovery. */
     rested: boolean;
@@ -75,18 +76,27 @@ export function FatigueProgress({
     );
     const [stage, setStage] = useState(0);
     const [run, setRun] = useState(0);
+    // After a PPV night (house rule, 2026-11-12) the week isn't over, so
+    // nobody has recovered yet: two stages only.
+    const beforeRecovery = wrestlers.some((w) => w.end === null);
+    const stages = beforeRecovery ? STAGES.slice(0, 2) : STAGES;
+    const last = stages.length - 1;
 
     useEffect(() => {
         setStage(0);
-        const timers = [1, 2].map((next) =>
+        const timers = (beforeRecovery ? [1] : [1, 2]).map((next) =>
             setTimeout(() => setStage(next), next * STEP_MS),
         );
 
         return () => timers.forEach(clearTimeout);
-    }, [run, wrestlers]);
+    }, [run, wrestlers, beforeRecovery]);
 
     const valueAt = (w: FatigueStep) =>
-        stage === 0 ? w.start : stage === 1 ? w.after_shows : w.end;
+        stage === 0
+            ? w.start
+            : stage === 1
+              ? w.after_shows
+              : (w.end ?? w.after_shows);
 
     const replay = (
         <button
@@ -116,7 +126,7 @@ export function FatigueProgress({
                 className="mb-3 flex flex-wrap gap-2 font-condensed text-xs tracking-wider uppercase"
                 aria-label="Fatigue stage"
             >
-                {STAGES.map((label, i) => (
+                {stages.map((label, i) => (
                     <li
                         key={label}
                         aria-current={i === stage ? 'step' : undefined}
@@ -133,6 +143,15 @@ export function FatigueProgress({
                     </li>
                 ))}
             </ol>
+            {beforeRecovery && (
+                <p
+                    className="mb-3 text-sm text-ink-faint"
+                    data-testid="recovery-pending"
+                >
+                    Everyone recovers at the end of the week, once the weekly
+                    show has aired.
+                </p>
+            )}
             {wrestlers.length === 0 ? (
                 <p className="text-sm text-ink-faint">
                     Nobody wrestled or cut a promo on this show.
@@ -163,6 +182,16 @@ export function FatigueProgress({
                                         showLabel
                                     />
                                 )}
+                                {/* Before recovery, any injury shows
+                                    beside the fatigue after the show. */}
+                                {beforeRecovery &&
+                                    stage === last &&
+                                    w.injury && (
+                                        <InjuryNote
+                                            injury={w.injury}
+                                            id={w.id}
+                                        />
+                                    )}
                                 {stage === 2 &&
                                     w.injury?.severity === 'minor' && (
                                         <InjuryNote
@@ -171,8 +200,9 @@ export function FatigueProgress({
                                         />
                                     )}
                                 <span className="font-condensed text-sm tracking-wide text-ink-faint uppercase">
-                                    {w.start}% → {w.after_shows}% →{' '}
-                                    {serious(w) ? 'Injured' : `${w.end}%`}
+                                    {w.start}% → {w.after_shows}%
+                                    {w.end !== null &&
+                                        ` → ${serious(w) ? 'Injured' : `${w.end}%`}`}
                                     {stage === 2 && !serious(w) && (
                                         <span
                                             className={cn(
