@@ -523,18 +523,23 @@ return [
     'rivalries' => [
         'auto_create_meetings' => 2,
         'auto_create_window_weeks' => 4,
+        // House rule (2026-11-12): heat is settled once a week, after the
+        // shows (RivalryService::settleWeek). The rivals share a match when
+        // both compete in it, as opponents or partners, whoever wins.
         'start_heat' => 10,
+        // A week the rivals share a match on a weekly show.
         'heat_per_meeting' => 10,
-        'heat_per_promo' => 10,
+        // A PPV the rivals share a match at (on top of a weekly show meeting).
+        'heat_per_ppv_meeting' => 20,
         // House rule (2026-11-11): a rival who runs in and costs their rival
         // the match (Rival Interference finish) heats it up too.
         'heat_per_interference' => 10,
-        // House rule (2026-11-11): a week without a meeting or a Continue
-        // Rivalry promo loses this much; at 0 or below the rivalry ends.
+        // A week with no shared match loses this much, unless a Continue
+        // Rivalry promo for it aired (no heat either way); at 0 or below the
+        // rivalry ends.
         'idle_decay' => 20,
         'heating_up_threshold' => 50,
-        // House rule (2026-11-11): rivals meeting at a PPV this hot settle it.
-        'blowoff_min_heat' => 70,
+        // Reaching this ends the rivalry the following week, with a headline.
         'max_heat' => 100,
     ],
 

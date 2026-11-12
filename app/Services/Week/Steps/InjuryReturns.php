@@ -15,7 +15,7 @@ use App\Services\Week\WeekStep;
 
 /**
  * Announces wrestlers cleared to return next week (the Trainer emails about
- * serious injuries), and cools idle rivalries.
+ * serious injuries), and settles rivalry heat for the week.
  */
 class InjuryReturns implements WeekStep
 {
@@ -40,6 +40,6 @@ class InjuryReturns implements WeekStep
             }
         }
 
-        $this->rivalries->weeklyDecay($context->save, $context->week);
+        $this->rivalries->settleWeek($context->save, $context->week);
     }
 }

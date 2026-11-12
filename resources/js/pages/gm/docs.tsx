@@ -231,11 +231,10 @@ type Props = {
             auto_create_window_weeks: number;
             start_heat: number;
             heat_per_meeting: number;
-            heat_per_promo: number;
+            heat_per_ppv_meeting: number;
             heat_per_interference?: number;
             idle_decay: number;
             heating_up_threshold: number;
-            blowoff_min_heat: number;
             max_heat: number;
         };
     };
@@ -1078,32 +1077,64 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                                 {pluralize(
                                     promos.rivalry_heat.auto_create_meetings,
                                     'time',
-                                )}
+                                )}{' '}
                                 within{' '}
                                 {pluralize(
                                     promos.rivalry_heat
                                         .auto_create_window_weeks,
                                     'week',
-                                )}
+                                )}{' '}
                                 in matches where every side is one superstar.
-                                Heat runs 0 to {promos.rivalry_heat.max_heat}:
-                                it starts at {promos.rivalry_heat.start_heat},
-                                each meeting adds{' '}
-                                {promos.rivalry_heat.heat_per_meeting} and
-                                Continue Rivalry{' '}
-                                {promos.rivalry_heat.heat_per_promo}, and a week
-                                with neither loses{' '}
-                                {promos.rivalry_heat.idle_decay}; at 0 or below
-                                it’s over. A rival who runs in and costs the
-                                other the match (a Rival Interference finish)
-                                adds{' '}
-                                {promos.rivalry_heat.heat_per_interference ??
-                                    10}
-                                . At {promos.rivalry_heat.heating_up_threshold}{' '}
-                                it’s heating up, and rivals meeting at a PPV
-                                with {promos.rivalry_heat.blowoff_min_heat}+
-                                heat end it in a blow-off. The Rivalry page
-                                lists all of this.
+                                Heat runs 0 to {promos.rivalry_heat.max_heat}{' '}
+                                and is settled once a week, after the shows:
+                                <ul className="mt-1.5 list-[circle] space-y-1 pl-5">
+                                    <li>
+                                        A new rivalry starts at{' '}
+                                        {promos.rivalry_heat.start_heat}; the
+                                        week it starts doesn’t change it.
+                                    </li>
+                                    <li>
+                                        A week the rivals share a match adds{' '}
+                                        {promos.rivalry_heat.heat_per_meeting},
+                                        and a PPV they share a match at adds{' '}
+                                        {
+                                            promos.rivalry_heat
+                                                .heat_per_ppv_meeting
+                                        }
+                                        . Opponents or partners, winning or
+                                        losing: being in the same match counts.
+                                    </li>
+                                    <li>
+                                        A week without one, but with a Continue
+                                        Rivalry promo for it, holds the heat: no
+                                        more, no less.
+                                    </li>
+                                    <li>
+                                        Any other week loses{' '}
+                                        {promos.rivalry_heat.idle_decay}. At 0
+                                        or below the rivalry is over.
+                                    </li>
+                                    <li>
+                                        At{' '}
+                                        {
+                                            promos.rivalry_heat
+                                                .heating_up_threshold
+                                        }{' '}
+                                        it’s heating up. A rivalry that reaches{' '}
+                                        {promos.rivalry_heat.max_heat} has
+                                        peaked: it ends the following week, with
+                                        a headline.
+                                    </li>
+                                    <li>
+                                        A rival who runs in and costs the other
+                                        the match (a Rival Interference finish)
+                                        adds{' '}
+                                        {promos.rivalry_heat
+                                            .heat_per_interference ?? 10}
+                                        .
+                                    </li>
+                                </ul>
+                                The Rivalry page lists all of this.
                             </li>
                         )}
                         <li>

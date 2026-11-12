@@ -45,6 +45,7 @@ This change fixes all of the audit's findings except the broadcast look itself (
 - Reports and faction match tables become two-line rows below `md`.
 - The attendance chart keeps its full size and scrolls sideways.
 - The Docs tabs scroll in one row and keep the chosen tab in view.
+- Title History's championship picker no longer scrolls sideways below 1024px. Each brand's logo sits beside a grid of its titles: 2 columns from `sm`, 1 on phones. From `lg` it's the sidebar list.
 - `gm-btn-sm` is 44px tall on touch screens, and so is the delete-career icon.
 
 ## No hover-only information

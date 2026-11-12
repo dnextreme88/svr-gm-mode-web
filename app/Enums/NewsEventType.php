@@ -43,6 +43,7 @@ enum NewsEventType: string
     case RivalryStarted = 'rivalry_started';
     case RivalryHeatingUp = 'rivalry_heating_up';
     case RivalryBlowoff = 'rivalry_blowoff';
+    case RivalryConcluded = 'rivalry_concluded';
     case Debut = 'debut';
     case LegendSigned = 'legend_signed';
     case FreeAgentSigned = 'free_agent_signed';

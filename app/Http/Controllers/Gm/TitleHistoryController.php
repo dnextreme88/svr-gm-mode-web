@@ -201,6 +201,8 @@ class TitleHistoryController extends Controller
             'number' => $number,
             'opponents' => $sides->pluck('name')->implode(', '),
             'opponent_sides' => $sides->pluck('parts')->all(),
+            // The absolute week, for the current reigns chart.
+            'week' => $slot->show->week_number,
             'season' => $this->calendar->seasonOf($slot->show->week_number),
             'season_week' => $this->calendar->seasonWeek($slot->show->week_number),
             'ppv' => $this->ppvName($slot->show),

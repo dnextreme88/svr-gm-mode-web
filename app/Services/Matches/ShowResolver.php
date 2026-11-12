@@ -240,11 +240,11 @@ class ShowResolver
 
             foreach ($resolved->bouts as $bout) {
                 $loser = $bout['winner_side'] === $bout['side_a'] ? $bout['side_b'] : $bout['side_a'];
-                $this->rivalries->recordMeeting($context->save, $slot, $sides[$bout['winner_side']][0], $sides[$loser][0], $week, $show->isPpv());
+                $this->rivalries->recordMeeting($context->save, $sides[$bout['winner_side']][0], $sides[$loser][0], $week);
             }
         } elseif ($type->sides !== [] && max($type->sides) === 1) {
             foreach ($slot->sides()[$resolved->loserSide] ?? [] as $loserId) {
-                $this->rivalries->recordMeeting($context->save, $slot, $resolved->winners[0], $loserId, $week, $show->isPpv());
+                $this->rivalries->recordMeeting($context->save, $resolved->winners[0], $loserId, $week);
             }
         }
 

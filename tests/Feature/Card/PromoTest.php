@@ -219,7 +219,8 @@ it('starts and continues rivalries', function () {
     bookPromo($save, PromoTypeKey::ContinueRivalry, 1, 'Edge', 'Kane');
     airPromos($save);
 
-    expect(Rivalry::sole()->heat)->toBeGreaterThan($heat - (int) config('gm.rivalries.idle_decay'));
+    // House rule (2026-11-12): Continue Rivalry holds the heat, no more, no less.
+    expect(Rivalry::sole()->heat)->toBe($heat)->and(Rivalry::sole()->active)->toBeTrue();
 });
 
 it('only allows New Superstar on a freshly signed or traded-in wrestler', function () {

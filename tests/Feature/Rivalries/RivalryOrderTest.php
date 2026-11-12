@@ -49,7 +49,8 @@ it('sends the rivalry rules’ numbers from config', function () {
             ->where('rules.meetings', config('gm.rivalries.auto_create_meetings'))
             ->where('rules.window_weeks', config('gm.rivalries.auto_create_window_weeks'))
             ->where('rules.idle_decay', config('gm.rivalries.idle_decay'))
-            ->where('rules.blowoff_min_heat', config('gm.rivalries.blowoff_min_heat'))
+            ->where('rules.heat_per_ppv_meeting', config('gm.rivalries.heat_per_ppv_meeting'))
+            ->missing('rules.blowoff_min_heat')
             ->where('rules.start_promo_bars', config('gm.promos.fatigue_bars.start_rivalry'))
             ->where('rules.continue_promo_cost', abs(config('gm.promos.amounts.continue_rivalry'))));
 });

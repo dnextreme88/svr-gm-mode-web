@@ -12,10 +12,9 @@ const props = {
         window_weeks: 4,
         start_heat: 10,
         heat_per_meeting: 10,
-        heat_per_promo: 10,
+        heat_per_ppv_meeting: 20,
         heat_per_interference: 10,
-        idle_decay: 5,
-        blowoff_min_heat: 50,
+        idle_decay: 20,
         milestone_weeks: 10,
         start_promo_bars: 2,
         continue_promo_bars: 1,
@@ -43,8 +42,15 @@ describe('Rivalries rules', () => {
         expect(heat).toHaveTextContent(
             'costs $2,000 and tires both rivals 1 fatigue bar',
         );
-        expect(heat).toHaveTextContent('A week with neither loses 5 heat');
-        expect(heat).toHaveTextContent('with 50+ heat settle it there');
+        expect(heat).toHaveTextContent(
+            'A week the rivals share a match adds 10, and a PPV they share a match at adds 20',
+        );
+        expect(heat).toHaveTextContent('holds the heat where it is');
+        expect(heat).toHaveTextContent('Any other week loses 20 heat');
+        expect(heat).toHaveTextContent(
+            'A rivalry that reaches 100 has peaked: it ends the following week',
+        );
+        expect(heat).not.toHaveTextContent('blow-off');
         expect(within(heat).getByText(/makes the news/)).toHaveTextContent(
             'At 50',
         );

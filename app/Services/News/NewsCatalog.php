@@ -75,7 +75,8 @@ class NewsCatalog
         'rivalry_started' => ['group' => 'Rivalries', 'card' => 'brand', 'tier' => 'Story'],
         'rivalry_heating_up' => ['group' => 'Rivalries', 'card' => 'brand', 'tier' => 'Story'],
         'rivalry_milestone' => ['group' => 'Rivalries', 'card' => 'brand', 'tier' => 'Headline'],
-        'rivalry_blowoff' => ['group' => 'Rivalries', 'card' => 'brand', 'tier' => 'Headline'],
+        'rivalry_concluded' => ['group' => 'Rivalries', 'card' => 'brand', 'tier' => 'Headline, the week after the rivalry reaches 100 heat'],
+        'rivalry_blowoff' => ['group' => 'Rivalries', 'card' => 'brand', 'tier' => 'Headline (old news only: before 2026-11-12, rivals at 70+ heat ended it by meeting at a PPV)'],
 
         'free_agent_signed' => ['group' => 'Roster and contracts', 'card' => 'brand', 'tier' => 'Story'],
         'legend_signed' => ['group' => 'Roster and contracts', 'card' => 'wwe', 'tier' => 'Headline'],

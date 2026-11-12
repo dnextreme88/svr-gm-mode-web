@@ -4,6 +4,7 @@ import type { MouseEvent } from 'react';
 import { TitleBeltImage } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
+import { ReignChart } from '@/components/gm/reign-chart';
 import type { Named } from '@/components/gm/wrestler-name';
 import { WrestlerNames } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,8 @@ type ReignMatch = {
     opponents: string;
     /** Each opposing side, split for colour coding. */
     opponent_sides?: NamePart[][];
+    /** The absolute week it aired. */
+    week?: number;
     season: number;
     season_week: number;
     ppv: string | null;
@@ -175,7 +178,7 @@ export default function TitleHistory() {
                             className="gm-panel p-4"
                         >
                             <BrandBug brand={brand} size="sm" />
-                            <ul className="mt-3 grid grid-cols-2 gap-3">
+                            <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 {(hall[brand] ?? []).map((h) => (
                                     <li key={h.name} className="min-w-0">
                                         <button
@@ -263,16 +266,28 @@ export default function TitleHistory() {
                 )}
             </section>
 
+            <section aria-labelledby="reigns-heading" className="mb-8">
+                <Panel title={<span id="reigns-heading">Current reigns</span>}>
+                    <ReignChart
+                        titles={titles}
+                        defaultBrand={game.player_brand}
+                    />
+                </Panel>
+            </section>
+
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_1fr]">
                 <nav
                     aria-label="Championships"
-                    className="gm-panel gm-scroll flex min-w-0 items-center gap-1 self-start overflow-x-auto p-1 lg:block lg:overflow-visible"
+                    className="gm-panel min-w-0 self-start p-1"
                 >
+                    {/* Below lg each brand is its logo beside a grid of its
+                        titles (2 columns from sm), so nothing scrolls
+                        sideways; from lg it's the sidebar list. */}
                     {(['raw', 'smackdown'] as const).map((brand, i) => (
                         <Fragment key={brand}>
                             {i > 0 && (
                                 <hr
-                                    className="mx-1 h-8 shrink-0 border-0 border-l border-white/15 lg:mx-0 lg:my-2 lg:h-0 lg:border-t lg:border-l-0"
+                                    className="my-1 border-0 border-t border-white/15 lg:my-2"
                                     data-testid="brand-divider"
                                 />
                             )}
@@ -280,33 +295,37 @@ export default function TitleHistory() {
                                 role="group"
                                 aria-label={`${brand === 'raw' ? 'Raw' : 'Smackdown'} titles`}
                                 data-brand-tint={brand}
-                                className="flex shrink-0 items-center gap-1 lg:block"
+                                className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-1 lg:block"
                             >
-                                <div className="px-2 lg:px-3 lg:pt-2 lg:pb-1.5">
+                                <div className="w-[6.5rem] px-2 lg:w-auto lg:px-3 lg:pt-2 lg:pb-1.5">
                                     <BrandBug brand={brand} size="sm" />
                                 </div>
-                                {titles
-                                    .filter((t) => t.brand === brand)
-                                    .map((t) => (
-                                        <button
-                                            key={t.id}
-                                            type="button"
-                                            onClick={() => select(t.id)}
-                                            aria-pressed={t.id === title?.id}
-                                            className={cn(
-                                                'gm-row-link flex min-h-11 shrink-0 items-center gap-2 px-3 py-2 text-left text-sm whitespace-nowrap transition-colors lg:min-h-0 lg:w-full lg:whitespace-normal',
-                                                t.id === title?.id
-                                                    ? 'bg-brand/15 text-ink shadow-[inset_0_-3px_0_var(--gm-brand)] lg:shadow-[inset_3px_0_0_var(--gm-brand)]'
-                                                    : 'text-ink-dim hover:text-ink',
-                                            )}
-                                        >
-                                            <TitleBeltImage
-                                                name={t.name}
-                                                decorative
-                                            />
-                                            {t.name}
-                                        </button>
-                                    ))}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:block">
+                                    {titles
+                                        .filter((t) => t.brand === brand)
+                                        .map((t) => (
+                                            <button
+                                                key={t.id}
+                                                type="button"
+                                                onClick={() => select(t.id)}
+                                                aria-pressed={
+                                                    t.id === title?.id
+                                                }
+                                                className={cn(
+                                                    'gm-row-link flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors lg:min-h-0',
+                                                    t.id === title?.id
+                                                        ? 'bg-brand/15 text-ink shadow-[inset_3px_0_0_var(--gm-brand)]'
+                                                        : 'text-ink-dim hover:text-ink',
+                                                )}
+                                            >
+                                                <TitleBeltImage
+                                                    name={t.name}
+                                                    decorative
+                                                />
+                                                {t.name}
+                                            </button>
+                                        ))}
+                                </div>
                             </div>
                         </Fragment>
                     ))}
