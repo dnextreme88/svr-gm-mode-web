@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import { usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { BusyLabel } from '@/components/gm/busy-label';
@@ -28,6 +29,7 @@ export function ConfirmDialog({
     focusCancel = false,
     busy = false,
     busyText = 'Working…',
+    wide = false,
 }: {
     open: boolean;
     title: string;
@@ -48,6 +50,8 @@ export function ConfirmDialog({
     busy?: boolean;
     /** What the confirm button says while busy ("Deleting…"). */
     busyText?: string;
+    /** A wider dialog, for a report with rows (the fatigue modal). */
+    wide?: boolean;
 }) {
     const brand = usePage<{ game?: GameShell }>().props.game?.player_brand;
 
@@ -58,7 +62,10 @@ export function ConfirmDialog({
         >
             <DialogContent
                 data-brand-tint={brand ?? 'raw'}
-                className="gm-panel rounded-none border-white/10 bg-arena-2 font-gm text-ink"
+                className={cn(
+                    'gm-panel rounded-none border-white/10 bg-arena-2 font-gm text-ink',
+                    wide && 'sm:max-w-2xl',
+                )}
             >
                 <DialogTitle className="gm-heading text-2xl">
                     {title}

@@ -45,6 +45,7 @@ Route::prefix('gm')->name('gm.')->group(function () {
 
             Route::get('draft', [DraftController::class, 'show'])->name('draft.show');
             Route::post('draft/pick', [DraftController::class, 'pick'])->name('draft.pick');
+            Route::post('draft/random', [DraftController::class, 'random'])->name('draft.random');
             Route::post('draft/finish', [DraftController::class, 'finish'])->name('draft.finish');
             Route::post('draft/ai-step', [DraftController::class, 'aiStep'])->name('draft.ai-step');
             Route::post('draft/ai-finish', [DraftController::class, 'aiFinish'])->name('draft.ai-finish');

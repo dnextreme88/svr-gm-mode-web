@@ -1,6 +1,13 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    Fragment,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { AttendanceChip } from '@/components/gm/attendance-chip';
 import type { AttendanceBreakdown } from '@/components/gm/attendance-chip';
 import { CashInTag, TitleMark } from '@/components/gm/badges';
@@ -206,6 +213,40 @@ export default function Results() {
             setClosed(0);
         }
     }, [conditional_stories.length]);
+
+    // House rule (2026-11-12): when the last match is decided here, the
+    // night's fatigue opens in a modal (after any story pop-ups), and the
+    // Fatigue this week card fills once it's closed. Results opened after
+    // the night aired show the card straight away.
+    const [fatigueModal, setFatigueModal] = useState(false);
+    const [fatigueRevealed, setFatigueRevealed] = useState(!airing);
+    const wasAiring = useRef(airing);
+
+    useEffect(() => {
+        if (airing) {
+            setFatigueRevealed(false);
+        } else if (wasAiring.current) {
+            setFatigueModal(true);
+        }
+
+        wasAiring.current = airing;
+    }, [airing]);
+
+    const closeFatigue = () => {
+        setFatigueModal(false);
+        setFatigueRevealed(true);
+    };
+    // Everyone who worked the night, once each: the fatigue logs are the
+    // week's, so a superstar on two cards has the same steps on both.
+    const nightFatigue = useMemo(() => {
+        const seen = new Map<number, FatigueStep>();
+
+        shows.forEach((show) =>
+            show.fatigue.forEach((w) => seen.set(w.id, seen.get(w.id) ?? w)),
+        );
+
+        return [...seen.values()];
+    }, [shows]);
     const current = open === null ? undefined : reel[open];
 
     const go = useCallback(
@@ -586,14 +627,15 @@ export default function Results() {
                             </p>
                         )}
 
-                        {airing ? (
+                        {airing || !fatigueRevealed ? (
                             <Panel title="Fatigue this week">
                                 <p
                                     data-testid="fatigue-pending"
                                     className="text-sm text-ink-faint"
                                 >
-                                    Your superstars' fatigue shows here once
-                                    every match is decided.
+                                    {airing
+                                        ? "Your superstars' fatigue shows here once every match is decided."
+                                        : "Your superstars' fatigue shows here once you close the fatigue report."}
                                 </p>
                             </Panel>
                         ) : (
@@ -606,6 +648,21 @@ export default function Results() {
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                open={fatigueModal && !storyOpen}
+                title="Fatigue this week"
+                wide
+                cancelLabel="Got it"
+                onCancel={closeFatigue}
+                message={
+                    <FatigueProgress
+                        wrestlers={nightFatigue}
+                        config={game.fatigue_config}
+                        framed={false}
+                    />
+                }
+            />
 
             <StoryModal
                 story={story}

@@ -158,6 +158,11 @@ describe('Crown your champions (house rule, 2026-11-07)', () => {
             'aria-current',
             'step',
         );
+        // The title being decided gets the Schedule's animated brand border.
+        expect(screen.getByTestId('step-wwe')).toHaveClass('gm-current-week');
+        expect(screen.getByTestId('step-intercontinental')).not.toHaveClass(
+            'gm-current-week',
+        );
     });
 
     it('counts champions assigned while titles are decided, from 0/5', () => {

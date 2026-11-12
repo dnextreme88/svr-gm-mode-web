@@ -50,6 +50,11 @@ vi.mock('@inertiajs/react', () => ({
     usePage: () => ({ props: page.props }),
 }));
 
+// The rival's animated picks wait on this; a test that needs them sets it.
+vi.mock('@/lib/http', () => ({
+    requestJson: () => new Promise(() => {}),
+}));
+
 const page: { props: Record<string, unknown> } = { props };
 
 afterEach(() => {
@@ -122,5 +127,68 @@ describe('End of the draft', () => {
         render(<Draft />);
 
         expect(screen.queryByTestId('draft-concluded')).toBeNull();
+    });
+});
+
+describe('brand cards (house rule, 2026-11-12)', () => {
+    it('shows one card per brand, Raw first, with picks, budget and the turn line', () => {
+        page.props = {
+            ...props,
+            budgets: { raw: 9_500_000, smackdown: 11_250_000 },
+        };
+        render(<Draft />);
+
+        const raw = screen.getByTestId('brand-card-raw');
+        const smackdown = screen.getByTestId('brand-card-smackdown');
+        expect(
+            raw.compareDocumentPosition(smackdown) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(raw).toHaveTextContent('3 / 30');
+        expect(raw).toHaveTextContent('$9,500,000');
+        expect(smackdown).toHaveTextContent('2 / 30');
+        expect(smackdown).toHaveTextContent('$11,250,000');
+
+        // Only the brand on the clock shows the turn line.
+        expect(within(raw).getByTestId('on-the-clock')).toHaveTextContent(
+            'Your pick',
+        );
+        expect(within(smackdown).queryByTestId('on-the-clock')).toBeNull();
+        expect(screen.queryByText('On the clock')).toBeNull();
+
+        // The pick order sits under the headline.
+        expect(screen.getByTestId('draft-order')).toHaveTextContent(
+            'Pick 6 · Order: Raw → Smackdown',
+        );
+    });
+});
+
+describe('Random pick (house rule, 2026-11-12)', () => {
+    it('drafts a random superstar on your turn, rolling until it lands', async () => {
+        const user = userEvent.setup();
+        render(<Draft />);
+
+        await user.click(screen.getByRole('button', { name: /Random/ }));
+
+        expect(post).toHaveBeenCalledWith(
+            expect.stringContaining('/draft/random'),
+            {},
+            expect.objectContaining({ preserveScroll: true }),
+        );
+        const button = screen.getByRole('button', { name: /Drafting…/ });
+        expect(button).toBeDisabled();
+        expect(button).toHaveAttribute('aria-busy', 'true');
+
+        act(() => {
+            (post.mock.calls[0][2] as { onFinish: () => void }).onFinish();
+        });
+        expect(screen.getByRole('button', { name: /Random/ })).toBeEnabled();
+    });
+
+    it("can't roll on the rival's turn", () => {
+        page.props = { ...props, next_brand: 'smackdown' };
+        render(<Draft />);
+
+        expect(screen.getByRole('button', { name: /Random/ })).toBeDisabled();
     });
 });

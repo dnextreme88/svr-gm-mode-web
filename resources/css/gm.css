@@ -268,8 +268,8 @@
     --gm-brand-hot: var(--color-sd-hot);
 }
 
-/* The Schedule's current week: an arc of the brand colour sweeps round the
-   cell's border. A registered property so the gradient angle can animate. */
+/* The Schedule's current week, and the title being decided on the
+   champions page: an arc of the brand colour sweeps round the border. A registered property so the gradient angle can animate. */
 @property --gm-sweep {
     syntax: '<angle>';
     inherits: false;

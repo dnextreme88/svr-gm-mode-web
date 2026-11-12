@@ -1,5 +1,6 @@
 import { RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
@@ -55,14 +56,18 @@ const STEP_MS = 1100;
 
 /**
  * Animates each wrestler's fatigue through the week, alphabetically: going in, after the
- * show (matches and promos), then after end-of-week recovery.
+ * show (matches and promos), then after end-of-week recovery. `framed`
+ * draws it as the "Fatigue this week" panel; without it (the fatigue modal,
+ * house rule 2026-11-12) it's just the content, with Replay on top.
  */
 export function FatigueProgress({
     wrestlers,
     config,
+    framed = true,
 }: {
     wrestlers: FatigueStep[];
     config: FatigueConfig;
+    framed?: boolean;
 }) {
     const sorted = useMemo(
         () => [...wrestlers].sort((a, b) => a.name.localeCompare(b.name)),
@@ -83,20 +88,30 @@ export function FatigueProgress({
     const valueAt = (w: FatigueStep) =>
         stage === 0 ? w.start : stage === 1 ? w.after_shows : w.end;
 
-    return (
-        <Panel
-            title="Fatigue this week"
-            actions={
-                <button
-                    type="button"
-                    className="gm-btn gm-btn-ghost gm-btn-sm"
-                    onClick={() => setRun((r) => r + 1)}
-                >
-                    <RotateCcw aria-hidden className="size-3.5" />
-                    Replay
-                </button>
-            }
+    const replay = (
+        <button
+            type="button"
+            className="gm-btn gm-btn-ghost gm-btn-sm"
+            onClick={() => setRun((r) => r + 1)}
         >
+            <RotateCcw aria-hidden className="size-3.5" />
+            Replay
+        </button>
+    );
+    const frame = (children: ReactNode) =>
+        framed ? (
+            <Panel title="Fatigue this week" actions={replay}>
+                {children}
+            </Panel>
+        ) : (
+            <div data-testid="fatigue-progress">
+                <div className="mb-3 flex justify-end">{replay}</div>
+                {children}
+            </div>
+        );
+
+    return frame(
+        <>
             <ol
                 className="mb-3 flex flex-wrap gap-2 font-condensed text-xs tracking-wider uppercase"
                 aria-label="Fatigue stage"
@@ -179,6 +194,6 @@ export function FatigueProgress({
                     ))}
                 </ul>
             )}
-        </Panel>
+        </>,
     );
 }

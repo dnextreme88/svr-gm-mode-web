@@ -1,8 +1,9 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BookingAction, BookingSteps } from '@/components/gm/booking-steps';
+import { LOADING_OVERLAY_DELAY_MS } from '@/components/gm/loading-overlay';
 import type { BookingOrder } from '@/components/gm/booking-steps';
 import {
     UnsavedChangesProvider,
@@ -69,7 +70,23 @@ const weekly = (overrides: Partial<BookingOrder> = {}): BookingOrder =>
         ...overrides,
     });
 
-beforeEach(() => router.post.mockClear());
+beforeEach(() => {
+    router.post.mockClear();
+    window.localStorage.clear();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+});
+afterEach(() => vi.useRealTimers());
+
+/** Air week covers the page with an overlay, then airs after the pause. */
+async function waitOutAiringOverlay() {
+    expect(screen.getByTestId('airing-week')).toHaveTextContent(
+        'Please wait...',
+    );
+    expect(router.post).not.toHaveBeenCalled();
+    await act(async () => {
+        await vi.advanceTimersByTimeAsync(LOADING_OVERLAY_DELAY_MS);
+    });
+}
 
 describe('Booking order', () => {
     it('lists the week’s cards in order and has the weekly show wait for the PPV to air', () => {
@@ -179,6 +196,7 @@ describe('Booking order', () => {
             within(dialog).getByRole('button', { name: 'Air Backlash' }),
         );
 
+        await waitOutAiringOverlay();
         expect(router.post).toHaveBeenCalledWith(
             expect.stringContaining('/advance'),
             {},
@@ -206,6 +224,7 @@ describe('Booking order', () => {
             within(dialog).getByRole('button', { name: 'Air week 4' }),
         );
 
+        await waitOutAiringOverlay();
         expect(router.post).toHaveBeenCalledWith(
             expect.stringContaining('/advance'),
             {},
@@ -254,6 +273,7 @@ describe('Booking order', () => {
         await user.click(
             within(dialog).getByRole('button', { name: 'Air week 4' }),
         );
+        await waitOutAiringOverlay();
         expect(router.post).toHaveBeenCalledWith(
             expect.stringContaining('/advance'),
             {},

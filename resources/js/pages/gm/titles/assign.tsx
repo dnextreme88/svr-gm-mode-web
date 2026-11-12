@@ -1,7 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { ActionButton } from '@/components/gm/action-button';
 import { useState } from 'react';
-import { TitleMark } from '@/components/gm/badges';
+import { TitleBeltImage, TitleMark } from '@/components/gm/badges';
 import { CardProgress } from '@/components/gm/card-builder';
 import {
     loadingOverlayDelay,
@@ -174,16 +174,23 @@ function CrownSteps({
                             data-testid={`step-${c.key}`}
                             className={cn(
                                 'flex flex-col border px-3 py-2',
+                                // The title being decided: the Schedule's
+                                // current-week border, in the brand colour.
                                 active
-                                    ? 'border-gold/60 bg-gold/10'
+                                    ? 'gm-current-week border-transparent'
                                     : 'border-white/8 bg-black/20',
                             )}
                         >
                             <div className="gm-label text-xl whitespace-nowrap">
                                 {i + 1}. {tierLabels[i] ?? 'Title'}
                             </div>
-                            <div className="text-lg font-semibold">
-                                {c.name}
+                            <div className="flex min-w-0 items-center gap-2 text-lg font-semibold">
+                                {/* The belt in a fixed box, so the names
+                                    line up whatever its width. */}
+                                <span className="inline-flex w-14 shrink-0 justify-center">
+                                    <TitleBeltImage name={c.name} decorative />
+                                </span>
+                                <span className="min-w-0">{c.name}</span>
                             </div>
                             <div
                                 className={cn(

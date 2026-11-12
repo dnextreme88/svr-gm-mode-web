@@ -422,3 +422,38 @@ describe('Crowning champions one title at a time (house rule)', function () {
             ->and($holders->unique()->count())->toBe($holders->count());
     });
 });
+
+it('drafts a random affordable superstar for the player with the Random button', function () {
+    $save = GameBuilder::newSave(Brand::Raw);
+    $draft = app(DraftService::class);
+    $draft->runAi($save);
+
+    $this->post(route('gm.draft.random', $save))->assertRedirect();
+
+    $pick = DraftPick::where('save_id', $save->id)->where('brand', Brand::Raw)->firstOrFail();
+
+    expect($pick->pick_type)->toBe(DraftPickType::Random)
+        ->and($pick->saveWrestler->brand)->toBe(Brand::Raw)
+        ->and($pick->saveWrestler->wrestler->isDraftable())->toBeTrue();
+});
+
+it('draws the same random pick from the same seed', function () {
+    $pickFor = function (): string {
+        $save = GameBuilder::newSave(Brand::Raw, seed: 'random-pick');
+        $draft = app(DraftService::class);
+        $draft->runAi($save);
+
+        return $draft->randomPick($save, Brand::Raw)->saveWrestler->name();
+    };
+
+    expect($pickFor())->toBe($pickFor());
+});
+
+it("refuses a random pick when it isn't the player's turn", function () {
+    $save = GameBuilder::newSave(Brand::Raw);
+    $draft = app(DraftService::class);
+    $draft->runAi($save);
+    $draft->randomPick($save, Brand::Raw);
+
+    expect(fn () => $draft->randomPick($save, Brand::Raw))->toThrow(GameRuleException::class);
+});

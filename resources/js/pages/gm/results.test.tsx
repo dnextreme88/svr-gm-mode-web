@@ -790,6 +790,47 @@ describe('Results page', () => {
             expect(screen.getByTestId('fatigue-pending')).toBeInTheDocument();
             expect(screen.queryByTestId(/^fatigue-\d+$/)).toBeNull();
         });
+
+        it('opens the fatigue in a modal once the last match is in, then fills the card', async () => {
+            page.props = live();
+            const user = userEvent.setup();
+            const { rerender } = render(<Results />);
+            expect(screen.queryByRole('dialog')).toBeNull();
+
+            // The last match is decided: the week is no longer airing.
+            page.props = { ...props, airing: false };
+            rerender(<Results />);
+
+            const dialog = screen.getByRole('dialog', {
+                name: 'Fatigue this week',
+            });
+            expect(
+                within(dialog).getByTestId('fatigue-10'),
+            ).toBeInTheDocument();
+            expect(
+                within(dialog).getByRole('button', { name: /Replay/ }),
+            ).toBeInTheDocument();
+            // The card waits until the modal is closed.
+            expect(screen.getByTestId('fatigue-pending')).toHaveTextContent(
+                'once you close the fatigue report',
+            );
+
+            await user.click(
+                within(dialog).getByRole('button', { name: 'Got it' }),
+            );
+
+            expect(screen.queryByRole('dialog')).toBeNull();
+            expect(screen.queryByTestId('fatigue-pending')).toBeNull();
+            expect(screen.getByTestId('fatigue-10')).toBeInTheDocument();
+        });
+
+        it('shows the fatigue card without a modal on results that already aired', () => {
+            page.props = props;
+            render(<Results />);
+
+            expect(screen.queryByRole('dialog')).toBeNull();
+            expect(screen.getByTestId('fatigue-10')).toBeInTheDocument();
+        });
     });
 
     it('marks a title match for an empty title as vacant', () => {

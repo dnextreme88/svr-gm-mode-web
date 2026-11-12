@@ -126,6 +126,33 @@ class DraftService
     }
 
     /**
+     * The player's Random button (house rule, 2026-11-12): draft a random
+     * superstar or Diva from the pool, among those the brand can afford.
+     * Legends can't be drafted, so they're left out.
+     */
+    public function randomPick(Save $save, Brand $brand): DraftPick
+    {
+        $budget = $save->brand($brand)->budget;
+        $length = ContractLength::from((int) config('gm.contracts.draft_default_length'));
+        $pool = $this->roster->freeAgentsQuery($save, $save->current_week)
+            ->with('wrestler')
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (SaveWrestler $w): bool => $w->wrestler->isDraftable()
+                && $this->pricing->quote($w->wrestler, $length)['upfront'] <= $budget)
+            ->values();
+
+        if ($pool->isEmpty()) {
+            throw new GameRuleException('Nobody left in the pool fits your budget.');
+        }
+
+        $number = $this->picksMade($save, $brand) + 1;
+        $wrestler = $save->rng("draft.random.{$brand->value}.{$number}", 0)->pick($pool->all());
+
+        return $this->pick($save, $brand, $wrestler, DraftPickType::Random);
+    }
+
+    /**
      * A brand stops drafting; remaining spots can be filled via Free Agency.
      */
     public function finish(Save $save, Brand $brand): void

@@ -5,6 +5,10 @@ import type { ReactNode } from 'react';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { FirstPickReel } from '@/components/gm/first-pick-reel';
+import {
+    loadingOverlayDelay,
+    LoadingOverlay,
+} from '@/components/gm/loading-overlay';
 import { EmptyState, Panel } from '@/components/gm/panel';
 import { formatMoney } from '@/lib/gm';
 import { HttpError, requestJson } from '@/lib/http';
@@ -200,10 +204,33 @@ export default function Saves({
     // The reel opens as soon as Start is pressed; the result lands when the
     // server has created the career and drawn the order.
     const [reel, setReel] = useState<{ result: Started | null } | null>(null);
+    // A one-off button (house rule, 2026-11-12): the loading overlay covers
+    // the page for its pause before the next screen opens. On a manual draft
+    // it follows the who-picks-first reel; with the WWE rosters it shows
+    // while the career is created.
+    const [loading, setLoading] = useState(false);
+    const overlayPause = () =>
+        new Promise<void>((resolve) =>
+            window.setTimeout(resolve, loadingOverlayDelay('new-game')),
+        );
+
+    // The reel has landed: the overlay, then the draft room.
+    const openDraft = async (nextUrl: string) => {
+        setLoading(true);
+        await overlayPause();
+        router.visit(nextUrl);
+    };
 
     const start = async () => {
         form.clearErrors();
-        setReel({ result: null });
+
+        if (usesWweRoster) {
+            setLoading(true);
+        } else {
+            setReel({ result: null });
+        }
+
+        const pause = usesWweRoster ? overlayPause() : Promise.resolve();
 
         try {
             const started = await requestJson<Started>(
@@ -211,13 +238,17 @@ export default function Saves({
                 gm.saves.store.url(),
                 form.data,
             );
-            // There's no draft order to reveal when the rosters are signed.
+            await pause;
+
+            // There's no draft order to reveal when the rosters are signed:
+            // the overlay stays up until the next screen opens.
             if (usesWweRoster) {
                 router.visit(started.next_url);
             } else {
                 setReel({ result: started });
             }
         } catch (error) {
+            setLoading(false);
             setReel(null);
             form.setError(
                 'name',
@@ -245,11 +276,22 @@ export default function Saves({
                 </p>
             </div>
 
-            {reel && !usesWweRoster && (
+            {loading && (
+                <LoadingOverlay
+                    testId="starting-game"
+                    text={
+                        usesWweRoster
+                            ? 'Signing the WWE rosters. Please wait...'
+                            : 'Setting up the draft. Please wait...'
+                    }
+                />
+            )}
+
+            {reel && !usesWweRoster && !loading && (
                 <FirstPickReel
                     result={reel.result?.first_brand ?? null}
                     onDone={() =>
-                        reel.result && router.visit(reel.result.next_url)
+                        reel.result && void openDraft(reel.result.next_url)
                     }
                 />
             )}
@@ -445,7 +487,8 @@ export default function Saves({
                             <button
                                 type="submit"
                                 className="gm-btn"
-                                disabled={reel !== null}
+                                disabled={loading || reel !== null}
+                                aria-busy={loading || undefined}
                             >
                                 {usesWweRoster
                                     ? 'Play with WWE Roster'

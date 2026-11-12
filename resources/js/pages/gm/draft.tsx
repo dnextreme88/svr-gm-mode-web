@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SpecialtyBadge } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
+import { Dice } from '@/components/gm/dice';
 import {
     loadingOverlayDelay,
     LoadingOverlay,
@@ -47,6 +48,8 @@ type Props = GamePageProps & {
     next_brand: Brand | null;
     max_picks: number;
     picks_made: Record<Brand, number>;
+    /** Both brands' running budgets. */
+    budgets?: Record<Brand, number>;
     draft_order: Brand[];
     contract_length: number;
     player_done: boolean;
@@ -80,7 +83,9 @@ export default function Draft() {
     const [picks, setPicks] = useState(props.picks);
     const [nextBrand, setNextBrand] = useState(props.next_brand);
     const [picksMade, setPicksMade] = useState(props.picks_made);
-    const [budgets, setBudgets] = useState<Record<Brand, number> | null>(null);
+    const [budgets, setBudgets] = useState<Record<Brand, number> | null>(
+        props.budgets ?? null,
+    );
     const [poolFilter, setPoolFilter] = useState<PoolFilter>(emptyPoolFilter);
     const [skipAnimation, setSkipAnimation] = useState(
         () => readPreference(SKIP_ANIMATION_KEY, 'off', ['on', 'off']) === 'on',
@@ -131,8 +136,14 @@ export default function Draft() {
         setPicks(props.picks);
         setNextBrand(props.next_brand);
         setPicksMade(props.picks_made);
-        setBudgets(null);
-    }, [props.pool, props.picks, props.next_brand, props.picks_made]);
+        setBudgets(props.budgets ?? null);
+    }, [
+        props.pool,
+        props.picks,
+        props.next_brand,
+        props.picks_made,
+        props.budgets,
+    ]);
 
     useEffect(() => {
         skip.current = skipAnimation;
@@ -249,6 +260,25 @@ export default function Draft() {
     const yourPicks = picks.filter((p) => p.brand === game.player_brand);
     const rivalPicks = picks.filter((p) => p.brand === game.rival_brand);
 
+    // The Random button (house rule, 2026-11-12): the server draws a pick
+    // from the pool you can afford, with the save's seeded RNG.
+    const [rolling, setRolling] = useState(false);
+    const randomPick = () => {
+        setBusy(true);
+        setRolling(true);
+        router.post(
+            gm.draft.random.url(game.id),
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setBusy(false);
+                    setRolling(false);
+                },
+            },
+        );
+    };
+
     const pick = (id: number) => {
         setBusy(true);
         router.post(
@@ -268,6 +298,19 @@ export default function Draft() {
                 />
             )}
             <PageTitle kicker="Initial draft" title="Build your roster">
+                {!props.player_done && (
+                    <button
+                        type="button"
+                        className="gm-btn gm-btn-ghost gm-btn-sm"
+                        disabled={busy || animating || !yourTurn}
+                        aria-busy={rolling || undefined}
+                        title="Draft a random superstar or Diva you can afford"
+                        onClick={randomPick}
+                    >
+                        <Dice face={5} rolling={rolling} />
+                        {rolling ? 'Drafting…' : 'Random'}
+                    </button>
+                )}
                 <button
                     type="button"
                     aria-pressed={skipAnimation}
@@ -328,65 +371,41 @@ export default function Draft() {
                 }}
             />
 
-            <div className="mb-6 grid gap-4 md:grid-cols-4">
-                <div data-brand-tint={nextBrand ?? undefined}>
-                    <Panel
-                        className={cn(
-                            aiTurn && 'shadow-[0_0_40px_-14px_var(--gm-brand)]',
-                        )}
-                    >
-                        <div className="gm-label">On the clock</div>
-                        <div
-                            className="mt-1 flex items-center gap-3"
-                            aria-live="polite"
-                        >
-                            {nextBrand ? (
-                                <>
-                                    <BrandBug brand={nextBrand} size="sm" />
-                                    <span
-                                        data-testid="on-the-clock"
-                                        className={cn(
-                                            'font-condensed text-sm tracking-wider uppercase',
-                                            'animate-gm-pulse text-brand-hot',
-                                        )}
-                                    >
-                                        {yourTurn
-                                            ? 'Your pick'
-                                            : 'Rival GM drafting…'}
-                                    </span>
-                                </>
-                            ) : (
-                                <span className="text-ink-dim">Draft over</span>
-                            )}
-                        </div>
-                        <div className="mt-2 text-xs text-ink-faint">
-                            Pick {picks.length + 1} · Order:{' '}
-                            {draft_order.map(brandName).join(' → ')}
-                        </div>
-                    </Panel>
-                </div>
-                <Panel>
-                    <Stat
-                        label="Your picks"
-                        value={`${picksMade[game.player_brand]} / ${max_picks}`}
-                        tone="brand"
+            <p
+                className="-mt-3 mb-6 text-sm text-ink-dim"
+                data-testid="draft-order"
+            >
+                Pick {picks.length + 1} · Order:{' '}
+                {draft_order.map(brandName).join(' → ')}
+            </p>
+
+            {/* One card per brand, Raw on the left (house rule, 2026-11-12):
+                its picks, its running budget, and the turn line on the brand
+                drafting now. */}
+            <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {(['raw', 'smackdown'] as const).map((brand) => (
+                    <BrandDraftCard
+                        key={brand}
+                        brand={brand}
+                        mine={brand === game.player_brand}
+                        drafting={nextBrand === brand}
+                        picks={picksMade[brand]}
+                        maxPicks={max_picks}
+                        budget={
+                            budgets?.[brand] ??
+                            (brand === game.player_brand ? game.budget : null)
+                        }
                     />
-                </Panel>
-                <Panel>
-                    <Stat label="Budget" value={formatMoney(yourBudget)} />
-                </Panel>
-                <Panel>
-                    <Stat
-                        label={`${brandName(game.rival_brand)} picks`}
-                        value={`${picksMade[game.rival_brand]} / ${max_picks}`}
-                    />
-                </Panel>
+                ))}
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
+            {/* From xl the pool and the draft picks share one fixed height
+                (house rule, 2026-11-12), and each list scrolls inside it. */}
+            <div className="grid gap-6 xl:h-[72vh] xl:grid-cols-[1fr_340px]">
                 <Panel
                     title={`Free agent pool · ${pool.length}`}
-                    bodyClassName="p-0"
+                    className="xl:flex xl:min-h-0 xl:flex-col"
+                    bodyClassName="p-0 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col"
                     actions={
                         <PoolFilters
                             value={poolFilter}
@@ -396,7 +415,7 @@ export default function Draft() {
                         />
                     }
                 >
-                    <div className="gm-scroll max-h-[65vh] overflow-y-auto">
+                    <div className="gm-scroll max-h-[65vh] overflow-y-auto xl:max-h-none xl:min-h-0 xl:flex-1">
                         <table className="gm-table">
                             <thead className="sticky top-0 z-10 bg-arena-2">
                                 <tr>
@@ -474,7 +493,7 @@ export default function Draft() {
                     </div>
                 </Panel>
 
-                <div className="space-y-3">
+                <div className="space-y-3 xl:flex xl:min-h-0 xl:flex-col">
                     <div
                         className="flex items-center justify-between gap-3"
                         role="group"
@@ -508,7 +527,7 @@ export default function Draft() {
                     {boardView === 'all' ? (
                         <AllPicks picks={picks} flashPick={flashPick} />
                     ) : (
-                        <div className="space-y-6">
+                        <div className="space-y-6 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col">
                             <DraftBoard
                                 title="Your roster"
                                 brand={game.player_brand}
@@ -529,6 +548,73 @@ export default function Draft() {
     );
 }
 
+/**
+ * A brand's draft card: its logo, picks and running budget. The brand on the
+ * clock glows and shows the animated turn line ("Your pick", or the rival
+ * drafting).
+ */
+function BrandDraftCard({
+    brand,
+    mine,
+    drafting,
+    picks,
+    maxPicks,
+    budget,
+}: {
+    brand: Brand;
+    mine: boolean;
+    drafting: boolean;
+    picks: number;
+    maxPicks: number;
+    budget: number | null;
+}) {
+    return (
+        <div data-brand-tint={brand} data-testid={`brand-card-${brand}`}>
+            <Panel
+                className={cn(
+                    'h-full',
+                    drafting && 'shadow-[0_0_40px_-14px_var(--gm-brand)]',
+                )}
+            >
+                <div className="flex flex-col gap-4">
+                    <BrandBug brand={brand} size="sm" />
+                    {/* Picks and budget share a row; the budget is green
+                        (red in the red), as in the header. */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <Stat
+                            label="Picks"
+                            value={`${picks} / ${maxPicks}`}
+                            tone={mine ? 'brand' : undefined}
+                        />
+                        <Stat
+                            label="Budget"
+                            value={budget === null ? '—' : formatMoney(budget)}
+                            tone={
+                                budget === null
+                                    ? undefined
+                                    : budget < 0
+                                      ? 'bad'
+                                      : 'good'
+                            }
+                        />
+                    </div>
+                    {/* Keeps its height so both cards stay level. */}
+                    <div className="min-h-5" aria-live="polite">
+                        {drafting && (
+                            <span
+                                data-testid="on-the-clock"
+                                className="animate-gm-pulse font-condensed text-sm tracking-wider text-brand-hot uppercase"
+                            >
+                                {mine ? 'Your pick' : 'Rival GM drafting…'}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            </Panel>
+        </div>
+    );
+}
+
 /** Every pick in draft order, newest at the bottom, with the drafting brand. */
 function AllPicks({
     picks,
@@ -544,10 +630,13 @@ function AllPicks({
     }, [picks.length]);
 
     return (
-        <Panel bodyClassName="p-0">
+        <Panel
+            className="xl:flex xl:min-h-0 xl:flex-1 xl:flex-col"
+            bodyClassName="p-0 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col"
+        >
             <ol
                 ref={list}
-                className="gm-scroll max-h-[65vh] divide-y divide-white/5 overflow-y-auto"
+                className="gm-scroll max-h-[65vh] divide-y divide-white/5 overflow-y-auto xl:max-h-none xl:min-h-0 xl:flex-1"
                 aria-label="Draft picks"
             >
                 {picks.length === 0 && (
@@ -596,10 +685,17 @@ function DraftBoard({
     flashPick: number | null;
 }) {
     return (
-        <div data-brand-tint={brand}>
-            <Panel title={`${title} · ${picks.length}`} bodyClassName="p-0">
+        <div
+            data-brand-tint={brand}
+            className="xl:flex xl:min-h-0 xl:flex-1 xl:basis-0 xl:flex-col"
+        >
+            <Panel
+                title={`${title} · ${picks.length}`}
+                className="xl:flex xl:min-h-0 xl:flex-1 xl:flex-col"
+                bodyClassName="p-0 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col"
+            >
                 <ol
-                    className="gm-scroll max-h-[30vh] divide-y divide-white/5 overflow-y-auto"
+                    className="gm-scroll max-h-[30vh] divide-y divide-white/5 overflow-y-auto xl:max-h-none xl:min-h-0 xl:flex-1"
                     aria-label={title}
                 >
                     {picks.length === 0 && (
