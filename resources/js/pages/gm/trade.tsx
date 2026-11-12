@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import { InjuryChip, MoraleBadge, TitleBelt } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
+import { BusyLabel } from '@/components/gm/busy-label';
 import { PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { requestJson } from '@/lib/http';
+import { useBusy } from '@/lib/use-busy';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { TradeStatus } from '@/types/enums';
@@ -143,11 +145,15 @@ export default function ProposeTrade() {
         };
     }, [out, incoming, empty, overCap, game.id]);
 
+    const { busy, track } = useBusy();
     const send = () =>
         router.post(
             gm.trade.store.url(game.id),
             { out, in: incoming },
-            { onSuccess: () => (setOut([]), setIncoming([])) },
+            {
+                onSuccess: () => (setOut([]), setIncoming([])),
+                ...track('send'),
+            },
         );
 
     return (
@@ -264,11 +270,14 @@ export default function ProposeTrade() {
                 <button
                     type="button"
                     className="gm-btn"
-                    disabled={empty || overCap}
+                    disabled={empty || overCap || busy !== null}
+                    aria-busy={busy !== null || undefined}
                     aria-describedby={hint ? 'offer-hint' : undefined}
                     onClick={send}
                 >
-                    Send offer
+                    <BusyLabel busy={busy !== null} busyText="Sending…">
+                        Send offer
+                    </BusyLabel>
                 </button>
             </section>
 
@@ -501,10 +510,12 @@ function TradeRules({
                     </li>
                 </ul>
                 {judge && (
-                    <div data-testid="trade-judge">
-                        <p className="mb-1.5 text-ink-dim">
-                            How the rival GM weighs an offer:
-                        </p>
+                    // Folded by default so the picker starts on the first
+                    // screen (UI audit, 2026-11-12).
+                    <details data-testid="trade-judge" className="group">
+                        <summary className="mb-1.5 cursor-pointer text-ink-dim hover:text-ink">
+                            How the rival GM weighs an offer
+                        </summary>
                         <ul className="list-disc space-y-1.5 pl-5 marker:text-ink-faint">
                             <li>
                                 Every superstar starts at{' '}
@@ -595,7 +606,7 @@ function TradeRules({
                                 </ul>
                             </li>
                         </ul>
-                    </div>
+                    </details>
                 )}
             </div>
         </Panel>

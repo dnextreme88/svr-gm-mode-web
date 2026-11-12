@@ -209,7 +209,6 @@ const props = {
         rivalries: {
             max_per_brand: 7,
             refill_wait_weeks: 2,
-            reset_minimum: 4,
             rivalry_match_chance: 0.5,
         },
         roster: {
@@ -359,6 +358,12 @@ const props = {
                 active: true,
                 headline: '{winner} defeats {loser} at {show}.',
                 summary: '{match}: {winner} got the win over {loser}.',
+                summary_variants: [
+                    {
+                        variant: 'Legacy',
+                        summary: '{winner} beat {loser} at {show}.',
+                    },
+                ],
             },
             {
                 type: 'ratings_war',
@@ -405,6 +410,14 @@ const props = {
             email: 'Injury report',
             from: 'Trainer',
             when: 'Every injury or escalation.',
+            bodies: [
+                {
+                    label: 'A new injury',
+                    texts: [
+                        '{name} suffered a {injury}.\n\nThey should heal in {weeks}.',
+                    ],
+                },
+            ],
         },
     ],
 };
@@ -586,7 +599,17 @@ describe('Docs page', () => {
             within(result)
                 .getAllByTestId('template-placeholder')
                 .map((p) => p.textContent),
-        ).toEqual(['winner', 'loser', 'show', 'match', 'winner', 'loser']);
+        ).toEqual([
+            'winner',
+            'loser',
+            'show',
+            'match',
+            'winner',
+            'loser',
+            'winner',
+            'loser',
+            'show',
+        ]);
 
         const ratings = screen.getByTestId('news-event-ratings_war');
         expect(ratings).toHaveTextContent('Not in play yet');
@@ -596,6 +619,23 @@ describe('Docs page', () => {
         expect(emails).toHaveLength(2);
         expect(emails[0]).toHaveTextContent('PPV reminder');
         expect(emails[0]).toHaveTextContent('Vince McMahon');
+
+        // House rule (2026-11-11): every body an email can have, and every
+        // other way a news summary can read.
+        expect(within(emails[0]).queryByTestId('email-bodies')).toBeNull();
+        const bodies = within(emails[1]).getByTestId('email-bodies');
+        expect(bodies).toHaveTextContent('Read the emails (1 versions)');
+        expect(bodies).toHaveTextContent('A new injury (1)');
+        expect(
+            within(bodies)
+                .getAllByTestId('template-placeholder')
+                .map((p) => p.textContent),
+        ).toEqual(['name', 'injury', 'weeks']);
+        expect(
+            screen.getByTestId('news-variants-match_result'),
+        ).toHaveTextContent(
+            '1 other summariesLegacywinner beat loser at show.',
+        );
     });
 
     it('explains Sunday-start weeks, booking order, simulation and lists the PPVs', async () => {
@@ -624,6 +664,33 @@ describe('Docs page', () => {
         expect(screen.getByTestId('ppv-summerslam')).toHaveTextContent(
             'Raw & Smackdown',
         );
+    });
+
+    it('explains the Active Effects box under Booking and Scheduling', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(
+            screen.getByRole('tab', { name: 'Booking and Scheduling' }),
+        );
+
+        expect(
+            screen.getByRole('heading', { name: 'Active Effects' }),
+        ).toBeInTheDocument();
+        for (const effect of [
+            'Required title match:',
+            '#1 contender:',
+            'Last Chance:',
+            'Rematch Clause:',
+            'Money in the Bank:',
+            'Buried Alive:',
+            'Rivalry:',
+        ]) {
+            expect(screen.getByText(effect)).toBeInTheDocument();
+        }
+        expect(
+            screen.getByText(/nothing in it stops the card from airing/),
+        ).toBeInTheDocument();
     });
 
     it('explains live results, the results screen and Title History under Booking and Scheduling', async () => {

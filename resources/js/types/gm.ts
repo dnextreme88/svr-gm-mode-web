@@ -38,6 +38,8 @@ export type GameShell = {
     roster_count: number;
     rival_roster_count: number;
     roster_cap: number;
+    /** The crowd at the player's latest aired show (house rule, 2026-11-11). */
+    last_attendance: { crowd: number; show: string; week: number } | null;
     unread_emails: number;
     next_ppv: { name: string; week: number; weeks_away: number } | null;
     fatigue_config: FatigueConfig;

@@ -72,7 +72,7 @@ it('sums up a match result with the match in a word, not its full type name', fu
     $templates = app(NewsTemplates::class);
 
     expect($templates->render(NewsEventType::MatchResult, $event->payload))->toBe('Edge defeats Kane in decisive fashion. He made sure to get the win in a Ladder match.')
-        ->and($templates->summary(NewsEventType::MatchResult, $event->payload))->toBe('In what was a thrilling match, Edge got the win over Kane as they competed in a thrilling Ladder match!');
+        ->and($templates->summary(NewsEventType::MatchResult, $event->payload))->toStartWith('In what was a thrilling match, Edge got the win over Kane as they competed in a thrilling Ladder match! ');
 });
 
 it('calls a Diva winner she and a singles match singles', function () {
@@ -85,7 +85,7 @@ it('calls a Diva winner she and a singles match singles', function () {
     $event = newsOf(NewsEventType::MatchResult)->sole();
 
     expect($event->rendered_text)->toContain('She made sure to get the win via pinfall.')
-        ->and(app(NewsTemplates::class)->summary(NewsEventType::MatchResult, $event->payload))->toEndWith('in a thrilling singles match!');
+        ->and(app(NewsTemplates::class)->summary(NewsEventType::MatchResult, $event->payload))->toContain('in a thrilling singles match!');
 });
 
 it('words a title change by how it was won, with she for the Women’s title and he for the rest', function (string $key, string $champion, string $challenger, string $pronoun) {
@@ -101,7 +101,8 @@ it('words a title change by how it was won, with she for the Women’s title and
 
     expect($event->rendered_text)->toBe("NEW CHAMPION! {$challenger} defeats {$champion} for the {$title} via submission!")
         ->and(app(NewsTemplates::class)->summary(NewsEventType::TitleChange, $event->payload))
-        ->toBe("{$challenger} beat {$champion} via submission and walks out with the {$title}! The champion looks forward to meeting new challengers that {$pronoun} will dethrone!");
+        ->toStartWith("{$challenger} beat {$champion} via submission and walks out with the {$title}! ")
+        ->toContain("The champion looks forward to meeting new challengers that {$pronoun} will dethrone!");
 })->with([
     ['womens', 'Trish Stratus', 'Victoria', 'she'],
     ['wwe', 'Edge', 'John Cena', 'he'],

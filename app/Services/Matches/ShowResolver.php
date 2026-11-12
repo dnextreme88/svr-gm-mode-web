@@ -249,6 +249,7 @@ class ShowResolver
         }
 
         if ($resolved->interfererId !== null) {
+            $this->rivalries->recordInterference($context->save, $resolved->interfererId, $resolved->losers, $week);
             $interferer = SaveWrestler::with('wrestler')->find($resolved->interfererId);
             $this->news->record($context->save, NewsEventType::InterferenceFinish, NewsTier::Story, $show->brand ?? NewsBrand::Both, [
                 'interferer' => $interferer?->name(),

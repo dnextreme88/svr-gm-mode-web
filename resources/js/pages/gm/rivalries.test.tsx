@@ -13,6 +13,7 @@ const props = {
         start_heat: 10,
         heat_per_meeting: 10,
         heat_per_promo: 10,
+        heat_per_interference: 10,
         idle_decay: 5,
         blowoff_min_heat: 50,
         milestone_weeks: 10,

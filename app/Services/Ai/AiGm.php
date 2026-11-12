@@ -65,9 +65,9 @@ class AiGm
         }
 
         $promos = $show->brand === $brand && $show->promoSlotCount() > 0 && ! $this->rosterManager->needsCash($show->game, $brand);
-        $plan = $this->rivalryPlanner->plan($show, $brand, $this->booker->plannedFatigue($show, $brand), $promos);
+        $plan = $this->rivalryPlanner->plan($show, $brand, $promos);
 
-        $this->booker->book($show, $brand, $plan['matches'], $plan['fresh']);
+        $this->booker->book($show, $brand, $plan['matches']);
         $this->promoPlanner->book($show, $brand, $plan['promo_starts']);
     }
 

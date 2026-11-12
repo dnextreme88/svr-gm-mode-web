@@ -179,7 +179,7 @@ describe('rivalries', function () {
 
         $ended = startRivalry($save, 'Ric Flair', 'Rob Conway');
         $ended->update(['active' => false, 'ended_week' => 5]);
-        $plan = fn (int $week): int => app(AiRivalryPlanner::class)->plan(Card::show($save, Brand::Raw, week: $week), Brand::Raw, [], true)['promo_starts'];
+        $plan = fn (int $week): int => app(AiRivalryPlanner::class)->plan(Card::show($save, Brand::Raw, week: $week), Brand::Raw, true)['promo_starts'];
 
         expect($plan(6))->toBe(0);
 
@@ -188,17 +188,19 @@ describe('rivalries', function () {
         expect($plan(7))->toBe(1);
     });
 
-    it('makes at least 4 rivalries in a week that starts with none', function () {
+    it('starts from no rivalries and starts at most one a week through a promo (house rule, 2026-11-11)', function () {
         $save = strategySave();
+        $show = bookRival($save);
+
+        expect(app(AiRivalryPlanner::class)->brandRivalries($show, Brand::Raw))->toHaveCount(0)
+            ->and(collect(rivalPromoKeys($show))->filter(fn (PromoTypeKey $k): bool => $k === PromoTypeKey::StartRivalry))->toHaveCount(1);
 
         app(WeekResolver::class)->resolve($save->refresh());
 
-        expect(app(AiRivalryPlanner::class)->brandRivalries(Card::show($save, Brand::Raw, week: 1), Brand::Raw)->count())->toBeGreaterThanOrEqual(4);
+        $rivalries = Rivalry::with(['wrestlerA.wrestler', 'wrestlerB.wrestler'])->where('save_id', $save->id)->get();
 
-        $sameGender = Rivalry::with(['wrestlerA.wrestler', 'wrestlerB.wrestler'])->where('save_id', $save->id)->get()
-            ->every(fn (Rivalry $r): bool => $r->wrestlerA->wrestler->isDiva() === $r->wrestlerB->wrestler->isDiva());
-
-        expect($sameGender)->toBeTrue();
+        expect($rivalries->count())->toBeLessThanOrEqual(1)
+            ->and($rivalries->every(fn (Rivalry $r): bool => $r->wrestlerA->wrestler->isDiva() === $r->wrestlerB->wrestler->isDiva()))->toBeTrue();
     });
 });
 

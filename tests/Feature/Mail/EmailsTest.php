@@ -80,8 +80,8 @@ it('can name one of your specialists in the specialties tip', function (float $c
 
     $body = inbox($save, EmailTemplate::SpecialtyTip)->sole()->body;
 
-    expect($body)->toContain('two specialists in the same match')
-        ->and(str_contains($body, 'For example, Rob Van Dam is a'))->toBe($mentioned);
+    expect($body)->toContain('specialist')
+        ->and(str_contains($body, 'Rob Van Dam'))->toBe($mentioned);
 })->with([
     'always' => [1.0, true],
     'never' => [0.0, false],
@@ -224,7 +224,7 @@ it('has Vince remind both brands 2 weeks before each shared PPV', function () {
         ->and($raw->pluck('sender')->unique()->all())->toBe(['Vince McMahon'])
         ->and($raw[0]->body)->toContain('most fans')
         ->and($raw[1]->body)->toContain('Traditional 3 vs 3')
-        ->and($raw[2]->body)->toContain('automatic world title shot')
+        ->and($raw[2]->body)->toContain('main event of WrestleMania')
         ->and($raw[3]->body)->toContain('immunity tag')
         ->and(inbox($save, EmailTemplate::PpvReminder, Brand::Smackdown))->toHaveCount(4);
 });

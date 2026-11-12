@@ -53,6 +53,7 @@ class RivalryController extends Controller
                 'start_heat' => (int) config('gm.rivalries.start_heat'),
                 'heat_per_meeting' => (int) config('gm.rivalries.heat_per_meeting'),
                 'heat_per_promo' => (int) config('gm.rivalries.heat_per_promo'),
+                'heat_per_interference' => (int) config('gm.rivalries.heat_per_interference'),
                 'idle_decay' => (int) config('gm.rivalries.idle_decay'),
                 'blowoff_min_heat' => (int) config('gm.rivalries.blowoff_min_heat'),
                 'milestone_weeks' => (int) config('gm.news.rivalry_milestone_weeks'),

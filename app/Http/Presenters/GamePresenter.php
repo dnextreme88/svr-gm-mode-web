@@ -5,6 +5,7 @@ namespace App\Http\Presenters;
 use App\Enums\FactionPromptStatus;
 use App\Enums\FactionType;
 use App\Enums\SaveStage;
+use App\Enums\ShowStatus;
 use App\Models\Email;
 use App\Models\FactionPrompt;
 use App\Models\GmNotice;
@@ -67,6 +68,9 @@ class GamePresenter
             'roster_count' => $this->roster->rosterCount($save, $save->player_brand),
             'rival_roster_count' => $this->roster->rosterCount($save, $save->rivalBrand()),
             'roster_cap' => $this->roster->cap(),
+            // House rule (2026-11-11): the header shows the crowd at the
+            // player's latest aired show (weekly or their brand's PPV).
+            'last_attendance' => $this->lastAttendance($save),
             'unread_emails' => Email::where('save_id', $save->id)->where('brand', $save->player_brand)->whereNull('read_at')->count(),
             'next_ppv' => $next === null ? null : [
                 'name' => $next['ppv']->name,
@@ -168,6 +172,26 @@ class GamePresenter
                 'roster_type' => $w->wrestler->roster_type->value,
                 'weight_class' => $w->wrestler->weight_class->value,
             ])->values()->all(),
+        ];
+    }
+
+    /**
+     * @return array{crowd: int, show: string, week: int}|null
+     */
+    private function lastAttendance(Save $save): ?array
+    {
+        $show = Show::where('save_id', $save->id)
+            ->where('brand', $save->player_brand)
+            ->where('status', ShowStatus::Aired)
+            ->whereNotNull('attendance')
+            ->orderByDesc('week_number')
+            ->orderByDesc('id')
+            ->first();
+
+        return $show === null ? null : [
+            'crowd' => (int) $show->attendance,
+            'show' => $show->name,
+            'week' => $this->calendar->seasonWeek($show->week_number),
         ];
     }
 }

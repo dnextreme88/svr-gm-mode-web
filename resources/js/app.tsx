@@ -4,7 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
 import GmLayout from '@/layouts/gm-layout';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'SvR 2006 GM Mode';
 
 void createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
@@ -20,7 +20,9 @@ void createInertiaApp({
         );
     },
     progress: {
-        color: '#4B5563',
+        // The arena red, so the bar shows on the dark pages (UI audit).
+        color: '#d6001c',
+        showSpinner: false,
     },
 });
 

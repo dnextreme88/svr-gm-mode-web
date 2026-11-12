@@ -120,7 +120,7 @@ class NewsCatalog
     public function __construct(private NewsTemplates $templates) {}
 
     /**
-     * @return list<array{type: string, label: string, group: string, card: string, tier: string, active: bool, headline: string, summary: string}>
+     * @return list<array{type: string, label: string, group: string, card: string, tier: string, active: bool, headline: string, summary: string, summary_variants: list<array{variant: string, summary: string}>}>
      */
     public function entries(): array
     {
@@ -138,6 +138,12 @@ class NewsCatalog
                 'active' => $entry['active'] ?? true,
                 'headline' => $this->readable($this->templates->template($type)),
                 'summary' => $this->readable($this->templates->summaryTemplate($type)),
+                // Every other way the summary can read (house rule, 2026-11-11).
+                'summary_variants' => array_map(
+                    fn (string $variant, string $summary): array => ['variant' => ucfirst(str_replace('_', ' ', $variant)), 'summary' => $this->readable($summary)],
+                    array_keys($variants = $this->templates->summaryVariants($type)),
+                    array_values($variants),
+                ),
             ];
         }
 

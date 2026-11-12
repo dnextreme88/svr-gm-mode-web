@@ -1,11 +1,14 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { BookOpen, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { BrandBug } from '@/components/gm/brand-bug';
+import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { FirstPickReel } from '@/components/gm/first-pick-reel';
 import { EmptyState, Panel } from '@/components/gm/panel';
 import { formatMoney } from '@/lib/gm';
 import { HttpError, requestJson } from '@/lib/http';
+import { useBusy } from '@/lib/use-busy';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { Brand, DraftMode, SaveStage } from '@/types/enums';
@@ -49,10 +52,60 @@ const brandPitch: Record<Brand, { tagline: string; perks: Perk[] }> = {
     },
 };
 
-function confirmDelete(save: SaveSlot, message: string) {
-    if (confirm(message)) {
-        router.delete(gm.saves.destroy.url(save.id), { preserveScroll: true });
-    }
+/**
+ * A button that deletes a career after a GM-styled confirmation, busy until
+ * the delete has gone through (UI audit, 2026-11-12).
+ */
+function DeleteSaveButton({
+    save,
+    title,
+    message,
+    confirmLabel,
+    className,
+    label,
+    children,
+}: {
+    save: SaveSlot;
+    title: string;
+    message: string;
+    confirmLabel: string;
+    className: string;
+    label?: string;
+    children: ReactNode;
+}) {
+    const [open, setOpen] = useState(false);
+    const { busy, track } = useBusy();
+
+    return (
+        <>
+            <button
+                type="button"
+                className={className}
+                aria-label={label}
+                onClick={() => setOpen(true)}
+            >
+                {children}
+            </button>
+            <ConfirmDialog
+                open={open}
+                danger
+                focusCancel
+                title={title}
+                message={message}
+                confirmLabel={confirmLabel}
+                busy={busy !== null}
+                busyText="Deleting…"
+                onCancel={() => setOpen(false)}
+                onConfirm={() =>
+                    router.delete(gm.saves.destroy.url(save.id), {
+                        preserveScroll: true,
+                        ...track('delete'),
+                        onSuccess: () => setOpen(false),
+                    })
+                }
+            />
+        </>
+    );
 }
 
 /**
@@ -87,18 +140,15 @@ function UnsavedCareer({ save }: { save: SaveSlot }) {
             >
                 Resume
             </Link>
-            <button
-                type="button"
+            <DeleteSaveButton
+                save={save}
                 className="gm-btn gm-btn-sm gm-btn-ghost"
-                onClick={() =>
-                    confirmDelete(
-                        save,
-                        `Discard "${save.name}"? It was never saved.`,
-                    )
-                }
+                title="Discard this career?"
+                message={`Discard "${save.name}"? It was never saved.`}
+                confirmLabel="Discard"
             >
                 Discard
-            </button>
+            </DeleteSaveButton>
         </div>
     );
 }
@@ -206,7 +256,7 @@ export default function Saves({
 
             {unsaved && <UnsavedCareer save={unsaved} />}
 
-            <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+            <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr] lg:items-start">
                 <Panel title="New game">
                     <form
                         onSubmit={(e) => {
@@ -449,20 +499,16 @@ export default function Saves({
                                             </span>
                                         )}
                                     </Link>
-                                    <button
-                                        type="button"
-                                        className="mx-3 p-2 text-ink-faint transition-colors hover:text-zone-serious focus-visible:text-zone-serious"
-                                        aria-label={`Delete ${save.name}`}
-                                        title="Delete this career"
-                                        onClick={() =>
-                                            confirmDelete(
-                                                save,
-                                                `Delete "${save.name}"? This can't be undone.`,
-                                            )
-                                        }
+                                    <DeleteSaveButton
+                                        save={save}
+                                        className="mx-1 inline-flex min-h-11 min-w-11 items-center justify-center text-ink-faint transition-colors hover:text-zone-serious focus-visible:text-zone-serious"
+                                        label={`Delete ${save.name}`}
+                                        title="Delete this career?"
+                                        message={`Delete "${save.name}"? This can't be undone.`}
+                                        confirmLabel="Delete"
                                     >
                                         <Trash2 className="size-4" />
-                                    </button>
+                                    </DeleteSaveButton>
                                 </li>
                             ))}
                         </ul>

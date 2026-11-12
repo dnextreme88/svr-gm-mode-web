@@ -90,7 +90,7 @@ describe('Crown your champions (house rule, 2026-11-07)', () => {
         expect(post).toHaveBeenCalledWith(
             '/gm/saves/3/titles/assign/1/undo',
             {},
-            { preserveScroll: true },
+            expect.objectContaining({ preserveScroll: true }),
         );
     });
 

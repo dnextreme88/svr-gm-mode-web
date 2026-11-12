@@ -80,6 +80,10 @@ export function AirWeekButton({
                 type="button"
                 className="gm-btn"
                 disabled={airing || disabled || game.deficit.blocked}
+                aria-busy={airing || undefined}
+                aria-describedby={
+                    game.deficit.blocked ? 'air-week-blocked' : undefined
+                }
                 title={
                     game.deficit.blocked
                         ? 'Choose a deficit recovery plan on Financials first'
@@ -92,6 +96,16 @@ export function AirWeekButton({
                 <span className="size-2 animate-gm-pulse rounded-full bg-white" />
                 {airing ? 'On air…' : label}
             </button>
+            {/* Why it can't air, in words (UI audit, 2026-11-12). */}
+            {game.deficit.blocked && (
+                <Link
+                    id="air-week-blocked"
+                    href={gm.financials.url(game.id)}
+                    className="text-xs text-zone-serious underline underline-offset-4"
+                >
+                    Choose a deficit plan on Financials first
+                </Link>
+            )}
             <ConfirmDialog
                 open={confirming && unsaved.length > 0}
                 title="Unsaved changes"

@@ -187,7 +187,7 @@ export default function TitleHistory() {
                                             aria-label={`${h.name}: ${h.holder ?? 'Vacant'}. Show lineage`}
                                             className="gm-row-link block h-full w-full border-l-2 border-gold/60 bg-white/[0.03] px-3 py-2 text-left transition-colors hover:bg-white/[0.07]"
                                         >
-                                            <span className="flex flex-col items-start gap-1 font-condensed text-sm tracking-[0.04em] break-words text-gold uppercase sm:text-xl sm:tracking-[0.14em]">
+                                            <span className="flex min-w-0 flex-col items-start gap-1 font-condensed text-sm tracking-[0.04em] [overflow-wrap:anywhere] text-gold uppercase sm:text-base sm:tracking-[0.08em] xl:text-xl xl:tracking-[0.14em]">
                                                 <TitleBeltImage
                                                     name={h.name}
                                                     size="md"

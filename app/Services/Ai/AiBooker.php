@@ -19,7 +19,6 @@ use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
 use App\Services\Card\PlannedFatigue;
 use App\Services\Card\TitleMatchPlanner;
-use App\Services\Rivalries\RivalryService;
 use App\Services\Titles\LastChanceService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\RematchClauseService;
@@ -64,7 +63,6 @@ class AiBooker
         private CardService $cards,
         private TitleService $titles,
         private LastChanceService $lastChance,
-        private RivalryService $rivalries,
         private MitbService $mitb,
         private IntergenderRules $intergender,
         private PlannedFatigue $plannedFatigue,
@@ -77,9 +75,8 @@ class AiBooker
      * Book the brand's empty slots on a card.
      *
      * @param  list<array{0: int, 1: int}>  $rivalryMatches  rivalry pairs to book 1v1
-     * @param  list<array{0: int, 1: int}>  $freshRivalries  pairs to book 1v1 and start a rivalry between
      */
-    public function book(Show $show, Brand $brand, array $rivalryMatches = [], array $freshRivalries = []): void
+    public function book(Show $show, Brand $brand, array $rivalryMatches = []): void
     {
         $this->show = $show;
         $this->brand = $brand;
@@ -105,20 +102,20 @@ class AiBooker
 
         $open = $this->bookRematches($open);
 
-        $pairs = [...array_map(fn (array $p): array => [$p, true], $freshRivalries), ...array_map(fn (array $p): array => [$p, false], $rivalryMatches)];
+        $pairs = $rivalryMatches;
 
         [$open, $pairs] = $this->bookDivaMatch($open, $pairs);
         $open = $this->bookMainEventTitle($open);
         $open = $this->bookWinnerTakesAll($open);
 
-        foreach ($pairs as [$pair, $fresh]) {
+        foreach ($pairs as $pair) {
             if ($open === []) {
                 break;
             }
 
             $position = $this->rng->pick($open);
 
-            if ($this->bookPair($position, $pair, $fresh)) {
+            if ($this->bookPair($position, $pair)) {
                 $open = array_values(array_diff($open, [$position]));
             }
         }
@@ -162,8 +159,8 @@ class AiBooker
      * title. A Diva rivalry pair the plan wants booked is the Diva match.
      *
      * @param  list<int>  $open
-     * @param  list<array{0: array{0: int, 1: int}, 1: bool}>  $pairs  rivalry pairs, and whether each is fresh
-     * @return array{0: list<int>, 1: list<array{0: array{0: int, 1: int}, 1: bool}>}
+     * @param  list<array{0: int, 1: int}>  $pairs  rivalry pairs to book 1v1
+     * @return array{0: list<int>, 1: list<array{0: int, 1: int}>}
      */
     private function bookDivaMatch(array $open, array $pairs): array
     {
@@ -183,8 +180,8 @@ class AiBooker
         $position = $titleShot ? $slotRng->pick(array_slice($open, -2)) : $slotRng->pick($open);
 
         if (! $titleShot) {
-            foreach ($pairs as $i => [$pair, $fresh]) {
-                if (array_diff($pair, $this->ids($divas)) === [] && $this->bookPair($position, $pair, $fresh)) {
+            foreach ($pairs as $i => $pair) {
+                if (array_diff($pair, $this->ids($divas)) === [] && $this->bookPair($position, $pair)) {
                     unset($pairs[$i]);
 
                     return [array_values(array_diff($open, [$position])), array_values($pairs)];
@@ -206,11 +203,11 @@ class AiBooker
     }
 
     /**
-     * Book a rivalry pair 1v1, starting their rivalry if it's a fresh one.
+     * Book a rivalry pair 1v1.
      *
      * @param  array{0: int, 1: int}  $pair
      */
-    private function bookPair(int $position, array $pair, bool $fresh): bool
+    private function bookPair(int $position, array $pair): bool
     {
         if (array_intersect($pair, $this->taken) !== []) {
             return false;
@@ -218,15 +215,7 @@ class AiBooker
 
         $booking = $this->pairBooking($pair);
 
-        if ($booking === null || ! $this->tryBook($position, $booking)) {
-            return false;
-        }
-
-        if ($fresh) {
-            $this->rivalries->start($this->show->game, $pair[0], $pair[1], $this->show->week_number);
-        }
-
-        return true;
+        return $booking !== null && $this->tryBook($position, $booking);
     }
 
     /**

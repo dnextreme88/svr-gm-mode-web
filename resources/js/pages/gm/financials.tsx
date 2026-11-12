@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
 import { useState } from 'react';
+import { BusyLabel } from '@/components/gm/busy-label';
 import { EmptyState, PageTitle, Panel, Stat } from '@/components/gm/panel';
 import { formatMoney, formatSignedMoney } from '@/lib/gm';
 import { cn } from '@/lib/utils';
@@ -91,6 +92,7 @@ export default function Financials() {
     const { game, statement, history, weekly_upkeep, deficit_choices } =
         usePage<Props>().props;
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+    const [choosing, setChoosing] = useState<string | null>(null);
     const groups = groupLines(statement.lines);
     const maxAbs = Math.max(
         1,
@@ -113,18 +115,29 @@ export default function Financials() {
                             <button
                                 key={choice}
                                 type="button"
-                                className="gm-panel p-4 text-left transition-colors hover:bg-white/[0.04]"
+                                className="gm-panel p-4 text-left transition-colors hover:bg-white/[0.04] disabled:cursor-wait disabled:opacity-60"
+                                disabled={choosing !== null}
+                                aria-busy={choosing === choice || undefined}
                                 onClick={() =>
                                     router.post(
                                         gm.financials.deficitChoice.url(
                                             game.id,
                                         ),
                                         { choice },
+                                        {
+                                            onStart: () => setChoosing(choice),
+                                            onFinish: () => setChoosing(null),
+                                        },
                                     )
                                 }
                             >
-                                <div className="gm-heading text-xl">
-                                    {choiceCopy[choice]?.title ?? choice}
+                                <div className="gm-heading flex items-center gap-2 text-xl">
+                                    <BusyLabel
+                                        busy={choosing === choice}
+                                        busyText="Saving…"
+                                    >
+                                        {choiceCopy[choice]?.title ?? choice}
+                                    </BusyLabel>
                                 </div>
                                 <div className="mt-1 text-sm text-ink-dim">
                                     {choiceCopy[choice]?.body}
@@ -185,7 +198,7 @@ export default function Financials() {
                 </p>
             )}
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
                 <Panel
                     title={`Week ${statement.week} line items`}
                     bodyClassName="p-0"

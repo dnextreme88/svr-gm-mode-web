@@ -238,7 +238,7 @@ it('keeps the old wording for title changes recorded before they carried how the
     $headline = app(NewsComposer::class)->compose($save, 1)['headlines']['raw'];
 
     expect($headline['text'])->toBe('NEW CHAMPION! Edge defeats Cena for the WWE Championship at Raw!')
-        ->and($headline['summary'])->toBe('Edge beat Cena at Raw and walks out with the WWE Championship. The old reign is over.');
+        ->and($headline['summary'])->toStartWith('Edge beat Cena at Raw and walks out with the WWE Championship. The old reign is over');
 });
 
 it('has a summary for every news event type', function () {

@@ -2,19 +2,28 @@ import { cn } from '@/lib/utils';
 import type { TitleContext } from '@/types/gm';
 
 export type BuriedAlive = { id: number; name: string; weeks_left: number };
+export type ActiveRivalry = {
+    id: number;
+    wrestler_a: string;
+    wrestler_b: string;
+    heat: number;
+};
 
 /**
  * Active Effects (house rule): everything in play on this card's brand that
  * shapes the booking, always shown above the match cards. Earned title
  * shots, #1 contenders, Last Chance lockouts, Rematch Clauses, the Money in
- * the Bank briefcase and Buried Alive losers sitting out.
+ * the Bank briefcase, Buried Alive losers sitting out, and the brand's
+ * rivalries with their heat (house rule, 2026-11-11).
  */
 export function ActiveEffects({
     context,
     buriedAlive,
+    rivalries = [],
 }: {
     context: TitleContext;
     buriedAlive: BuriedAlive[];
+    rivalries?: ActiveRivalry[];
 }) {
     const shots = context.title_shots.filter((s) => !s.booked);
     const contenderships = context.contenderships ?? [];
@@ -27,6 +36,7 @@ export function ActiveEffects({
         lockouts.length +
         rematches.length +
         buriedAlive.length +
+        rivalries.length +
         (briefcase ? 1 : 0);
 
     return (
@@ -104,6 +114,12 @@ export function ActiveEffects({
                             {w.name} was buried alive and is out for{' '}
                             {w.weeks_left} more week
                             {w.weeks_left === 1 ? '' : 's'}.
+                        </Effect>
+                    ))}
+                    {rivalries.map((r) => (
+                        <Effect key={`rivalry-${r.id}`} kind="Rivalry">
+                            {r.wrestler_a} vs. {r.wrestler_b} · Heat{' '}
+                            <span className="gm-num">{r.heat}</span>
                         </Effect>
                     ))}
                 </ul>

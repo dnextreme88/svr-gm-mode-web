@@ -24,6 +24,7 @@ type RivalryRules = {
     start_heat: number;
     heat_per_meeting: number;
     heat_per_promo: number;
+    heat_per_interference: number;
     idle_decay: number;
     blowoff_min_heat: number;
     milestone_weeks: number;
@@ -69,7 +70,7 @@ export default function Rivalries() {
                             <tr>
                                 <th>Rivalry</th>
                                 <th className="w-1/3">Heat</th>
-                                <th>Duration</th>
+                                <th className="text-right">Duration</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -120,7 +121,7 @@ export default function Rivalries() {
                                             </span>
                                         </div>
                                     </td>
-                                    <td className="gm-num">
+                                    <td className="gm-num text-right">
                                         {r.weeks_active} wk
                                     </td>
                                     <td className="text-ink-dim">
@@ -194,7 +195,7 @@ function RivalryRulesPanel({
                         </li>
                         <li>
                             A week with neither loses {r.idle_decay} heat. At 0
-                            the rivalry is over.
+                            or below the rivalry is over.
                         </li>
                         <li>
                             At {heatingUp} it’s heating up and makes the news;
@@ -208,7 +209,8 @@ function RivalryRulesPanel({
                         </li>
                         <li>
                             In a match with ring outs, a superstar’s rival who
-                            isn’t in it can run in and cost them the match.
+                            isn’t in it can run in and cost them the match,
+                            which adds {r.heat_per_interference} heat.
                         </li>
                     </ul>
                 </div>

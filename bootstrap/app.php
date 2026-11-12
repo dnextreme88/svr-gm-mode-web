@@ -7,6 +7,8 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -27,4 +29,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // UI audit (2026-11-12): pages that aren't found or fail show a GM
+        // Mode error page with a way back, not Laravel's bare white page.
+        // Server errors keep the debug page while developing.
+        $exceptions->respond(function (Response $response, Throwable $e, Request $request): Response {
+            $status = $response->getStatusCode();
+            $shown = in_array($status, [403, 404], true)
+                || (in_array($status, [500, 503], true) && ! app()->hasDebugModeEnabled());
+
+            if (! $shown || $request->expectsJson()) {
+                return $response;
+            }
+
+            return Inertia::render('gm/error', ['status' => $status])
+                ->toResponse($request)
+                ->setStatusCode($status);
+        });
     })->create();

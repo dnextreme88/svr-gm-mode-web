@@ -443,7 +443,15 @@
         font-weight: 600;
     }
 
+    /* The slanted shape is a skewed ::before behind the label, not a
+       clip-path. A clip-path cuts the slant out of a full rectangle, and
+       Chrome can paint one frame without the cut when it moves the button
+       between GPU layers (hover, a pulsing dot inside, something animating
+       nearby), flashing a square box. A skewed layer has no rectangle to
+       show. Variants set --gm-btn-bg and --gm-btn-edge, never background. */
     .gm-btn {
+        position: relative;
+        isolation: isolate;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -453,22 +461,29 @@
         text-transform: uppercase;
         letter-spacing: 0.1em;
         padding: 0.55rem 1.2rem;
-        background: var(--gm-brand);
         color: white;
-        clip-path: polygon(
-            0.55rem 0,
-            100% 0,
-            calc(100% - 0.55rem) 100%,
-            0 100%
-        );
-        transition:
-            filter 150ms,
-            transform 150ms;
         cursor: pointer;
+        --gm-btn-bg: var(--gm-brand);
+        --gm-btn-edge: 0 0 #0000;
+        --gm-btn-tint: inset 0 0 0 100vmax rgb(255 255 255 / 0.13);
     }
 
-    .gm-btn:hover:not(:disabled) {
-        filter: brightness(1.15);
+    /* Inset by half the slant on each side, then skewed about 12 degrees:
+       the top runs from 0.55rem to the right edge and the bottom from the
+       left edge to 0.55rem short of it, as the old clip-path did. */
+    .gm-btn::before {
+        content: '';
+        position: absolute;
+        inset: 0 0.275rem;
+        z-index: -1;
+        background: var(--gm-btn-bg);
+        box-shadow: var(--gm-btn-edge);
+        transform: skewX(-12deg);
+        pointer-events: none;
+    }
+
+    .gm-btn:hover:not(:disabled)::before {
+        box-shadow: var(--gm-btn-edge), var(--gm-btn-tint);
     }
 
     .gm-btn:active:not(:disabled) {
@@ -480,9 +495,17 @@
         cursor: not-allowed;
     }
 
+    /* The focus ring follows the slant: a white edge over the brand colour
+       drawn on the shape (UI audit, 2026-11-12). */
     .gm-btn:focus-visible {
-        outline: 2px solid var(--gm-brand-hot);
-        outline-offset: 3px;
+        outline: none;
+    }
+
+    .gm-btn:focus-visible::before {
+        box-shadow:
+            inset 0 0 0 2px white,
+            inset 0 0 0 4px var(--gm-brand-hot),
+            var(--gm-btn-tint);
     }
 
     /* Simulate to here's progress fill: stripes that slide while it works. */
@@ -548,16 +571,30 @@
         .gm-table-sticky tbody tr:hover td:first-child {
             background: color-mix(in oklab, var(--color-arena-2), white 4%);
         }
+
+        /* The row's action (Sign) stays on screen too (UI audit, 2026-11-12). */
+        .gm-table-sticky.gm-table-action th:last-child,
+        .gm-table-sticky.gm-table-action td:last-child {
+            position: sticky;
+            right: 0;
+            z-index: 1;
+            background: var(--color-arena-2);
+            box-shadow: -8px 0 8px -8px rgb(0 0 0 / 0.6);
+        }
+
+        .gm-table-sticky.gm-table-action thead th:last-child {
+            z-index: 3;
+        }
     }
 
     .gm-btn-ghost {
-        background: rgb(255 255 255 / 0.06);
         color: var(--color-ink);
-        box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
+        --gm-btn-bg: rgb(255 255 255 / 0.06);
+        --gm-btn-edge: inset 0 0 0 1px rgb(255 255 255 / 0.12);
     }
 
     .gm-btn-gold {
-        background: linear-gradient(
+        --gm-btn-bg: linear-gradient(
             180deg,
             var(--color-gold-hot),
             var(--color-gold)
@@ -569,15 +606,26 @@
         padding: 0.35rem 0.85rem;
     }
 
+    /* Fingers need a 44px target; mice keep the compact size (UI audit,
+       2026-11-12). */
+    @media (pointer: coarse) {
+        .gm-btn-sm {
+            min-height: 2.75rem;
+        }
+    }
+
     /* Destructive actions (Clear) are red on both brands. */
     .gm-btn-danger {
-        background: var(--color-gm-red-deep);
         color: white;
+        --gm-btn-bg: var(--color-gm-red-deep);
     }
 
     .gm-btn-danger:hover:not(:disabled) {
-        background: #e5233f;
-        filter: none;
+        --gm-btn-bg: #e5233f;
+    }
+
+    .gm-btn-danger:hover:not(:disabled)::before {
+        box-shadow: var(--gm-btn-edge);
     }
 
     /* A light sweep across a progress fill. */

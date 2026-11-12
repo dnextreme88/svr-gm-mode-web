@@ -1,13 +1,13 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { BrandBug } from '@/components/gm/brand-bug';
+import { BrandBug, PpvBug } from '@/components/gm/brand-bug';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { PageTitle } from '@/components/gm/panel';
 import { requestJson } from '@/lib/http';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
-import type { Brand, BrandScope } from '@/types/enums';
+import type { Brand, BrandScope, PpvKey } from '@/types/enums';
 import type { GamePageProps } from '@/types/gm';
 
 /** What a show night does when clicked (`ScheduleController::decorate`). */
@@ -26,7 +26,7 @@ type Air = {
     kind: 'weekly' | 'ppv';
     /** Null for a shared (Raw and Smackdown) PPV. */
     brand: Brand | null;
-    ppv: { key: string; name: string; brand_scope: BrandScope } | null;
+    ppv: { key: PpvKey; name: string; brand_scope: BrandScope } | null;
     name: string;
     mine: boolean;
     show_id: number | null;
@@ -434,9 +434,14 @@ function isClickable(air: Air): boolean {
     );
 }
 
-/** A weekly show, drawn as its brand's logo (PPVs keep their gold name). */
+/** A weekly show, drawn as its brand's logo. */
 function isLogo(air: Air): boolean {
     return air.kind !== 'ppv' && air.brand !== null;
+}
+
+/** A PPV, drawn as its own logo in a gold frame (house rule, 2026-11-11). */
+function isPpvLogo(air: Air): boolean {
+    return air.kind === 'ppv' && air.ppv !== null;
 }
 
 function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
@@ -473,10 +478,7 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
                     {day.day}
                 </span>
                 {day.airs.some(
-                    (a) =>
-                        a.kind !== 'ppv' &&
-                        a.brand !== null &&
-                        a.state === 'aired',
+                    (a) => (isLogo(a) || isPpvLogo(a)) && a.state === 'aired',
                 ) && (
                     <span
                         aria-hidden
@@ -491,6 +493,7 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
                 const clickable = isClickable(air);
                 const label = stateLabel[air.state];
                 const logo = isLogo(air);
+                const ppvLogo = isPpvLogo(air);
 
                 return (
                     <button
@@ -509,7 +512,9 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
                             'w-full font-condensed text-xs leading-tight tracking-wide uppercase',
                             logo
                                 ? 'flex flex-1 flex-col items-center justify-center gap-0.5 p-0.5 text-ink-dim'
-                                : 'truncate bg-gold/90 px-1 py-0.5 text-left font-bold text-arena sm:px-1.5',
+                                : ppvLogo
+                                  ? 'flex flex-1 flex-col items-center justify-center gap-0.5 bg-gold/10 p-0.5 text-gold-hot ring-1 ring-gold/70 ring-inset'
+                                  : 'truncate bg-gold/90 px-1 py-0.5 text-left font-bold text-arena sm:px-1.5',
                             air.state === 'aired' && 'opacity-20',
                             !clickable
                                 ? 'cursor-default'
@@ -519,12 +524,19 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
                             air.state === 'waiting' && 'opacity-60',
                         )}
                     >
-                        {logo ? (
+                        {logo || ppvLogo ? (
                             <>
-                                <BrandBug
-                                    brand={air.brand!}
-                                    className="h-auto max-h-16 w-full max-w-full"
-                                />
+                                {ppvLogo ? (
+                                    <PpvBug
+                                        ppv={air.ppv!.key}
+                                        className="h-auto max-h-16 w-full max-w-full"
+                                    />
+                                ) : (
+                                    <BrandBug
+                                        brand={air.brand!}
+                                        className="h-auto max-h-16 w-full max-w-full"
+                                    />
+                                )}
                                 {label && air.state !== 'aired' && (
                                     <span className="hidden font-normal normal-case sm:inline">
                                         {label}

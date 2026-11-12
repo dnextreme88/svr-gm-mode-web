@@ -152,6 +152,8 @@ describe('Booking order', () => {
 
         expect(router.post).toHaveBeenCalledWith(
             expect.stringContaining('/shows/9/confirm'),
+            {},
+            expect.objectContaining({ onStart: expect.any(Function) }),
         );
     });
 
@@ -334,6 +336,8 @@ describe('Booking order', () => {
 
         expect(router.post).toHaveBeenCalledWith(
             expect.stringContaining('/shows/9/unlock'),
+            {},
+            expect.objectContaining({ onStart: expect.any(Function) }),
         );
     });
 });

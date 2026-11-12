@@ -2,8 +2,10 @@ import { Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { AirWeekButton } from '@/components/gm/air-week-button';
 import type { RepeatWarning } from '@/components/gm/air-week-button';
+import { BusyLabel } from '@/components/gm/busy-label';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { cn } from '@/lib/utils';
+import { useBusy } from '@/lib/use-busy';
 import gm from '@/routes/gm';
 import type { GameShell } from '@/types/gm';
 
@@ -163,6 +165,7 @@ export function BookingAction({
     repeats?: RepeatWarning;
 }) {
     const [confirming, setConfirming] = useState(false);
+    const { busy, track } = useBusy();
 
     if (!order.airs_this_week) {
         return null;
@@ -173,13 +176,19 @@ export function BookingAction({
             <button
                 type="button"
                 className="gm-btn gm-btn-ghost gm-btn-sm"
+                disabled={busy !== null}
+                aria-busy={busy !== null || undefined}
                 onClick={() =>
                     router.post(
                         gm.card.unlock.url({ save: game.id, show: showId }),
+                        {},
+                        track('unlock'),
                     )
                 }
             >
-                Unlock card
+                <BusyLabel busy={busy !== null} busyText="Unlocking…">
+                    Unlock card
+                </BusyLabel>
             </button>
         );
     }
@@ -205,7 +214,7 @@ export function BookingAction({
             <button
                 type="button"
                 className="gm-btn"
-                disabled={!order.editable}
+                disabled={!order.editable || busy !== null}
                 onClick={() => setConfirming(true)}
             >
                 Continue to {next}
@@ -224,13 +233,19 @@ export function BookingAction({
                     </>
                 }
                 confirmLabel={`Continue to ${next}`}
+                busy={busy !== null}
+                busyText="Locking in…"
                 onCancel={() => setConfirming(false)}
-                onConfirm={() => {
-                    setConfirming(false);
+                onConfirm={() =>
                     router.post(
                         gm.card.confirm.url({ save: game.id, show: showId }),
-                    );
-                }}
+                        {},
+                        {
+                            ...track('confirm'),
+                            onSuccess: () => setConfirming(false),
+                        },
+                    )
+                }
             />
         </>
     );

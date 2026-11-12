@@ -26,7 +26,7 @@ function Chip({
             onClick={onClick}
             aria-pressed={pressed}
             className={cn(
-                'inline-flex min-h-11 items-center px-2 py-1 font-condensed text-xs font-semibold tracking-wider uppercase sm:min-h-0',
+                'inline-flex min-h-11 items-center px-2.5 py-1 font-condensed text-sm font-semibold tracking-wider uppercase sm:min-h-0',
                 active ? 'bg-brand text-white' : 'text-ink-dim hover:text-ink',
             )}
         >
@@ -59,6 +59,7 @@ export function PoolFilters({
                 <Chip
                     key={type}
                     active={value.type === type}
+                    pressed={value.type === type}
                     disabled={disabled}
                     onClick={() => set({ type })}
                 >

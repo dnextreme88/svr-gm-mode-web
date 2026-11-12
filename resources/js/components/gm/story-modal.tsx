@@ -65,7 +65,14 @@ export function StoryModal({
                             </span>
                         )}
                     </p>
-                    <p className="text-ink">{story.text}</p>
+                    {story.text
+                        .split(/\n\s*\n/)
+                        .filter((p) => p.trim() !== '')
+                        .map((p, i) => (
+                            <p key={i} className="text-ink">
+                                {p}
+                            </p>
+                        ))}
                     <dl className="grid gap-1 text-sm sm:grid-cols-[max-content_1fr] sm:gap-x-3">
                         <dt className="gm-label">Result</dt>
                         <dd>{story.result}</dd>

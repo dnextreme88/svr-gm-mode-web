@@ -98,7 +98,7 @@ describe('Interview Space', function () {
 
         expect($story->payload['story'])->toBe('interview_space.spotlight')
             ->and(app(NewsTemplates::class)->summary(NewsEventType::PromoResult, $story->payload))
-            ->toMatch('/^Rob Van Dam had an? (sit-down interview|interview) tonight and was being (goofy|enthusiastic)\. It was a great interview and gave insights on how he would be used and ready to take over and dominate the Raw division!$/');
+            ->toMatch('/^Rob Van Dam had an? (sit-down interview|interview) tonight and was being (goofy|enthusiastic)\. It was a great interview and gave insights on how he would be used and ready to take over and dominate the Raw division! /');
     });
 
     it('gets crashed when it fails: a healthy male superstar decks the wrestler and a rivalry starts', function () {
@@ -115,7 +115,8 @@ describe('Interview Space', function () {
         expect($story->payload['story'])->toBe('interview_space.crashed')
             // Not the injured Kane, not the Diva.
             ->and($crasher)->not->toBeIn(['Kane', 'Trish Stratus', 'Rob Van Dam'])
-            ->and($summary)->toContain("{$crasher} crashed the party and decked Rob Van Dam with authority. What's gonna happen next between these two? The attack has started a rivalry between the two.")
+            ->and($summary)->toContain("{$crasher} crashed the party and decked Rob Van Dam with authority.")
+            ->and($summary)->toEndWith("What's gonna happen next between these two? The attack has started a rivalry between the two.")
             ->and(app(RivalryService::class)->between($save, GameBuilder::wrestler($save, 'Rob Van Dam')->id, GameBuilder::wrestler($save, $crasher)->id))->not->toBeNull();
     });
 

@@ -6,6 +6,7 @@ use App\Enums\Brand;
 use App\Http\Controllers\Controller;
 use App\Http\Presenters\CardPresenter;
 use App\Models\MatchSlot;
+use App\Models\PpvEvent;
 use App\Models\Save;
 use App\Models\Show;
 use App\Services\Attendance\AttendanceNights;
@@ -59,6 +60,13 @@ class ReportsController extends Controller
             ->get()
             ->toBase()));
 
-        return Inertia::render('gm/reports', ['shows' => $shows, 'attendance' => $attendance]);
+        // House rule (2026-11-11): the chart's week axis is marked by the
+        // shared PPVs' logos instead of week numbers.
+        $sharedPpvs = PpvEvent::orderBy('season_week')->get()
+            ->filter(fn (PpvEvent $p): bool => $p->isShared())
+            ->map(fn (PpvEvent $p): array => ['key' => $p->key->value, 'name' => $p->name, 'week' => (int) $p->season_week])
+            ->values();
+
+        return Inertia::render('gm/reports', ['shows' => $shows, 'attendance' => $attendance, 'shared_ppvs' => $sharedPpvs]);
     }
 }

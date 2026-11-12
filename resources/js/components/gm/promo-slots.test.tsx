@@ -278,7 +278,7 @@ describe('PromoSlots', () => {
         await user.click(screen.getByTestId('promo-2-advertising'));
         const group = screen.getByRole('radiogroup', { name: 'Promo 2 airs' });
         const mainEvent = within(group).getByRole('radio', {
-            name: 'Before main event',
+            name: /^Before main event.*taken by Promo 1/,
         });
 
         expect(mainEvent).toBeDisabled();
@@ -317,11 +317,14 @@ describe('PromoSlots', () => {
 
         const inactive = screen.getByTestId('promo-1-inactive_superstar');
         expect(inactive).toBeDisabled();
-        expect(inactive.className).toContain('opacity-40');
         expect(inactive).toHaveAttribute(
             'title',
             'Nobody on your roster is seriously injured.',
         );
+        // The reason is on the tile too, not only on hover (UI audit).
+        expect(
+            screen.getByTestId('promo-1-inactive_superstar-reason'),
+        ).toHaveTextContent('Nobody on your roster is seriously injured.');
     });
 
     it('labels success rates as Success Probability and draws promo fatigue as bars', () => {

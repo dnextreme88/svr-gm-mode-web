@@ -187,6 +187,18 @@ return [
     ],
 
     /*
+    | Story text (house rule, 2026-11-11): news summaries, story texts and
+    | email bodies run 1 to max_paragraphs paragraphs of paragraph_min to
+    | paragraph_max sentences each. Headlines, subjects and ticker lines are
+    | exempt. Checked by `App\Support\Text\StoryText`.
+    */
+    'story_text' => [
+        'paragraph_min' => 5,
+        'paragraph_max' => 8,
+        'max_paragraphs' => 3,
+    ],
+
+    /*
     | §20 / §21 Match outcomes (placeholder model).
     */
     'outcomes' => [
@@ -514,9 +526,15 @@ return [
         'start_heat' => 10,
         'heat_per_meeting' => 10,
         'heat_per_promo' => 10,
-        'idle_decay' => 5,
+        // House rule (2026-11-11): a rival who runs in and costs their rival
+        // the match (Rival Interference finish) heats it up too.
+        'heat_per_interference' => 10,
+        // House rule (2026-11-11): a week without a meeting or a Continue
+        // Rivalry promo loses this much; at 0 or below the rivalry ends.
+        'idle_decay' => 20,
         'heating_up_threshold' => 50,
-        'blowoff_min_heat' => 50,
+        // House rule (2026-11-11): rivals meeting at a PPV this hot settle it.
+        'blowoff_min_heat' => 70,
         'max_heat' => 100,
     ],
 
@@ -638,6 +656,17 @@ return [
         'low_cash_every_weeks' => 4,
         'contract_reminder_weeks' => 2,
         'injury_return_notice_weeks' => 2,
+        // House rule (2026-11-11): JR / Tazz's booking tips. Varied matches
+        // every 8 season weeks; Match 1 and the Main Event every 12, offset
+        // to season weeks 6, 18, 30, 42 (ASSUMPTION) so they don't land
+        // together with the other reminders.
+        'variety_tip_weeks' => 8,
+        'slot_tip_weeks' => 12,
+        'slot_tip_offset' => 6,
+        // House rule (2026-11-11): the rival GM writes a week before each
+        // shared PPV, polite or arrogant at even odds.
+        'rival_ppv_weeks_before' => 1,
+        'rival_ppv_polite_chance' => 0.5,
     ],
 
     /*
@@ -717,7 +746,6 @@ return [
         'rivalries' => [
             'max_per_brand' => 7,
             'refill_wait_weeks' => 2,
-            'reset_minimum' => 4,
             // ASSUMPTION: each active rivalry's chance of a 1v1 on a card.
             'rivalry_match_chance' => 0.5,
         ],

@@ -23,6 +23,7 @@ const game = {
     roster_count: 30,
     rival_roster_count: 30,
     roster_cap: 30,
+    last_attendance: { crowd: 15050, show: 'Monday Night Raw', week: 1 },
     unread_emails: 2,
     next_ppv: { name: 'Backlash', week: 4, weeks_away: 2 },
     fatigue_config: { bar_size: 10, safe_max: 70, serious_at: 100, max: 100 },
@@ -198,6 +199,15 @@ describe('GM header', () => {
         expect(screen.getByTestId('gm-header-stats').className).toContain(
             '@6xl:ml-auto',
         );
+    });
+
+    it('shows the latest crowd instead of the roster count', () => {
+        renderAt(1100, 1400);
+
+        const stats = screen.getByTestId('gm-header-stats');
+
+        expect(stats).toHaveTextContent('Attendance15,050');
+        expect(stats).not.toHaveTextContent('Roster');
     });
 });
 

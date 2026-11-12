@@ -1,4 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { BusyLabel } from '@/components/gm/busy-label';
+import { useBusy } from '@/lib/use-busy';
 import { useState } from 'react';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { PageTitle, Panel, Stat } from '@/components/gm/panel';
@@ -43,6 +45,7 @@ export default function Redraft() {
         max_picks,
         picks,
     } = usePage<Props>().props;
+    const { busy, track } = useBusy();
     const [exemption, setExemption] = useState<number | ''>(
         series?.exemption_wrestler_id ?? '',
     );
@@ -149,6 +152,8 @@ export default function Redraft() {
                                 <button
                                     type="button"
                                     className="gm-btn gm-btn-ghost gm-btn-sm"
+                                    disabled={busy !== null}
+                                    aria-busy={busy === 'tags' || undefined}
                                     onClick={() =>
                                         router.post(
                                             gm.redraft.tags.url(game.id),
@@ -158,10 +163,19 @@ export default function Redraft() {
                                                 handpick_wrestler_id:
                                                     handpick || null,
                                             },
+                                            {
+                                                preserveScroll: true,
+                                                ...track('tags'),
+                                            },
                                         )
                                     }
                                 >
-                                    Save tags
+                                    <BusyLabel
+                                        busy={busy === 'tags'}
+                                        busyText="Saving…"
+                                    >
+                                        Save tags
+                                    </BusyLabel>
                                 </button>
                             </div>
                         </div>
@@ -170,9 +184,22 @@ export default function Redraft() {
                     <button
                         type="button"
                         className="gm-btn gm-btn-gold"
-                        onClick={() => router.post(gm.redraft.run.url(game.id))}
+                        disabled={busy !== null}
+                        aria-busy={busy === 'run' || undefined}
+                        onClick={() =>
+                            router.post(
+                                gm.redraft.run.url(game.id),
+                                {},
+                                track('run'),
+                            )
+                        }
                     >
-                        Run the re-draft
+                        <BusyLabel
+                            busy={busy === 'run'}
+                            busyText="Re-drafting…"
+                        >
+                            Run the re-draft
+                        </BusyLabel>
                     </button>
                 </Panel>
             )}

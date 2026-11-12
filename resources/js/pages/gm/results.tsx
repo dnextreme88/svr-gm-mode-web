@@ -16,7 +16,7 @@ import type { ConditionalStoryPopup } from '@/components/gm/story-modal';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
-import { brandName, prefersReducedMotion } from '@/lib/gm';
+import { brandName, pluralize, prefersReducedMotion } from '@/lib/gm';
 import gm from '@/routes/gm';
 import { StipulationLabels } from '@/types/enums';
 import type { Brand } from '@/types/enums';
@@ -494,7 +494,7 @@ export default function Results() {
 
                         {new_emails > 0 && !from_schedule && !airing && (
                             <p className="text-sm text-ink-dim">
-                                {new_emails} new email(s).{' '}
+                                {pluralize(new_emails, 'new email')}.{' '}
                                 <Link
                                     href={gm.email.url(game.id)}
                                     className="text-brand-hot underline underline-offset-4"

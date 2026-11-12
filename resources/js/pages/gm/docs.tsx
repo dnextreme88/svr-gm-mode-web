@@ -1,6 +1,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { SpecialtyBadge } from '@/components/gm/badges';
+import { PpvBug } from '@/components/gm/brand-bug';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { PageTitle, Panel } from '@/components/gm/panel';
@@ -12,6 +13,7 @@ import gm from '@/routes/gm';
 import type {
     Brand,
     MatchFamily,
+    PpvKey,
     RosterType,
     Stipulation,
     WeightClass,
@@ -76,9 +78,17 @@ type NewsEvent = {
     active: boolean;
     headline: string;
     summary: string;
+    /** The summary's other readings (house rule, 2026-11-11). */
+    summary_variants?: Array<{ variant: string; summary: string }>;
 };
 
-type GmEmail = { email: string; from: string; when: string };
+type GmEmail = {
+    email: string;
+    from: string;
+    when: string;
+    /** Every body it can have, by situation (house rule, 2026-11-11). */
+    bodies?: Array<{ label: string; texts: string[] }>;
+};
 
 /** A story catalog group: a promo, or a quiet-week card. */
 type StoryGroup = {
@@ -176,7 +186,6 @@ type Props = {
         rivalries: {
             max_per_brand: number;
             refill_wait_weeks: number;
-            reset_minimum: number;
             rivalry_match_chance: number;
         };
         roster: {
@@ -223,6 +232,7 @@ type Props = {
             start_heat: number;
             heat_per_meeting: number;
             heat_per_promo: number;
+            heat_per_interference?: number;
             idle_decay: number;
             heating_up_threshold: number;
             blowoff_min_heat: number;
@@ -1073,13 +1083,17 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                                 Continue Rivalry{' '}
                                 {promos.rivalry_heat.heat_per_promo}, and a week
                                 with neither loses{' '}
-                                {promos.rivalry_heat.idle_decay}; at 0 it’s
-                                over. At{' '}
-                                {promos.rivalry_heat.heating_up_threshold} it’s
-                                heating up, and rivals meeting at a PPV with{' '}
-                                {promos.rivalry_heat.blowoff_min_heat}+ heat end
-                                it in a blow-off. The Rivalry page lists all of
-                                this.
+                                {promos.rivalry_heat.idle_decay}; at 0 or below
+                                it’s over. A rival who runs in and costs the
+                                other the match (a Rival Interference finish)
+                                adds{' '}
+                                {promos.rivalry_heat.heat_per_interference ??
+                                    10}
+                                . At {promos.rivalry_heat.heating_up_threshold}{' '}
+                                it’s heating up, and rivals meeting at a PPV
+                                with {promos.rivalry_heat.blowoff_min_heat}+
+                                heat end it in a blow-off. The Rivalry page
+                                lists all of this.
                             </li>
                         )}
                         <li>
@@ -1275,7 +1289,7 @@ function StoryCatalogPanel({
                                                     </div>
                                                 )}
                                                 {v.summary && (
-                                                    <div className="text-ink-dim">
+                                                    <div className="whitespace-pre-line text-ink-dim">
                                                         <Template
                                                             text={v.summary}
                                                         />
@@ -1564,9 +1578,48 @@ function NewsAndEmail({
                                             <div className="text-ink">
                                                 <Template text={e.headline} />
                                             </div>
-                                            <div className="mt-1 text-ink-dim">
+                                            <div className="mt-1 whitespace-pre-line text-ink-dim">
                                                 <Template text={e.summary} />
                                             </div>
+                                            {(e.summary_variants ?? []).length >
+                                                0 && (
+                                                <details
+                                                    className="mt-2"
+                                                    data-testid={`news-variants-${e.type}`}
+                                                >
+                                                    <summary className="cursor-pointer text-xs text-ink-faint hover:text-ink">
+                                                        {
+                                                            e.summary_variants!
+                                                                .length
+                                                        }{' '}
+                                                        other summaries
+                                                    </summary>
+                                                    <ul className="mt-2 space-y-2">
+                                                        {e.summary_variants!.map(
+                                                            (v) => (
+                                                                <li
+                                                                    key={
+                                                                        v.variant
+                                                                    }
+                                                                >
+                                                                    <div className="gm-label">
+                                                                        {
+                                                                            v.variant
+                                                                        }
+                                                                    </div>
+                                                                    <div className="whitespace-pre-line text-ink-dim">
+                                                                        <Template
+                                                                            text={
+                                                                                v.summary
+                                                                            }
+                                                                        />
+                                                                    </div>
+                                                                </li>
+                                                            ),
+                                                        )}
+                                                    </ul>
+                                                </details>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -1602,7 +1655,51 @@ function NewsAndEmail({
                                 <td className="whitespace-nowrap text-ink-dim">
                                     {m.from}
                                 </td>
-                                <td className="text-ink-dim">{m.when}</td>
+                                <td className="text-ink-dim">
+                                    {m.when}
+                                    {(m.bodies ?? []).length > 0 && (
+                                        <details
+                                            className="mt-2"
+                                            data-testid="email-bodies"
+                                        >
+                                            <summary className="cursor-pointer text-xs text-ink-faint hover:text-ink">
+                                                Read the emails (
+                                                {m.bodies!.reduce(
+                                                    (n, b) =>
+                                                        n + b.texts.length,
+                                                    0,
+                                                )}{' '}
+                                                versions)
+                                            </summary>
+                                            <div className="mt-2 space-y-3">
+                                                {m.bodies!.map((b) => (
+                                                    <div key={b.label}>
+                                                        <div className="gm-label mb-1">
+                                                            {b.label} (
+                                                            {b.texts.length})
+                                                        </div>
+                                                        <ul className="space-y-2">
+                                                            {b.texts.map(
+                                                                (t, i) => (
+                                                                    <li
+                                                                        key={i}
+                                                                        className="border-l-2 border-white/10 pl-3 whitespace-pre-line"
+                                                                    >
+                                                                        <Template
+                                                                            text={
+                                                                                t
+                                                                            }
+                                                                        />
+                                                                    </li>
+                                                                ),
+                                                            )}
+                                                        </ul>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </details>
+                                    )}
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -1830,9 +1927,9 @@ function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
                 </li>
                 <li>
                     <strong>Rivalries:</strong> at most {r.max_per_brand} on its
-                    brand. When one ends it waits {r.refill_wait_weeks} weeks,
-                    then starts one a week. With none left it starts at least{' '}
-                    {r.reset_minimum} at once. Each rivalry has a{' '}
+                    brand, starting the season with none. It starts one a week
+                    with a Start a Rivalry promo, waiting {r.refill_wait_weeks}{' '}
+                    weeks after one ends. Each rivalry has a{' '}
                     {pct(r.rivalry_match_chance)} chance of a 1 vs 1 on a card.
                     Rivals are always the same gender.
                 </li>
@@ -2151,7 +2248,8 @@ function AttendanceDocs({ attendance }: Pick<Props, 'attendance'>) {
                     <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
                         <li>
                             Results: “Attendance · Gate” in gold beside each
-                            show’s name. Hover it for the draw score’s factors.
+                            show’s name. Click or tap it for the draw score’s
+                            factors.
                         </li>
                         <li>
                             News: the week’s biggest crowd is a WWE headline,
@@ -2296,7 +2394,20 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                                 <td className="gm-num text-ink-dim">
                                     {p.season_week}
                                 </td>
-                                <td className="font-semibold">{p.name}</td>
+                                <td className="font-semibold">
+                                    <span className="flex items-center gap-2">
+                                        {/* The logos fit 384×133 but differ in
+                                            shape, so each sits centred in the
+                                            same box and the names line up. */}
+                                        <span className="inline-flex h-7 w-20 shrink-0 items-center justify-center">
+                                            <PpvBug
+                                                ppv={p.key as PpvKey}
+                                                className="h-auto max-h-full w-auto max-w-full"
+                                            />
+                                        </span>
+                                        {p.name}
+                                    </span>
+                                </td>
                                 <td className="whitespace-nowrap text-ink-dim">
                                     {p.date}
                                 </td>
@@ -2461,6 +2572,62 @@ function FactionsDocs({ factions }: Pick<Props, 'factions'>) {
     );
 }
 
+/** The card's Active Effects box (house rules 2026-10-31 and 2026-11-11). */
+const activeEffects: { name: string; text: string }[] = [
+    {
+        name: 'Required title match',
+        text: 'A contender who won a Champion vs. Contender match is owed the title match on the next show or PPV. This is the one effect that stops a card from airing until it’s booked; the card opens with a reminder to book it. See Stipulations.',
+    },
+    {
+        name: '#1 contender',
+        text: 'A #1 Contender’s Match winner waits for their shot. Until it’s used, the title can only be defended against them. It goes when they get the match, leave the brand or are seriously injured. See Stipulations.',
+    },
+    {
+        name: 'Last Chance',
+        text: 'A Last Chance loser can’t challenge that champion again until the title changes hands. See Stipulations.',
+    },
+    {
+        name: 'Rematch Clause',
+        text: 'A former champion is owed a rematch with the new champion, with the weeks left or “booked on this card”. It never blocks the card. See Stipulations.',
+    },
+    {
+        name: 'Money in the Bank',
+        text: 'Who holds the briefcase, until it’s cashed in, expires or the holder leaves the brand. See Match types.',
+    },
+    {
+        name: 'Buried Alive',
+        text: 'A Buried Alive loser sitting out, with the weeks left. They can’t be booked as anything until they’re back.',
+    },
+    {
+        name: 'Rivalry',
+        text: 'Every active rivalry on your brand and its heat, e.g. “Edge vs. John Cena · Heat 40”, hottest first. Heat rises when the rivals meet or run a Continue Rivalry promo and falls in a week with neither. See Promos.',
+    },
+];
+
+function ActiveEffectsDocs() {
+    return (
+        <Panel title="Active Effects">
+            <p className="text-sm text-ink">
+                The box above the match cards lists everything in play on your
+                brand that could shape this card. It’s gold while something is
+                listed and grey with “No active effects at the moment”
+                otherwise. Apart from a required title match, nothing in it
+                stops the card from airing: it’s a reminder, not a rule.
+            </p>
+            <ul className="mt-3 list-disc space-y-2 pl-4 text-sm text-ink">
+                {activeEffects.map((effect) => (
+                    <li key={effect.name}>
+                        <span className="font-semibold text-gold">
+                            {effect.name}:
+                        </span>{' '}
+                        {effect.text}
+                    </li>
+                ))}
+            </ul>
+        </Panel>
+    );
+}
+
 function ResultsDocs() {
     return (
         <div className="space-y-6">
@@ -2620,6 +2787,10 @@ export default function Docs() {
             order.indexOf(next) < order.indexOf(tab) ? 'left' : 'right',
         );
         setTab(next);
+        // On a phone the tabs scroll sideways: keep the chosen one in view.
+        tabRefs.current
+            .get(next)
+            ?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     };
     // Inside a career the GM header and nav are on screen; from the save
     // list there's no career, so offer the way back instead.
@@ -2642,7 +2813,7 @@ export default function Docs() {
             <div
                 role="tablist"
                 aria-label="Documentation sections"
-                className="relative mb-6 flex flex-wrap gap-1 border-b border-white/8"
+                className="gm-scroll relative mb-6 flex gap-1 overflow-x-auto border-b border-white/8 md:flex-wrap md:overflow-visible"
             >
                 {tabs.map((t) => (
                     <button
@@ -2658,7 +2829,7 @@ export default function Docs() {
                         data-active={tab === t.key || undefined}
                         onClick={() => selectTab(t.key)}
                         className={cn(
-                            'relative px-3 py-2.5 font-condensed text-sm font-semibold tracking-[0.12em] uppercase transition-colors',
+                            'relative shrink-0 px-3 py-2.5 font-condensed text-sm font-semibold tracking-[0.12em] whitespace-nowrap uppercase transition-colors',
                             tab === t.key
                                 ? 'text-white'
                                 : 'text-ink-dim hover:text-ink',
@@ -2717,6 +2888,7 @@ export default function Docs() {
                 {tab === 'schedule' && (
                     <div className="space-y-6">
                         <ScheduleDocs calendar={props.calendar} />
+                        <ActiveEffectsDocs />
                         <ResultsDocs />
                     </div>
                 )}

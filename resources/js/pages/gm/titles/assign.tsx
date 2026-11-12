@@ -1,9 +1,10 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { ActionButton } from '@/components/gm/action-button';
 import { useState } from 'react';
 import { TitleMark } from '@/components/gm/badges';
 import { CardProgress } from '@/components/gm/card-builder';
 import {
-    LOADING_OVERLAY_DELAY_MS,
+    loadingOverlayDelay,
     LoadingOverlay,
 } from '@/components/gm/loading-overlay';
 import { PageTitle, Panel } from '@/components/gm/panel';
@@ -54,7 +55,7 @@ export default function AssignTitles() {
                     {},
                     { onFinish: () => setStarting(false) },
                 ),
-            LOADING_OVERLAY_DELAY_MS,
+            loadingOverlayDelay('season-start'),
         );
     };
 
@@ -125,21 +126,24 @@ function CrownSteps({
     const current = championships.find((c) => c.id === currentId) ?? null;
     // House rule (2026-11-07): any decided title can be taken back and
     // decided again until the season starts.
-    const change = (c: ChampionshipRow) =>
-        router.post(
-            gm.titles.assign.undo.url({ save: saveId, championship: c.id }),
-            {},
-            { preserveScroll: true },
-        );
     const changeButton = (c: ChampionshipRow) => (
-        <button
-            type="button"
+        <ActionButton
             className="gm-btn gm-btn-ghost gm-btn-sm"
-            aria-label={`Change ${c.name}`}
-            onClick={() => change(c)}
+            label={`Change ${c.name}`}
+            busyText="Reopening…"
+            onAction={(track) =>
+                router.post(
+                    gm.titles.assign.undo.url({
+                        save: saveId,
+                        championship: c.id,
+                    }),
+                    {},
+                    { preserveScroll: true, ...track },
+                )
+            }
         >
             Change
-        </button>
+        </ActionButton>
     );
 
     const progress = championsProgress(championships);
@@ -299,19 +303,19 @@ function TitleCard({
     const target = { save: saveId, championship: championship.id };
 
     const vacantButton = allowVacant && (
-        <button
-            type="button"
+        <ActionButton
             className="gm-btn gm-btn-ghost gm-btn-sm"
-            onClick={() =>
+            busyText="Saving…"
+            onAction={(track) =>
                 router.post(
                     gm.titles.assign.vacant.url(target),
                     {},
-                    { preserveScroll: true },
+                    { preserveScroll: true, ...track },
                 )
             }
         >
             Leave vacant
-        </button>
+        </ActionButton>
     );
 
     return (
@@ -368,20 +372,20 @@ function TitleCard({
                     </div>
                     <div className="mt-3 flex justify-end gap-2">
                         {vacantButton}
-                        <button
-                            type="button"
+                        <ActionButton
                             className="gm-btn gm-btn-gold gm-btn-sm"
                             disabled={selected.length !== needed}
-                            onClick={() =>
+                            busyText="Awarding…"
+                            onAction={(track) =>
                                 router.post(
                                     gm.titles.assign.store.url(target),
                                     { save_wrestler_ids: selected },
-                                    { preserveScroll: true },
+                                    { preserveScroll: true, ...track },
                                 )
                             }
                         >
                             Award title
-                        </button>
+                        </ActionButton>
                     </div>
                 </>
             )}

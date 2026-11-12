@@ -226,6 +226,8 @@ export const EmailTemplate = {
     InjuryCleared: 'injury_cleared',
     TradeReminder: 'trade_reminder',
     FreeAgentReminder: 'free_agent_reminder',
+    BookingTip: 'booking_tip',
+    RivalPpvTaunt: 'rival_ppv_taunt',
 } as const;
 export type EmailTemplate = (typeof EmailTemplate)[keyof typeof EmailTemplate];
 export const EmailTemplateLabels: Record<EmailTemplate, string> = {
@@ -252,6 +254,8 @@ export const EmailTemplateLabels: Record<EmailTemplate, string> = {
     'injury_cleared': 'Injury Cleared',
     'trade_reminder': 'Trade Reminder',
     'free_agent_reminder': 'Free Agent Reminder',
+    'booking_tip': 'Booking Tip',
+    'rival_ppv_taunt': 'Rival Ppv Taunt',
 };
 
 export const FactionOrigin = {

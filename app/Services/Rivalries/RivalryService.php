@@ -143,6 +143,23 @@ class RivalryService
     }
 
     /**
+     * A rival ran in and cost their rival the match (house rule, 2026-11-11):
+     * the rivalry between them heats up.
+     *
+     * @param  list<int>  $loserIds
+     */
+    public function recordInterference(Save $save, int $interfererId, array $loserIds, int $week): void
+    {
+        foreach ($loserIds as $loserId) {
+            $rivalry = $this->between($save, $interfererId, $loserId);
+
+            if ($rivalry !== null && $rivalry->active) {
+                $this->heatUp($rivalry, (int) config('gm.rivalries.heat_per_interference'), $week);
+            }
+        }
+    }
+
+    /**
      * Idle rivalries cool off; at 0 heat they end.
      */
     public function weeklyDecay(Save $save, int $week): void

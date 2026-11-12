@@ -219,6 +219,17 @@ describe('Schedule calendar', () => {
         ).not.toMatch(/hover:bg-(raw|sd)/);
     });
 
+    it('draws a PPV as its own logo in a gold frame', () => {
+        render(<Schedule />);
+
+        const ppv = screen.getByTestId('air-2005-04-24-ppv-shared');
+
+        expect(
+            within(ppv).getByRole('img', { name: 'Backlash' }),
+        ).toBeInTheDocument();
+        expect(ppv).toHaveClass('ring-gold/70');
+    });
+
     it('ticks an aired weekly show in green beside the date, not on the logo', () => {
         render(<Schedule />);
 

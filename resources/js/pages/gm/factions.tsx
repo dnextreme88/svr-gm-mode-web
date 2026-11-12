@@ -92,6 +92,7 @@ export default function Factions() {
     };
     const [search, setSearch] = useState('');
     const [disbanding, setDisbanding] = useState<FactionRow | null>(null);
+    const [disbandBusy, setDisbandBusy] = useState(false);
     const byOrigin = factions.filter(
         (f) => origin === 'all' || f.origin !== 'seeded',
     );
@@ -226,6 +227,8 @@ export default function Factions() {
                 title={`Disband ${disbanding?.name ?? ''}?`}
                 message="From this week on they're billed by their own names again. Their record and titles stay on this page. This can't be undone."
                 confirmLabel="Disband"
+                busy={disbandBusy}
+                busyText="Disbanding…"
                 onCancel={() => setDisbanding(null)}
                 onConfirm={() => {
                     if (disbanding) {
@@ -237,7 +240,11 @@ export default function Factions() {
                             {},
                             {
                                 preserveScroll: true,
-                                onFinish: () => setDisbanding(null),
+                                onStart: () => setDisbandBusy(true),
+                                onFinish: () => (
+                                    setDisbandBusy(false),
+                                    setDisbanding(null)
+                                ),
                             },
                         );
                     }
@@ -336,7 +343,7 @@ function FactionTableRow({
                         // so 40 red buttons don't shout over the table.
                         <button
                             type="button"
-                            className="gm-btn gm-btn-danger gm-btn-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0"
+                            className="gm-btn gm-btn-danger gm-btn-sm group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0"
                             aria-label={`Disband ${f.name}`}
                             onClick={() => onDisband(f)}
                         >

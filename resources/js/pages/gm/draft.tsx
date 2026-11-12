@@ -4,7 +4,7 @@ import { SpecialtyBadge } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import {
-    LOADING_OVERLAY_DELAY_MS,
+    loadingOverlayDelay,
     LoadingOverlay,
 } from '@/components/gm/loading-overlay';
 import { PageTitle, Panel, Stat } from '@/components/gm/panel';
@@ -109,7 +109,7 @@ export default function Draft() {
 
         const timer = window.setTimeout(
             () => router.visit(gm.saves.show.url(props.game.id)),
-            LOADING_OVERLAY_DELAY_MS,
+            loadingOverlayDelay('draft-concluded'),
         );
 
         return () => window.clearTimeout(timer);
