@@ -63,6 +63,8 @@ class CardService
                 ? $this->contention->contested($show->game, $booking)
                 : null,
             'cost' => $booking->matchType->cost,
+            // A fresh booking drops any side the rival booked to win.
+            'booked_side' => null,
         ]);
 
         $this->writeParticipants($slot, $booking);
@@ -87,7 +89,7 @@ class CardService
         }
 
         $slot->participants()->delete();
-        $slot->update(['match_type_id' => null, 'title_championship_id' => null, 'stipulation' => null, 'stipulation_championship_id' => null, 'contested_title_ids' => null, 'cost' => 0]);
+        $slot->update(['match_type_id' => null, 'title_championship_id' => null, 'stipulation' => null, 'stipulation_championship_id' => null, 'contested_title_ids' => null, 'cost' => 0, 'booked_side' => null]);
 
         return $slot;
     }

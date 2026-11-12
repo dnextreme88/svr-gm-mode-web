@@ -438,7 +438,10 @@ export default function Results() {
 
     // Simulate all, while the player's matches wait to be decided. It shows
     // a spinner and "Simulating…" until the results are in.
-    const simulateAll = airing && !rival && (
+    // Only for the night on screen while it still has matches to decide
+    // (2026-11-13): on a PPV week's toggle, the aired night has none.
+    const nightPending = nightReel.some((r) => r.outcome.pending === true);
+    const simulateAll = airing && !rival && nightPending && (
         <button
             type="button"
             className="gm-btn gm-btn-ghost"
@@ -511,6 +514,38 @@ export default function Results() {
                 <EmptyState>No matches were booked this week.</EmptyState>
             )}
 
+            {/* Above both columns, so the list and the outcome card start
+                level (house rule, 2026-11-12). */}
+            <div className="mb-4 empty:hidden">
+                {split && (
+                    <div
+                        role="group"
+                        aria-label="Results to show"
+                        className="flex flex-wrap gap-1"
+                    >
+                        {nights.map((n) => (
+                            <button
+                                key={n}
+                                type="button"
+                                aria-pressed={night === n}
+                                onClick={() => showNight(n)}
+                                className={cn(
+                                    'min-h-11 px-3 py-1 font-condensed text-sm font-semibold tracking-wider uppercase sm:min-h-0',
+                                    night === n
+                                        ? 'bg-brand text-white'
+                                        : 'text-ink-dim hover:text-ink',
+                                )}
+                            >
+                                {shows
+                                    .filter((show) => nightOf(show) === n)
+                                    .map((show) => show.name)
+                                    .join(' · ')}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
             {reel.length > 0 && (
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
                     <div className="min-w-0 space-y-6">
@@ -522,35 +557,6 @@ export default function Results() {
                             >
                                 Decide match {current.outcome.position}
                             </button>
-                        )}
-                        {split && (
-                            <div
-                                role="group"
-                                aria-label="Results to show"
-                                className="flex flex-wrap gap-1"
-                            >
-                                {nights.map((n) => (
-                                    <button
-                                        key={n}
-                                        type="button"
-                                        aria-pressed={night === n}
-                                        onClick={() => showNight(n)}
-                                        className={cn(
-                                            'min-h-11 px-3 py-1 font-condensed text-sm font-semibold tracking-wider uppercase sm:min-h-0',
-                                            night === n
-                                                ? 'bg-brand text-white'
-                                                : 'text-ink-dim hover:text-ink',
-                                        )}
-                                    >
-                                        {shows
-                                            .filter(
-                                                (show) => nightOf(show) === n,
-                                            )
-                                            .map((show) => show.name)
-                                            .join(' · ')}
-                                    </button>
-                                ))}
-                            </div>
                         )}
                         {visibleShows.map((show) => (
                             <Panel

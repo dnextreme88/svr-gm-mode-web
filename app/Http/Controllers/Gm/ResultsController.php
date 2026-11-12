@@ -17,6 +17,7 @@ use App\Models\PromoSlot;
 use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\Show;
+use App\Models\WeekResolution;
 use App\Services\Calendar\CalendarService;
 use App\Services\Matches\ShowResolver;
 use App\Services\Titles\MitbService;
@@ -127,6 +128,13 @@ class ResultsController extends Controller
             'focus_match_id' => $request->integer('match') ?: null,
             'from_schedule' => $request->has('show'),
             'airing' => $airing,
+            // House rule (2026-11-13): the week just finished, opened from
+            // the live results (not the Schedule or a title's history). The
+            // header stays hidden until Continue opens the News.
+            'wrapping_up' => $week === $save->current_week - 1
+                && ! $request->has('show')
+                && ! $request->has('match')
+                && WeekResolution::where('save_id', $save->id)->where('week_number', $week)->exists(),
             'cash_in_offer' => $airing ? $this->cashInOffer($save) : null,
             'continue_to' => $awaitingWeekly ? $this->weeklyCard($save, $week) : null,
             'shows' => $shows,

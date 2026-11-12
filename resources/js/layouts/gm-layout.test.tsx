@@ -246,6 +246,19 @@ describe('On air (house rule, 2026-11-12)', () => {
         expect(screen.queryByTestId('gm-header')).toBeNull();
     });
 
+    it('keeps them hidden once the week is in, until the News opens', () => {
+        pageState.component = 'gm/results';
+        pageState.extra = {
+            airing: false,
+            continue_to: null,
+            wrapping_up: true,
+        };
+        renderAt(1100, 1400);
+
+        expect(screen.queryByTestId('gm-header')).toBeNull();
+        expect(screen.queryByRole('navigation')).toBeNull();
+    });
+
     it('keeps them on the results of a past week', () => {
         pageState.component = 'gm/results';
         pageState.extra = { airing: false, continue_to: null };

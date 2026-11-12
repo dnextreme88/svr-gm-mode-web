@@ -77,6 +77,17 @@ The button audit had missed `/gm`. A new rule: major buttons pressed only once i
 - **Interbrand cards:** the slots an interbrand card gives the rival (`owner_brand`: SummerSlam's Matches 2 and 4, WrestleMania's rival brand slots) simulate on their own when their turn comes (`WeekResolver::proceed`, `isRivalSlot`). The player decides their own slots and the shared ones: WrestleMania's interbrand series and main event, the Royal Rumble, Survivor Series.
 - **On air:** while a night airs on the results screen (`airing`, or `continue_to` after a PPV night), the GM header and menu bar are hidden. Results of past weeks keep them.
 
+### Header until the News (2026-11-13)
+
+Once the week's last match was in, closing the fatigue modal brought the header back, because the week was no longer airing. `ResultsController` now sends `wrapping_up`: the latest resolved week, opened without `?show` or `?match`. `GmLayout` keeps the header and menu hidden for it, so they return only on the News. Results opened from the Schedule or a title's history still show them.
+
+### Night toggle placement and Simulate all (2026-11-13)
+
+- The night toggle moved above both columns, so the list and the outcome card start level.
+- **Simulate all** shows only while the night on screen still has matches to decide.
+    - It used to show while you looked at the aired PPV night (SummerSlam), which read as re-running that card.
+    - The server never re-aired it: `simulateAll` only airs cards that haven't aired.
+
 ### Chyron flash (2026-11-13)
 
 The page title's kicker ("Week 13 · Weekly show") flashed a square box for a frame, like the slanted buttons did. Chyrons cut their slant with a `clip-path`, inside the title's clip-path wipe-in. `.gm-chyron` and `.gm-chyron-both` now paint the shape on `::before`: a solid fill plus a diagonal hard-stop gradient for each slanted edge. The colour comes from `--gm-chyron-bg`; the default is the brand, and gold, translucent gold and white tints are set per use. This covers the kicker, the match labels, the news ribbon, the week chip and the outcome tags.
@@ -100,7 +111,8 @@ The page title's kicker ("Week 13 · Weekly show") flashed a square box for a fr
 - `BookingOrderTest`: a rival's brand-only PPV airs with the weekly shows in one step.
 - `SummerSlamMainEventTest`: on SummerSlam the rival's Match 2 simulates on its own and the player's Match 3 is next.
 - `booking-steps.test.tsx`: no card switcher.
-- `gm-layout.test.tsx`: the header and menu are hidden while airing or after a PPV night, and kept on past results.
+- `gm-layout.test.tsx`: the header and menu are hidden while airing, after a PPV night and once the week is in (until the News), and kept on past results.
+- `LiveResultsTest`: `wrapping_up` once the week is in, but not from the Schedule.
 - `results.test.tsx`: two-stage fatigue before recovery; the night toggle (starts on the airing weekly show, switches to the PPV, absent without a PPV).
 - `results.test.tsx`:
     - the modal opens when the last match is in, with the card pending;

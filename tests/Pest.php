@@ -19,7 +19,14 @@ pest()->extend(TestCase::class)
     // Conditional match stories (house rule, 2026-11-07) would change scripted
     // results whenever the Hardys, Dudleys, Finlay… are booked: off unless a
     // test turns them on (tests/Feature/News/ConditionalStoriesTest.php).
-    ->beforeEach(fn () => config(['gm.stories.enabled' => false]))
+    // The rival's Loser Leaves Show and Last Chance rolls (house rule,
+    // 2026-11-13) would send superstars to Free Agency in unrelated tests:
+    // off unless a test turns them on (tests/Feature/Ai/RivalPlansTest.php).
+    ->beforeEach(fn () => config([
+        'gm.stories.enabled' => false,
+        'gm.ai.stipulations.loser_leaves.chance' => 0.0,
+        'gm.ai.stipulations.last_chance.chance' => 0.0,
+    ]))
     ->in('Feature');
 
 /*

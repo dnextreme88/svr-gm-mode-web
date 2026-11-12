@@ -3,9 +3,10 @@ import { ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { BusyLabel } from '@/components/gm/busy-label';
 import { EmptyState, PageTitle, Panel, Stat } from '@/components/gm/panel';
-import { formatMoney, formatSignedMoney, pluralize } from '@/lib/gm';
+import { brandName, formatMoney, formatSignedMoney, pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
+import type { Brand } from '@/types/enums';
 import type { GamePageProps } from '@/types/gm';
 
 type Line = {
@@ -35,6 +36,10 @@ type HistoryRow = {
 };
 
 type Props = GamePageProps & {
+    /** Whose books these are (house rule, 2026-11-13); the rival's are read-only. */
+    brand?: Brand;
+    /** That brand's balance. */
+    balance?: number;
     statement: Statement;
     history: HistoryRow[];
     weekly_upkeep?: number;
@@ -91,6 +96,11 @@ const choiceCopy: Record<string, { title: string; body: string }> = {
 export default function Financials() {
     const { game, statement, history, weekly_upkeep, deficit_choices } =
         usePage<Props>().props;
+    const props = usePage<Props>().props;
+    const brand = props.brand ?? game.player_brand;
+    const mine = brand === game.player_brand;
+    const balance = props.balance ?? game.budget;
+    const brandQuery = mine ? {} : { brand };
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
     const [choosing, setChoosing] = useState<string | null>(null);
     const groups = groupLines(statement.lines);
@@ -104,7 +114,34 @@ export default function Financials() {
             <Head title="Financials" />
             <PageTitle kicker="Income statement" title="Financials" />
 
-            {game.deficit.blocked && (
+            {/* Either brand's books; the rival's are read-only. */}
+            <div
+                role="group"
+                aria-label="Brand"
+                className="-mt-2 mb-6 flex flex-wrap gap-1"
+            >
+                {(['raw', 'smackdown'] as const).map((b) => (
+                    <Link
+                        key={b}
+                        href={gm.financials.url(game.id, {
+                            query: b === game.player_brand ? {} : { brand: b },
+                        })}
+                        preserveScroll
+                        aria-current={brand === b ? 'page' : undefined}
+                        className={cn(
+                            'inline-flex min-h-11 items-center px-3 py-1 font-condensed text-sm font-semibold tracking-wider uppercase sm:min-h-0',
+                            brand === b
+                                ? 'bg-brand text-white'
+                                : 'text-ink-dim hover:text-ink',
+                        )}
+                    >
+                        {brandName(b)}
+                        {b === game.player_brand ? ' (you)' : ' (rival)'}
+                    </Link>
+                ))}
+            </div>
+
+            {mine && game.deficit.blocked && (
                 <Panel title="The board wants a plan" className="mb-6">
                     <p className="mb-4 text-sm text-ink-dim">
                         You’ve run a deficit for{' '}
@@ -153,8 +190,8 @@ export default function Financials() {
                 <Panel>
                     <Stat
                         label="Balance"
-                        value={formatMoney(game.budget)}
-                        tone={game.budget < 0 ? 'bad' : undefined}
+                        value={formatMoney(balance)}
+                        tone={balance < 0 ? 'bad' : undefined}
                     />
                 </Panel>
                 <Panel>
@@ -190,12 +227,13 @@ export default function Financials() {
 
             {(statement.starting_budget ?? 0) > 0 && (
                 <p className="-mt-3 mb-6 text-sm text-ink-dim">
-                    Week {statement.week} also opened your budget with{' '}
+                    Week {statement.week} also opened{' '}
+                    {mine ? 'your' : 'the rival’s'} budget with{' '}
                     <span className="gm-num text-ink">
                         {formatMoney(statement.starting_budget ?? 0)}
                     </span>
-                    . That’s your starting balance, so it isn’t counted as
-                    income.
+                    . That’s {mine ? 'your' : 'its'} starting balance, so it
+                    isn’t counted as income.
                 </p>
             )}
 
@@ -330,7 +368,10 @@ export default function Financials() {
                             <li key={row.week_number}>
                                 <Link
                                     href={gm.financials.url(game.id, {
-                                        query: { week: row.week_number },
+                                        query: {
+                                            ...brandQuery,
+                                            week: row.week_number,
+                                        },
                                     })}
                                     preserveScroll
                                     aria-label={`Week ${row.week_number}: income ${formatMoney(row.income)}, expenses ${formatMoney(Math.abs(row.expenses))}, net ${formatSignedMoney(row.net)}`}

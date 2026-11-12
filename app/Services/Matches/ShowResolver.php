@@ -106,6 +106,12 @@ class ShowResolver
         // The main event is the card's last booked match, never a Money in
         // the Bank cash-in placed after it (house rule).
         $mainEvent = $slots->filter(fn (MatchSlot $s): bool => $s->isBooked() && $s->fixed_kind !== FixedSlotKind::MitbCashIn)->last();
+        // The rival GM's Book to Win (house rule, 2026-11-13): a side it booked
+        // to win wins when its show simulates (not a Gauntlet, booked by bout).
+        if ($bookedSide === null && $bookedBouts === [] && $next->booked_side !== null && $next->matchType?->family !== MatchFamily::Gauntlet) {
+            $bookedSide = $next->booked_side;
+        }
+
         $this->airMatch($next, $show, $context, $context->stream("show.{$show->streamKey()}"), $next->is($mainEvent), $bookedSide, $bookedBouts);
 
         return $next;

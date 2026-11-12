@@ -4,8 +4,10 @@ namespace App\Services\Ai;
 
 use App\Enums\Brand;
 use App\Enums\ContractLength;
+use App\Enums\MoraleComplaintType;
 use App\Exceptions\GameRuleException;
 use App\Models\Championship;
+use App\Models\MoraleComplaint;
 use App\Models\PendingRosterMove;
 use App\Models\Save;
 use App\Models\SaveWrestler;
@@ -33,7 +35,40 @@ class AiRosterManager
     public function upkeep(Save $save, Brand $brand, int $week): void
     {
         $this->renew($save, $brand, $week);
+        $this->answerContractDemands($save, $brand, $week);
         $this->sign($save, $brand, $week);
+    }
+
+    /**
+     * Morale (house rule, 2026-11-13): a superstar demanding a new contract
+     * (a long win streak) gets one, rolled like its other morale fixes
+     * (Content and Unsatisfied 75%, Upset 95%), when it can afford the
+     * renewal and keep its cash reserve.
+     */
+    public function answerContractDemands(Save $save, Brand $brand, int $week): void
+    {
+        $length = ContractLength::from((int) config('gm.ai.roster.renew_length'));
+        $rng = $save->rng("ai.morale.contract.{$brand->value}", $week);
+
+        $demanding = SaveWrestler::with(['wrestler', 'activeContract', 'activeComplaints'])
+            ->where('save_id', $save->id)
+            ->where('brand', $brand)
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (SaveWrestler $w): bool => $w->activeContract !== null
+                && $w->activeComplaints->contains(fn (MoraleComplaint $c): bool => $c->type === MoraleComplaintType::ContractExtension));
+
+        foreach ($demanding as $wrestler) {
+            $level = $wrestler->activeComplaints->first(fn (MoraleComplaint $c): bool => $c->type === MoraleComplaintType::ContractExtension)?->level;
+
+            if ($level === null
+                || ! $rng->chance((float) config('gm.ai.morale.fix_chance.'.$level->value))
+                || ! $this->affords($save, $brand, $this->pricing->quote($wrestler->wrestler, $length)['upfront'])) {
+                continue;
+            }
+
+            $this->contracts->renegotiate($wrestler, $length, $week);
+        }
     }
 
     /**
@@ -85,6 +120,7 @@ class AiRosterManager
         $rng = $save->rng("ai.roster.{$brand->value}", $week);
 
         $agents = collect($rng->shuffle($this->roster->freeAgentsQuery($save, $week)->with('wrestler')->orderBy('id')->get()->all()));
+        $affordable = fn (SaveWrestler $w): bool => $this->affords($save, $brand, $this->pricing->quote($w->wrestler, $length)['upfront']);
 
         while ($this->roster->rosterCount($save, $brand) < $target) {
             $short = $this->shortTitles($save, $brand);
@@ -94,7 +130,14 @@ class AiRosterManager
                 default => 2,
             })->values();
 
-            $pick = $agents->first(fn (SaveWrestler $w): bool => $this->affords($save, $brand, $this->pricing->quote($w->wrestler, $length)['upfront']));
+            // House rule (2026-11-13): while it has fewer than `max_legends`,
+            // each signing rolls `legend_chance` to go for a Legend it can
+            // afford; otherwise (or with none affordable) anyone else.
+            $legend = $this->legendCount($save, $brand) < (int) config('gm.ai.roster.max_legends')
+                && $rng->chance((float) config('gm.ai.roster.legend_chance'))
+                ? $agents->first(fn (SaveWrestler $w): bool => $w->wrestler->isLegend() && $affordable($w))
+                : null;
+            $pick = $legend ?? $agents->first(fn (SaveWrestler $w): bool => ! $w->wrestler->isLegend() && $affordable($w));
 
             if ($pick === null) {
                 return;
@@ -108,6 +151,21 @@ class AiRosterManager
                 continue;
             }
         }
+    }
+
+    /**
+     * Legends on the brand's roster, counting signings that start next week.
+     */
+    public function legendCount(Save $save, Brand $brand): int
+    {
+        $pending = PendingRosterMove::where('save_id', $save->id)->where('brand', $brand)->whereNull('applied_week')->pluck('save_wrestler_id');
+
+        return SaveWrestler::with('wrestler')
+            ->where('save_id', $save->id)
+            ->where(fn ($q) => $q->where('brand', $brand)->orWhereIn('id', $pending))
+            ->get()
+            ->filter(fn (SaveWrestler $w): bool => $w->wrestler->isLegend())
+            ->count();
     }
 
     /**

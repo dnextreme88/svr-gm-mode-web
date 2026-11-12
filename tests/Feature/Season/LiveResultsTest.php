@@ -276,3 +276,19 @@ it('names the title a Title Match Hype promo hyped', function () {
             ->where('shows.0.promos.0.type', 'Title Match Hype')
             ->where('shows.0.promos.0.title', 'WWE Championship'));
 });
+
+it('keeps the week on air until the News opens, but not its results from the Schedule', function () {
+    [$save] = liveWeek();
+
+    $this->post(route('gm.advance', $save));
+    $this->get(route('gm.results', [$save, 1]))->assertInertia(fn (Assert $page) => $page->where('wrapping_up', false));
+
+    $this->post(route('gm.results.simulate-all', [$save, 1]));
+
+    // House rule (2026-11-13): the week just finished, straight from the live results.
+    $this->get(route('gm.results', [$save, 1]))
+        ->assertInertia(fn (Assert $page) => $page->where('airing', false)->where('wrapping_up', true));
+
+    $this->get(route('gm.results', [$save, 1, 'show' => 1]))
+        ->assertInertia(fn (Assert $page) => $page->where('wrapping_up', false));
+});

@@ -486,15 +486,19 @@ export default function GmLayout({ children }: { children: ReactNode }) {
         game?: GameShell;
         airing?: boolean;
         continue_to?: unknown;
+        wrapping_up?: boolean;
     }>();
     const game = page.props.game;
     // House rule (2026-11-12): while a night airs on the live results (its
     // matches being decided, or a PPV night aired with the weekly show still
-    // to book), the header and menu bar are hidden so the player stays on
-    // the show. Results of past weeks keep them.
+    // to book, or the week just finished with the News still to open), the
+    // header and menu bar are hidden so the player stays on the show.
+    // Results of past weeks keep them.
     const onAir =
         page.component === 'gm/results' &&
-        (page.props.airing === true || Boolean(page.props.continue_to));
+        (page.props.airing === true ||
+            Boolean(page.props.continue_to) ||
+            page.props.wrapping_up === true);
 
     return (
         <div

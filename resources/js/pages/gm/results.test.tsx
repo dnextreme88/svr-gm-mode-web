@@ -1056,10 +1056,18 @@ describe('PPV week toggle (house rule, 2026-11-12)', () => {
         expect(screen.queryByRole('heading', { name: 'Backlash' })).toBeNull();
         expect(screen.getByText('1 / 1')).toBeInTheDocument();
 
+        expect(
+            screen.getByRole('button', { name: 'Simulate all' }),
+        ).toBeInTheDocument();
+
         await user.click(
             within(toggle).getByRole('button', { name: 'Backlash' }),
         );
 
+        // The PPV night has aired: nothing left there to simulate.
+        expect(
+            screen.queryByRole('button', { name: 'Simulate all' }),
+        ).toBeNull();
         expect(
             within(toggle).getByRole('button', { name: 'Backlash' }),
         ).toHaveAttribute('aria-pressed', 'true');
