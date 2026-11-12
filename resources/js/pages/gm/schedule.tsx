@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { BrandBug, PpvBug } from '@/components/gm/brand-bug';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { PageTitle } from '@/components/gm/panel';
+import { pluralize } from '@/lib/gm';
 import { requestJson } from '@/lib/http';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
@@ -393,7 +394,7 @@ function SimulationProgress({
                           : `Week ${last} aired.`}
                 </span>
                 <span className="gm-num text-ink">
-                    {done} / {total} weeks
+                    {done} / {pluralize(total, 'week')}
                 </span>
             </div>
             <div
@@ -402,7 +403,7 @@ function SimulationProgress({
                 aria-valuemin={0}
                 aria-valuemax={total}
                 aria-valuenow={done}
-                aria-valuetext={`${done} of ${total} weeks simulated`}
+                aria-valuetext={`${done} of ${pluralize(total, 'week')} simulated`}
                 className="h-2.5 overflow-hidden bg-white/10"
             >
                 <div

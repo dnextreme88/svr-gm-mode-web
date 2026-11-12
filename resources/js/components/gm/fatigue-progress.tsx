@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
+import { pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import type { InjurySeverity, RosterType, WeightClass } from '@/types/enums';
 import type { FatigueConfig } from '@/types/gm';
@@ -166,7 +167,8 @@ export function FatigueProgress({
                                                     : 'text-ink-dim',
                                             )}
                                         >
-                                            Recovered: −{w.recovered_bars} bars
+                                            Recovered: −
+                                            {pluralize(w.recovered_bars, 'bar')}
                                             {w.rested &&
                                                 ' (Inactive Superstar)'}
                                         </span>

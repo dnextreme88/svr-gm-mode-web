@@ -3,7 +3,7 @@ import { ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { BusyLabel } from '@/components/gm/busy-label';
 import { EmptyState, PageTitle, Panel, Stat } from '@/components/gm/panel';
-import { formatMoney, formatSignedMoney } from '@/lib/gm';
+import { formatMoney, formatSignedMoney, pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { GamePageProps } from '@/types/gm';
@@ -107,8 +107,9 @@ export default function Financials() {
             {game.deficit.blocked && (
                 <Panel title="The board wants a plan" className="mb-6">
                     <p className="mb-4 text-sm text-ink-dim">
-                        You’ve run a deficit for {game.deficit.weeks} weeks.
-                        Pick how you’ll recover before the next show airs.
+                        You’ve run a deficit for{' '}
+                        {pluralize(game.deficit.weeks, 'week')}. Pick how you’ll
+                        recover before the next show airs.
                     </p>
                     <div className="grid gap-3 md:grid-cols-3">
                         {deficit_choices.map((choice) => (

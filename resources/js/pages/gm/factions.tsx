@@ -4,7 +4,12 @@ import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { FilterGroup } from '@/components/gm/filter-group';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
-import { brandName, readPreference, writePreference } from '@/lib/gm';
+import {
+    brandName,
+    pluralize,
+    readPreference,
+    writePreference,
+} from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type {
@@ -144,9 +149,10 @@ export default function Factions() {
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <p className="max-w-2xl text-sm text-ink-dim">
                     Two or more members teaming up are billed as their faction.
-                    Two or three male superstars who win {formation_wins}{' '}
-                    matches together can form a new one. Real-life factions
-                    start the game together, whatever their real dates.
+                    Two or three male superstars who win{' '}
+                    {pluralize(formation_wins, 'match', 'matches')}
+                    together can form a new one. Real-life factions start the
+                    game together, whatever their real dates.
                 </p>
                 <input
                     type="search"
@@ -161,7 +167,7 @@ export default function Factions() {
             {shown.length === 0 ? (
                 <EmptyState>
                     {byOrigin.length === 0
-                        ? `No faction has been created in this career yet. Two or three male superstars who win ${formation_wins} matches together can become one, on either brand.`
+                        ? `No faction has been created in this career yet. Two or three male superstars who win ${pluralize(formation_wins, 'match', 'matches')} together can become one, on either brand.`
                         : byStatus.length > 0
                           ? `No faction has a member matching “${search.trim()}”.`
                           : status === 'disbanded'

@@ -24,6 +24,7 @@ use App\Services\Roster\RosterService;
 use App\Services\Titles\ContendershipService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleService;
+use Illuminate\Support\Str;
 
 /**
  * Signing, renegotiation, release and the weekly contract tick (§2).
@@ -230,7 +231,7 @@ class ContractService
         }
 
         foreach ($upkeep as $brand => $line) {
-            $this->ledger->post($save, Brand::from($brand), LedgerCategory::ContractUpkeep, -$line['total'], "Contract upkeep ({$line['count']} superstars)", $week);
+            $this->ledger->post($save, Brand::from($brand), LedgerCategory::ContractUpkeep, -$line['total'], "Contract upkeep ({$line['count']} ".Str::plural('superstar', $line['count']).')', $week);
         }
 
         foreach ($contracts->where('weeks_remaining', 0) as $contract) {

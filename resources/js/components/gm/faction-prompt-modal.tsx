@@ -9,6 +9,7 @@ import {
     DialogFooter,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { pluralize } from '@/lib/gm';
 import gm from '@/routes/gm';
 import { FactionType, FactionTypeLabels } from '@/types/enums';
 import type { FactionPrompt } from '@/types/gm';
@@ -68,7 +69,8 @@ export function FactionPromptModal({
                         {names.length === 2
                             ? 'These two have'
                             : 'These three have'}{' '}
-                        won {prompt.wins} matches together
+                        won {pluralize(prompt.wins, 'match', 'matches')}{' '}
+                        together
                         {prompt.show ? `, the latest on ${prompt.show}` : ''}.
                         Give them a name and they'll be billed as one from now
                         on.

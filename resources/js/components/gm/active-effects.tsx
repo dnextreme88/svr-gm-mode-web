@@ -1,3 +1,4 @@
+import { pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import type { TitleContext } from '@/types/gm';
 
@@ -99,7 +100,7 @@ export function ActiveEffects({
                             <strong>{r.championship}</strong> ·{' '}
                             {r.booked
                                 ? 'booked on this card'
-                                : `${r.weeks_left} week${r.weeks_left === 1 ? '' : 's'} left`}
+                                : `${pluralize(r.weeks_left, 'week')} left`}
                         </Effect>
                     ))}
                     {briefcase && (
@@ -112,8 +113,8 @@ export function ActiveEffects({
                     {buriedAlive.map((w) => (
                         <Effect key={`buried-${w.id}`} kind="Buried Alive">
                             {w.name} was buried alive and is out for{' '}
-                            {w.weeks_left} more week
-                            {w.weeks_left === 1 ? '' : 's'}.
+                            {pluralize(w.weeks_left, 'more week', 'more weeks')}
+                            .
                         </Effect>
                     ))}
                     {rivalries.map((r) => (

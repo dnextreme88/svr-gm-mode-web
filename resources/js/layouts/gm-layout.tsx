@@ -9,7 +9,7 @@ import { FloppyIcon } from '@/components/gm/floppy-icon';
 import { NoticeModal } from '@/components/gm/notice-modal';
 import { PopoverPanel, usePopover } from '@/components/gm/popover';
 import { TitleVacancyModal } from '@/components/gm/title-vacancy-modal';
-import { formatMoney } from '@/lib/gm';
+import { formatMoney, pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { GameShell } from '@/types/gm';
@@ -202,7 +202,7 @@ function Header({ game }: { game: GameShell }) {
                                 <span className="ml-1.5 text-ink-dim">
                                     {game.next_ppv.weeks_away === 0
                                         ? 'this week'
-                                        : `in ${game.next_ppv.weeks_away}w`}
+                                        : `in ${pluralize(game.next_ppv.weeks_away, 'week')}`}
                                 </span>
                             </div>
                         </div>
@@ -494,8 +494,8 @@ export default function GmLayout({ children }: { children: ReactNode }) {
             {game && <Nav game={game} url={page.url} />}
             {game?.deficit.blocked && (
                 <div className="relative z-10 border-b border-zone-serious/40 bg-zone-serious/15 px-6 py-2 text-center font-condensed text-sm tracking-wide text-zone-serious uppercase">
-                    {game.deficit.weeks} weeks in the red. Choose a recovery
-                    plan on{' '}
+                    {pluralize(game.deficit.weeks, 'week')} in the red. Choose a
+                    recovery plan on{' '}
                     <Link
                         href={gm.financials.url(game.id)}
                         className="underline underline-offset-4"

@@ -58,8 +58,17 @@ export const zoneLabel: Record<InjuryZone, string> = {
     serious_risk: 'Serious risk',
 };
 
-export function pluralize(count: number, word: string): string {
-    return `${count} ${word}${count === 1 ? '' : 's'}`;
+/**
+ * "1 week", "2 weeks". Every number shown before a counted word goes through
+ * this (a test scans the pages for ones that don't). Pass the plural when it
+ * isn't the word plus "s": pluralize(n, 'match', 'matches').
+ */
+export function pluralize(
+    count: number,
+    word: string,
+    plural = `${word}s`,
+): string {
+    return `${count} ${count === 1 ? word : plural}`;
 }
 
 export function prefersReducedMotion(): boolean {

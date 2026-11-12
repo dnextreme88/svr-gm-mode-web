@@ -1,6 +1,6 @@
 import { Head, usePage } from '@inertiajs/react';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
-import { formatMoney } from '@/lib/gm';
+import { formatMoney, pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import type { Brand } from '@/types/enums';
 import type { GamePageProps } from '@/types/gm';
@@ -159,9 +159,10 @@ function RivalryRulesPanel({
                     <ul className="list-disc space-y-1.5 pl-5 marker:text-ink-faint">
                         <li>
                             Book the same two superstars against each other{' '}
-                            {r.meetings} times within {r.window_weeks} weeks, in
-                            matches where every side is one superstar (Gauntlet
-                            bouts count).
+                            {pluralize(r.meetings, 'time')} within{' '}
+                            {pluralize(r.window_weeks, 'week')}, in matches
+                            where every side is one superstar (Gauntlet bouts
+                            count).
                         </li>
                         <li>
                             Or run a Start a Rivalry promo with two healthy
@@ -199,8 +200,9 @@ function RivalryRulesPanel({
                         </li>
                         <li>
                             At {heatingUp} it’s heating up and makes the news;
-                            still that hot after {r.milestone_weeks} weeks, it
-                            makes a headline.
+                            still that hot after{' '}
+                            {pluralize(r.milestone_weeks, 'week')}, it makes a
+                            headline.
                         </li>
                         <li>
                             Rivals meeting at a PPV with {r.blowoff_min_heat}+

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Brand, BrandLabels, ContractLength, Morale } from '@/types/enums';
-import { sortRoster } from '@/lib/gm';
+import { pluralize, sortRoster } from '@/lib/gm';
 
 describe('generated enum types', () => {
     it('mirrors the PHP backed enum values', () => {
@@ -84,5 +84,18 @@ describe('sortRoster', () => {
             'Kane',
             'Batista',
         ]);
+    });
+});
+
+describe('pluralize', () => {
+    it('uses the singular for exactly one', () => {
+        expect(pluralize(1, 'week')).toBe('1 week');
+        expect(pluralize(2, 'week')).toBe('2 weeks');
+        expect(pluralize(0, 'week')).toBe('0 weeks');
+    });
+
+    it('takes an irregular plural', () => {
+        expect(pluralize(1, 'match', 'matches')).toBe('1 match');
+        expect(pluralize(3, 'match', 'matches')).toBe('3 matches');
     });
 });

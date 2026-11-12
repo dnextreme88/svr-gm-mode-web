@@ -9,6 +9,7 @@ import {
 } from '@/components/gm/loading-overlay';
 import { PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
+import { pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import { ChampionshipEligibilityLabels } from '@/types/enums';
@@ -154,7 +155,7 @@ function CrownSteps({
                 <CardProgress
                     booked={progress.assigned}
                     total={progress.total}
-                    label={`${progress.assigned}/${progress.total} champions assigned`}
+                    label={`${progress.assigned}/${pluralize(progress.total, 'champion')} assigned`}
                     ariaLabel="Champions assigned"
                 />
             </div>
