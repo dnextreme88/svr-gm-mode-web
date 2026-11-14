@@ -2,7 +2,9 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowLeft, Mail, MailOpen, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { MoraleBadge, UnreadPill } from '@/components/gm/badges';
+import { BusyLabel } from '@/components/gm/busy-label';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
+import { ReleaseButton } from '@/components/gm/release-button';
 import { FilterGroup } from '@/components/gm/filter-group';
 import { MentionText } from '@/components/gm/mention-text';
 import { EmptyState, PageTitle } from '@/components/gm/panel';
@@ -72,6 +74,12 @@ export default function Inbox() {
     const url = usePage().url;
     const matcher = useMemo(() => buildMentionMatcher(wrestlers), [wrestlers]);
     const [confirming, setConfirming] = useState<'all' | 'one' | null>(null);
+    // The request in flight, for busy buttons (UI audit, 2026-11-12).
+    const [busy, setBusy] = useState<string | null>(null);
+    const track = (key: string) => ({
+        onStart: () => setBusy(key),
+        onFinish: () => setBusy(null),
+    });
 
     const total = categories.reduce((sum, c) => sum + c.total, 0);
     const unread = categories.reduce((sum, c) => sum + c.unread, 0);
@@ -133,17 +141,18 @@ export default function Inbox() {
         router.post(
             gm.email.readAll.url(game.id, { query }),
             {},
-            { preserveScroll: true },
+            { preserveScroll: true, ...track('read-all') },
         );
     const deleteAll = () =>
         router.delete(gm.email.destroyAll.url(game.id, { query }), {
-            onFinish: () => setConfirming(null),
+            onStart: () => setBusy('delete-all'),
+            onFinish: () => (setBusy(null), setConfirming(null)),
         });
     const markUnread = (email: EmailDetail) =>
         router.patch(
             gm.email.update.url({ save: game.id, email: email.id }, { query }),
             { read: false },
-            { preserveScroll: true },
+            { preserveScroll: true, ...track('unread') },
         );
     const deleteOne = (email: EmailDetail) =>
         router.delete(
@@ -151,7 +160,11 @@ export default function Inbox() {
                 { save: game.id, email: email.id },
                 { query: { ...query, ...(next && { next: next.id }) } },
             ),
-            { preserveScroll: true, onFinish: () => setConfirming(null) },
+            {
+                preserveScroll: true,
+                onStart: () => setBusy('delete-one'),
+                onFinish: () => (setBusy(null), setConfirming(null)),
+            },
         );
 
     return (
@@ -219,19 +232,25 @@ export default function Inbox() {
                                 <button
                                     type="button"
                                     className="gm-btn gm-btn-ghost gm-btn-sm whitespace-nowrap"
-                                    disabled={viewUnread === 0}
+                                    disabled={viewUnread === 0 || busy !== null}
+                                    aria-busy={busy === 'read-all' || undefined}
                                     onClick={markAllRead}
                                 >
-                                    <MailOpen
-                                        aria-hidden
-                                        className="hidden size-4 sm:block"
-                                    />
-                                    Mark all read
+                                    <BusyLabel
+                                        busy={busy === 'read-all'}
+                                        busyText="Marking…"
+                                    >
+                                        <MailOpen
+                                            aria-hidden
+                                            className="hidden size-4 sm:block"
+                                        />
+                                        Mark all read
+                                    </BusyLabel>
                                 </button>
                                 <button
                                     type="button"
                                     className="gm-btn gm-btn-danger gm-btn-sm whitespace-nowrap"
-                                    disabled={viewTotal === 0}
+                                    disabled={viewTotal === 0 || busy !== null}
                                     onClick={() => setConfirming('all')}
                                 >
                                     <Trash2
@@ -303,6 +322,10 @@ export default function Inbox() {
                                             className="gm-btn gm-btn-ghost gm-btn-sm size-10 p-0"
                                             aria-label="Mark as unread"
                                             title="Mark as unread"
+                                            disabled={busy !== null}
+                                            aria-busy={
+                                                busy === 'unread' || undefined
+                                            }
                                             onClick={() => markUnread(selected)}
                                         >
                                             <Mail
@@ -368,6 +391,8 @@ export default function Inbox() {
                 title="Delete emails"
                 message={`Delete ${scopeText}? This can't be undone.`}
                 confirmLabel="Delete"
+                busy={busy === 'delete-all'}
+                busyText="Deleting…"
                 onConfirm={deleteAll}
                 onCancel={() => setConfirming(null)}
             />
@@ -377,6 +402,8 @@ export default function Inbox() {
                 title="Delete email"
                 message={`Delete “${selected?.subject ?? ''}”? This can't be undone.`}
                 confirmLabel="Delete"
+                busy={busy === 'delete-one'}
+                busyText="Deleting…"
                 onConfirm={() => selected && deleteOne(selected)}
                 onCancel={() => setConfirming(null)}
             />
@@ -692,11 +719,9 @@ function EmailBody({
                                 </td>
                                 <td>
                                     {row.champion ? (
-                                        <span
-                                            className="font-condensed text-xs font-bold tracking-wider text-gold-hot uppercase"
-                                            title={row.titles.join(', ')}
-                                        >
-                                            ◆ Champion
+                                        // Which titles, in words (UI audit, 2026-11-12).
+                                        <span className="text-xs text-gold-hot">
+                                            {row.titles.join(', ')}
                                         </span>
                                     ) : (
                                         <span className="text-ink-faint">
@@ -714,27 +739,11 @@ function EmailBody({
                                     >
                                         Renegotiate
                                     </Link>{' '}
-                                    <button
-                                        type="button"
-                                        className="gm-btn gm-btn-ghost gm-btn-sm"
-                                        onClick={() => {
-                                            if (
-                                                confirm(
-                                                    `Release ${row.name} to Free Agency?`,
-                                                )
-                                            ) {
-                                                router.post(
-                                                    gm.contracts.release.url({
-                                                        save: saveId,
-                                                        saveWrestler:
-                                                            row.save_wrestler_id,
-                                                    }),
-                                                );
-                                            }
-                                        }}
-                                    >
-                                        Release
-                                    </button>
+                                    <ReleaseButton
+                                        saveId={saveId}
+                                        wrestlerId={row.save_wrestler_id}
+                                        name={row.name}
+                                    />
                                 </td>
                             </tr>
                         ))}

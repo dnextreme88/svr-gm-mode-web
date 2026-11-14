@@ -1,17 +1,19 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { SpecialtyBadge } from '@/components/gm/badges';
+import { PpvBug } from '@/components/gm/brand-bug';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { PageTitle, Panel } from '@/components/gm/panel';
 import { successLabel } from '@/components/gm/promo-slots';
 import { WrestlerName } from '@/components/gm/wrestler-name';
-import { brandName, formatMoney } from '@/lib/gm';
+import { brandName, formatMoney, pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type {
     Brand,
     MatchFamily,
+    PpvKey,
     RosterType,
     Stipulation,
     WeightClass,
@@ -76,9 +78,17 @@ type NewsEvent = {
     active: boolean;
     headline: string;
     summary: string;
+    /** The summary's other readings (house rule, 2026-11-11). */
+    summary_variants?: Array<{ variant: string; summary: string }>;
 };
 
-type GmEmail = { email: string; from: string; when: string };
+type GmEmail = {
+    email: string;
+    from: string;
+    when: string;
+    /** Every body it can have, by situation (house rule, 2026-11-11). */
+    bodies?: Array<{ label: string; texts: string[] }>;
+};
 
 /** A story catalog group: a promo, or a quiet-week card. */
 type StoryGroup = {
@@ -176,7 +186,6 @@ type Props = {
         rivalries: {
             max_per_brand: number;
             refill_wait_weeks: number;
-            reset_minimum: number;
             rivalry_match_chance: number;
         };
         roster: {
@@ -222,10 +231,10 @@ type Props = {
             auto_create_window_weeks: number;
             start_heat: number;
             heat_per_meeting: number;
-            heat_per_promo: number;
+            heat_per_ppv_meeting: number;
+            heat_per_interference?: number;
             idle_decay: number;
             heating_up_threshold: number;
-            blowoff_min_heat: number;
             max_heat: number;
         };
     };
@@ -547,9 +556,9 @@ function MatchTypes({
                     >
                         <li>
                             Held only at the Royal Rumble PPV, an interbrand
-                            card: {rumbleEntrants} entrants from Raw and{' '}
-                            {rumbleEntrants} from Smackdown. You pick yours on
-                            the Royal Rumble entrants card.
+                            card: {pluralize(rumbleEntrants, 'entrant')} from
+                            Raw and {rumbleEntrants} from Smackdown. You pick
+                            yours on the Royal Rumble entrants card.
                         </li>
                         <li>
                             Superstars are thrown over the top rope; the last
@@ -832,9 +841,10 @@ function Injuries({ injuries, fatigue }: Pick<Props, 'injuries' | 'fatigue'>) {
                         Fatigue runs from 0% to {fatigue.max}%, shown as bars of{' '}
                         {fatigue.bar_size}%. Each match type adds its fatigue
                         cost. At the end of every week, everyone recovers{' '}
-                        {fatigue.rest_recovery_bars} bars, whether they wrestled
-                        or not, and never drops below 0%. A successful Inactive
-                        Superstar promo adds 2 more for its target.
+                        {pluralize(fatigue.rest_recovery_bars, 'bar')}, whether
+                        they wrestled or not, and never drops below 0%. A
+                        successful Inactive Superstar promo adds 2 more for its
+                        target.
                     </li>
                     <li>
                         Injuries are decided by the fatigue a superstar ends a
@@ -963,8 +973,9 @@ function Stipulations({
                             When a title changes hands in a match (a Winner
                             Takes All and a Money in the Bank cash-in too), the
                             former champion(s) are owed a rematch against the
-                            new champion(s) within {rematch.weeks} weeks. A
-                            title awarded while vacant gives none.
+                            new champion(s) within{' '}
+                            {pluralize(rematch.weeks, 'week')}. A title awarded
+                            while vacant gives none.
                         </li>
                         <li>
                             Any title match for that title with the former
@@ -981,8 +992,9 @@ function Stipulations({
                         </li>
                         <li>
                             The rival GM books its rematches on its own: on each
-                            of the {rematch.rival_chances.length} weeks after,
-                            it rolls{' '}
+                            of the{' '}
+                            {pluralize(rematch.rival_chances.length, 'week')}{' '}
+                            after, it rolls{' '}
                             {rematch.rival_chances
                                 .map((c) => `${c}%`)
                                 .join(', ')}{' '}
@@ -1062,24 +1074,67 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                             <li data-testid="rivalry-heat">
                                 Rivalries also start when the same two
                                 superstars meet{' '}
-                                {promos.rivalry_heat.auto_create_meetings} times
+                                {pluralize(
+                                    promos.rivalry_heat.auto_create_meetings,
+                                    'time',
+                                )}{' '}
                                 within{' '}
-                                {promos.rivalry_heat.auto_create_window_weeks}{' '}
-                                weeks in matches where every side is one
-                                superstar. Heat runs 0 to{' '}
-                                {promos.rivalry_heat.max_heat}: it starts at{' '}
-                                {promos.rivalry_heat.start_heat}, each meeting
-                                adds {promos.rivalry_heat.heat_per_meeting} and
-                                Continue Rivalry{' '}
-                                {promos.rivalry_heat.heat_per_promo}, and a week
-                                with neither loses{' '}
-                                {promos.rivalry_heat.idle_decay}; at 0 it’s
-                                over. At{' '}
-                                {promos.rivalry_heat.heating_up_threshold} it’s
-                                heating up, and rivals meeting at a PPV with{' '}
-                                {promos.rivalry_heat.blowoff_min_heat}+ heat end
-                                it in a blow-off. The Rivalry page lists all of
-                                this.
+                                {pluralize(
+                                    promos.rivalry_heat
+                                        .auto_create_window_weeks,
+                                    'week',
+                                )}{' '}
+                                in matches where every side is one superstar.
+                                Heat runs 0 to {promos.rivalry_heat.max_heat}{' '}
+                                and is settled once a week, after the shows:
+                                <ul className="mt-1.5 list-[circle] space-y-1 pl-5">
+                                    <li>
+                                        A new rivalry starts at{' '}
+                                        {promos.rivalry_heat.start_heat}; the
+                                        week it starts doesn’t change it.
+                                    </li>
+                                    <li>
+                                        A week the rivals share a match adds{' '}
+                                        {promos.rivalry_heat.heat_per_meeting},
+                                        and a PPV they share a match at adds{' '}
+                                        {
+                                            promos.rivalry_heat
+                                                .heat_per_ppv_meeting
+                                        }
+                                        . Opponents or partners, winning or
+                                        losing: being in the same match counts.
+                                    </li>
+                                    <li>
+                                        A week without one, but with a Continue
+                                        Rivalry promo for it, holds the heat: no
+                                        more, no less.
+                                    </li>
+                                    <li>
+                                        Any other week loses{' '}
+                                        {promos.rivalry_heat.idle_decay}. At 0
+                                        or below the rivalry is over.
+                                    </li>
+                                    <li>
+                                        At{' '}
+                                        {
+                                            promos.rivalry_heat
+                                                .heating_up_threshold
+                                        }{' '}
+                                        it’s heating up. A rivalry that reaches{' '}
+                                        {promos.rivalry_heat.max_heat} has
+                                        peaked: it ends the following week, with
+                                        a headline.
+                                    </li>
+                                    <li>
+                                        A rival who runs in and costs the other
+                                        the match (a Rival Interference finish)
+                                        adds{' '}
+                                        {promos.rivalry_heat
+                                            .heat_per_interference ?? 10}
+                                        .
+                                    </li>
+                                </ul>
+                                The Rivalry page lists all of this.
                             </li>
                         )}
                         <li>
@@ -1096,8 +1151,9 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                         <li>
                             Don’t overuse them: each one backfires automatically
                             on its {`${promos.overuse.max_uses + 1}th`} use
-                            within {promos.overuse.window_weeks} weeks (that
-                            week and the {promos.overuse.window_weeks - 1}{' '}
+                            within{' '}
+                            {pluralize(promos.overuse.window_weeks, 'week')}{' '}
+                            (that week and the {promos.overuse.window_weeks - 1}{' '}
                             before it). The first {promos.overuse.max_uses} roll
                             their normal chance. Every use counts, two on one
                             card included, and each promo keeps its own count:
@@ -1275,7 +1331,7 @@ function StoryCatalogPanel({
                                                     </div>
                                                 )}
                                                 {v.summary && (
-                                                    <div className="text-ink-dim">
+                                                    <div className="whitespace-pre-line text-ink-dim">
                                                         <Template
                                                             text={v.summary}
                                                         />
@@ -1564,9 +1620,48 @@ function NewsAndEmail({
                                             <div className="text-ink">
                                                 <Template text={e.headline} />
                                             </div>
-                                            <div className="mt-1 text-ink-dim">
+                                            <div className="mt-1 whitespace-pre-line text-ink-dim">
                                                 <Template text={e.summary} />
                                             </div>
+                                            {(e.summary_variants ?? []).length >
+                                                0 && (
+                                                <details
+                                                    className="mt-2"
+                                                    data-testid={`news-variants-${e.type}`}
+                                                >
+                                                    <summary className="cursor-pointer text-xs text-ink-faint hover:text-ink">
+                                                        {
+                                                            e.summary_variants!
+                                                                .length
+                                                        }{' '}
+                                                        other summaries
+                                                    </summary>
+                                                    <ul className="mt-2 space-y-2">
+                                                        {e.summary_variants!.map(
+                                                            (v) => (
+                                                                <li
+                                                                    key={
+                                                                        v.variant
+                                                                    }
+                                                                >
+                                                                    <div className="gm-label">
+                                                                        {
+                                                                            v.variant
+                                                                        }
+                                                                    </div>
+                                                                    <div className="whitespace-pre-line text-ink-dim">
+                                                                        <Template
+                                                                            text={
+                                                                                v.summary
+                                                                            }
+                                                                        />
+                                                                    </div>
+                                                                </li>
+                                                            ),
+                                                        )}
+                                                    </ul>
+                                                </details>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -1602,7 +1697,51 @@ function NewsAndEmail({
                                 <td className="whitespace-nowrap text-ink-dim">
                                     {m.from}
                                 </td>
-                                <td className="text-ink-dim">{m.when}</td>
+                                <td className="text-ink-dim">
+                                    {m.when}
+                                    {(m.bodies ?? []).length > 0 && (
+                                        <details
+                                            className="mt-2"
+                                            data-testid="email-bodies"
+                                        >
+                                            <summary className="cursor-pointer text-xs text-ink-faint hover:text-ink">
+                                                Read the emails (
+                                                {m.bodies!.reduce(
+                                                    (n, b) =>
+                                                        n + b.texts.length,
+                                                    0,
+                                                )}{' '}
+                                                versions)
+                                            </summary>
+                                            <div className="mt-2 space-y-3">
+                                                {m.bodies!.map((b) => (
+                                                    <div key={b.label}>
+                                                        <div className="gm-label mb-1">
+                                                            {b.label} (
+                                                            {b.texts.length})
+                                                        </div>
+                                                        <ul className="space-y-2">
+                                                            {b.texts.map(
+                                                                (t, i) => (
+                                                                    <li
+                                                                        key={i}
+                                                                        className="border-l-2 border-white/10 pl-3 whitespace-pre-line"
+                                                                    >
+                                                                        <Template
+                                                                            text={
+                                                                                t
+                                                                            }
+                                                                        />
+                                                                    </li>
+                                                                ),
+                                                            )}
+                                                        </ul>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </details>
+                                    )}
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -1705,7 +1844,8 @@ function MoraleDocs({ morale }: Pick<Props, 'morale'>) {
                         </li>
                         <li>
                             With the other roster full they’re blocked and sit
-                            out {morale.blocked_sit_out_weeks} weeks.
+                            out{' '}
+                            {pluralize(morale.blocked_sit_out_weeks, 'week')}.
                         </li>
                     </ul>
                 </Panel>
@@ -1751,7 +1891,10 @@ function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
     const r = rival.rivalries;
     const roster = rival.roster;
     const gaps = Object.entries(rival.promos.slander_gap_weeks)
-        .map(([weeks, chance]) => `${weeks} weeks ${pct(chance)}`)
+        .map(
+            ([weeks, chance]) =>
+                `${pluralize(Number(weeks), 'week')} ${pct(chance)}`,
+        )
         .join(', ');
     const hype = rival.promos.title_hype_weights;
 
@@ -1815,33 +1958,38 @@ function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
                     <strong>Promos:</strong> at or below{' '}
                     {formatMoney(rival.low_cash)}, or when it’s saving for
                     renewals due in the next{' '}
-                    {roster.save_ahead_weeks + roster.renew_at_weeks_left}{' '}
-                    weeks, Advertising and Merchandise come first. Otherwise:
-                    PPV Hype 1 or 2 weeks before its own brand PPVs,
-                    Interference every {rival.promos.interference_every_weeks}{' '}
-                    weeks, Slander after a rolled gap ({gaps}), Start a Rivalry
-                    when it needs one, one situational promo (Title Match Hype
-                    for a title on the card, weighted world {hype.world} /
-                    second tier {hype.second} / other {hype.other}, New
-                    Superstar, Comeback Reminder, Inactive Superstar, Continue
-                    Rivalry, Main Event Hype, Interview Space or Diva Bikini
-                    Contest), and money promos fill the rest. When it slanders
-                    you, your announcer emails you.
+                    {pluralize(
+                        roster.save_ahead_weeks + roster.renew_at_weeks_left,
+                        'week',
+                    )}
+                    , Advertising and Merchandise come first. Otherwise: PPV
+                    Hype 1 or 2 weeks before its own brand PPVs, Interference
+                    every{' '}
+                    {pluralize(rival.promos.interference_every_weeks, 'week')},
+                    Slander after a rolled gap ({gaps}), Start a Rivalry when it
+                    needs one, one situational promo (Title Match Hype for a
+                    title on the card, weighted world {hype.world} / second tier{' '}
+                    {hype.second} / other {hype.other}, New Superstar, Comeback
+                    Reminder, Inactive Superstar, Continue Rivalry, Main Event
+                    Hype, Interview Space or Diva Bikini Contest), and money
+                    promos fill the rest. When it slanders you, your announcer
+                    emails you.
                 </li>
                 <li>
                     <strong>Rivalries:</strong> at most {r.max_per_brand} on its
-                    brand. When one ends it waits {r.refill_wait_weeks} weeks,
-                    then starts one a week. With none left it starts at least{' '}
-                    {r.reset_minimum} at once. Each rivalry has a{' '}
+                    brand, starting the season with none. It starts one a week
+                    with a Start a Rivalry promo, waiting{' '}
+                    {pluralize(r.refill_wait_weeks, 'week')}
+                    after one ends. Each rivalry has a{' '}
                     {pct(r.rivalry_match_chance)} chance of a 1 vs 1 on a card.
                     Rivals are always the same gender.
                 </li>
                 <li>
                     <strong>Contracts:</strong> it renews anyone with{' '}
                     {roster.renew_at_weeks_left} or fewer weeks left for{' '}
-                    {roster.renew_length} weeks (champions first), taking a
-                    shorter deal if money is tight, and signs free agents up to{' '}
-                    {roster.target_size} while keeping{' '}
+                    {pluralize(roster.renew_length, 'week')} (champions first),
+                    taking a shorter deal if money is tight, and signs free
+                    agents up to {roster.target_size} while keeping{' '}
                     {formatMoney(roster.cash_reserve)} in the bank.
                 </li>
                 <li>
@@ -1850,15 +1998,16 @@ function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
                     for a Legend, {rival.trades.focus_value} for its division,{' '}
                     {rival.trades.specialty_value} for a match specialist,{' '}
                     {rival.trades.win_streak_value} for every{' '}
-                    {rival.trades.win_streak_step} wins in a row and{' '}
-                    {rival.trades.tag_partner_value} for someone whose tag team
-                    partner is on its roster, {rival.trades.full_tag_team_value}{' '}
-                    for a whole tag team and {rival.trades.full_stable_value}{' '}
-                    for a whole stable traded together;{' '}
-                    {rival.trades.minor_injury_value} for a minor injury and{' '}
-                    {rival.trades.loss_streak_value} for a losing streak of{' '}
-                    {rival.trades.loss_streak_from}+. Title history counts too:
-                    reigns with their own brand’s world title are worth{' '}
+                    {pluralize(rival.trades.win_streak_step, 'win')} in a row
+                    and {rival.trades.tag_partner_value} for someone whose tag
+                    team partner is on its roster,{' '}
+                    {rival.trades.full_tag_team_value} for a whole tag team and{' '}
+                    {rival.trades.full_stable_value} for a whole stable traded
+                    together; {rival.trades.minor_injury_value} for a minor
+                    injury and {rival.trades.loss_streak_value} for a losing
+                    streak of {rival.trades.loss_streak_from}+. Title history
+                    counts too: reigns with their own brand’s world title are
+                    worth{' '}
                     {Object.entries(rival.trades.world_reign_bands)
                         .map(([from, value]) => `${value} from ${from}`)
                         .join(', ')}
@@ -1879,7 +2028,8 @@ function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
                     <strong>Money in the Bank:</strong> it cashes in when its
                     world champion goes in at{' '}
                     {rival.mitb.cash_in_champion_fatigue}%+ fatigue, or the
-                    briefcase has {rival.mitb.cash_in_weeks_left} weeks or fewer
+                    briefcase has{' '}
+                    {pluralize(rival.mitb.cash_in_weeks_left, 'week')} or fewer
                     left.
                 </li>
             </ul>
@@ -1893,9 +2043,10 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
             <p className="max-w-3xl text-sm text-ink-dim">
                 A new game picks how both rosters are built. Either way each
                 brand starts with a {formatMoney(rosters.starting_budget)}{' '}
-                budget, granted once, and can hold up to {rosters.cap}{' '}
-                superstars (Superstars, Divas and Legends all count). Once each
-                week is done, both brands earn{' '}
+                budget, granted once, and can hold up to{' '}
+                {pluralize(rosters.cap, 'superstar')}
+                (Superstars, Divas and Legends all count). Once each week is
+                done, both brands earn{' '}
                 <span data-testid="weekly-show-income">
                     {formatMoney(rosters.weekly_show_income)}
                 </span>{' '}
@@ -1910,8 +2061,8 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
                             pool. Who picks first is random.
                         </li>
                         <li>
-                            Up to {rosters.cap} picks each. You can stop early
-                            and fill spots from Free Agency later.
+                            Up to {pluralize(rosters.cap, 'pick')} each. You can
+                            stop early and fill spots from Free Agency later.
                         </li>
                         <li>
                             {rosters.legends_draftable
@@ -2039,7 +2190,10 @@ function AttendanceDocs({ attendance }: Pick<Props, 'attendance'>) {
             'Repeated matches',
             `A deduction, weekly shows only: ${-p.repeat_slot} for each match slot booked in the same match category (any variant) as that slot on the brand’s weekly show the week before, up to ${-p.repeat_max}. The Air week confirmation lists them first.`,
         ],
-        ['Luck', `Up to ${attendance.noise} points either way, at random.`],
+        [
+            'Luck',
+            `Up to ${pluralize(attendance.noise, 'point')} either way, at random.`,
+        ],
     ];
 
     return (
@@ -2151,7 +2305,8 @@ function AttendanceDocs({ attendance }: Pick<Props, 'attendance'>) {
                     <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
                         <li>
                             Results: “Attendance · Gate” in gold beside each
-                            show’s name. Hover it for the draw score’s factors.
+                            show’s name. Click or tap it for the draw score’s
+                            factors.
                         </li>
                         <li>
                             News: the week’s biggest crowd is a WWE headline,
@@ -2207,7 +2362,8 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                 <Panel title="The season">
                     <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
                         <li>
-                            A season is {calendar.weeks_per_season} weeks, from{' '}
+                            A season is{' '}
+                            {pluralize(calendar.weeks_per_season, 'week')}, from{' '}
                             {calendar.season_start} to WrestleMania on{' '}
                             {calendar.season_end}. Every season repeats the same
                             calendar.
@@ -2296,7 +2452,20 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                                 <td className="gm-num text-ink-dim">
                                     {p.season_week}
                                 </td>
-                                <td className="font-semibold">{p.name}</td>
+                                <td className="font-semibold">
+                                    <span className="flex items-center gap-2">
+                                        {/* The logos fit 384×133 but differ in
+                                            shape, so each sits centred in the
+                                            same box and the names line up. */}
+                                        <span className="inline-flex h-7 w-20 shrink-0 items-center justify-center">
+                                            <PpvBug
+                                                ppv={p.key as PpvKey}
+                                                className="h-auto max-h-full w-auto max-w-full"
+                                            />
+                                        </span>
+                                        {p.name}
+                                    </span>
+                                </td>
                                 <td className="whitespace-nowrap text-ink-dim">
                                     {p.date}
                                 </td>
@@ -2333,10 +2502,11 @@ function FactionsDocs({ factions }: Pick<Props, 'factions'>) {
                     <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
                         <li>
                             A faction is a tag team or a stable of{' '}
-                            {factions.min_members} to {factions.max_members}{' '}
-                            members. Every real-life faction below is active in
-                            every career from week 1. Their real dates are for
-                            reference only.
+                            {factions.min_members} to{' '}
+                            {pluralize(factions.max_members, 'member')}. Every
+                            real-life faction below is active in every career
+                            from week 1. Their real dates are for reference
+                            only.
                         </li>
                         <li>
                             When 2 or more members of a faction team up on one
@@ -2374,10 +2544,15 @@ function FactionsDocs({ factions }: Pick<Props, 'factions'>) {
                     <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
                         <li>
                             2 or {factions.formation_max_size} male superstars
-                            who win {factions.formation_wins} matches together,
-                            as the whole winning side, can become a new faction.
-                            Divas can’t form one this way, though some real-life
-                            factions include a Diva.
+                            who win{' '}
+                            {pluralize(
+                                factions.formation_wins,
+                                'match',
+                                'matches',
+                            )}{' '}
+                            together, as the whole winning side, can become a
+                            new faction. Divas can’t form one this way, though
+                            some real-life factions include a Diva.
                         </li>
                         <li>
                             Your teams: after win number{' '}
@@ -2458,6 +2633,62 @@ function FactionsDocs({ factions }: Pick<Props, 'factions'>) {
                 </div>
             </Panel>
         </div>
+    );
+}
+
+/** The card's Active Effects box (house rules 2026-10-31 and 2026-11-11). */
+const activeEffects: { name: string; text: string }[] = [
+    {
+        name: 'Required title match',
+        text: 'A contender who won a Champion vs. Contender match is owed the title match on the next show or PPV. This is the one effect that stops a card from airing until it’s booked; the card opens with a reminder to book it. See Stipulations.',
+    },
+    {
+        name: '#1 contender',
+        text: 'A #1 Contender’s Match winner waits for their shot. Until it’s used, the title can only be defended against them. It goes when they get the match, leave the brand or are seriously injured. See Stipulations.',
+    },
+    {
+        name: 'Last Chance',
+        text: 'A Last Chance loser can’t challenge that champion again until the title changes hands. See Stipulations.',
+    },
+    {
+        name: 'Rematch Clause',
+        text: 'A former champion is owed a rematch with the new champion, with the weeks left or “booked on this card”. It never blocks the card. See Stipulations.',
+    },
+    {
+        name: 'Money in the Bank',
+        text: 'Who holds the briefcase, until it’s cashed in, expires or the holder leaves the brand. See Match types.',
+    },
+    {
+        name: 'Buried Alive',
+        text: 'A Buried Alive loser sitting out, with the weeks left. They can’t be booked as anything until they’re back.',
+    },
+    {
+        name: 'Rivalry',
+        text: 'Every active rivalry on your brand and its heat, e.g. “Edge vs. John Cena · Heat 40”, hottest first. Heat rises when the rivals meet or run a Continue Rivalry promo and falls in a week with neither. See Promos.',
+    },
+];
+
+function ActiveEffectsDocs() {
+    return (
+        <Panel title="Active Effects">
+            <p className="text-sm text-ink">
+                The box above the match cards lists everything in play on your
+                brand that could shape this card. It’s gold while something is
+                listed and grey with “No active effects at the moment”
+                otherwise. Apart from a required title match, nothing in it
+                stops the card from airing: it’s a reminder, not a rule.
+            </p>
+            <ul className="mt-3 list-disc space-y-2 pl-4 text-sm text-ink">
+                {activeEffects.map((effect) => (
+                    <li key={effect.name}>
+                        <span className="font-semibold text-gold">
+                            {effect.name}:
+                        </span>{' '}
+                        {effect.text}
+                    </li>
+                ))}
+            </ul>
+        </Panel>
     );
 }
 
@@ -2620,6 +2851,10 @@ export default function Docs() {
             order.indexOf(next) < order.indexOf(tab) ? 'left' : 'right',
         );
         setTab(next);
+        // On a phone the tabs scroll sideways: keep the chosen one in view.
+        tabRefs.current
+            .get(next)
+            ?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     };
     // Inside a career the GM header and nav are on screen; from the save
     // list there's no career, so offer the way back instead.
@@ -2642,7 +2877,7 @@ export default function Docs() {
             <div
                 role="tablist"
                 aria-label="Documentation sections"
-                className="relative mb-6 flex flex-wrap gap-1 border-b border-white/8"
+                className="gm-scroll relative mb-6 flex gap-1 overflow-x-auto border-b border-white/8 md:flex-wrap md:overflow-visible"
             >
                 {tabs.map((t) => (
                     <button
@@ -2658,7 +2893,7 @@ export default function Docs() {
                         data-active={tab === t.key || undefined}
                         onClick={() => selectTab(t.key)}
                         className={cn(
-                            'relative px-3 py-2.5 font-condensed text-sm font-semibold tracking-[0.12em] uppercase transition-colors',
+                            'relative shrink-0 px-3 py-2.5 font-condensed text-sm font-semibold tracking-[0.12em] whitespace-nowrap uppercase transition-colors',
                             tab === t.key
                                 ? 'text-white'
                                 : 'text-ink-dim hover:text-ink',
@@ -2717,6 +2952,7 @@ export default function Docs() {
                 {tab === 'schedule' && (
                     <div className="space-y-6">
                         <ScheduleDocs calendar={props.calendar} />
+                        <ActiveEffectsDocs />
                         <ResultsDocs />
                     </div>
                 )}

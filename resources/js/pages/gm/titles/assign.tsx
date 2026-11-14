@@ -1,13 +1,15 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { ActionButton } from '@/components/gm/action-button';
 import { useState } from 'react';
-import { TitleMark } from '@/components/gm/badges';
+import { TitleBeltImage, TitleMark } from '@/components/gm/badges';
 import { CardProgress } from '@/components/gm/card-builder';
 import {
-    LOADING_OVERLAY_DELAY_MS,
+    loadingOverlayDelay,
     LoadingOverlay,
 } from '@/components/gm/loading-overlay';
 import { PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
+import { pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import { ChampionshipEligibilityLabels } from '@/types/enums';
@@ -54,7 +56,7 @@ export default function AssignTitles() {
                     {},
                     { onFinish: () => setStarting(false) },
                 ),
-            LOADING_OVERLAY_DELAY_MS,
+            loadingOverlayDelay('season-start'),
         );
     };
 
@@ -125,21 +127,24 @@ function CrownSteps({
     const current = championships.find((c) => c.id === currentId) ?? null;
     // House rule (2026-11-07): any decided title can be taken back and
     // decided again until the season starts.
-    const change = (c: ChampionshipRow) =>
-        router.post(
-            gm.titles.assign.undo.url({ save: saveId, championship: c.id }),
-            {},
-            { preserveScroll: true },
-        );
     const changeButton = (c: ChampionshipRow) => (
-        <button
-            type="button"
+        <ActionButton
             className="gm-btn gm-btn-ghost gm-btn-sm"
-            aria-label={`Change ${c.name}`}
-            onClick={() => change(c)}
+            label={`Change ${c.name}`}
+            busyText="Reopening…"
+            onAction={(track) =>
+                router.post(
+                    gm.titles.assign.undo.url({
+                        save: saveId,
+                        championship: c.id,
+                    }),
+                    {},
+                    { preserveScroll: true, ...track },
+                )
+            }
         >
             Change
-        </button>
+        </ActionButton>
     );
 
     const progress = championsProgress(championships);
@@ -150,7 +155,7 @@ function CrownSteps({
                 <CardProgress
                     booked={progress.assigned}
                     total={progress.total}
-                    label={`${progress.assigned}/${progress.total} champions assigned`}
+                    label={`${progress.assigned}/${pluralize(progress.total, 'champion')} assigned`}
                     ariaLabel="Champions assigned"
                 />
             </div>
@@ -169,16 +174,23 @@ function CrownSteps({
                             data-testid={`step-${c.key}`}
                             className={cn(
                                 'flex flex-col border px-3 py-2',
+                                // The title being decided: the Schedule's
+                                // current-week border, in the brand colour.
                                 active
-                                    ? 'border-gold/60 bg-gold/10'
+                                    ? 'gm-current-week border-transparent'
                                     : 'border-white/8 bg-black/20',
                             )}
                         >
                             <div className="gm-label text-xl whitespace-nowrap">
                                 {i + 1}. {tierLabels[i] ?? 'Title'}
                             </div>
-                            <div className="text-lg font-semibold">
-                                {c.name}
+                            <div className="flex min-w-0 items-center gap-2 text-lg font-semibold">
+                                {/* The belt in a fixed box, so the names
+                                    line up whatever its width. */}
+                                <span className="inline-flex w-14 shrink-0 justify-center">
+                                    <TitleBeltImage name={c.name} decorative />
+                                </span>
+                                <span className="min-w-0">{c.name}</span>
                             </div>
                             <div
                                 className={cn(
@@ -299,19 +311,19 @@ function TitleCard({
     const target = { save: saveId, championship: championship.id };
 
     const vacantButton = allowVacant && (
-        <button
-            type="button"
+        <ActionButton
             className="gm-btn gm-btn-ghost gm-btn-sm"
-            onClick={() =>
+            busyText="Saving…"
+            onAction={(track) =>
                 router.post(
                     gm.titles.assign.vacant.url(target),
                     {},
-                    { preserveScroll: true },
+                    { preserveScroll: true, ...track },
                 )
             }
         >
             Leave vacant
-        </button>
+        </ActionButton>
     );
 
     return (
@@ -368,20 +380,20 @@ function TitleCard({
                     </div>
                     <div className="mt-3 flex justify-end gap-2">
                         {vacantButton}
-                        <button
-                            type="button"
+                        <ActionButton
                             className="gm-btn gm-btn-gold gm-btn-sm"
                             disabled={selected.length !== needed}
-                            onClick={() =>
+                            busyText="Awarding…"
+                            onAction={(track) =>
                                 router.post(
                                     gm.titles.assign.store.url(target),
                                     { save_wrestler_ids: selected },
-                                    { preserveScroll: true },
+                                    { preserveScroll: true, ...track },
                                 )
                             }
                         >
                             Award title
-                        </button>
+                        </ActionButton>
                     </div>
                 </>
             )}

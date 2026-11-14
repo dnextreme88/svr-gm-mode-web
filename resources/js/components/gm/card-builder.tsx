@@ -16,7 +16,7 @@ import {
 } from '@/lib/card';
 import type { PromoFatigue, SlotDraft } from '@/lib/card';
 import { cantChallenge, contestable } from '@/lib/titles';
-import { fatigueZone, formatMoney, zoneLabel } from '@/lib/gm';
+import { fatigueZone, formatMoney, pluralize, zoneLabel } from '@/lib/gm';
 import { slotSaveKey, useSaveStatus } from '@/lib/save-status';
 import { cn } from '@/lib/utils';
 import { MatchFamilyLabels } from '@/types/enums';
@@ -114,7 +114,7 @@ export function MatchCost({ cost }: { cost: number }) {
 export function CardProgress({
     booked,
     total,
-    label = `${booked} of ${total} matches booked`,
+    label = `${booked} of ${pluralize(total, 'match', 'matches')} booked`,
     ariaLabel = 'Matches booked',
 }: {
     booked: number;
@@ -555,8 +555,8 @@ function SlotEditor({
                         className={cn(
                             'gm-chyron mt-0.5 inline-block py-1 pr-7 pl-3 font-condensed font-bold tracking-[0.18em] uppercase',
                             isMainEvent
-                                ? 'bg-gold text-arena'
-                                : 'bg-brand text-white',
+                                ? 'text-arena [--gm-chyron-bg:var(--color-gold)]'
+                                : 'text-white',
                         )}
                     >
                         {isMainEvent ? 'Main Event' : label}
@@ -1035,7 +1035,7 @@ function CompetitorDetails({
                         className="bg-zone-minor px-1.5 py-px font-condensed font-bold tracking-widest text-arena uppercase"
                         title="Booked in more than one match: each one adds fatigue and injury risk"
                     >
-                        ×{matches} matches
+                        ×{pluralize(matches, 'match', 'matches')}
                     </span>
                 )}
             </div>

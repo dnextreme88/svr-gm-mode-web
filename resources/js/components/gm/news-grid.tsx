@@ -146,7 +146,7 @@ export function NewsGrid({ pages }: { pages: NewsPage[] }) {
             <div
                 role="group"
                 aria-label="Headlines"
-                className="grid gap-4 md:grid-cols-3"
+                className="grid gap-4 md:grid-cols-3 md:items-start"
             >
                 {(['raw', 'neutral', 'smackdown'] as const).map((slot) =>
                     card(page.headlines[slot], slot, 'headline', `h-${slot}`),
@@ -156,7 +156,7 @@ export function NewsGrid({ pages }: { pages: NewsPage[] }) {
             <div
                 role="group"
                 aria-label="Stories"
-                className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+                className="mt-4 grid gap-4 sm:grid-cols-2 sm:items-start lg:grid-cols-4"
             >
                 {(['raw', 'smackdown'] as const).flatMap((slot) =>
                     [0, 1].map((i) =>
@@ -220,7 +220,7 @@ function NewsCardView({
             >
                 <div className="flex items-center justify-between gap-2">
                     {slot === 'neutral' ? (
-                        <span className="gm-chyron bg-gold py-0.5 pl-2 font-condensed font-bold tracking-[0.18em] text-arena uppercase">
+                        <span className="gm-chyron py-0.5 pl-2 font-condensed font-bold tracking-[0.18em] text-arena uppercase [--gm-chyron-bg:var(--color-gold)]">
                             {slotLabel[slot]}
                         </span>
                     ) : (
@@ -236,7 +236,7 @@ function NewsCardView({
                         kind === 'headline'
                             ? 'gm-heading text-xl leading-tight font-semibold md:text-2xl'
                             : 'text-sm font-medium',
-                        !expanded && 'line-clamp-3',
+                        // Headlines are never cut off (UI audit, 2026-11-12).
                     )}
                 >
                     {item.text}
@@ -244,7 +244,7 @@ function NewsCardView({
                 <p
                     data-testid="news-summary"
                     className={cn(
-                        'mt-3 border-t border-white/8 pt-3 text-sm leading-relaxed text-ink-dim',
+                        'mt-3 border-t border-white/8 pt-3 text-sm leading-relaxed whitespace-pre-line text-ink-dim',
                         kind === 'story' && !expanded && 'line-clamp-2',
                     )}
                 >

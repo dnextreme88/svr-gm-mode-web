@@ -4,6 +4,30 @@
  */
 export const LOADING_OVERLAY_DELAY_MS = 2500;
 
+/** The pause once a player has seen this overlay before (UI audit, 2026-11-12). */
+export const LOADING_OVERLAY_REPEAT_MS = 800;
+
+/**
+ * The full pause the first time a player sees an overlay (`key`), a short
+ * one after that, so returning players aren't held up every time. Browser
+ * storage is a convenience: when it's unavailable the full pause is used.
+ */
+export function loadingOverlayDelay(key: string): number {
+    const storageKey = `gm.overlay-seen.${key}`;
+
+    try {
+        if (window.localStorage.getItem(storageKey) !== null) {
+            return LOADING_OVERLAY_REPEAT_MS;
+        }
+
+        window.localStorage.setItem(storageKey, '1');
+    } catch {
+        // Private mode or blocked storage: keep the full pause.
+    }
+
+    return LOADING_OVERLAY_DELAY_MS;
+}
+
 /**
  * Covers the page with a spinner and a line saying what's happening, until
  * the next page opens.

@@ -51,6 +51,34 @@ describe('AttendanceChart', () => {
         );
     });
 
+    it('marks the week axis with the shared PPVs’ logos, not week numbers', () => {
+        const { container } = render(
+            <AttendanceChart
+                points={points}
+                sharedPpvs={[
+                    { key: 'summerslam', name: 'SummerSlam', week: 21 },
+                    {
+                        key: 'survivor_series',
+                        name: 'Survivor Series',
+                        week: 35,
+                    },
+                    { key: 'royal_rumble', name: 'Royal Rumble', week: 44 },
+                    { key: 'wrestlemania', name: 'WrestleMania', week: 52 },
+                ]}
+            />,
+        );
+
+        for (const name of [
+            'SummerSlam, week 21',
+            'Survivor Series, week 35',
+            'Royal Rumble, week 44',
+            'WrestleMania, week 52',
+        ]) {
+            expect(screen.getByRole('img', { name })).toBeInTheDocument();
+        }
+        expect(container.querySelector('svg')).not.toHaveTextContent(/Wk \d/);
+    });
+
     it('tops the axis at the next 10,000, never below 20,000', () => {
         expect(yMax([night({ crowd: 6000 })])).toBe(20000);
         expect(yMax(points)).toBe(30000);

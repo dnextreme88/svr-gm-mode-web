@@ -4,22 +4,25 @@ namespace App\Services\Ai;
 
 use App\Enums\Brand;
 use App\Enums\ChampionshipEligibility;
+use App\Enums\ComplaintLevel;
 use App\Enums\MatchFamily;
+use App\Enums\MoraleComplaintType;
 use App\Enums\Stipulation;
 use App\Exceptions\GameRuleException;
 use App\Models\Championship;
 use App\Models\MatchSlot;
 use App\Models\MatchType;
 use App\Models\MoneyInTheBank;
+use App\Models\MoraleComplaint;
 use App\Models\SaveWrestler;
 use App\Models\Show;
+use App\Models\TitleShot;
 use App\Services\Attendance\RepeatMatches;
 use App\Services\Card\Booking;
 use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
 use App\Services\Card\PlannedFatigue;
 use App\Services\Card\TitleMatchPlanner;
-use App\Services\Rivalries\RivalryService;
 use App\Services\Titles\LastChanceService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\RematchClauseService;
@@ -64,22 +67,22 @@ class AiBooker
         private CardService $cards,
         private TitleService $titles,
         private LastChanceService $lastChance,
-        private RivalryService $rivalries,
         private MitbService $mitb,
         private IntergenderRules $intergender,
         private PlannedFatigue $plannedFatigue,
         private TitleContention $contention,
         private RematchClauseService $rematches,
         private RepeatMatches $repeatMatches,
+        private AiStipulationPlanner $stipulations,
+        private AiTradeJudge $judge,
     ) {}
 
     /**
      * Book the brand's empty slots on a card.
      *
      * @param  list<array{0: int, 1: int}>  $rivalryMatches  rivalry pairs to book 1v1
-     * @param  list<array{0: int, 1: int}>  $freshRivalries  pairs to book 1v1 and start a rivalry between
      */
-    public function book(Show $show, Brand $brand, array $rivalryMatches = [], array $freshRivalries = []): void
+    public function book(Show $show, Brand $brand, array $rivalryMatches = []): void
     {
         $this->show = $show;
         $this->brand = $brand;
@@ -88,6 +91,9 @@ class AiBooker
         $this->taken = $this->randomizer->bookedIds($show);
         $this->titlesOnCard = array_values(array_map('intval', MatchSlot::where('show_id', $show->id)->whereNotNull('title_championship_id')->pluck('title_championship_id')->all()));
         $this->fatigue = $this->plannedFatigue($show, $brand);
+        // House rule (2026-11-13): a #1 contendership earned in the run-up to
+        // its own PPV is held for the PPV: that title stays off this card.
+        $this->titlesOnCard = array_values(array_unique([...$this->titlesOnCard, ...$this->heldTitles()]));
 
         $open = $this->openPositions();
 
@@ -103,22 +109,25 @@ class AiBooker
             }
         }
 
+        $open = $this->bookContenderPayoffs($open);
         $open = $this->bookRematches($open);
+        $open = $this->bookMoraleFixes($open);
+        $open = $this->bookPlannedStipulations($open);
 
-        $pairs = [...array_map(fn (array $p): array => [$p, true], $freshRivalries), ...array_map(fn (array $p): array => [$p, false], $rivalryMatches)];
+        $pairs = $rivalryMatches;
 
         [$open, $pairs] = $this->bookDivaMatch($open, $pairs);
         $open = $this->bookMainEventTitle($open);
         $open = $this->bookWinnerTakesAll($open);
 
-        foreach ($pairs as [$pair, $fresh]) {
+        foreach ($pairs as $pair) {
             if ($open === []) {
                 break;
             }
 
             $position = $this->rng->pick($open);
 
-            if ($this->bookPair($position, $pair, $fresh)) {
+            if ($this->bookPair($position, $pair)) {
                 $open = array_values(array_diff($open, [$position]));
             }
         }
@@ -162,8 +171,8 @@ class AiBooker
      * title. A Diva rivalry pair the plan wants booked is the Diva match.
      *
      * @param  list<int>  $open
-     * @param  list<array{0: array{0: int, 1: int}, 1: bool}>  $pairs  rivalry pairs, and whether each is fresh
-     * @return array{0: list<int>, 1: list<array{0: array{0: int, 1: int}, 1: bool}>}
+     * @param  list<array{0: int, 1: int}>  $pairs  rivalry pairs to book 1v1
+     * @return array{0: list<int>, 1: list<array{0: int, 1: int}>}
      */
     private function bookDivaMatch(array $open, array $pairs): array
     {
@@ -183,8 +192,8 @@ class AiBooker
         $position = $titleShot ? $slotRng->pick(array_slice($open, -2)) : $slotRng->pick($open);
 
         if (! $titleShot) {
-            foreach ($pairs as $i => [$pair, $fresh]) {
-                if (array_diff($pair, $this->ids($divas)) === [] && $this->bookPair($position, $pair, $fresh)) {
+            foreach ($pairs as $i => $pair) {
+                if (array_diff($pair, $this->ids($divas)) === [] && $this->bookPair($position, $pair)) {
                     unset($pairs[$i]);
 
                     return [array_values(array_diff($open, [$position])), array_values($pairs)];
@@ -206,11 +215,11 @@ class AiBooker
     }
 
     /**
-     * Book a rivalry pair 1v1, starting their rivalry if it's a fresh one.
+     * Book a rivalry pair 1v1.
      *
      * @param  array{0: int, 1: int}  $pair
      */
-    private function bookPair(int $position, array $pair, bool $fresh): bool
+    private function bookPair(int $position, array $pair): bool
     {
         if (array_intersect($pair, $this->taken) !== []) {
             return false;
@@ -218,15 +227,7 @@ class AiBooker
 
         $booking = $this->pairBooking($pair);
 
-        if ($booking === null || ! $this->tryBook($position, $booking)) {
-            return false;
-        }
-
-        if ($fresh) {
-            $this->rivalries->start($this->show->game, $pair[0], $pair[1], $this->show->week_number);
-        }
-
-        return true;
+        return $booking !== null && $this->tryBook($position, $booking);
     }
 
     /**
@@ -776,6 +777,389 @@ class AiBooker
         } catch (GameRuleException) {
             // Injured, vacant or already cashed in: wait.
         }
+    }
+
+    /**
+     * Titles whose #1 contendership is held for the brand's PPV coming up
+     * within `weeks_before` (house rule, 2026-11-13).
+     *
+     * @return list<int>
+     */
+    private function heldTitles(): array
+    {
+        if ($this->stipulations->upcomingPpv($this->show, $this->brand) === null) {
+            return [];
+        }
+
+        return array_values(array_map('intval', $this->contention->contenderships($this->show->game)
+            ->filter(fn (TitleShot $shot): bool => $shot->brand === $this->brand)
+            ->pluck('championship_id')
+            ->all()));
+    }
+
+    /**
+     * On its own PPV, every waiting #1 contendership is paid off first: the
+     * title match against exactly the contender(s) (house rule, 2026-11-13).
+     * A world title one takes the main event.
+     *
+     * @param  list<int>  $open
+     * @return list<int>
+     */
+    private function bookContenderPayoffs(array $open): array
+    {
+        if (! $this->show->isPpv() || $this->show->brand !== $this->brand) {
+            return $open;
+        }
+
+        $save = $this->show->game;
+
+        foreach (Championship::where('brand', $this->brand)->orderBy('sort_order')->get() as $championship) {
+            $shot = $this->contention->contendership($save, $championship->id);
+            $reign = $shot === null ? null : $this->titles->currentReign($save, $championship);
+
+            if ($open === [] || $shot === null || $reign === null || in_array($championship->id, $this->titlesOnCard, true)) {
+                continue;
+            }
+
+            $type = $this->plainType($championship->is_tag);
+            $main = $this->mainEventPosition();
+            $position = AiStipulationPlanner::tier($championship) === 'world' && $main !== null && in_array($main, $open, true) ? $main : $this->pickPosition($open);
+
+            if ($this->tryBook($position, new Booking($type, [$reign->holderIds(), $shot->contender_ids], [], $championship->id))) {
+                $open = array_values(array_diff($open, [$position]));
+            }
+        }
+
+        return $open;
+    }
+
+    /**
+     * Morale (house rule, 2026-11-13): for each of its superstars with a
+     * complaint, most upset first, it rolls to fix one (Content and
+     * Unsatisfied 75%, Upset 95%). Unused: a match. A losing streak: a
+     * singles match booked to win. No title match: a title match, when the
+     * champion fits. Contract demands are renewed in roster upkeep.
+     *
+     * @param  list<int>  $open
+     * @return list<int>
+     */
+    private function bookMoraleFixes(array $open): array
+    {
+        $rng = $this->show->game->rng("ai.morale.{$this->show->streamKey()}", $this->show->week_number);
+        $pool = $this->pool();
+        $pool->load('activeComplaints');
+        $fixable = fn (SaveWrestler $w): Collection => $w->activeComplaints
+            ->reject(fn (MoraleComplaint $c): bool => $c->type === MoraleComplaintType::ContractExtension)
+            ->sortByDesc(fn (MoraleComplaint $c): int => self::levelRank($c->level) * 10 + self::fixOrder($c->type))
+            ->values();
+        $complaining = $pool
+            ->filter(fn (SaveWrestler $w): bool => $fixable($w)->isNotEmpty())
+            ->sortByDesc(fn (SaveWrestler $w): int => self::levelRank($fixable($w)->first()->level) * 100000 - $w->id)
+            ->values();
+
+        foreach ($complaining as $wrestler) {
+            if ($open === [] || in_array($wrestler->id, $this->taken, true)) {
+                continue;
+            }
+
+            $worst = $fixable($wrestler)->first();
+
+            if (! $rng->chance((float) config('gm.ai.morale.fix_chance.'.$worst->level->value))) {
+                continue;
+            }
+
+            $position = $this->pickPosition($open);
+
+            if ($this->fixComplaint($position, $wrestler, $worst->type, $rng)) {
+                $open = array_values(array_diff($open, [$position]));
+            }
+        }
+
+        return $open;
+    }
+
+    private function fixComplaint(int $position, SaveWrestler $wrestler, MoraleComplaintType $type, Rng $rng): bool
+    {
+        if ($type === MoraleComplaintType::TitleMatch) {
+            $booking = $this->titleShotFor($wrestler);
+
+            return $booking !== null && $this->tryBook($position, $booking);
+        }
+
+        $limit = (int) config('gm.ai.booking.careful_max_fatigue');
+        $people = $wrestler->wrestler->isDiva() ? $this->divas($this->pool()) : $this->men($this->pool());
+        $opponents = $people
+            ->filter(fn (SaveWrestler $w): bool => $w->id !== $wrestler->id && ($this->fatigue[$w->id] ?? 0) <= $limit)
+            ->values();
+
+        if ($opponents->isEmpty()) {
+            return false;
+        }
+
+        $opponent = $rng->pick($opponents->all());
+        $booking = $this->pairBooking([(int) $wrestler->id, (int) $opponent->id]);
+
+        if ($booking === null || ! $this->tryBook($position, $booking)) {
+            return false;
+        }
+
+        // A losing streak: the rival's Book to Win, so it ends tonight.
+        if ($type === MoraleComplaintType::LosingStreak) {
+            foreach ($booking->sides as $index => $side) {
+                if (in_array((int) $wrestler->id, $side, true)) {
+                    MatchSlot::where('show_id', $this->show->id)->where('position', $position)->update(['booked_side' => $index]);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * A 1v1 title match for a superstar waiting on one: the first singles
+     * title of the brand they're eligible for whose champion is free, fresh
+     * enough, and not owed to a #1 contender.
+     */
+    private function titleShotFor(SaveWrestler $wrestler): ?Booking
+    {
+        $save = $this->show->game;
+        $limit = (int) config('gm.ai.booking.careful_max_fatigue');
+        $type = $this->plainType(false);
+        $id = (int) $wrestler->id;
+
+        foreach (Championship::where('brand', $this->brand)->where('is_tag', false)->orderBy('sort_order')->get() as $championship) {
+            $reign = $this->titles->currentReign($save, $championship);
+            $holders = $reign?->holderIds() ?? [];
+
+            if ($reign === null || count($holders) !== 1 || in_array($id, $holders, true)
+                || ! $championship->allowsWrestler($wrestler->wrestler)
+                || in_array($championship->id, $this->titlesOnCard, true)
+                || in_array($holders[0], $this->taken, true)
+                || ($this->fatigue[$holders[0]] ?? 0) + $type->fatigueCost() > $limit
+                || ($this->fatigue[$id] ?? 0) + $type->fatigueCost() > $limit
+                || $this->contention->contendership($save, $championship->id) !== null
+                || $this->lastChance->isLockedOut($reign, [$id])) {
+                continue;
+            }
+
+            return new Booking($type, [$holders, [$id]], [], $championship->id);
+        }
+
+        return null;
+    }
+
+    /**
+     * Planned stipulations (house rule, 2026-11-13): the #1 Contender's
+     * Match in the run-up to its own PPV, and Loser Leaves Show and Last
+     * Chance when a roll is won and one is eligible.
+     *
+     * @param  list<int>  $open
+     * @return list<int>
+     */
+    private function bookPlannedStipulations(array $open): array
+    {
+        if ($this->show->isInterbrand()) {
+            return $open;
+        }
+
+        $save = $this->show->game;
+        $week = $this->show->week_number;
+        $ppv = $this->stipulations->upcomingPpv($this->show, $this->brand);
+
+        if ($open !== [] && $ppv !== null && ! $this->stipulations->contenderBookedFor($save, $this->brand, $ppv)) {
+            $position = $this->pickPosition($open);
+
+            if ($this->bookPpvContender($position)) {
+                $this->stipulations->contenderBooked($save, $this->brand, $ppv);
+                $open = array_values(array_diff($open, [$position]));
+            }
+        }
+
+        if ($open !== [] && $this->stipulations->wants($save, $this->brand, AiStipulationPlanner::LAST_CHANCE, $week)) {
+            $position = $this->pickPosition($open);
+            $booking = $this->lastChanceBooking();
+
+            if ($booking !== null && $this->tryBook($position, $booking)) {
+                $this->stipulations->booked($save, $this->brand, AiStipulationPlanner::LAST_CHANCE, $week);
+                $open = array_values(array_diff($open, [$position]));
+            }
+        }
+
+        if ($open !== [] && $this->stipulations->wants($save, $this->brand, AiStipulationPlanner::LOSER_LEAVES, $week)) {
+            $position = $this->pickPosition($open);
+            $booking = $this->loserLeavesBooking();
+
+            if ($booking !== null && $this->tryBook($position, $booking)) {
+                $this->stipulations->booked($save, $this->brand, AiStipulationPlanner::LOSER_LEAVES, $week);
+                $open = array_values(array_diff($open, [$position]));
+            }
+        }
+
+        return $open;
+    }
+
+    /**
+     * Loser Leaves Show between its two least valuable superstars of one
+     * gender (trade value; never champions or Legends).
+     */
+    private function loserLeavesBooking(): ?Booking
+    {
+        $save = $this->show->game;
+        $limit = (int) config('gm.ai.booking.careful_max_fatigue');
+        $pool = $this->pool()->filter(fn (SaveWrestler $w): bool => ! $w->wrestler->isLegend()
+            && ($this->fatigue[$w->id] ?? 0) < $limit
+            && ! $this->contention->holdsAnyTitle($save, (int) $w->id));
+
+        foreach ([$this->men($pool), $this->divas($pool)] as $people) {
+            if ($people->count() < 2) {
+                continue;
+            }
+
+            $pair = $people
+                ->sortBy(fn (SaveWrestler $w): int => $this->judge->value($save, $this->brand, [(int) $w->id]) * 100000 + $w->id)
+                ->take(2)
+                ->map(fn (SaveWrestler $w): int => (int) $w->id)
+                ->values()
+                ->all();
+            $booking = $this->pairBooking([$pair[0], $pair[1]]);
+
+            if ($booking !== null && $booking->matchType->allowsStipulation(Stipulation::LoserLeavesShow)) {
+                return new Booking($booking->matchType, $booking->sides, $booking->managers, null, Stipulation::LoserLeavesShow, refereeId: $booking->refereeId);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * A Last Chance title match against a challenger who qualifies.
+     */
+    private function lastChanceBooking(): ?Booking
+    {
+        $save = $this->show->game;
+        $limit = (int) config('gm.ai.booking.careful_max_fatigue');
+
+        foreach (Championship::where('brand', $this->brand)->orderBy('sort_order')->get() as $championship) {
+            $reign = $this->titles->currentReign($save, $championship);
+
+            if ($reign === null || in_array($championship->id, $this->titlesOnCard, true)) {
+                continue;
+            }
+
+            $type = $this->plainType($championship->is_tag);
+
+            foreach ($this->lastChance->availableFor($save, $reign) as $option) {
+                $everyone = [...$option['champion_ids'], ...$option['contender_ids']];
+
+                if (array_intersect($everyone, $this->taken) !== []
+                    || collect($everyone)->contains(fn (int $id): bool => ($this->fatigue[$id] ?? 0) + $type->fatigueCost() > $limit)) {
+                    continue;
+                }
+
+                return new Booking($type, [$option['champion_ids'], $option['contender_ids']], [], $championship->id, Stipulation::LastChance);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The run-up to its own PPV: a #1 Contender's Match for a title drawn by
+     * weight, multi-man more often for the secondary and special titles,
+     * 1v1 / 2v2 more often for the world and tag titles.
+     */
+    private function bookPpvContender(int $position): bool
+    {
+        $save = $this->show->game;
+        $rng = $save->rng("ai.contender.{$this->show->streamKey()}", $this->show->week_number);
+        $limit = (int) config('gm.ai.booking.careful_max_fatigue');
+        $titles = Championship::where('brand', $this->brand)->orderBy('sort_order')->get()
+            ->filter(fn (Championship $c): bool => $this->titles->currentReign($save, $c) !== null
+                && ! in_array($c->id, $this->titlesOnCard, true)
+                && $this->contention->contendership($save, $c->id) === null
+                && $this->contention->earnedShot($save, $c->id) === null)
+            ->values()
+            ->all();
+
+        foreach ($this->stipulations->titleOrder(array_values($titles), $rng) as $championship) {
+            $holders = $this->titles->currentReign($save, $championship)?->holderIds() ?? [];
+            $people = $this->pool()->filter(fn (SaveWrestler $w): bool => $championship->allowsWrestler($w->wrestler)
+                && ! in_array((int) $w->id, $holders, true))->values();
+            $size = $championship->is_tag ? 2 : 1;
+            $preferMulti = in_array(AiStipulationPlanner::tier($championship), ['second', 'special'], true);
+            $multiFirst = $preferMulti === $rng->chance((float) config('gm.ai.stipulations.number_one_contender_ppv.shape_preference'));
+
+            $types = $this->randomizer->eligibleTypes($this->show, $this->brand)
+                ->filter(fn (MatchType $t): bool => $t->allowsStipulation(Stipulation::NumberOneContender)
+                    && ! $t->isMoneyInTheBank()
+                    && count(array_unique($t->sides)) === 1 && $t->sides[0] === $size
+                    && count($t->sides) <= ($championship->is_tag ? 3 : 6)
+                    && $this->fit($this->randomizer->poolFor($t, $people), $t, $limit)->count() >= $t->competitorCount())
+                ->values();
+            $ordered = collect($rng->shuffle($types->all()))
+                ->sortBy(fn (MatchType $t): int => (count($t->sides) > 2) === $multiFirst ? 0 : 1)
+                ->values();
+
+            foreach ($ordered as $type) {
+                $candidates = $this->fit($this->randomizer->poolFor($type, $people), $type, $limit);
+                $sides = $this->randomizer->fillSides($this->show, $type, $candidates, $rng);
+                $inMatch = array_merge(...$sides);
+                $managers = $this->pickManagers($type, $this->pool()->reject(fn (SaveWrestler $w): bool => in_array((int) $w->id, $inMatch, true))->values(), $sides);
+
+                try {
+                    $referee = $this->randomizer->pickReferee($type, $this->pool()->reject(fn (SaveWrestler $w): bool => in_array((int) $w->id, [...$managers, ...$inMatch], true))->values(), $sides, $rng);
+                } catch (GameRuleException) {
+                    continue;
+                }
+
+                if ($this->tryBook($position, new Booking($type, $sides, $managers, null, Stipulation::NumberOneContender, $championship->id, $referee))) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function plainType(bool $tag): MatchType
+    {
+        return $tag
+            ? MatchType::where('family', 'tag_team')->where('variant', 'Normal Tag')->firstOrFail()
+            : MatchType::where('family', 'single')->where('variant', 'Single')->firstOrFail();
+    }
+
+    /**
+     * An open slot that isn't the main event when another is free.
+     *
+     * @param  list<int>  $open
+     */
+    private function pickPosition(array $open): int
+    {
+        $main = $this->mainEventPosition();
+        $others = array_values(array_diff($open, [$main]));
+
+        return (int) $this->rng->pick($others !== [] ? $others : $open);
+    }
+
+    private static function levelRank(ComplaintLevel $level): int
+    {
+        return match ($level) {
+            ComplaintLevel::Upset => 3,
+            ComplaintLevel::Unsatisfied => 2,
+            default => 1,
+        };
+    }
+
+    /**
+     * Which complaint it fixes first at the same level.
+     */
+    private static function fixOrder(MoraleComplaintType $type): int
+    {
+        return match ($type) {
+            MoraleComplaintType::LosingStreak => 3,
+            MoraleComplaintType::TitleMatch => 2,
+            default => 1,
+        };
     }
 
     private function tryBook(int $position, Booking $booking): bool

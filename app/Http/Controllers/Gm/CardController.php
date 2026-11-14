@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Gm;
 
+use App\Enums\ShowStatus;
 use App\Enums\Stipulation;
 use App\Exceptions\GameRuleException;
 use App\Http\Controllers\Controller;
@@ -13,6 +14,7 @@ use App\Models\MatchSlot;
 use App\Models\MatchType;
 use App\Models\PromoSlot;
 use App\Models\PromoType;
+use App\Models\Rivalry;
 use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\Show;
@@ -23,6 +25,7 @@ use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
 use App\Services\Injuries\InjuryStatus;
 use App\Services\Promos\PromoEligibility;
+use App\Services\Rivalries\RivalryService;
 use App\Services\Roster\RosterService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleService;
@@ -52,6 +55,7 @@ class CardController extends Controller
         private BookingOrder $order,
         private SummerSlamMainEvent $summerSlam,
         private RepeatMatches $repeats,
+        private RivalryService $rivalries,
     ) {}
 
     public function show(Save $save, Show $show): Response|RedirectResponse
@@ -60,6 +64,17 @@ class CardController extends Controller
 
         if ($show->isInterbrandMainEvent()) {
             return to_route('gm.ppv.entrants', [$save, $show]);
+        }
+
+        // PPV week (house rule, 2026-11-12): the weekly show doesn't open
+        // until the PPV night has aired, so it goes to the PPV night's card
+        // still to book.
+        if ($show->status === ShowStatus::Booking && $this->order->waitsForAiring($save, $show)) {
+            $blocker = $this->order->blocker($save, $show);
+
+            if ($blocker !== null) {
+                return to_route('gm.card.show', [$save, $blocker]);
+            }
         }
 
         $this->cards->ensureSlots($show);
@@ -95,6 +110,19 @@ class CardController extends Controller
                 : ['main_event' => $headliner === $save->player_brand, 'headliner' => $headliner->label()],
             // House rule (2026-11-08): slots in the same category as last week's.
             'repeats' => ['slots' => $this->repeats->forShow($show), 'per_slot' => (int) config('gm.attendance.points.repeat_slot'), 'max' => (int) config('gm.attendance.points.repeat_max')],
+            // Active Effects (house rule, 2026-11-11): the brand's rivalries
+            // and their heat, "A vs. B" alphabetically, hottest first.
+            'rivalries' => $this->rivalries->active($save)
+                ->filter(fn (Rivalry $r): bool => $r->wrestlerA->brand === $brand && $r->wrestlerB->brand === $brand)
+                ->map(function (Rivalry $r): array {
+                    [$a, $b] = strcasecmp($r->wrestlerA->name(), $r->wrestlerB->name()) <= 0
+                        ? [$r->wrestlerA, $r->wrestlerB]
+                        : [$r->wrestlerB, $r->wrestlerA];
+
+                    return ['id' => $r->id, 'wrestler_a' => $a->name(), 'wrestler_b' => $b->name(), 'heat' => $r->heat];
+                })
+                ->sortBy([['heat', 'desc'], ['wrestler_a', 'asc']])
+                ->values(),
             // Active Effects: Buried Alive losers still sitting out.
             'buried_alive' => SaveWrestler::with('wrestler')
                 ->where('save_id', $save->id)

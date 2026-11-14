@@ -234,6 +234,9 @@ it('lists each reign’s defenses, newest first, linked to their results', funct
             ->where('titles.0.lineage.0.matches.1.number', 1)
             ->where('titles.0.lineage.0.matches.1.opponents', 'John Cena')
             ->where('titles.0.lineage.0.matches.1.season_week', 1)
+            // The absolute week, for the current reigns chart.
+            ->where('titles.0.lineage.0.matches.1.week', 1)
+            ->where('titles.0.lineage.0.matches.0.week', 2)
             ->where('titles.0.lineage.0.matches.1.match_type', Card::singles()->name)
             ->where('titles.0.lineage.0.matches.1.link', route('gm.results', [$save, 1, 'match' => $results[0]->match_slot_id, 'brand' => 'raw'], false)));
 });

@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $draft_done
  * @property int $deficit_weeks
  * @property string|null $deficit_choice
+ * @property array<string, mixed>|null $ai_plans the rival GM's stipulation plans (house rule, 2026-11-13)
  * @property-read Save $game
  */
 #[Unguarded]
@@ -38,6 +39,7 @@ class SaveBrand extends Model
             'budget' => 'integer',
             'is_human' => 'boolean',
             'draft_done' => 'boolean',
+            'ai_plans' => 'array',
         ];
     }
 }

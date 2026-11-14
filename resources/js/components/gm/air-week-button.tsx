@@ -1,6 +1,10 @@
 import { Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
+import {
+    loadingOverlayDelay,
+    LoadingOverlay,
+} from '@/components/gm/loading-overlay';
 import { unsavedList, useUnsavedSlots } from '@/components/gm/unsaved-changes';
 import gm from '@/routes/gm';
 import type { GameShell } from '@/types/gm';
@@ -32,6 +36,10 @@ const slotName = (position: number) =>
  * and offers no way to air until they're saved or discarded. Repeat
  * matches (house rule, 2026-11-08) add a warning to the confirmation; they
  * don't stop the week airing.
+ *
+ * Once confirmed, a loading overlay covers the page (house rule,
+ * 2026-11-12) so nothing on the card can be changed while the night airs,
+ * with the same pause as starting the season.
  */
 export function AirWeekButton({
     game,
@@ -80,6 +88,10 @@ export function AirWeekButton({
                 type="button"
                 className="gm-btn"
                 disabled={airing || disabled || game.deficit.blocked}
+                aria-busy={airing || undefined}
+                aria-describedby={
+                    game.deficit.blocked ? 'air-week-blocked' : undefined
+                }
                 title={
                     game.deficit.blocked
                         ? 'Choose a deficit recovery plan on Financials first'
@@ -92,6 +104,22 @@ export function AirWeekButton({
                 <span className="size-2 animate-gm-pulse rounded-full bg-white" />
                 {airing ? 'On air…' : label}
             </button>
+            {airing && (
+                <LoadingOverlay
+                    testId="airing-week"
+                    text={`${ppv ? `Airing ${ppv}` : `Airing week ${game.season_week}`}. Please wait...`}
+                />
+            )}
+            {/* Why it can't air, in words (UI audit, 2026-11-12). */}
+            {game.deficit.blocked && (
+                <Link
+                    id="air-week-blocked"
+                    href={gm.financials.url(game.id)}
+                    className="text-xs text-zone-serious underline underline-offset-4"
+                >
+                    Choose a deficit plan on Financials first
+                </Link>
+            )}
             <ConfirmDialog
                 open={confirming && unsaved.length > 0}
                 title="Unsaved changes"
@@ -157,10 +185,14 @@ export function AirWeekButton({
                 onConfirm={() => {
                     setConfirming(false);
                     setAiring(true);
-                    router.post(
-                        gm.advance.url(game.id),
-                        {},
-                        { onFinish: () => setAiring(false) },
+                    window.setTimeout(
+                        () =>
+                            router.post(
+                                gm.advance.url(game.id),
+                                {},
+                                { onFinish: () => setAiring(false) },
+                            ),
+                        loadingOverlayDelay('air-week'),
                     );
                 }}
             />

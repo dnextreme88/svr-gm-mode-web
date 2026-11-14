@@ -31,6 +31,46 @@ it('frontend code never calls Math.random', function () {
     expect($offenders)->toBe([]);
 });
 
+it('frontend code pluralizes counted words through pluralize()', function () {
+    // "{n} weeks" reads "1 weeks" when n is 1: numbers before a counted word
+    // go through pluralize() in resources/js/lib/gm.ts. These are names, not
+    // counts, so they keep their plural.
+    $allowed = [
+        '{brandName(game.rival_brand)} picks',
+        '{brandName(landed)} picks',
+        '{MatchFamilyLabels[family]} matches',
+        "'Smackdown'} titles",
+        '{scope} emails',
+    ];
+    $words = 'weeks|matches|wins|losses|bars|picks|superstars|days|members|titles|defenses|reigns|promos|entrants|signings|points|emails|times|slots|seasons|champions|bookings';
+    $offenders = [];
+    $root = dirname(__DIR__, 2).'/resources/js';
+    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
+
+    foreach ($iterator as $file) {
+        if (! preg_match('/\.(tsx?|jsx?)$/', $file->getFilename()) || preg_match('/\.test\.tsx?$/', $file->getFilename())) {
+            continue;
+        }
+
+        $source = (string) file_get_contents($file->getPathname());
+        // An expression (not a {' '} spacer), maybe a spacer, then the word,
+        // and not a prop name ("champions={...}").
+        preg_match_all('/\{(?!\' \'\})[^{}\n]*\}\s*(?:\{\' \'\}\s*)?(?:'.$words.')\b(?!\s*=)/', $source, $matches, PREG_OFFSET_CAPTURE);
+
+        foreach ($matches[0] as [$text, $offset]) {
+            foreach ($allowed as $ok) {
+                if (str_contains($text, $ok)) {
+                    continue 2;
+                }
+            }
+            $line = substr_count(substr($source, 0, $offset), "\n") + 1;
+            $offenders[] = str_replace($root.DIRECTORY_SEPARATOR, '', $file->getPathname()).":{$line} ".preg_replace('/\s+/', ' ', $text);
+        }
+    }
+
+    expect($offenders)->toBe([]);
+});
+
 it('frontend code keeps font sizes at or above 12px (0.75rem)', function () {
     $offenders = [];
     $root = dirname(__DIR__, 2).'/resources';

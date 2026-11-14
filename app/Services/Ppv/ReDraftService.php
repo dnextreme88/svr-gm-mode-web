@@ -15,6 +15,7 @@ use App\Models\DraftPick;
 use App\Models\InterbrandSeries;
 use App\Models\Save;
 use App\Models\SaveWrestler;
+use App\Services\Ai\AiTradeJudge;
 use App\Services\Mail\EmailService;
 use App\Services\News\NewsRecorder;
 use App\Services\Roster\RosterService;
@@ -27,7 +28,8 @@ use Illuminate\Support\Collection;
 /**
  * The post-WrestleMania re-draft (§13, §23): up to 10 random picks per brand
  * from the rival roster's non-champions. The series winner swaps one random
- * pick for a hand-pick and protects one of its own wrestlers.
+ * pick for a hand-pick and protects one of its own wrestlers; the rival GM
+ * tags the most valuable ones.
  */
 class ReDraftService
 {
@@ -38,6 +40,7 @@ class ReDraftService
         private NewsRecorder $news,
         private EmailService $emails,
         private ContendershipService $contenderships,
+        private AiTradeJudge $judge,
     ) {}
 
     public function series(Save $save): ?InterbrandSeries
@@ -163,16 +166,34 @@ class ReDraftService
         $wrestler->activeContract?->update(['brand' => $to]);
     }
 
+    /**
+     * The rival GM's franchise tags (house rule, 2026-11-11): it hand-picks
+     * the player's most valuable non-champion and protects its own, valued
+     * the way it values a trade (`AiTradeJudge`). Ties go to the RNG.
+     */
     private function aiTags(Save $save, InterbrandSeries $series, Brand $winner, Rng $rng): void
     {
         $rival = $winner === Brand::Raw ? Brand::Smackdown : Brand::Raw;
-        $own = $this->eligibleFrom($save, $winner);
-        $theirs = $this->eligibleFrom($save, $rival);
 
         $series->update([
-            'exemption_wrestler_id' => $own->isEmpty() ? null : $rng->pick($own->all())->id,
-            'handpick_wrestler_id' => $theirs->isEmpty() ? null : $rng->pick($theirs->all())->id,
+            'exemption_wrestler_id' => $this->mostValuable($save, $winner, $this->eligibleFrom($save, $winner), $rng)?->id,
+            'handpick_wrestler_id' => $this->mostValuable($save, $winner, $this->eligibleFrom($save, $rival), $rng)?->id,
         ]);
+    }
+
+    /**
+     * @param  Collection<int, SaveWrestler>  $pool
+     */
+    public function mostValuable(Save $save, Brand $judge, Collection $pool, Rng $rng): ?SaveWrestler
+    {
+        if ($pool->isEmpty()) {
+            return null;
+        }
+
+        $values = $pool->mapWithKeys(fn (SaveWrestler $w): array => [$w->id => $this->judge->value($save, $judge, [(int) $w->id])]);
+        $best = $values->max();
+
+        return $rng->pick($pool->filter(fn (SaveWrestler $w): bool => $values[$w->id] === $best)->values()->all());
     }
 
     private function record(Save $save, int $number, Brand $brand, ?SaveWrestler $wrestler, DraftPickType $type, bool $skipped): void

@@ -194,7 +194,7 @@ class InjuryService
         $what = $this->emails->text($wrestler->game, $escalated ? 'injury.escalated' : 'injury.fresh', $brand, $week, $vars, $wrestler->name());
         $outlook = $this->emails->text($wrestler->game, "injury.{$injury->severity->value}", $brand, $week, $vars, $wrestler->name());
 
-        return "{$what} {$outlook}";
+        return "{$what}\n\n{$outlook}";
     }
 
     private function afterInjury(SaveWrestler $wrestler, Injury $injury, int $week, bool $escalated): void

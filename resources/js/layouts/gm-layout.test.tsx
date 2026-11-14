@@ -23,6 +23,7 @@ const game = {
     roster_count: 30,
     rival_roster_count: 30,
     roster_cap: 30,
+    last_attendance: { crowd: 15050, show: 'Monday Night Raw', week: 1 },
     unread_emails: 2,
     next_ppv: { name: 'Backlash', week: 4, weeks_away: 2 },
     fatigue_config: { bar_size: 10, safe_max: 70, serious_at: 100, max: 100 },
@@ -30,9 +31,18 @@ const game = {
     faction_prompt: null,
 };
 
+const pageState = vi.hoisted(() => ({
+    component: 'gm/factions',
+    extra: {} as Record<string, unknown>,
+}));
+
 vi.mock('@inertiajs/react', () => ({
     router: { on: () => () => {}, post: vi.fn() },
-    usePage: () => ({ props: { game }, url: '/gm/saves/1/factions' }),
+    usePage: () => ({
+        props: { game, ...pageState.extra },
+        url: '/gm/saves/1/factions',
+        component: pageState.component,
+    }),
     Link: ({
         children,
         href,
@@ -198,6 +208,64 @@ describe('GM header', () => {
         expect(screen.getByTestId('gm-header-stats').className).toContain(
             '@6xl:ml-auto',
         );
+    });
+
+    it('shows the latest crowd instead of the roster count', () => {
+        renderAt(1100, 1400);
+
+        const stats = screen.getByTestId('gm-header-stats');
+
+        expect(stats).toHaveTextContent('Attendance15,050');
+        expect(stats).not.toHaveTextContent('Roster');
+    });
+});
+
+describe('On air (house rule, 2026-11-12)', () => {
+    afterEach(() => {
+        pageState.component = 'gm/factions';
+        pageState.extra = {};
+    });
+
+    it('hides the header and menu bar while a night airs on the live results', () => {
+        pageState.component = 'gm/results';
+        pageState.extra = { airing: true };
+        renderAt(1100, 1400);
+
+        expect(screen.queryByTestId('gm-header')).toBeNull();
+        expect(screen.queryByRole('navigation')).toBeNull();
+    });
+
+    it('hides them after a PPV night while the weekly show waits', () => {
+        pageState.component = 'gm/results';
+        pageState.extra = {
+            airing: false,
+            continue_to: { name: 'Monday Night Raw', url: '/card' },
+        };
+        renderAt(1100, 1400);
+
+        expect(screen.queryByTestId('gm-header')).toBeNull();
+    });
+
+    it('keeps them hidden once the week is in, until the News opens', () => {
+        pageState.component = 'gm/results';
+        pageState.extra = {
+            airing: false,
+            continue_to: null,
+            wrapping_up: true,
+        };
+        renderAt(1100, 1400);
+
+        expect(screen.queryByTestId('gm-header')).toBeNull();
+        expect(screen.queryByRole('navigation')).toBeNull();
+    });
+
+    it('keeps them on the results of a past week', () => {
+        pageState.component = 'gm/results';
+        pageState.extra = { airing: false, continue_to: null };
+        renderAt(1100, 1400);
+
+        expect(screen.getByTestId('gm-header')).toBeInTheDocument();
+        expect(screen.getByRole('navigation')).toBeInTheDocument();
     });
 });
 

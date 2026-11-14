@@ -106,6 +106,12 @@ class ShowResolver
         // The main event is the card's last booked match, never a Money in
         // the Bank cash-in placed after it (house rule).
         $mainEvent = $slots->filter(fn (MatchSlot $s): bool => $s->isBooked() && $s->fixed_kind !== FixedSlotKind::MitbCashIn)->last();
+        // The rival GM's Book to Win (house rule, 2026-11-13): a side it booked
+        // to win wins when its show simulates (not a Gauntlet, booked by bout).
+        if ($bookedSide === null && $bookedBouts === [] && $next->booked_side !== null && $next->matchType?->family !== MatchFamily::Gauntlet) {
+            $bookedSide = $next->booked_side;
+        }
+
         $this->airMatch($next, $show, $context, $context->stream("show.{$show->streamKey()}"), $next->is($mainEvent), $bookedSide, $bookedBouts);
 
         return $next;
@@ -240,15 +246,16 @@ class ShowResolver
 
             foreach ($resolved->bouts as $bout) {
                 $loser = $bout['winner_side'] === $bout['side_a'] ? $bout['side_b'] : $bout['side_a'];
-                $this->rivalries->recordMeeting($context->save, $slot, $sides[$bout['winner_side']][0], $sides[$loser][0], $week, $show->isPpv());
+                $this->rivalries->recordMeeting($context->save, $sides[$bout['winner_side']][0], $sides[$loser][0], $week);
             }
         } elseif ($type->sides !== [] && max($type->sides) === 1) {
             foreach ($slot->sides()[$resolved->loserSide] ?? [] as $loserId) {
-                $this->rivalries->recordMeeting($context->save, $slot, $resolved->winners[0], $loserId, $week, $show->isPpv());
+                $this->rivalries->recordMeeting($context->save, $resolved->winners[0], $loserId, $week);
             }
         }
 
         if ($resolved->interfererId !== null) {
+            $this->rivalries->recordInterference($context->save, $resolved->interfererId, $resolved->losers, $week);
             $interferer = SaveWrestler::with('wrestler')->find($resolved->interfererId);
             $this->news->record($context->save, NewsEventType::InterferenceFinish, NewsTier::Story, $show->brand ?? NewsBrand::Both, [
                 'interferer' => $interferer?->name(),

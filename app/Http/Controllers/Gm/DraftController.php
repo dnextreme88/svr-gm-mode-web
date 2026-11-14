@@ -73,6 +73,11 @@ class DraftController extends Controller
                 'raw' => $this->draft->picksMade($save, Brand::Raw),
                 'smackdown' => $this->draft->picksMade($save, Brand::Smackdown),
             ],
+            // Both brands' running budgets, for the brand cards.
+            'budgets' => [
+                'raw' => $save->brand(Brand::Raw)->budget,
+                'smackdown' => $save->brand(Brand::Smackdown)->budget,
+            ],
             'draft_order' => $save->draft_order,
             'contract_length' => $length->value,
             'player_done' => ! $this->draft->canStillPick($save, $save->player_brand),
@@ -88,6 +93,20 @@ class DraftController extends Controller
         // The AI answers one pick at a time through aiStep, so the draft room can animate it.
         DB::transaction(function () use ($save, $wrestler): void {
             $this->draft->pick($save, $save->player_brand, $wrestler);
+            $this->draft->finalize($save);
+        });
+
+        return $this->concluded($save);
+    }
+
+    /**
+     * The Random button (house rule, 2026-11-12): the player's pick, drawn
+     * from the affordable pool by the seeded RNG.
+     */
+    public function random(Save $save): RedirectResponse
+    {
+        DB::transaction(function () use ($save): void {
+            $this->draft->randomPick($save, $save->player_brand);
             $this->draft->finalize($save);
         });
 

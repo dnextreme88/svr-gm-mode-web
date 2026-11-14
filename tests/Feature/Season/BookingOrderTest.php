@@ -313,3 +313,66 @@ describe('simulate to a date', function () {
         'next season' => [53],
     ]);
 });
+
+it('shows the PPV night’s fatigue so far while the weekly show waits', function () {
+    $save = backlashWeek();
+    $backlash = rawCard($save, ShowType::Ppv);
+    Card::book($save, $backlash, 1, Card::singles(), [['Edge'], ['Kane']]);
+    FixedOutcomes::queue('Edge');
+    $edge = GameBuilder::wrestler($save, 'Edge');
+    $before = $edge->fatigue;
+
+    $this->post(route('gm.advance', $save));
+    $this->post(route('gm.results.simulate-all', [$save, BACKLASH]));
+
+    // House rule (2026-11-12): no after-recovery figure until the week is over.
+    $this->get(route('gm.results', [$save, BACKLASH]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('shows.0.fatigue', fn ($rows) => collect($rows)->pluck('name')->sort()->values()->all() === ['Edge', 'Kane'])
+            ->where('shows.0.fatigue', fn ($rows) => collect($rows)->every(fn ($row) => $row['end'] === null && $row['recovered_bars'] === 0))
+            ->where('shows.0.fatigue', fn ($rows) => collect($rows)->firstWhere('name', 'Edge')['start'] === $before
+                && collect($rows)->firstWhere('name', 'Edge')['after_shows'] === $edge->refresh()->fatigue
+                && $edge->fatigue > $before));
+});
+
+it('sends the weekly show to the PPV card until the PPV night has aired', function () {
+    $save = backlashWeek();
+    $backlash = rawCard($save, ShowType::Ppv);
+    $raw = rawCard($save, ShowType::Weekly);
+
+    // House rule (2026-11-12): the PPV is booked and aired first.
+    $this->get(route('gm.card.show', [$save, $raw]))
+        ->assertRedirect(route('gm.card.show', [$save, $backlash]));
+
+    Card::book($save, $backlash, 1, Card::singles(), [['Edge'], ['Kane']]);
+    FixedOutcomes::queue('Edge');
+    $this->post(route('gm.advance', $save));
+    $this->post(route('gm.results.simulate-all', [$save, BACKLASH]));
+
+    $this->get(route('gm.card.show', [$save, $raw]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('gm/card'));
+});
+
+it('airs the rival’s brand-only PPV with the weekly shows, in one step', function () {
+    // Backlash is Raw's PPV; the player runs SmackDown (house rule, 2026-11-12).
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Christian', 'Chris Jericho'], smackdown: ['Batista', 'JBL'], player: Brand::Smackdown);
+    $save->update(['current_week' => BACKLASH]);
+    app(ShowScheduler::class)->ensureWeek($save, BACKLASH);
+    $smackdown = Card::show($save->refresh(), Brand::Smackdown, ShowType::Weekly, BACKLASH);
+    Card::book($save, $smackdown, 1, Card::singles(), [['Batista'], ['JBL']]);
+
+    $this->post(route('gm.advance', $save))->assertRedirect(route('gm.results', [$save, BACKLASH]));
+
+    // No PPV night of the player's own: straight to the weekly show's match.
+    $this->get(route('gm.results', [$save, BACKLASH]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('airing', true)
+            ->where('continue_to', null)
+            ->where('shows', fn ($shows) => collect($shows)->pluck('name')->all() === ['Friday Night Smackdown']));
+
+    $this->post(route('gm.results.simulate-all', [$save, BACKLASH]));
+
+    expect(WeekResolution::count())->toBe(1)
+        ->and(Card::show($save, Brand::Raw, ShowType::Ppv, BACKLASH)->refresh()->status)->toBe(ShowStatus::Aired);
+});

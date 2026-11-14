@@ -14,7 +14,10 @@ import type {
     PromoTypeOption,
 } from '@/components/gm/promo-slots';
 import { ActiveEffects } from '@/components/gm/active-effects';
-import type { BuriedAlive } from '@/components/gm/active-effects';
+import type {
+    ActiveRivalry,
+    BuriedAlive,
+} from '@/components/gm/active-effects';
 import { ProposalLauncher } from '@/components/gm/proposal-launcher';
 import { TitleShotReminder } from '@/components/gm/title-shot-reminder';
 import type { ProposalResult } from '@/components/gm/proposal-launcher';
@@ -42,6 +45,7 @@ type Props = GamePageProps & {
     roster: RosterEntry[];
     title_context: TitleContext;
     buried_alive: BuriedAlive[];
+    rivalries?: ActiveRivalry[];
     promo_slots: PromoSlotView[];
     promo_types: PromoTypeOption[];
     promo_eligibility: Record<string, PromoEligibilityView>;
@@ -61,6 +65,7 @@ export default function CardPage() {
         roster,
         title_context,
         buried_alive,
+        rivalries,
         promo_slots,
         promo_types,
         promo_eligibility,
@@ -242,7 +247,11 @@ export default function CardPage() {
                 }}
             />
 
-            <ActiveEffects context={title_context} buriedAlive={buried_alive} />
+            <ActiveEffects
+                context={title_context}
+                buriedAlive={buried_alive}
+                rivalries={rivalries}
+            />
 
             <CardBuilder
                 key={`${show.id}-${slots.map((s) => `${s.position}:${s.match_type_id}:${s.title_championship_id}:${s.stipulation}:${Object.keys(s.names ?? {}).join('.')}`).join(',')}`}

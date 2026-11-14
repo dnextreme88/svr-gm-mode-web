@@ -2,6 +2,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { InjuryChip, SpecialtyBadge } from '@/components/gm/badges';
+import { BusyLabel } from '@/components/gm/busy-label';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { PoolFilters } from '@/components/gm/pool-filters';
 import type { SortState } from '@/components/gm/sort-header';
@@ -9,6 +10,7 @@ import { ariaSort, nextSort, SortHeader } from '@/components/gm/sort-header';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import type { PoolFilter } from '@/lib/gm';
 import { emptyPoolFilter, filterPool, formatMoney } from '@/lib/gm';
+import { useBusy } from '@/lib/use-busy';
 import gm from '@/routes/gm';
 import { RosterTypeLabels, WeightClassLabels } from '@/types/enums';
 import type { ContractQuote, GamePageProps, WrestlerRow } from '@/types/gm';
@@ -39,6 +41,7 @@ export default function FreeAgency() {
     const [filter, setFilter] = useState<PoolFilter>(emptyPoolFilter);
     const [sort, setSort] = useState<SortState<SortKey>>(null);
     const [lengthById, setLengthById] = useState<Record<number, number>>({});
+    const { busy, isBusy, track } = useBusy();
 
     const visible = useMemo(() => {
         const rows = filterPool(available, filter);
@@ -119,8 +122,8 @@ export default function FreeAgency() {
                         <EmptyState>No free agents match.</EmptyState>
                     </div>
                 ) : (
-                    <div className="gm-scroll max-h-[75vh] overflow-auto">
-                        <table className="gm-table gm-table-sticky">
+                    <div className="gm-scroll overflow-auto md:max-h-[75vh]">
+                        <table className="gm-table gm-table-sticky gm-table-action">
                             <thead>
                                 <tr>
                                     <th aria-sort={ariaSort(sort, 'name')}>
@@ -241,6 +244,12 @@ export default function FreeAgency() {
                                                         type="button"
                                                         className="gm-btn gm-btn-sm"
                                                         aria-label={`Sign ${w.name}`}
+                                                        disabled={busy !== null}
+                                                        aria-busy={
+                                                            isBusy(
+                                                                `sign:${w.id}`,
+                                                            ) || undefined
+                                                        }
                                                         onClick={() =>
                                                             router.post(
                                                                 gm.freeAgency.sign.url(
@@ -256,11 +265,21 @@ export default function FreeAgency() {
                                                                 },
                                                                 {
                                                                     preserveScroll: true,
+                                                                    ...track(
+                                                                        `sign:${w.id}`,
+                                                                    ),
                                                                 },
                                                             )
                                                         }
                                                     >
-                                                        Sign
+                                                        <BusyLabel
+                                                            busy={isBusy(
+                                                                `sign:${w.id}`,
+                                                            )}
+                                                            busyText="Signing…"
+                                                        >
+                                                            Sign
+                                                        </BusyLabel>
                                                     </button>
                                                 ) : (
                                                     <span className="text-xs text-ink-dim">

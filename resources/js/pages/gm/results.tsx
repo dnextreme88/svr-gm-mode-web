@@ -1,6 +1,13 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    Fragment,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { AttendanceChip } from '@/components/gm/attendance-chip';
 import type { AttendanceBreakdown } from '@/components/gm/attendance-chip';
 import { CashInTag, TitleMark } from '@/components/gm/badges';
@@ -16,7 +23,7 @@ import type { ConditionalStoryPopup } from '@/components/gm/story-modal';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
-import { brandName, prefersReducedMotion } from '@/lib/gm';
+import { brandName, pluralize, prefersReducedMotion } from '@/lib/gm';
 import gm from '@/routes/gm';
 import { StipulationLabels } from '@/types/enums';
 import type { Brand } from '@/types/enums';
@@ -35,6 +42,12 @@ type ShowResult = CardShow & {
     attendance?: number | null;
     attendance_breakdown?: AttendanceBreakdown | null;
 };
+
+type Night = 'ppv' | 'weekly';
+
+/** Which night a show airs on: a PPV week's PPV night, or the weekly shows. */
+const nightOf = (show: { show_type: string }): Night =>
+    show.show_type === 'ppv' ? 'ppv' : 'weekly';
 
 /** How long a decided match's result stays up before the next match shows. */
 export const NEXT_MATCH_DELAY_MS = 5000;
@@ -206,7 +219,81 @@ export default function Results() {
             setClosed(0);
         }
     }, [conditional_stories.length]);
+
+    // House rule (2026-11-12): when the last match is decided here, the
+    // night's fatigue opens in a modal (after any story pop-ups), and the
+    // Fatigue this week card fills once it's closed. Results opened after
+    // the night aired show the card straight away.
+    const [fatigueModal, setFatigueModal] = useState(false);
+    const [fatigueRevealed, setFatigueRevealed] = useState(!airing);
+    const wasAiring = useRef(airing);
+
+    useEffect(() => {
+        if (airing) {
+            setFatigueRevealed(false);
+        } else if (wasAiring.current) {
+            setFatigueModal(true);
+        }
+
+        wasAiring.current = airing;
+    }, [airing]);
+
+    const closeFatigue = () => {
+        setFatigueModal(false);
+        setFatigueRevealed(true);
+    };
+    // Everyone who worked the night, once each: the fatigue logs are the
+    // week's, so a superstar on two cards has the same steps on both.
+    const nightFatigue = useMemo(() => {
+        const seen = new Map<number, FatigueStep>();
+
+        shows.forEach((show) =>
+            show.fatigue.forEach((w) => seen.set(w.id, seen.get(w.id) ?? w)),
+        );
+
+        return [...seen.values()];
+    }, [shows]);
     const current = open === null ? undefined : reel[open];
+
+    // A PPV week's results hold two nights (house rule, 2026-11-12): the
+    // PPV night and the weekly show. A toggle shows one at a time, starting
+    // on the night of the match open (the one to decide while a night airs).
+    const nights = useMemo(() => [...new Set(shows.map(nightOf))], [shows]);
+    const [night, setNight] = useState<Night>(() =>
+        current ? nightOf(current.show) : (nights[0] ?? 'weekly'),
+    );
+
+    useEffect(() => {
+        if (current) {
+            setNight(nightOf(current.show));
+        }
+    }, [current]);
+
+    const split = nights.length > 1;
+    const inNight = useCallback(
+        (item: ReelItem) => !split || nightOf(item.show) === night,
+        [split, night],
+    );
+    const visibleShows = split
+        ? shows.filter((show) => nightOf(show) === night)
+        : shows;
+    const nightReel = reel.filter(inNight);
+
+    const showNight = (next: Night) => {
+        const items = reel
+            .map((item, index) => ({ item, index }))
+            .filter(({ item }) => nightOf(item.show) === next);
+        const first =
+            items.find(({ item }) => !isWaiting(item.outcome)) ?? items[0];
+
+        setNight(next);
+        setDecided(null);
+
+        if (first) {
+            setDirection(next === 'ppv' ? 'left' : 'right');
+            setOpen(first.index);
+        }
+    };
 
     const go = useCallback(
         (delta: number) => {
@@ -223,14 +310,15 @@ export default function Results() {
             for (let i = 0; i < reel.length; i++) {
                 next = (next + delta + reel.length) % reel.length;
 
-                if (!isWaiting(reel[next].outcome)) {
+                // Only this night's matches, while a toggle splits them.
+                if (inNight(reel[next]) && !isWaiting(reel[next].outcome)) {
                     setOpen(next);
 
                     return;
                 }
             }
         },
-        [open, reel],
+        [open, reel, inNight],
     );
 
     useEffect(() => {
@@ -350,7 +438,10 @@ export default function Results() {
 
     // Simulate all, while the player's matches wait to be decided. It shows
     // a spinner and "Simulating…" until the results are in.
-    const simulateAll = airing && !rival && (
+    // Only for the night on screen while it still has matches to decide
+    // (2026-11-13): on a PPV week's toggle, the aired night has none.
+    const nightPending = nightReel.some((r) => r.outcome.pending === true);
+    const simulateAll = airing && !rival && nightPending && (
         <button
             type="button"
             className="gm-btn gm-btn-ghost"
@@ -423,6 +514,38 @@ export default function Results() {
                 <EmptyState>No matches were booked this week.</EmptyState>
             )}
 
+            {/* Above both columns, so the list and the outcome card start
+                level (house rule, 2026-11-12). */}
+            <div className="mb-4 empty:hidden">
+                {split && (
+                    <div
+                        role="group"
+                        aria-label="Results to show"
+                        className="flex flex-wrap gap-1"
+                    >
+                        {nights.map((n) => (
+                            <button
+                                key={n}
+                                type="button"
+                                aria-pressed={night === n}
+                                onClick={() => showNight(n)}
+                                className={cn(
+                                    'min-h-11 px-3 py-1 font-condensed text-sm font-semibold tracking-wider uppercase sm:min-h-0',
+                                    night === n
+                                        ? 'bg-brand text-white'
+                                        : 'text-ink-dim hover:text-ink',
+                                )}
+                            >
+                                {shows
+                                    .filter((show) => nightOf(show) === n)
+                                    .map((show) => show.name)
+                                    .join(' · ')}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
             {reel.length > 0 && (
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
                     <div className="min-w-0 space-y-6">
@@ -435,7 +558,7 @@ export default function Results() {
                                 Decide match {current.outcome.position}
                             </button>
                         )}
-                        {shows.map((show) => (
+                        {visibleShows.map((show) => (
                             <Panel
                                 key={show.id}
                                 title={show.name}
@@ -494,7 +617,7 @@ export default function Results() {
 
                         {new_emails > 0 && !from_schedule && !airing && (
                             <p className="text-sm text-ink-dim">
-                                {new_emails} new email(s).{' '}
+                                {pluralize(new_emails, 'new email')}.{' '}
                                 <Link
                                     href={gm.email.url(game.id)}
                                     className="text-brand-hot underline underline-offset-4"
@@ -552,7 +675,10 @@ export default function Results() {
                                 </div>
                                 <div className="mt-3 flex items-center justify-between">
                                     <span className="gm-num text-lg text-ink-dim">
-                                        {(open ?? 0) + 1} / {reel.length}
+                                        {current
+                                            ? nightReel.indexOf(current) + 1
+                                            : 1}{' '}
+                                        / {nightReel.length}
                                     </span>
                                     <div className="flex gap-2">
                                         <button
@@ -586,14 +712,15 @@ export default function Results() {
                             </p>
                         )}
 
-                        {airing ? (
+                        {airing || !fatigueRevealed ? (
                             <Panel title="Fatigue this week">
                                 <p
                                     data-testid="fatigue-pending"
                                     className="text-sm text-ink-faint"
                                 >
-                                    Your superstars' fatigue shows here once
-                                    every match is decided.
+                                    {airing
+                                        ? "Your superstars' fatigue shows here once every match is decided."
+                                        : "Your superstars' fatigue shows here once you close the fatigue report."}
                                 </p>
                             </Panel>
                         ) : (
@@ -606,6 +733,21 @@ export default function Results() {
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                open={fatigueModal && !storyOpen}
+                title="Fatigue this week"
+                wide
+                cancelLabel="Got it"
+                onCancel={closeFatigue}
+                message={
+                    <FatigueProgress
+                        wrestlers={nightFatigue}
+                        config={game.fatigue_config}
+                        framed={false}
+                    />
+                }
+            />
 
             <StoryModal
                 story={story}

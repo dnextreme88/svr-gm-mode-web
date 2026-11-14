@@ -16,6 +16,7 @@ use App\Models\PromoType;
 use App\Models\Save;
 use App\Models\Wrestler;
 use App\Services\Calendar\CalendarService;
+use App\Services\Mail\EmailTexts;
 use App\Services\News\FallbackStories;
 use App\Services\News\NewsCatalog;
 use App\Services\News\PromoStories;
@@ -303,9 +304,10 @@ class DocsController extends Controller
     }
 
     /**
-     * Every GM email: who sends it and when, with the thresholds from config.
+     * Every GM email: who sends it and when, with the thresholds from config,
+     * and every body it can have (`EmailTexts`, house rule 2026-11-11).
      *
-     * @return list<array{email: string, from: string, when: string}>
+     * @return list<array{email: string, from: string, when: string, bodies: list<array{label: string, texts: list<string>}>}>
      */
     private function emails(): array
     {
@@ -317,30 +319,53 @@ class DocsController extends Controller
         $superstar = 'The superstar';
         $emails = (array) config('gm.emails');
         $lowCash = '$'.number_format((int) $emails['low_cash_threshold']);
+        $slotWeeks = (int) $emails['slot_tip_weeks'];
+        $slotFirst = (int) $emails['slot_tip_offset'];
 
-        return [
-            ['email' => 'Welcome', 'from' => $jrTazz, 'when' => 'At the start of every season: after the titles are awarded in season 1, and after the re-draft later on.'],
-            ['email' => 'Superstar specialties', 'from' => $jrTazz, 'when' => "Every {$emails['specialty_tip_every_weeks']} weeks (season weeks 1 and 27). Explains specialties and sometimes names one of your specialists."],
-            ['email' => 'Interference reminder', 'from' => $jrTazz, 'when' => "Every {$emails['interference_reminder_weeks']} weeks without an Interference promo. Running the promo restarts the clock."],
-            ['email' => 'Slander reminder', 'from' => $jrTazz, 'when' => "Every {$emails['slander_reminder_weeks']} weeks without a Slander promo, with a warning that a 4th Slander within 5 weeks backfires. Running the promo restarts the clock."],
-            ['email' => 'Trade reminder', 'from' => $jrTazz, 'when' => "Every {$emails['trade_reminder_weeks']} weeks without a trade offer to the rival GM. Proposing a trade, accepted or not, restarts the clock."],
-            ['email' => 'Free agent reminder', 'from' => $jrTazz, 'when' => "Every {$emails['free_agent_reminder_weeks']} weeks without a Free Agency signing: look for superstars with match specialties and for Legends, naming one of each who is free right now. Signing anyone from Free Agency restarts the clock."],
-            ['email' => 'Low on cash', 'from' => $jrTazz, 'when' => "When the budget is {$lowCash} or less, at most once every {$emails['low_cash_every_weeks']} weeks while it stays low."],
-            ['email' => 'Expiring contracts', 'from' => $jrTazz, 'when' => 'Every week, listing everyone with '.(int) config('gm.contracts.expiring_threshold_weeks').' or fewer weeks left, with Renegotiate and Release buttons.'],
-            ['email' => 'Contract expired', 'from' => $jrTazz, 'when' => 'The week a contract runs out and the superstar leaves for Free Agency.'],
-            ['email' => 'Deficit', 'from' => $jrTazz, 'when' => 'After '.(int) config('gm.finances.deficit_weeks_limit').' straight weeks in the red. You must pick a way to recover before the next week airs.'],
-            ['email' => 'Defection attempt', 'from' => $jrTazz, 'when' => 'When an Unsatisfied or Upset superstar tries to jump to the other brand.'],
-            ['email' => 'Trade answer', 'from' => $rivalGm, 'when' => 'Right after every trade offer: accepted or declined, with each superstar on its own line.'],
-            ['email' => 'Slander reaction', 'from' => $rivalGm, 'when' => 'After your Slander promo airs. Furious and out for revenge if it worked, laughing at you if it didn’t.'],
-            ['email' => 'Interference reaction', 'from' => $rivalGm, 'when' => 'After your Interference promo airs on their show. Furious about the damage and the bill, and vowing revenge, if it worked; gloating if it was foiled.'],
-            ['email' => 'Rival Slander', 'from' => $jrTazz, 'when' => 'After the rival GM’s Slander promo airs against your show: a warning if it landed, relief if it fell flat.'],
-            ['email' => 'PPV reminder', 'from' => $vince, 'when' => "{$emails['ppv_reminder_weeks_before']} weeks before each shared PPV: SummerSlam, Survivor Series, Royal Rumble and WrestleMania."],
-            ['email' => 'Re-draft reminder', 'from' => $vince, 'when' => 'Right after WrestleMania, explaining the re-draft rules.'],
-            ['email' => 'Injury report', 'from' => $trainer, 'when' => 'Every injury or escalation: who, what, how serious and how many weeks out.'],
-            ['email' => 'Cleared to return', 'from' => $trainer, 'when' => 'The week a serious injury heals: the superstar can be booked again from next week.'],
-            ['email' => 'Morale complaint', 'from' => $superstar, 'when' => 'When one of their complaints reaches Unsatisfied or Upset (losing streak, contract demand, no title match, not being used).'],
-            ['email' => 'Contract reminder', 'from' => $superstar, 'when' => "{$emails['contract_reminder_weeks']} weeks before their contract runs out."],
-            ['email' => 'Return notice', 'from' => $superstar, 'when' => "{$emails['injury_return_notice_weeks']} weeks before a serious injury heals."],
+        $rows = [
+            ['Welcome', $jrTazz, 'At the start of every season: after the titles are awarded in season 1, and after the re-draft later on.', ['welcome.first' => 'First season', 'welcome.next' => 'Later seasons']],
+            ['Superstar specialties', $jrTazz, "Every {$emails['specialty_tip_every_weeks']} weeks (season weeks 1 and 27). Explains specialties and sometimes names one of your specialists.", ['specialty_tip' => 'The tip', 'specialty_tip.mention' => 'Naming one of your specialists (sometimes added)']],
+            ['Varied matches', $jrTazz, "Every {$emails['variety_tip_weeks']} weeks: why the fans want a different kind of match in each slot from one week to the next. When this week's card repeated last week's, it says how many slots did.", ['booking.variety' => 'The tip', 'booking.variety.repeats' => 'This week had repeats (added)']],
+            ['Match 1 and the Main Event', $jrTazz, "Every {$slotWeeks} weeks from season week {$slotFirst}: why the opener and the main event draw the crowd, and what to put there.", ['booking.slots' => 'The tip']],
+            ['Interference reminder', $jrTazz, "Every {$emails['interference_reminder_weeks']} weeks without an Interference promo. Running the promo restarts the clock.", ['interference_reminder' => 'The reminder']],
+            ['Slander reminder', $jrTazz, "Every {$emails['slander_reminder_weeks']} weeks without a Slander promo, with a warning that a 4th Slander within 5 weeks backfires. Running the promo restarts the clock.", ['slander_reminder' => 'The reminder']],
+            ['Trade reminder', $jrTazz, "Every {$emails['trade_reminder_weeks']} weeks without a trade offer to the rival GM. Proposing a trade, accepted or not, restarts the clock.", ['trade_reminder' => 'The reminder']],
+            ['Free agent reminder', $jrTazz, "Every {$emails['free_agent_reminder_weeks']} weeks without a Free Agency signing: look for superstars with match specialties and for Legends, naming one of each who is free right now. Signing anyone from Free Agency restarts the clock.", ['free_agent_reminder' => 'The reminder', 'free_agent_reminder.names' => 'Who is free right now (added)']],
+            ['Low on cash', $jrTazz, "When the budget is {$lowCash} or less, at most once every {$emails['low_cash_every_weeks']} weeks while it stays low.", ['low_cash' => 'The warning']],
+            ['Expiring contracts', $jrTazz, 'Every week, listing everyone with '.(int) config('gm.contracts.expiring_threshold_weeks').' or fewer weeks left, with Renegotiate and Release buttons.', []],
+            ['Contract expired', $jrTazz, 'The week a contract runs out and the superstar leaves for Free Agency.', ['contract_expired' => 'Above the list of names']],
+            ['Deficit', $jrTazz, 'After '.(int) config('gm.finances.deficit_weeks_limit').' straight weeks in the red. You must pick a way to recover before the next week airs.', ['deficit' => 'The warning']],
+            ['Defection attempt', $jrTazz, 'When an Unsatisfied or Upset superstar tries to jump to the other brand.', ['defection' => 'The warning']],
+            ['Trade answer', $rivalGm, 'Right after every trade offer: accepted or declined, with each superstar on its own line.', ['trade.accepted' => 'Accepted', 'trade.declined' => 'Declined']],
+            ['Slander reaction', $rivalGm, 'After your Slander promo airs. Furious and out for revenge if it worked, laughing at you if it didn’t.', ['slander.success' => 'It worked', 'slander.failure' => 'It failed']],
+            ['Interference reaction', $rivalGm, 'After your Interference promo airs on their show. Furious about the damage and the bill, and vowing revenge, if it worked; gloating if it was foiled.', ['interference.success' => 'It worked', 'interference.failure' => 'It was foiled']],
+            ['Before a shared PPV', $rivalGm, "{$emails['rival_ppv_weeks_before']} week before SummerSlam, Survivor Series, Royal Rumble and WrestleMania. Polite or arrogant, at even odds; before SummerSlam it talks about who is ahead in the crowd race.", [
+                'rival_ppv.summerslam.ahead' => 'SummerSlam, the rival ahead (polite, arrogant)',
+                'rival_ppv.summerslam.behind' => 'SummerSlam, the rival behind (polite, arrogant)',
+                'rival_ppv.summerslam.even' => 'SummerSlam, dead even (polite, arrogant)',
+                'rival_ppv.survivor_series' => 'Survivor Series (polite, arrogant)',
+                'rival_ppv.royal_rumble' => 'Royal Rumble (polite, arrogant)',
+                'rival_ppv.wrestlemania' => 'WrestleMania (polite, arrogant)',
+            ]],
+            ['Rival Slander', $jrTazz, 'After the rival GM’s Slander promo airs against your show: a warning if it landed, relief if it fell flat.', ['rival_slander.success' => 'It landed', 'rival_slander.failure' => 'It fell flat']],
+            ['PPV reminder', $vince, "{$emails['ppv_reminder_weeks_before']} weeks before each shared PPV: SummerSlam, Survivor Series, Royal Rumble and WrestleMania.", ['ppv_reminder.summerslam' => 'SummerSlam', 'ppv_reminder.survivor_series' => 'Survivor Series', 'ppv_reminder.royal_rumble' => 'Royal Rumble', 'ppv_reminder.wrestlemania' => 'WrestleMania']],
+            ['Re-draft reminder', $vince, 'Right after WrestleMania, explaining the re-draft rules.', ['draft_reminder' => 'The rules']],
+            ['Injury report', $trainer, 'Every injury or escalation: who, what, how serious and how many weeks out.', ['injury.fresh' => 'A new injury', 'injury.escalated' => 'A minor injury got worse', 'injury.serious' => 'Then, if serious', 'injury.minor' => 'Then, if minor']],
+            ['Cleared to return', $trainer, 'The week a serious injury heals: the superstar can be booked again from next week.', ['injury.cleared' => 'The news']],
+            ['Morale complaint', $superstar, 'When one of their complaints reaches Unsatisfied or Upset (losing streak, contract demand, no title match, not being used).', ['morale.losing_streak' => 'Losing streak', 'morale.contract_extension' => 'Contract demand', 'morale.title_match' => 'No title match', 'morale.inactivity' => 'Not being used', 'morale.unsatisfied' => 'Then, if Unsatisfied', 'morale.upset' => 'Then, if Upset']],
+            ['Contract reminder', $superstar, "{$emails['contract_reminder_weeks']} weeks before their contract runs out.", ['contract_reminder' => 'The reminder']],
+            ['Return notice', $superstar, "{$emails['injury_return_notice_weeks']} weeks before a serious injury heals.", ['injury_returning' => 'The notice']],
         ];
+
+        return array_values(array_map(fn (array $row): array => [
+            'email' => $row[0],
+            'from' => $row[1],
+            'when' => $row[2],
+            'bodies' => array_map(
+                fn (string $key, string $label): array => ['label' => $label, 'texts' => EmailTexts::variants($key)],
+                array_keys($row[3]),
+                array_values($row[3]),
+            ),
+        ], $rows));
     }
 }

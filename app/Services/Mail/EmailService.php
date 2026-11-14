@@ -194,7 +194,7 @@ class EmailService
      */
     public function specialtyTip(Save $save, Brand $brand, int $week): Email
     {
-        $body = "A quick word on superstar specialties. Some superstars are specialists in a type of match, like Hardcore, Ladder or Submission. Book a specialist in their kind of match and they get an edge on the outcome. Put two specialists in the same match and the edges cancel out.\n\nYou can see every superstar's specialties on their roster page.";
+        $body = $this->text($save, 'specialty_tip', $brand, $week);
 
         $specialists = SaveWrestler::with('wrestler.specialties')
             ->where('save_id', $save->id)
@@ -211,7 +211,7 @@ class EmailService
             /** @var SaveWrestler $mentioned */
             $mentioned = $rng->pick($specialists->all());
             $families = implode(' and ', array_map(fn (MatchFamily $f): string => $f->label(), $mentioned->wrestler->specialtyFamilies()));
-            $body .= "\n\nFor example, {$mentioned->name()} is a {$families} specialist. Keep that in mind when you build the card.";
+            $body .= "\n\n".$this->text($save, 'specialty_tip.mention', $brand, $week, ['name' => $mentioned->name(), 'families' => $families]);
         }
 
         return $this->send($save, $brand, EmailTemplate::SpecialtyTip, 'Superstar specialties', ['save_wrestler_id' => $mentioned?->id], $body, $week);
@@ -301,7 +301,7 @@ class EmailService
         }
 
         if ($names !== []) {
-            $body .= "\n\nRight now, ".implode(' and ', $names).' '.(count($names) === 1 ? 'is' : 'are').' sitting in the Free Agency pool.';
+            $body .= "\n\n".$this->text($save, 'free_agent_reminder.names', $brand, $week, ['names' => implode(' and ', $names), 'are' => count($names) === 1 ? 'is' : 'are', 'rival' => $this->rival($brand)->label()]);
         }
 
         return $this->send($save, $brand, EmailTemplate::FreeAgentReminder, 'Anyone worth signing?', ['weeks' => $weeksIdle], $body, $week);
@@ -395,7 +395,7 @@ class EmailService
         return match (true) {
             $mine > $theirs => 'Right now you\'re ahead: '.number_format($mine).' fans to '.number_format($theirs).'.',
             $mine < $theirs => "Right now {$rival->label()} is ahead: ".number_format($theirs).' fans to your '.number_format($mine).'.',
-            default => "Right now it's dead even.",
+            default => "Right now it's dead even, at ".number_format($mine).' fans each.',
         };
     }
 
@@ -404,17 +404,16 @@ class EmailService
      */
     public function ppvReminder(Save $save, Brand $brand, PpvEvent $ppv, int $weeksOut, int $week): ?Email
     {
-        $body = match ($ppv->key) {
-            PpvKey::Summerslam => "SummerSlam is {$weeksOut} weeks away. It's the first pay-per-view of the season where Raw and Smackdown share the card, so the whole company is watching.\n\nThe brand whose weekly shows draw the most fans this season gets the main event slot. {$this->summerSlamRace($save, $brand, $week)} Make every week count.",
-            PpvKey::SurvivorSeries => "Survivor Series is {$weeksOut} weeks away. The main event is our Traditional 3 vs 3 Survivor Series elimination tag match: three from Raw against three from Smackdown, eliminated one at a time until one side is left. It's a house rule, not something we've done before.\n\nChoose your team wisely.",
-            PpvKey::RoyalRumble => "The Royal Rumble is {$weeksOut} weeks away. Thirty men, fifteen from each brand, and only one winner.\n\nWhoever wins the Rumble gets an automatic world title shot in the main event of WrestleMania.",
-            PpvKey::Wrestlemania => "WrestleMania is {$weeksOut} weeks away. On top of the card, Raw and Smackdown go head to head in a three-match interbrand series.\n\nThe brand that wins the series gets the immunity tag (protect one superstar from the re-draft) and the manual draft pick tag (swap one random pick for one of your choosing).",
-            default => null,
-        };
+        $key = self::sharedPpvKey($ppv);
 
-        if ($body === null) {
+        if ($key === null) {
             return null;
         }
+
+        $body = $this->text($save, "ppv_reminder.{$key}", $brand, $week, [
+            'weeks' => self::weeks($weeksOut),
+            'race' => $ppv->key === PpvKey::Summerslam ? $this->summerSlamRace($save, $brand, $week) : '',
+        ]);
 
         return $this->send($save, $brand, EmailTemplate::PpvReminder, "{$ppv->name} is coming", ['ppv_event_id' => $ppv->id, 'weeks' => $weeksOut], $body, $week, (string) config('gm.email_senders.vince'));
     }
@@ -433,10 +432,91 @@ class EmailService
             EmailTemplate::DraftReminder,
             'The re-draft is open',
             [],
-            "WrestleMania is in the books, and that means it's time for the re-draft.\n\nEach brand takes up to {$max} random picks from the other brand's non-champions. The brand that won the interbrand series can swap one random pick for a manual pick and protect one of its own superstars. Rosters are still capped at {$cap}, so plan accordingly.",
+            $this->text($save, 'draft_reminder', $brand, $week, ['max' => $max, 'cap' => $cap]),
             $week,
             (string) config('gm.email_senders.vince'),
         );
+    }
+
+    /**
+     * JR / Tazz's booking tips (house rule, 2026-11-11): varied match
+     * categories (naming this week's repeats, if any), or why Match 1 and
+     * the Main Event matter.
+     */
+    public function bookingTip(Save $save, Brand $brand, string $topic, int $week, int $repeats = 0): Email
+    {
+        $body = $this->text($save, "booking.{$topic}", $brand, $week, ['brand' => $brand->label(), 'rival' => $this->rival($brand)->label()]);
+
+        if ($topic === 'variety' && $repeats > 0) {
+            $body .= "\n\n".$this->text($save, 'booking.variety.repeats', $brand, $week, ['brand' => $brand->label(), 'slots' => $repeats === 1 ? '1 slot' : "{$repeats} slots"]);
+        }
+
+        $subject = $topic === 'variety' ? 'Keep the card fresh' : 'Open hot, close strong';
+
+        return $this->send($save, $brand, EmailTemplate::BookingTip, $subject, ['topic' => $topic, 'repeats' => $repeats], $body, $week);
+    }
+
+    /**
+     * The rival GM writes a week before a shared PPV (house rule,
+     * 2026-11-11): polite or arrogant at even odds. Before SummerSlam it
+     * talks about the crowd race, from its own side.
+     */
+    public function rivalPpvTaunt(Save $save, Brand $player, PpvEvent $ppv, int $week): ?Email
+    {
+        $key = self::sharedPpvKey($ppv);
+
+        if ($key === null) {
+            return null;
+        }
+
+        $rival = $this->rival($player);
+        $vars = ['brand' => $player->label(), 'rival' => $rival->label()];
+
+        if ($ppv->key === PpvKey::Summerslam) {
+            $totals = $this->summerSlam->totals($save, $this->calendar->seasonOf($week), $week + 1);
+            $ours = $totals[$rival->value]['crowd'];
+            $yours = $totals[$player->value]['crowd'];
+            $key .= match (true) {
+                $ours > $yours => '.ahead',
+                $ours < $yours => '.behind',
+                default => '.even',
+            };
+            $vars += ['our_crowd' => number_format($ours), 'your_crowd' => number_format($yours)];
+        }
+
+        $polite = $save->rng("email.rival_ppv.{$key}", $week)->chance((float) config('gm.emails.rival_ppv_polite_chance'));
+        [$politeText, $arrogantText] = EmailTexts::variants("rival_ppv.{$key}");
+        $subject = match ($ppv->key) {
+            PpvKey::Summerslam => 'See you at SummerSlam',
+            PpvKey::SurvivorSeries => 'Only one team survives',
+            PpvKey::RoyalRumble => 'Over the top rope',
+            default => 'The grandest stage of them all',
+        };
+
+        return $this->send(
+            $save,
+            $player,
+            EmailTemplate::RivalPpvTaunt,
+            $subject,
+            ['ppv_event_id' => $ppv->id, 'tone' => $polite ? 'polite' : 'arrogant', 'key' => $key],
+            EmailTexts::fill($polite ? $politeText : $arrogantText, $vars),
+            $week,
+            $this->rivalGm($player),
+        );
+    }
+
+    /**
+     * The `EmailTexts` key part for a shared PPV, or null for a brand PPV.
+     */
+    public static function sharedPpvKey(PpvEvent $ppv): ?string
+    {
+        return match ($ppv->key) {
+            PpvKey::Summerslam => 'summerslam',
+            PpvKey::SurvivorSeries => 'survivor_series',
+            PpvKey::RoyalRumble => 'royal_rumble',
+            PpvKey::Wrestlemania => 'wrestlemania',
+            default => null,
+        };
     }
 
     /**
@@ -448,7 +528,7 @@ class EmailService
             $wrestler,
             $brand,
             EmailTemplate::ContractReminder,
-            "My contract is up in {$weeksLeft} weeks",
+            'My contract is up in '.self::weeks($weeksLeft),
             $this->text($wrestler->game, 'contract_reminder', $brand, $week, ['brand' => $brand->label(), 'weeks' => self::weeks($weeksLeft)], $wrestler->name()),
             $week,
             ['weeks_left' => $weeksLeft],
@@ -464,7 +544,7 @@ class EmailService
             $wrestler,
             $brand,
             EmailTemplate::InjuryReturning,
-            "I'll be back in {$weeksLeft} weeks",
+            "I'll be back in ".self::weeks($weeksLeft),
             $this->text($wrestler->game, 'injury_returning', $brand, $week, ['weeks' => self::weeks($weeksLeft)], $wrestler->name()),
             $week,
             ['weeks_left' => $weeksLeft],

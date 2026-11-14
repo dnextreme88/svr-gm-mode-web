@@ -125,7 +125,10 @@ describe('Title History lineage', () => {
     it('shows #, Holder, Won, Reign, How, Weeks and Defenses only', () => {
         render(<TitleHistory />);
 
-        const headers = screen
+        // The lineage table, not the current reigns chart's table.
+        const headers = within(
+            document.getElementById('lineage') as HTMLElement,
+        )
             .getAllByRole('columnheader')
             .map((th) => th.textContent);
         expect(headers).toEqual([

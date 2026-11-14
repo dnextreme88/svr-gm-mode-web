@@ -187,6 +187,18 @@ return [
     ],
 
     /*
+    | Story text (house rule, 2026-11-11): news summaries, story texts and
+    | email bodies run 1 to max_paragraphs paragraphs of paragraph_min to
+    | paragraph_max sentences each. Headlines, subjects and ticker lines are
+    | exempt. Checked by `App\Support\Text\StoryText`.
+    */
+    'story_text' => [
+        'paragraph_min' => 5,
+        'paragraph_max' => 8,
+        'max_paragraphs' => 3,
+    ],
+
+    /*
     | §20 / §21 Match outcomes (placeholder model).
     */
     'outcomes' => [
@@ -511,12 +523,23 @@ return [
     'rivalries' => [
         'auto_create_meetings' => 2,
         'auto_create_window_weeks' => 4,
+        // House rule (2026-11-12): heat is settled once a week, after the
+        // shows (RivalryService::settleWeek). The rivals share a match when
+        // both compete in it, as opponents or partners, whoever wins.
         'start_heat' => 10,
+        // A week the rivals share a match on a weekly show.
         'heat_per_meeting' => 10,
-        'heat_per_promo' => 10,
-        'idle_decay' => 5,
+        // A PPV the rivals share a match at (on top of a weekly show meeting).
+        'heat_per_ppv_meeting' => 20,
+        // House rule (2026-11-11): a rival who runs in and costs their rival
+        // the match (Rival Interference finish) heats it up too.
+        'heat_per_interference' => 10,
+        // A week with no shared match loses this much, unless a Continue
+        // Rivalry promo for it aired (no heat either way); at 0 or below the
+        // rivalry ends.
+        'idle_decay' => 20,
         'heating_up_threshold' => 50,
-        'blowoff_min_heat' => 50,
+        // Reaching this ends the rivalry the following week, with a headline.
         'max_heat' => 100,
     ],
 
@@ -638,6 +661,17 @@ return [
         'low_cash_every_weeks' => 4,
         'contract_reminder_weeks' => 2,
         'injury_return_notice_weeks' => 2,
+        // House rule (2026-11-11): JR / Tazz's booking tips. Varied matches
+        // every 8 season weeks; Match 1 and the Main Event every 12, offset
+        // to season weeks 6, 18, 30, 42 (ASSUMPTION) so they don't land
+        // together with the other reminders.
+        'variety_tip_weeks' => 8,
+        'slot_tip_weeks' => 12,
+        'slot_tip_offset' => 6,
+        // House rule (2026-11-11): the rival GM writes a week before each
+        // shared PPV, polite or arrogant at even odds.
+        'rival_ppv_weeks_before' => 1,
+        'rival_ppv_polite_chance' => 0.5,
     ],
 
     /*
@@ -717,7 +751,6 @@ return [
         'rivalries' => [
             'max_per_brand' => 7,
             'refill_wait_weeks' => 2,
-            'reset_minimum' => 4,
             // ASSUMPTION: each active rivalry's chance of a 1v1 on a card.
             'rivalry_match_chance' => 0.5,
         ],
@@ -725,8 +758,13 @@ return [
             // ASSUMPTION: the four numbers below.
             'renew_at_weeks_left' => 4,
             'renew_length' => 52,
-            'target_size' => 28,
+            // House rule (2026-11-13): it fills the whole roster, within budget.
+            'target_size' => 30,
             'cash_reserve' => 500_000,
+            // House rule (2026-11-13): while it has fewer than max_legends,
+            // each signing rolls this chance to go for a Legend it can afford.
+            'legend_chance' => 0.55,
+            'max_legends' => 3,
             // ASSUMPTION: money promos come first while the budget can't cover
             // the renewals due within this many weeks (on top of renew_at_weeks_left).
             'save_ahead_weeks' => 30,
@@ -766,6 +804,28 @@ return [
             'fair_accept' => 0.75,
             'fair_ahead_accept' => [1 => 0.9, 2 => 1.0],
             'unfair_accept' => 0.25,
+        ],
+        // House rule (2026-11-13): stipulations it plans for (AiStipulationPlanner).
+        'stipulations' => [
+            // A roll every `every_weeks`: `chance` books one (retrying each card
+            // until one is eligible), else it waits for the next roll.
+            'loser_leaves' => ['every_weeks' => 26, 'chance' => 0.85],
+            'last_chance' => ['every_weeks' => 17, 'chance' => 0.85],
+            // A #1 Contender's Match on its weekly shows in the weeks before
+            // its own brand-only PPVs, held for the PPV.
+            'number_one_contender_ppv' => [
+                'weeks_before' => 3,
+                // Title tier => weight.
+                'title_weights' => ['world' => 45, 'second' => 25, 'tag' => 15, 'special' => 15],
+                // ASSUMPTION: how often each tier gets its preferred shape
+                // (multi-man for second and special, 1v1 / 2v2 for world and tag).
+                'shape_preference' => 0.7,
+            ],
+        ],
+        // House rule (2026-11-13): each card it rolls to fix a complaint of
+        // each of its superstars, by morale level.
+        'morale' => [
+            'fix_chance' => ['content' => 0.75, 'unsatisfied' => 0.75, 'upset' => 0.95],
         ],
         // ASSUMPTION
         'mitb' => [

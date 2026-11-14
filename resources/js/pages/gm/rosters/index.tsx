@@ -103,7 +103,10 @@ export default function Rosters() {
 
             {pending > 0 && own && (
                 <p className="-mt-3 mb-4 text-sm text-ink-dim">
-                    {pending} Free Agency signing(s) join the roster next week.
+                    {pending === 1
+                        ? '1 Free Agency signing joins'
+                        : `${pending} Free Agency signings join`}{' '}
+                    the roster next week.
                 </p>
             )}
 
@@ -121,7 +124,7 @@ export default function Rosters() {
                             types={['all', 'superstar', 'diva', 'legend']}
                         />
                     </div>
-                    <div className="gm-scroll max-h-[75vh] overflow-auto">
+                    <div className="gm-scroll overflow-auto md:max-h-[75vh]">
                         <table className="gm-table gm-table-sticky">
                             <thead>
                                 <tr>

@@ -56,7 +56,7 @@ it('makes the PPV main event the WWE headline, with the title and the gimmick, a
         ->and($headline['text'])->toBe('Backlash main event: John Cena defeats Edge in a Ladder match to win the WWE Championship!')
         // Fan attendance (house rule, 2026-11-01) adds the night's crowd.
         ->and($headline['summary'])->toStartWith('Backlash ended with a new champion: John Cena beat Edge in a Ladder match and walked out with the WWE Championship. ')
-        ->and($headline['summary'])->toMatch('/ [\d,]+ fans were in the building\.$/');
+        ->and($headline['summary'])->toMatch('/ [\d,]+ fans were in the building\.\n\n/');
 });
 
 it('words a retained title and a plain non-title main event', function (bool $title, string $text) {

@@ -4,9 +4,12 @@ import { useEffect, useState } from 'react';
 import { InjuryChip, MoraleBadge, TitleBelt } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
+import { BusyLabel } from '@/components/gm/busy-label';
 import { PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
+import { pluralize } from '@/lib/gm';
 import { requestJson } from '@/lib/http';
+import { useBusy } from '@/lib/use-busy';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { TradeStatus } from '@/types/enums';
@@ -111,7 +114,7 @@ export default function ProposeTrade() {
     const empty = out.length === 0 && incoming.length === 0;
     // Why the offer can't go yet; nothing once it can.
     const hint = empty
-        ? `Pick up to ${max_per_side} superstars on each side. Uneven trades are fine.`
+        ? `Pick up to ${pluralize(max_per_side, 'superstar')} on each side. Uneven trades are fine.`
         : yourSize > game.roster_cap
           ? `Your roster would end at ${yourSize}/${game.roster_cap}. Send more or receive fewer.`
           : theirSize > game.roster_cap
@@ -143,11 +146,15 @@ export default function ProposeTrade() {
         };
     }, [out, incoming, empty, overCap, game.id]);
 
+    const { busy, track } = useBusy();
     const send = () =>
         router.post(
             gm.trade.store.url(game.id),
             { out, in: incoming },
-            { onSuccess: () => (setOut([]), setIncoming([])) },
+            {
+                onSuccess: () => (setOut([]), setIncoming([])),
+                ...track('send'),
+            },
         );
 
     return (
@@ -264,11 +271,14 @@ export default function ProposeTrade() {
                 <button
                     type="button"
                     className="gm-btn"
-                    disabled={empty || overCap}
+                    disabled={empty || overCap || busy !== null}
+                    aria-busy={busy !== null || undefined}
                     aria-describedby={hint ? 'offer-hint' : undefined}
                     onClick={send}
                 >
-                    Send offer
+                    <BusyLabel busy={busy !== null} busyText="Sending…">
+                        Send offer
+                    </BusyLabel>
                 </button>
             </section>
 
@@ -481,8 +491,8 @@ function TradeRules({
             <div className="grid gap-x-8 gap-y-4 text-sm md:grid-cols-2">
                 <ul className="list-disc space-y-1.5 pl-5 marker:text-ink-faint">
                     <li>
-                        Up to {maxPerSide} superstars on each side. Uneven
-                        trades are fine, even someone for nobody.
+                        Up to {pluralize(maxPerSide, 'superstar')} on each side.
+                        Uneven trades are fine, even someone for nobody.
                     </li>
                     <li>
                         Champions and seriously injured superstars can’t be
@@ -501,10 +511,12 @@ function TradeRules({
                     </li>
                 </ul>
                 {judge && (
-                    <div data-testid="trade-judge">
-                        <p className="mb-1.5 text-ink-dim">
-                            How the rival GM weighs an offer:
-                        </p>
+                    // Folded by default so the picker starts on the first
+                    // screen (UI audit, 2026-11-12).
+                    <details data-testid="trade-judge" className="group">
+                        <summary className="mb-1.5 cursor-pointer text-ink-dim hover:text-ink">
+                            How the rival GM weighs an offer
+                        </summary>
                         <ul className="list-disc space-y-1.5 pl-5 marker:text-ink-faint">
                             <li>
                                 Every superstar starts at{' '}
@@ -540,7 +552,7 @@ function TradeRules({
                                 <PointList
                                     items={[
                                         [
-                                            `Every ${judge.win_streak_step} wins in a row`,
+                                            `Every ${pluralize(judge.win_streak_step, 'win')} in a row`,
                                             judge.win_streak_value,
                                         ],
                                         [
@@ -575,7 +587,7 @@ function TradeRules({
                                 An offer is fair when they get{' '}
                                 {judge.fair_ratio === 1
                                     ? 'at least as many points as they give'
-                                    : `at least ${judge.fair_ratio} times the points they give`}{' '}
+                                    : `at least ${pluralize(judge.fair_ratio, 'time')} the points they give`}{' '}
                                 and can still book every title match they could
                                 before.
                             </li>
@@ -595,7 +607,7 @@ function TradeRules({
                                 </ul>
                             </li>
                         </ul>
-                    </div>
+                    </details>
                 )}
             </div>
         </Panel>

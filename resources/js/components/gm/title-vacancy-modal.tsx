@@ -17,6 +17,7 @@ export function TitleVacancyModal({
     prompt: TitleVacancyPrompt;
 }) {
     const [choice, setChoice] = useState<'award' | 'forfeit' | null>(null);
+    const [sending, setSending] = useState(false);
     const they = prompt.contender_count > 1 ? 'they' : 'the contender';
 
     const answer = (what: 'award' | 'forfeit') =>
@@ -31,7 +32,11 @@ export function TitleVacancyModal({
                       titleVacancyPrompt: prompt.id,
                   }),
             {},
-            { preserveScroll: true, onFinish: () => setChoice(null) },
+            {
+                preserveScroll: true,
+                onStart: () => setSending(true),
+                onFinish: () => (setSending(false), setChoice(null)),
+            },
         );
 
     return (
@@ -67,6 +72,8 @@ export function TitleVacancyModal({
                 cancelLabel="Back"
                 confirmLabel={choice === 'award' ? 'Award it' : 'Forfeit'}
                 danger={choice === 'forfeit'}
+                busy={sending}
+                busyText={choice === 'award' ? 'Awarding…' : 'Forfeiting…'}
                 onCancel={() => setChoice(null)}
                 onConfirm={() => choice && answer(choice)}
             />

@@ -29,6 +29,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int $cost
  * @property FixedSlotKind|null $fixed_kind
  * @property Brand|null $owner_brand
+ * @property int|null $booked_side the side the rival GM booked to win (house rule, 2026-11-13)
  * @property float|null $rating
  * @property int|null $fan_delta
  * @property-read Show $show

@@ -7,10 +7,13 @@ import {
     SpecialtyBadge,
     TitleBelt,
 } from '@/components/gm/badges';
+import { BusyLabel } from '@/components/gm/busy-label';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { EmptyState, PageTitle, Panel, Stat } from '@/components/gm/panel';
+import { ReleaseButton } from '@/components/gm/release-button';
 import { StreakMeter } from '@/components/gm/streak-meter';
 import { formatMoney } from '@/lib/gm';
+import { useBusy } from '@/lib/use-busy';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type {
@@ -93,6 +96,7 @@ export default function WrestlerDetail() {
         wrestler.contract?.length_weeks ?? 52,
     );
     const quote = quotes.find((q) => q.length_weeks === length);
+    const { busy, track } = useBusy();
 
     return (
         <>
@@ -119,7 +123,7 @@ export default function WrestlerDetail() {
                 </div>
             )}
 
-            <div className="grid gap-6 lg:grid-cols-3">
+            <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
                 <Panel title="Status" className="lg:col-span-2">
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
                         <StatusField label="Morale">
@@ -162,10 +166,13 @@ export default function WrestlerDetail() {
                                 <span className="text-ink-faint">—</span>
                             )}
                         </StatusField>
-                        <Stat
-                            label="Popularity"
-                            value={wrestler.popularity ?? '—'}
-                        />
+                        {/* Popularity shows once the system exists. */}
+                        {wrestler.popularity != null && (
+                            <Stat
+                                label="Popularity"
+                                value={wrestler.popularity}
+                            />
+                        )}
                     </div>
                     {complaints.length > 0 && (
                         <div className="mt-6">
@@ -268,6 +275,8 @@ export default function WrestlerDetail() {
                                 <button
                                     type="button"
                                     className="gm-btn gm-btn-sm"
+                                    disabled={busy !== null}
+                                    aria-busy={busy !== null || undefined}
                                     onClick={() =>
                                         router.post(
                                             is_own
@@ -280,34 +289,28 @@ export default function WrestlerDetail() {
                                                       saveWrestler: wrestler.id,
                                                   }),
                                             { length_weeks: length },
-                                            { preserveScroll: true },
+                                            {
+                                                preserveScroll: true,
+                                                ...track('sign'),
+                                            },
                                         )
                                     }
                                 >
-                                    {is_own ? 'Re-sign' : 'Sign'}
+                                    <BusyLabel
+                                        busy={busy !== null}
+                                        busyText={
+                                            is_own ? 'Re-signing…' : 'Signing…'
+                                        }
+                                    >
+                                        {is_own ? 'Re-sign' : 'Sign'}
+                                    </BusyLabel>
                                 </button>
                                 {is_own && (
-                                    <button
-                                        type="button"
-                                        className="gm-btn gm-btn-ghost gm-btn-sm"
-                                        onClick={() => {
-                                            if (
-                                                confirm(
-                                                    `Release ${wrestler.name}? Any title they hold will be vacated.`,
-                                                )
-                                            ) {
-                                                router.post(
-                                                    gm.contracts.release.url({
-                                                        save: game.id,
-                                                        saveWrestler:
-                                                            wrestler.id,
-                                                    }),
-                                                );
-                                            }
-                                        }}
-                                    >
-                                        Release
-                                    </button>
+                                    <ReleaseButton
+                                        saveId={game.id}
+                                        wrestlerId={wrestler.id}
+                                        name={wrestler.name}
+                                    />
                                 )}
                             </div>
                         </>

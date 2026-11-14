@@ -82,6 +82,34 @@ type Props = {
  * The two weekly promo slots (§5): every promo on a grid with its cost and
  * success probability, greyed out when nobody on the roster can do it.
  */
+/**
+ * Arrow keys move between the enabled radios of a tile group, as in a
+ * native radio group; Tab still leaves it (UI audit, 2026-11-12).
+ */
+function moveBetweenRadios(e: React.KeyboardEvent<HTMLDivElement>) {
+    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[
+        e.key
+    ];
+
+    if (step === undefined) {
+        return;
+    }
+
+    const radios = Array.from(
+        e.currentTarget.querySelectorAll<HTMLButtonElement>(
+            '[role="radio"]:not(:disabled)',
+        ),
+    );
+    const at = radios.indexOf(document.activeElement as HTMLButtonElement);
+
+    if (radios.length === 0 || at === -1) {
+        return;
+    }
+
+    e.preventDefault();
+    radios[(at + step + radios.length) % radios.length].focus();
+}
+
 export function PromoSlots({ slots, ...props }: Props) {
     return (
         <div className="grid gap-4 xl:grid-cols-2">
@@ -313,6 +341,7 @@ function PromoEditor({
                 role="radiogroup"
                 aria-label={`Promo ${slot.position} type`}
                 className="grid grid-cols-2 gap-1.5"
+                onKeyDown={moveBetweenRadios}
             >
                 {sorted.map((t) => {
                     const off = eligibility[t.key]?.available === false;
@@ -339,13 +368,25 @@ function PromoEditor({
                                     : !off &&
                                           !readOnly &&
                                           'hover:border-white/25 hover:bg-white/4',
-                                off && 'cursor-not-allowed opacity-40',
+                                off && 'cursor-not-allowed',
                             )}
                         >
-                            <span className="block font-condensed font-bold tracking-wide uppercase">
+                            <span
+                                className={cn(
+                                    'block font-condensed font-bold tracking-wide uppercase',
+                                    off && 'opacity-40',
+                                )}
+                            >
                                 {t.name}
                             </span>
-                            <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-dim">
+                            <span
+                                className={cn(
+                                    'mt-0.5 flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-dim',
+                                    // An unavailable promo is one line and its
+                                    // reason on a phone (UI audit, 2026-11-12).
+                                    off ? 'hidden opacity-40 sm:flex' : 'flex',
+                                )}
+                            >
                                 <span
                                     className={cn(
                                         'gm-num',
@@ -375,12 +416,19 @@ function PromoEditor({
                                     />
                                 )}
                             </span>
-                            {off && eligibility[t.key]?.reason && (
-                                <span className="sr-only">
-                                    {' '}
-                                    Unavailable: {eligibility[t.key]?.reason}
-                                </span>
-                            )}
+                            {off &&
+                                eligibility[t.key]?.reason && (
+                                    // The reason in words, not only on hover.
+                                    <span
+                                        className="mt-1 block text-xs text-ink-dim"
+                                        data-testid={`promo-${slot.position}-${t.key}-reason`}
+                                    >
+                                        <span className="sr-only">
+                                            Unavailable:{' '}
+                                        </span>
+                                        {eligibility[t.key]?.reason}
+                                    </span>
+                                )}
                         </button>
                     );
                 })}
@@ -543,6 +591,11 @@ function PromoEditor({
                                             />
                                         )}
                                         {airsLabel(position, matchSlotCount)}
+                                        {holder !== undefined && (
+                                            <span className="sr-only">
+                                                , taken by Promo {holder}
+                                            </span>
+                                        )}
                                     </button>
                                 );
                             })}

@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $weeks_active
  * @property int $started_week
  * @property int $last_activity_week
+ * @property int|null $maxed_week the week heat reached 100; it ends the next week
  * @property int|null $ended_week
  * @property bool $active
  * @property-read SaveWrestler $wrestlerA

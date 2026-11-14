@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { AttendanceChip } from '@/components/gm/attendance-chip';
@@ -40,5 +41,16 @@ describe('AttendanceChip', () => {
         );
 
         expect(container).toBeEmptyDOMElement();
+    });
+
+    it('opens the draw score on a click or tap, not only on hover', async () => {
+        const user = userEvent.setup();
+        render(<AttendanceChip attendance={15050} breakdown={breakdown} />);
+
+        await user.click(screen.getByTestId('attendance-chip'));
+
+        expect(screen.getByTestId('attendance-breakdown')).toHaveTextContent(
+            'Total65 / 100',
+        );
     });
 });

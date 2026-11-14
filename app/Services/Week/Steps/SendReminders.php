@@ -6,10 +6,13 @@ use App\Enums\Brand;
 use App\Enums\InjurySeverity;
 use App\Enums\PromoTypeKey;
 use App\Enums\ShowStatus;
+use App\Enums\ShowType;
 use App\Models\Injury;
 use App\Models\PendingRosterMove;
 use App\Models\PromoSlot;
+use App\Models\Show;
 use App\Models\Trade;
+use App\Services\Attendance\RepeatMatches;
 use App\Services\Calendar\CalendarService;
 use App\Services\Mail\EmailService;
 use App\Services\Week\WeekContext;
@@ -18,7 +21,8 @@ use App\Services\Week\WeekStep;
 /**
  * Scheduled GM emails: the specialties tip twice a season, JR / Tazz's
  * reminders (Interference, Slander, trades, free agents: every N weeks since
- * the GM last did it), Vince's shared-PPV reminders and superstars' return
+ * the GM last did it), JR / Tazz's booking tips, Vince's shared-PPV
+ * reminders, the rival GM's shared-PPV emails and superstars' return
  * notices.
  */
 class SendReminders implements WeekStep
@@ -26,6 +30,7 @@ class SendReminders implements WeekStep
     public function __construct(
         private CalendarService $calendar,
         private EmailService $emails,
+        private RepeatMatches $repeats,
     ) {}
 
     public function handle(WeekContext $context): void
@@ -66,6 +71,26 @@ class SendReminders implements WeekStep
 
         if ($this->due($idle, 'free_agent_reminder_weeks')) {
             $this->emails->freeAgentReminder($save, $player, $idle, $week);
+        }
+
+        // House rule (2026-11-11): JR / Tazz's booking tips, by season week.
+        $seasonWeek = $this->calendar->seasonWeek($week);
+        $variety = (int) config('gm.emails.variety_tip_weeks');
+        $slots = (int) config('gm.emails.slot_tip_weeks');
+
+        if ($variety > 0 && $seasonWeek % $variety === 0) {
+            $this->emails->bookingTip($save, $player, 'variety', $week, $this->repeatsThisWeek($context, $player));
+        }
+
+        if ($slots > 0 && $seasonWeek % $slots === (int) config('gm.emails.slot_tip_offset') % $slots) {
+            $this->emails->bookingTip($save, $player, 'slots', $week);
+        }
+
+        // House rule (2026-11-11): the rival GM writes before each shared PPV.
+        foreach ($this->calendar->ppvsForWeek($week + (int) config('gm.emails.rival_ppv_weeks_before')) as $ppv) {
+            if ($ppv->isShared()) {
+                $this->emails->rivalPpvTaunt($save, $player, $ppv, $week);
+            }
         }
 
         $weeksOut = (int) config('gm.emails.ppv_reminder_weeks_before');
@@ -121,5 +146,20 @@ class SendReminders implements WeekStep
             ->whereNotNull('promo_slots.succeeded')
             ->whereHas('promoType', fn ($q) => $q->where('key', $key))
             ->max('shows.week_number');
+    }
+
+    /**
+     * Slots on the brand's weekly show this week booked in the same match
+     * category as the week before (house rule, 2026-11-08).
+     */
+    private function repeatsThisWeek(WeekContext $context, Brand $brand): int
+    {
+        $show = Show::where('save_id', $context->save->id)
+            ->where('week_number', $context->week)
+            ->where('brand', $brand)
+            ->where('show_type', ShowType::Weekly)
+            ->first();
+
+        return $show === null ? 0 : count($this->repeats->forShow($show));
     }
 }

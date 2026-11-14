@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import gm from '@/routes/gm';
+import { useBusy } from '@/lib/use-busy';
 import type { GmNotice } from '@/types/gm';
 
 /**
@@ -14,6 +15,7 @@ export function NoticeModal({
     saveId: number;
     notices: GmNotice[];
 }) {
+    const { busy, track } = useBusy();
     if (notices.length === 0) {
         return null;
     }
@@ -38,11 +40,13 @@ export function NoticeModal({
                 </ul>
             }
             cancelLabel="OK"
+            busy={busy !== null}
+            busyText="Closing…"
             onCancel={() =>
                 router.post(
                     gm.notices.seen.url(saveId),
                     {},
-                    { preserveScroll: true },
+                    { preserveScroll: true, ...track('seen') },
                 )
             }
         />

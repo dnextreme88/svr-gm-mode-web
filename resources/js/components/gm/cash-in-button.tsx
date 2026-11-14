@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
+import { useBusy } from '@/lib/use-busy';
 import { cn } from '@/lib/utils';
 import type { CardSlot, TitleContext } from '@/types/gm';
 
@@ -19,6 +20,7 @@ export function CashInButton({
     url: string;
 }) {
     const [open, setOpen] = useState(false);
+    const { busy, track } = useBusy();
     // The card's own matches, in order; the last is the Main Event.
     const matches = slots
         .filter((s) => s.fixed_kind !== 'mitb_cash_in')
@@ -86,11 +88,20 @@ export function CashInButton({
                     </div>
                 }
                 confirmLabel="Cash in"
+                busy={busy !== null}
+                busyText="Cashing in…"
                 onCancel={() => setOpen(false)}
-                onConfirm={() => {
-                    setOpen(false);
-                    router.post(url, { position }, { preserveScroll: true });
-                }}
+                onConfirm={() =>
+                    router.post(
+                        url,
+                        { position },
+                        {
+                            preserveScroll: true,
+                            ...track('cash-in'),
+                            onSuccess: () => setOpen(false),
+                        },
+                    )
+                }
             />
         </>
     );

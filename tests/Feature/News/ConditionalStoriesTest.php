@@ -21,6 +21,7 @@ use App\Services\News\NewsTemplates;
 use App\Services\Promos\PromoService;
 use App\Services\Rivalries\RivalryService;
 use App\Services\Week\WeekResolver;
+use App\Support\Text\StoryText;
 use Illuminate\Support\Collection;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\Card;
@@ -389,7 +390,7 @@ describe('the live results pop-up', function () {
     });
 });
 
-it('writes every story as one paragraph of 3–5 sentences (story-text rule)', function () {
+it('writes every story as one paragraph of 5–8 sentences (story-text rule)', function () {
     foreach (array_keys(ConditionalStoryTexts::STORIES) as $key) {
         $tokens = collect(['finlay', 'victim', 'rival', 'scorer', 'setter', 'thrower', 'climber', 'partner', 'move', 'location', 'match_word'])
             ->mapWithKeys(fn (string $t): array => [$t => 'Name'])
@@ -397,11 +398,8 @@ it('writes every story as one paragraph of 3–5 sentences (story-text rule)', f
             ->merge(collect(['rival', 'setter', 'climber', 'victim'])->flatMap(fn (string $p): array => ["{$p}_he" => 'he', "{$p}_He" => 'He', "{$p}_him" => 'him', "{$p}_his" => 'his']))
             ->all();
         $text = ConditionalStoryTexts::render($key, $tokens);
-        $sentences = preg_match_all('/[.!?](\s|$)/', $text);
-
         expect($text)->not->toContain('{')
             ->and($text)->not->toContain("\n")
-            ->and($sentences)->toBeGreaterThanOrEqual(3)
-            ->and($sentences)->toBeLessThanOrEqual(5);
+            ->and(StoryText::problem($text))->toBeNull($key);
     }
 });

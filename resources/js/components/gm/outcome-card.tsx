@@ -55,6 +55,29 @@ export function OutcomeCard({
                         : 'And still…'}
                 </div>
             )}
+            {/* "And still…" names who kept the title when the challenger
+                won by DQ or count-out, so the big Winner below doesn't read
+                as the champion (UI audit, 2026-11-12). */}
+            {outcome.title_banner === 'and_still' &&
+                outcome.title &&
+                (outcome.champions ?? []).length > 0 &&
+                !(outcome.champions ?? []).some((c) =>
+                    outcome.winners.includes(c),
+                ) && (
+                    <p
+                        className="mt-3 font-condensed text-lg tracking-wide text-gold-hot uppercase"
+                        data-testid="kept-title"
+                    >
+                        {(outcome.champions ?? []).join(' & ')}{' '}
+                        {(outcome.champions ?? []).length > 1
+                            ? 'keep'
+                            : 'keeps'}{' '}
+                        the {outcome.title}
+                        <span className="block text-sm text-ink-dim normal-case">
+                            Titles only change hands on a decisive win.
+                        </span>
+                    </p>
+                )}
 
             <div className="mt-8 animate-gm-rise">
                 <div className="gm-label text-zone-safe">Winner</div>
@@ -85,16 +108,16 @@ export function OutcomeCard({
             </div>
 
             <div className="mx-auto mt-8 flex max-w-2xl flex-wrap items-center justify-center gap-3">
-                <span className="gm-chyron-both bg-brand py-1 font-condensed text-sm font-bold tracking-[0.15em] text-white uppercase">
+                <span className="gm-chyron-both py-1 font-condensed text-sm font-bold tracking-[0.15em] text-white uppercase">
                     {outcome.method_label}
                 </span>
                 {outcome.booked && (
-                    <span className="gm-chyron-both bg-gold/20 py-1 font-condensed text-sm font-semibold tracking-[0.15em] text-gold-hot uppercase">
+                    <span className="gm-chyron-both py-1 font-condensed text-sm font-semibold tracking-[0.15em] text-gold-hot uppercase [--gm-chyron-bg:color-mix(in_srgb,var(--color-gold)_20%,transparent)]">
                         Booked to win
                     </span>
                 )}
                 {outcome.finish_label && (
-                    <span className="gm-chyron-both bg-white/10 py-1 font-condensed text-sm font-semibold tracking-[0.15em] text-ink uppercase">
+                    <span className="gm-chyron-both py-1 font-condensed text-sm font-semibold tracking-[0.15em] text-ink uppercase [--gm-chyron-bg:rgb(255_255_255/0.1)]">
                         {outcome.finish_label}
                     </span>
                 )}
@@ -166,11 +189,6 @@ export function OutcomeCard({
                     ))}
                 </ul>
             )}
-
-            <div className="mt-8 flex justify-center gap-8 text-xs text-ink-faint">
-                <span title="Match Rating system is deferred">Rating —</span>
-                <span title="Popularity system is deferred">Fan support —</span>
-            </div>
         </article>
     );
 }

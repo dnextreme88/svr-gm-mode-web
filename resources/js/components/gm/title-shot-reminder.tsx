@@ -23,6 +23,9 @@ export function TitleShotReminder({
 }) {
     const [open, setOpen] = useState(shots.length > 0);
     const [booking, setBooking] = useState(false);
+    // A failed booking says so and keeps the reminder open (UI audit,
+    // 2026-11-12); it used to close and fail silently.
+    const [error, setError] = useState<string | null>(null);
 
     if (shots.length === 0) {
         return null;
@@ -30,7 +33,16 @@ export function TitleShotReminder({
 
     return (
         <ConfirmDialog
-            open={open && !booking}
+            open={open}
+            busy={booking}
+            busyText="Booking…"
+            footer={
+                error && (
+                    <p role="alert" className="text-sm text-zone-serious">
+                        {error}
+                    </p>
+                )
+            }
             title="Title match to book"
             message={
                 <ul className="space-y-2">
@@ -53,12 +65,19 @@ export function TitleShotReminder({
                 canBook
                     ? async () => {
                           setBooking(true);
+                          setError(null);
 
                           try {
                               await onBook();
+                              setOpen(false);
+                          } catch (e) {
+                              setError(
+                                  e instanceof Error && e.message
+                                      ? e.message
+                                      : 'Couldn’t book the title match. Try again, or book it by hand.',
+                              );
                           } finally {
                               setBooking(false);
-                              setOpen(false);
                           }
                       }
                     : undefined

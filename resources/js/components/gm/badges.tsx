@@ -42,7 +42,7 @@ export function InjuryChip({ injury }: { injury: InjuryInfo | null }) {
                     ? 'bg-zone-serious/15 text-zone-serious ring-zone-serious/40'
                     : 'bg-zone-minor/10 text-zone-minor ring-zone-minor/30',
             )}
-            title={`${injury.label}: ${injury.severity}, ${injury.weeks_left} week(s) left`}
+            title={`${injury.label}: ${injury.severity}, ${injury.weeks_left} ${injury.weeks_left === 1 ? 'week' : 'weeks'} left`}
         >
             <span
                 className={cn(

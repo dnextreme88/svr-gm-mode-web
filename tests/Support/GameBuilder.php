@@ -80,12 +80,16 @@ class GameBuilder
             'gm.ai.roster.target_size' => 0,
             'gm.ai.roster.renew_at_weeks_left' => -1,
             'gm.ai.rivalries.max_per_brand' => 0,
-            'gm.ai.rivalries.reset_minimum' => 0,
             'gm.ai.rivalries.rivalry_match_chance' => 0.0,
             'gm.ai.promos.interference_every_weeks' => PHP_INT_MAX,
             'gm.ai.promos.slander_gap_weeks' => [PHP_INT_MAX => 1.0],
             'gm.ai.promos.ppv_hype_weeks_before' => [PHP_INT_MAX => 1.0],
             'gm.ai.promos.situational_weights' => [],
+            // House rule (2026-11-13): planned stipulations and morale fixes.
+            'gm.ai.stipulations.loser_leaves.chance' => 0.0,
+            'gm.ai.stipulations.last_chance.chance' => 0.0,
+            'gm.ai.stipulations.number_one_contender_ppv.weeks_before' => 0,
+            'gm.ai.morale.fix_chance' => ['content' => 0.0, 'unsatisfied' => 0.0, 'upset' => 0.0],
         ]);
     }
 

@@ -34,4 +34,8 @@ enum EmailTemplate: string
     case InjuryCleared = 'injury_cleared';
     case TradeReminder = 'trade_reminder';
     case FreeAgentReminder = 'free_agent_reminder';
+    // House rule (2026-11-11): JR / Tazz booking tips and the rival GM's
+    // shared-PPV emails.
+    case BookingTip = 'booking_tip';
+    case RivalPpvTaunt = 'rival_ppv_taunt';
 }

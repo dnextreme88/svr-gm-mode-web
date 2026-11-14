@@ -1,4 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { BusyLabel } from '@/components/gm/busy-label';
+import { useBusy } from '@/lib/use-busy';
 import { useState } from 'react';
 import { InjuryChip, MoraleBadge } from '@/components/gm/badges';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
@@ -41,6 +43,7 @@ export default function PpvEntrants() {
         );
 
     const url = gm.ppv.entrants.store.url({ save: game.id, show: show.id });
+    const { busy, track } = useBusy();
 
     return (
         <>
@@ -58,30 +61,46 @@ export default function PpvEntrants() {
                         <button
                             type="button"
                             className="gm-btn gm-btn-ghost gm-btn-sm"
+                            disabled={busy !== null}
+                            aria-busy={busy === 'random' || undefined}
                             onClick={() =>
                                 router.post(
                                     url,
                                     { random: true },
-                                    { preserveScroll: true },
+                                    {
+                                        preserveScroll: true,
+                                        ...track('random'),
+                                    },
                                 )
                             }
                         >
-                            Random pick
+                            <BusyLabel
+                                busy={busy === 'random'}
+                                busyText="Picking…"
+                            >
+                                Random pick
+                            </BusyLabel>
                         </button>
                         <button
                             type="button"
                             className="gm-btn"
-                            disabled={picked.length !== needed}
+                            disabled={picked.length !== needed || busy !== null}
+                            aria-busy={busy === 'lock' || undefined}
                             onClick={() =>
                                 router.post(
                                     url,
                                     { ids: picked },
-                                    { preserveScroll: true },
+                                    { preserveScroll: true, ...track('lock') },
                                 )
                             }
                         >
-                            {rumble ? 'Lock in entrants' : 'Lock in team'} (
-                            {picked.length}/{needed})
+                            <BusyLabel
+                                busy={busy === 'lock'}
+                                busyText="Locking in…"
+                            >
+                                {rumble ? 'Lock in entrants' : 'Lock in team'} (
+                                {picked.length}/{needed})
+                            </BusyLabel>
                         </button>
                     </>
                 )}

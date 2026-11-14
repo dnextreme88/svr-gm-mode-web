@@ -1,5 +1,7 @@
+import { cn } from '@/lib/utils';
 import { usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
+import { BusyLabel } from '@/components/gm/busy-label';
 import {
     Dialog,
     DialogContent,
@@ -25,6 +27,9 @@ export function ConfirmDialog({
     footer,
     confirmDisabled = false,
     focusCancel = false,
+    busy = false,
+    busyText = 'Working…',
+    wide = false,
 }: {
     open: boolean;
     title: string;
@@ -41,14 +46,26 @@ export function ConfirmDialog({
     confirmDisabled?: boolean;
     /** Focus the cancel button first, when confirming is the bigger step. */
     focusCancel?: boolean;
+    /** The confirmed request is in flight: both buttons wait, the dialog stays open. */
+    busy?: boolean;
+    /** What the confirm button says while busy ("Deleting…"). */
+    busyText?: string;
+    /** A wider dialog, for a report with rows (the fatigue modal). */
+    wide?: boolean;
 }) {
     const brand = usePage<{ game?: GameShell }>().props.game?.player_brand;
 
     return (
-        <Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
+        <Dialog
+            open={open}
+            onOpenChange={(next) => !next && !busy && onCancel()}
+        >
             <DialogContent
                 data-brand-tint={brand ?? 'raw'}
-                className="gm-panel rounded-none border-white/10 bg-arena-2 font-gm text-ink"
+                className={cn(
+                    'gm-panel rounded-none border-white/10 bg-arena-2 font-gm text-ink',
+                    wide && 'sm:max-w-2xl',
+                )}
             >
                 <DialogTitle className="gm-heading text-2xl">
                     {title}
@@ -63,9 +80,17 @@ export function ConfirmDialog({
                         type="button"
                         className="gm-btn gm-btn-ghost gm-btn-sm"
                         onClick={onCancel}
+                        disabled={busy}
                         autoFocus={focusCancel || !onConfirm}
+                        aria-busy={(busy && !onConfirm) || undefined}
                     >
-                        {cancelLabel}
+                        {onConfirm ? (
+                            cancelLabel
+                        ) : (
+                            <BusyLabel busy={busy} busyText={busyText}>
+                                {cancelLabel}
+                            </BusyLabel>
+                        )}
                     </button>
                     {onConfirm && (
                         <button
@@ -76,10 +101,13 @@ export function ConfirmDialog({
                                     : 'gm-btn gm-btn-sm'
                             }
                             onClick={onConfirm}
-                            disabled={confirmDisabled}
+                            disabled={confirmDisabled || busy}
+                            aria-busy={busy || undefined}
                             autoFocus={!focusCancel}
                         >
-                            {confirmLabel}
+                            <BusyLabel busy={busy} busyText={busyText}>
+                                {confirmLabel}
+                            </BusyLabel>
                         </button>
                     )}
                 </DialogFooter>

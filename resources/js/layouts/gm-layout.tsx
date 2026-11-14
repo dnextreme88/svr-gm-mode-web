@@ -9,7 +9,7 @@ import { FloppyIcon } from '@/components/gm/floppy-icon';
 import { NoticeModal } from '@/components/gm/notice-modal';
 import { PopoverPanel, usePopover } from '@/components/gm/popover';
 import { TitleVacancyModal } from '@/components/gm/title-vacancy-modal';
-import { formatMoney } from '@/lib/gm';
+import { formatMoney, pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { GameShell } from '@/types/gm';
@@ -114,7 +114,7 @@ function SaveCareerButton({ game }: { game: GameShell }) {
 function WeekChip({ game }: { game: GameShell }) {
     // Container queries on the header (`@container` there): smaller on phones.
     const chip =
-        'gm-chyron-both flex w-fit items-center gap-2 bg-white/6 py-1.5 font-condensed text-base tracking-wider whitespace-nowrap uppercase @md:gap-3 @md:text-xl';
+        'gm-chyron-both flex w-fit items-center gap-2 py-1.5 [--gm-chyron-bg:rgb(255_255_255/0.06)] font-condensed text-base tracking-wider whitespace-nowrap uppercase @md:gap-3 @md:text-xl';
     const content = (
         <>
             <span className="text-ink-dim">Season</span>
@@ -158,14 +158,18 @@ function WeekChip({ game }: { game: GameShell }) {
  * - Below 42rem: the week chip gets its own row under brand and Save.
  */
 function Header({ game }: { game: GameShell }) {
-    const stat = 'text-left @6xl:text-right';
+    const stat = 'min-w-0 text-left @6xl:text-right';
+    // On a phone the three stats share one row in small type, so the page
+    // starts higher up (UI audit, 2026-11-12).
+    const statLabel = 'gm-label text-xs @2xl:text-xl';
+    const statValue = 'text-sm @2xl:text-lg';
 
     return (
         <header
             className="@container relative z-10 border-b border-white/8 bg-arena/80 backdrop-blur"
             data-testid="gm-header"
         >
-            <div className="mx-auto grid max-w-[1600px] grid-cols-[auto_1fr_auto] items-center gap-x-6 gap-y-3 px-3 py-3 md:px-6 @6xl:flex">
+            <div className="mx-auto grid max-w-[1600px] grid-cols-[auto_1fr_auto] items-center gap-x-6 gap-y-2 px-4 py-2 md:px-6 @2xl:gap-y-3 @2xl:py-3 @6xl:flex">
                 <Link
                     href={gm.saves.index.url()}
                     className="col-start-1 row-start-1 flex items-center gap-3"
@@ -182,36 +186,60 @@ function Header({ game }: { game: GameShell }) {
                 </div>
 
                 <div
-                    className="col-span-3 row-start-3 flex flex-wrap items-center gap-x-8 gap-y-2 @2xl:row-start-2 @6xl:ml-auto @6xl:gap-5"
+                    className="col-span-3 row-start-3 grid grid-cols-3 items-start gap-x-3 @2xl:row-start-2 @2xl:flex @2xl:flex-wrap @2xl:items-center @2xl:gap-x-8 @2xl:gap-y-2 @6xl:ml-auto @6xl:gap-5"
                     data-testid="gm-header-stats"
                 >
                     {game.next_ppv && (
                         <div className={stat}>
-                            <div className="gm-label text-xl">Next PPV</div>
-                            <div className="font-condensed text-lg font-semibold text-ink">
+                            <div className={statLabel}>Next PPV</div>
+                            <div
+                                className={cn(
+                                    'font-condensed font-semibold text-ink',
+                                    statValue,
+                                )}
+                            >
                                 {game.next_ppv.name}
                                 <span className="ml-1.5 text-ink-dim">
                                     {game.next_ppv.weeks_away === 0
                                         ? 'this week'
-                                        : `in ${game.next_ppv.weeks_away}w`}
+                                        : `in ${pluralize(game.next_ppv.weeks_away, 'week')}`}
                                 </span>
                             </div>
                         </div>
                     )}
                     <div className={stat}>
-                        <div className="gm-label text-xl">Roster</div>
-                        <div className="gm-num text-lg">
-                            {game.roster_count}
-                            <span className="text-ink-faint">
-                                /{game.roster_cap}
-                            </span>
+                        <div className={statLabel}>Attendance</div>
+                        <div className={cn('gm-num', statValue)}>
+                            {game.last_attendance ? (
+                                <>
+                                    {game.last_attendance.crowd.toLocaleString(
+                                        'en-US',
+                                    )}
+                                    {/* Which show, in words rather than a
+                                        hover-only tooltip. */}
+                                    <span className="ml-1.5 font-normal text-ink-dim">
+                                        <span className="sr-only">
+                                            at {game.last_attendance.show},{' '}
+                                        </span>
+                                        wk {game.last_attendance.week}
+                                    </span>
+                                </>
+                            ) : (
+                                <span className="text-ink-dim">
+                                    —
+                                    <span className="sr-only">
+                                        No show has aired yet
+                                    </span>
+                                </span>
+                            )}
                         </div>
                     </div>
                     <div className={stat}>
-                        <div className="gm-label text-xl">Budget</div>
+                        <div className={statLabel}>Budget</div>
                         <div
                             className={cn(
-                                'gm-num text-lg',
+                                'gm-num',
+                                statValue,
                                 game.budget < 0
                                     ? 'text-zone-serious'
                                     : 'text-zone-safe',
@@ -454,20 +482,35 @@ function Footer() {
 }
 
 export default function GmLayout({ children }: { children: ReactNode }) {
-    const page = usePage<{ game?: GameShell }>();
+    const page = usePage<{
+        game?: GameShell;
+        airing?: boolean;
+        continue_to?: unknown;
+        wrapping_up?: boolean;
+    }>();
     const game = page.props.game;
+    // House rule (2026-11-12): while a night airs on the live results (its
+    // matches being decided, or a PPV night aired with the weekly show still
+    // to book, or the week just finished with the News still to open), the
+    // header and menu bar are hidden so the player stays on the show.
+    // Results of past weeks keep them.
+    const onAir =
+        page.component === 'gm/results' &&
+        (page.props.airing === true ||
+            Boolean(page.props.continue_to) ||
+            page.props.wrapping_up === true);
 
     return (
         <div
             className="gm-root gm-stage min-h-screen"
             data-brand={game?.player_brand ?? 'raw'}
         >
-            {game && <Header game={game} />}
-            {game && <Nav game={game} url={page.url} />}
+            {game && !onAir && <Header game={game} />}
+            {game && !onAir && <Nav game={game} url={page.url} />}
             {game?.deficit.blocked && (
                 <div className="relative z-10 border-b border-zone-serious/40 bg-zone-serious/15 px-6 py-2 text-center font-condensed text-sm tracking-wide text-zone-serious uppercase">
-                    {game.deficit.weeks} weeks in the red. Choose a recovery
-                    plan on{' '}
+                    {pluralize(game.deficit.weeks, 'week')} in the red. Choose a
+                    recovery plan on{' '}
                     <Link
                         href={gm.financials.url(game.id)}
                         className="underline underline-offset-4"
@@ -477,7 +520,7 @@ export default function GmLayout({ children }: { children: ReactNode }) {
                     before the next show can air.
                 </div>
             )}
-            <main className="relative z-10 mx-auto max-w-[1600px] px-3 py-8 md:px-6">
+            <main className="relative z-10 mx-auto max-w-[1600px] px-4 py-6 md:px-6 md:py-8">
                 {children}
             </main>
             <Footer />

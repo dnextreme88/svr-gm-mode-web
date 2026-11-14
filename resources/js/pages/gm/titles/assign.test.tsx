@@ -90,7 +90,7 @@ describe('Crown your champions (house rule, 2026-11-07)', () => {
         expect(post).toHaveBeenCalledWith(
             '/gm/saves/3/titles/assign/1/undo',
             {},
-            { preserveScroll: true },
+            expect.objectContaining({ preserveScroll: true }),
         );
     });
 
@@ -157,6 +157,11 @@ describe('Crown your champions (house rule, 2026-11-07)', () => {
         expect(screen.getByTestId('step-wwe')).toHaveAttribute(
             'aria-current',
             'step',
+        );
+        // The title being decided gets the Schedule's animated brand border.
+        expect(screen.getByTestId('step-wwe')).toHaveClass('gm-current-week');
+        expect(screen.getByTestId('step-intercontinental')).not.toHaveClass(
+            'gm-current-week',
         );
     });
 

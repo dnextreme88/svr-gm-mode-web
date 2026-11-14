@@ -226,6 +226,8 @@ export const EmailTemplate = {
     InjuryCleared: 'injury_cleared',
     TradeReminder: 'trade_reminder',
     FreeAgentReminder: 'free_agent_reminder',
+    BookingTip: 'booking_tip',
+    RivalPpvTaunt: 'rival_ppv_taunt',
 } as const;
 export type EmailTemplate = (typeof EmailTemplate)[keyof typeof EmailTemplate];
 export const EmailTemplateLabels: Record<EmailTemplate, string> = {
@@ -252,6 +254,8 @@ export const EmailTemplateLabels: Record<EmailTemplate, string> = {
     'injury_cleared': 'Injury Cleared',
     'trade_reminder': 'Trade Reminder',
     'free_agent_reminder': 'Free Agent Reminder',
+    'booking_tip': 'Booking Tip',
+    'rival_ppv_taunt': 'Rival Ppv Taunt',
 };
 
 export const FactionOrigin = {
@@ -546,6 +550,7 @@ export const NewsEventType = {
     RivalryStarted: 'rivalry_started',
     RivalryHeatingUp: 'rivalry_heating_up',
     RivalryBlowoff: 'rivalry_blowoff',
+    RivalryConcluded: 'rivalry_concluded',
     Debut: 'debut',
     LegendSigned: 'legend_signed',
     FreeAgentSigned: 'free_agent_signed',
@@ -618,6 +623,7 @@ export const NewsEventTypeLabels: Record<NewsEventType, string> = {
     'rivalry_started': 'Rivalry Started',
     'rivalry_heating_up': 'Rivalry Heating Up',
     'rivalry_blowoff': 'Rivalry Blowoff',
+    'rivalry_concluded': 'Rivalry Concluded',
     'debut': 'Debut',
     'legend_signed': 'Legend Signed',
     'free_agent_signed': 'Free Agent Signed',

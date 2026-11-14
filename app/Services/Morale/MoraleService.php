@@ -161,7 +161,7 @@ class MoraleService
         };
         $vars = ['n' => $value, 'brand' => $wrestler->brand->label()];
         $body = $this->emails->text($wrestler->game, "morale.{$type->value}", $wrestler->brand, $week, $vars, $name)
-            .' '.$this->emails->text($wrestler->game, "morale.{$level->value}", $wrestler->brand, $week, $vars, $name);
+            ."\n\n".$this->emails->text($wrestler->game, "morale.{$level->value}", $wrestler->brand, $week, $vars, $name);
 
         $this->emails->fromSuperstar($wrestler, $wrestler->brand, EmailTemplate::MoraleComplaint, $subject, $body, $week, [
             'type' => $type->value,

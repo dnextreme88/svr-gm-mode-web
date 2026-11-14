@@ -153,4 +153,27 @@ describe('Active Effects (house rule)', () => {
             screen.getByRole('region', { name: 'Active Effects' }),
         ).toHaveTextContent('No active effects at the moment');
     });
+
+    it('lists the brand rivalries with their heat and turns gold', () => {
+        render(
+            <ActiveEffects
+                context={empty}
+                buriedAlive={[]}
+                rivalries={[
+                    {
+                        id: 3,
+                        wrestler_a: 'Edge',
+                        wrestler_b: 'John Cena',
+                        heat: 40,
+                    },
+                ]}
+            />,
+        );
+
+        const region = screen.getByRole('region', { name: 'Active Effects' });
+
+        expect(region).toHaveTextContent('RivalryEdge vs. John Cena · Heat 40');
+        expect(region).toHaveClass('border-gold');
+        expect(region).not.toHaveTextContent('No active effects');
+    });
 });

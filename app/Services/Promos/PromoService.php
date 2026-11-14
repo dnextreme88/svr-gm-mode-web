@@ -439,7 +439,8 @@ class PromoService
         $rivalry = $this->rivalries->between($show->game, (int) $slot->target_wrestler_id, (int) $slot->target_wrestler_b_id);
 
         if ($rivalry !== null) {
-            $this->rivalries->heatUp($rivalry, (int) config('gm.rivalries.heat_per_promo'), $show->week_number);
+            // House rule (2026-11-12): no heat, but the week isn't idle.
+            $this->rivalries->hold($rivalry, $show->week_number);
         }
 
         return 'Heat kept alive';

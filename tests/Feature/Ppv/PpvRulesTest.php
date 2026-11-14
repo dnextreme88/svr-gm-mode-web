@@ -30,6 +30,7 @@ use App\Services\Ppv\ReDraftService;
 use App\Services\Titles\MitbService;
 use App\Services\Week\ShowScheduler;
 use App\Services\Week\WeekResolver;
+use App\Support\Rng\SeededRng;
 use Tests\Support\FixedOutcomes;
 use Tests\Support\GameBuilder;
 
@@ -352,6 +353,35 @@ describe('re-draft', function () {
             ->and($target->refresh()->brand)->toBe(Brand::Raw)
             ->and($raw->where('pick_type', DraftPickType::Manual)->sole()->save_wrestler_id)->toBe($target->id)
             ->and($raw->where('pick_type', DraftPickType::Random)->count())->toBe(9);
+    });
+
+    it('lets a winning rival GM hand-pick the player’s most valuable superstar and protect its own (house rule, 2026-11-11)', function () {
+        $save = redraftSave(Brand::Smackdown);
+        $star = GameBuilder::wrestler($save, 'Edge');
+        $star->update(['win_streak' => 20]);
+        $own = SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Smackdown)->where('id', '!=', GameBuilder::wrestler($save, 'Batista')->id)->orderBy('id')->firstOrFail();
+        $own->update(['win_streak' => 20]);
+
+        app(ReDraftService::class)->run($save);
+
+        $series = InterbrandSeries::where('save_id', $save->id)->sole();
+        $manual = DraftPick::where('save_id', $save->id)->where('brand', Brand::Smackdown)->where('pick_type', DraftPickType::Manual)->sole();
+
+        expect($series->handpick_wrestler_id)->toBe($star->id)
+            ->and($series->exemption_wrestler_id)->toBe($own->id)
+            ->and($manual->save_wrestler_id)->toBe($star->id)
+            ->and($star->refresh()->brand)->toBe(Brand::Smackdown)
+            ->and($own->refresh()->brand)->toBe(Brand::Smackdown);
+    });
+
+    it('breaks a tie for the most valuable superstar with the RNG', function () {
+        $save = redraftSave(Brand::Smackdown);
+        $service = app(ReDraftService::class);
+        $pool = $service->eligibleFrom($save, Brand::Raw);
+
+        $picked = collect(range(1, 20))->map(fn (int $i) => $service->mostValuable($save, Brand::Smackdown, $pool, new SeededRng("tie-{$i}"))?->id)->unique();
+
+        expect($picked->count())->toBeGreaterThan(1);
     });
 
     it('skips picks for a brand already at 30', function () {

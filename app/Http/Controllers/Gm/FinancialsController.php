@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Gm;
 
+use App\Enums\Brand;
 use App\Http\Controllers\Controller;
 use App\Models\Save;
 use App\Services\Finance\FinancialReport;
@@ -13,20 +14,24 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Weekly income statement (§3 Financials, §7).
+ * Weekly income statement (§3 Financials, §7). `?brand=` shows either brand's
+ * books (house rule, 2026-11-13): the rival's are read-only.
  */
 class FinancialsController extends Controller
 {
     public function index(Request $request, Save $save, FinancialReport $report): Response
     {
-        $history = $report->history($save, $save->player_brand);
+        $brand = Brand::tryFrom((string) $request->query('brand')) ?? $save->player_brand;
+        $history = $report->history($save, $brand);
         $latest = $history === [] ? $save->current_week : end($history)['week_number'];
         $week = $request->integer('week') ?: $latest;
 
         return Inertia::render('gm/financials', [
-            'statement' => $report->forWeek($save, $save->player_brand, $week),
+            'brand' => $brand->value,
+            'balance' => $save->brand($brand)->budget,
+            'statement' => $report->forWeek($save, $brand, $week),
             'history' => $history,
-            'weekly_upkeep' => $report->weeklyUpkeep($save, $save->player_brand),
+            'weekly_upkeep' => $report->weeklyUpkeep($save, $brand),
             'deficit_choices' => TrackDeficit::choices(),
         ]);
     }

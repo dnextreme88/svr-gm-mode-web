@@ -27,3 +27,8 @@ Dated implementation and upgrade plans for this site. Each plan is a Markdown fi
 | **2026-11-01** | [Fan Attendance, PPV Night First, Shared SummerSlam, Rival Stipulations & "Superstar" Wording](20261101-attendance-and-rival-stipulations.md) |
 | **2026-11-04** | [Brand Logos & Title Belts in the GM UI](20261104-brand-and-title-assets.md) |
 | **2026-11-07** | [2004 & 2006–2007 Roster, Factions, Conditional Stories, Rematch Clause & Match Type Changes](20261107-2006-2007-roster-and-conditional-stories.md) |
+| **2026-11-11** | [Longer Stories, New Emails, PPV Logos, Rivalry Tuning & Strategic Re-draft Tags](20261111-longer-stories-and-rival-ppv-emails.md) |
+| **2026-11-12** | [UI/UX Audit Fixes](20261112-ui-ux-audit-fixes.md) |
+| **2026-11-12** | [Rivalry Heat Rework](20261112-rivalry-heat-rework.md) |
+| **2026-11-12** | [Air Week Overlay, Fatigue Modal, One-off Buttons, Draft Room & PPV Week Flow](20261112-air-week-overlay-and-fatigue-modal.md) |
+| **2026-11-13** | [Rival GM: Stipulations, Full Roster, Morale & Rival Financials](20261113-rival-gm-stipulations-roster-morale.md) |

@@ -30,6 +30,7 @@ const props = {
         player_brand: 'smackdown',
         rival_brand: 'raw',
         roster_cap: 30,
+        last_attendance: null,
         fatigue_config: {
             bar_size: 10,
             safe_max: 70,

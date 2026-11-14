@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { brandLogo, titleImage, titleImageFor } from '@/lib/assets';
-import { ChampionshipKeyLabels } from '@/types/enums';
+import { brandLogo, ppvLogo, titleImage, titleImageFor } from '@/lib/assets';
+import { ChampionshipKeyLabels, PpvKey } from '@/types/enums';
 import type { ChampionshipKey } from '@/types/enums';
 
 describe('assets', () => {
@@ -22,5 +22,12 @@ describe('assets', () => {
         expect(brandLogo.raw).toBeTruthy();
         expect(brandLogo.smackdown).toBeTruthy();
         expect(brandLogo.raw).not.toBe(brandLogo.smackdown);
+    });
+
+    it('has a logo for every PPV', () => {
+        const logos = Object.values(PpvKey).map((key) => ppvLogo[key]);
+
+        logos.forEach((logo) => expect(logo).toBeTruthy());
+        expect(new Set(logos).size).toBe(logos.length);
     });
 });

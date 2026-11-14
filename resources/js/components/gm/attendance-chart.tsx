@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
+import { ppvLogo } from '@/lib/assets';
 import { brandName, formatMoney } from '@/lib/gm';
 import { cn } from '@/lib/utils';
-import type { Brand } from '@/types/enums';
+import type { Brand, PpvKey } from '@/types/enums';
 
 /** One aired night's crowd: a weekly show, or a PPV's cards together. */
 export type AttendancePoint = {
@@ -15,9 +16,14 @@ export type AttendancePoint = {
     gate: number;
 };
 
+/** A shared PPV marking its week on the axis (house rule, 2026-11-11). */
+export type SharedPpvMark = { key: PpvKey; name: string; week: number };
+
 const WIDTH = 720;
-const HEIGHT = 280;
-const M = { top: 16, right: 96, bottom: 34, left: 52 };
+const HEIGHT = 290;
+const M = { top: 16, right: 96, bottom: 44, left: 52 };
+/** The axis logos' box: they keep their shape inside it. */
+const LOGO = { width: 64, height: 22 };
 const WEEKS = 52;
 
 const SERIES: Record<
@@ -98,7 +104,13 @@ export function brandLine(
  * point shows its night, crowd and gate; the same numbers are in a table
  * below for anyone who'd rather read them.
  */
-export function AttendanceChart({ points }: { points: AttendancePoint[] }) {
+export function AttendanceChart({
+    points,
+    sharedPpvs = [],
+}: {
+    points: AttendancePoint[];
+    sharedPpvs?: SharedPpvMark[];
+}) {
     const seasons = useMemo(
         () => [...new Set(points.map((p) => p.season))].sort((a, b) => a - b),
         [points],
@@ -226,7 +238,7 @@ export function AttendanceChart({ points }: { points: AttendancePoint[] }) {
                     </p>
                     {/* Phones scroll the chart sideways rather than shrink its labels. */}
                     <div className="overflow-x-auto">
-                        <div className="relative min-w-[560px]">
+                        <div className="relative min-w-[720px] md:min-w-[560px]">
                             <svg
                                 viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
                                 className="h-auto w-full"
@@ -253,17 +265,40 @@ export function AttendanceChart({ points }: { points: AttendancePoint[] }) {
                                         </text>
                                     </g>
                                 ))}
-                                {[1, 13, 26, 39, 52].map((w) => (
-                                    <text
-                                        key={w}
-                                        x={x(w)}
-                                        y={HEIGHT - 10}
-                                        textAnchor="middle"
-                                        className="gm-num fill-ink-faint text-[12px]"
-                                    >
-                                        Wk {w}
-                                    </text>
-                                ))}
+                                {sharedPpvs.map((p) => {
+                                    // Centred under its week, kept inside the plot.
+                                    const left = Math.min(
+                                        Math.max(
+                                            x(p.week) - LOGO.width / 2,
+                                            M.left - LOGO.width / 2,
+                                        ),
+                                        WIDTH - M.right - LOGO.width / 2,
+                                    );
+
+                                    return (
+                                        <g key={p.key} data-axis-ppv={p.key}>
+                                            <line
+                                                x1={x(p.week)}
+                                                x2={x(p.week)}
+                                                y1={HEIGHT - M.bottom}
+                                                y2={HEIGHT - M.bottom + 4}
+                                                className="stroke-gold/60"
+                                            />
+                                            <image
+                                                href={ppvLogo[p.key]}
+                                                x={left}
+                                                y={HEIGHT - M.bottom + 8}
+                                                width={LOGO.width}
+                                                height={LOGO.height}
+                                                preserveAspectRatio="xMidYMid meet"
+                                                role="img"
+                                                aria-label={`${p.name}, week ${p.week}`}
+                                            >
+                                                <title>{`${p.name} · week ${p.week}`}</title>
+                                            </image>
+                                        </g>
+                                    );
+                                })}
 
                                 {(['raw', 'smackdown'] as Brand[]).map(
                                     (brand) => {

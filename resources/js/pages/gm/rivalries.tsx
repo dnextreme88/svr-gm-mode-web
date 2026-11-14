@@ -1,6 +1,6 @@
 import { Head, usePage } from '@inertiajs/react';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
-import { formatMoney } from '@/lib/gm';
+import { formatMoney, pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import type { Brand } from '@/types/enums';
 import type { GamePageProps } from '@/types/gm';
@@ -23,9 +23,9 @@ type RivalryRules = {
     window_weeks: number;
     start_heat: number;
     heat_per_meeting: number;
-    heat_per_promo: number;
+    heat_per_ppv_meeting: number;
+    heat_per_interference: number;
     idle_decay: number;
-    blowoff_min_heat: number;
     milestone_weeks: number;
     start_promo_bars: number;
     continue_promo_bars: number;
@@ -69,7 +69,7 @@ export default function Rivalries() {
                             <tr>
                                 <th>Rivalry</th>
                                 <th className="w-1/3">Heat</th>
-                                <th>Duration</th>
+                                <th className="text-right">Duration</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -120,7 +120,7 @@ export default function Rivalries() {
                                             </span>
                                         </div>
                                     </td>
-                                    <td className="gm-num">
+                                    <td className="gm-num text-right">
                                         {r.weeks_active} wk
                                     </td>
                                     <td className="text-ink-dim">
@@ -158,9 +158,10 @@ function RivalryRulesPanel({
                     <ul className="list-disc space-y-1.5 pl-5 marker:text-ink-faint">
                         <li>
                             Book the same two superstars against each other{' '}
-                            {r.meetings} times within {r.window_weeks} weeks, in
-                            matches where every side is one superstar (Gauntlet
-                            bouts count).
+                            {pluralize(r.meetings, 'time')} within{' '}
+                            {pluralize(r.window_weeks, 'week')}, in matches
+                            where every side is one superstar (Gauntlet bouts
+                            count).
                         </li>
                         <li>
                             Or run a Start a Rivalry promo with two healthy
@@ -185,30 +186,41 @@ function RivalryRulesPanel({
                     </p>
                     <ul className="list-disc space-y-1.5 pl-5 marker:text-ink-faint">
                         <li>
-                            A new rivalry starts at {r.start_heat}. Each meeting
-                            in the ring adds {r.heat_per_meeting}, and a
-                            Continue Rivalry promo adds {r.heat_per_promo} (it
-                            always works, costs{' '}
-                            {formatMoney(r.continue_promo_cost)} and tires both
-                            rivals {bars(r.continue_promo_bars)}).
+                            A new rivalry starts at {r.start_heat}. Heat is
+                            settled once a week, after the shows.
                         </li>
                         <li>
-                            A week with neither loses {r.idle_decay} heat. At 0
-                            the rivalry is over.
+                            A week the rivals share a match adds{' '}
+                            {r.heat_per_meeting}, and a PPV they share a match
+                            at adds {r.heat_per_ppv_meeting}. Opponents or
+                            partners, winning or losing: being in the same match
+                            is what counts.
+                        </li>
+                        <li>
+                            A week without a shared match, but with a Continue
+                            Rivalry promo for it, holds the heat where it is.
+                            The promo always works, costs{' '}
+                            {formatMoney(r.continue_promo_cost)} and tires both
+                            rivals {bars(r.continue_promo_bars)}.
+                        </li>
+                        <li>
+                            Any other week loses {r.idle_decay} heat. At 0 or
+                            below the rivalry is over.
                         </li>
                         <li>
                             At {heatingUp} it’s heating up and makes the news;
-                            still that hot after {r.milestone_weeks} weeks, it
-                            makes a headline.
+                            still that hot after{' '}
+                            {pluralize(r.milestone_weeks, 'week')}, it makes a
+                            headline.
                         </li>
                         <li>
-                            Rivals meeting at a PPV with {r.blowoff_min_heat}+
-                            heat settle it there: the blow-off ends the rivalry
-                            with a headline.
+                            A rivalry that reaches {maxHeat} has peaked: it ends
+                            the following week, with a headline.
                         </li>
                         <li>
                             In a match with ring outs, a superstar’s rival who
-                            isn’t in it can run in and cost them the match.
+                            isn’t in it can run in and cost them the match,
+                            which adds {r.heat_per_interference} heat.
                         </li>
                     </ul>
                 </div>
