@@ -96,7 +96,7 @@ export default function Schedule() {
         () =>
             welcome_season != null &&
             readPreference(welcomeKey, 'unseen', ['unseen', 'seen']) ===
-            'unseen',
+                'unseen',
     );
     const [index, setIndex] = useState(() =>
         Math.max(
@@ -126,8 +126,8 @@ export default function Schedule() {
         direction === 'next'
             ? 'animate-gm-slide-from-below'
             : direction === 'previous'
-                ? 'animate-gm-slide-from-above'
-                : undefined;
+              ? 'animate-gm-slide-from-above'
+              : undefined;
 
     const go = (delta: -1 | 1) => {
         setDirection(delta === 1 ? 'next' : 'previous');
@@ -423,8 +423,8 @@ function SimulationProgress({
                     {stopping
                         ? 'Stopping after this week…'
                         : last === null
-                            ? 'Booking and airing the first week…'
-                            : `Week ${last} aired.`}
+                          ? 'Booking and airing the first week…'
+                          : `Week ${last} aired.`}
                 </span>
                 <span className="gm-num text-ink">
                     {done} / {pluralize(total, 'week')}
@@ -514,14 +514,14 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
                 {day.airs.some(
                     (a) => (isLogo(a) || isPpvLogo(a)) && a.state === 'aired',
                 ) && (
-                        <span
-                            aria-hidden
-                            data-testid={`aired-${day.date}`}
-                            className="text-sm font-bold text-zone-safe"
-                        >
-                            ✓
-                        </span>
-                    )}
+                    <span
+                        aria-hidden
+                        data-testid={`aired-${day.date}`}
+                        className="text-sm font-bold text-zone-safe"
+                    >
+                        ✓
+                    </span>
+                )}
             </div>
             {day.airs.map((air) => {
                 const clickable = isClickable(air);
@@ -547,14 +547,14 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
                             logo
                                 ? 'flex flex-1 flex-col items-center justify-center gap-0.5 p-0.5 text-ink-dim'
                                 : ppvLogo
-                                    ? 'flex flex-1 flex-col items-center justify-center gap-0.5 bg-gold/10 p-0.5 text-gold-hot ring-1 ring-gold/70 ring-inset'
-                                    : 'truncate bg-gold/90 px-1 py-0.5 text-left font-bold text-arena sm:px-1.5',
+                                  ? 'flex flex-1 flex-col items-center justify-center gap-0.5 bg-gold/10 p-0.5 text-gold-hot ring-1 ring-gold/70 ring-inset'
+                                  : 'truncate bg-gold/90 px-1 py-0.5 text-left font-bold text-arena sm:px-1.5',
                             air.state === 'aired' && 'opacity-20',
                             !clickable
                                 ? 'cursor-default'
                                 : air === cellShow
-                                    ? "cursor-pointer after:absolute after:inset-0 after:content-['']"
-                                    : cn('cursor-pointer', hoverFor(air)),
+                                  ? "cursor-pointer after:absolute after:inset-0 after:content-['']"
+                                  : cn('cursor-pointer', hoverFor(air)),
                             air.state === 'waiting' && 'opacity-60',
                         )}
                     >
