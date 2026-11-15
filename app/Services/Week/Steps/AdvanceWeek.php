@@ -32,7 +32,9 @@ class AdvanceWeek implements WeekStep
         ]);
 
         foreach ($this->shows->ensureWeek($context->save, $next) as $show) {
-            if ($show->ppvKey() === PpvKey::Summerslam) {
+            // SummerSlam, the Royal Rumble and Survivor Series (house rule,
+            // 2026-11-15): one shared card, the rival's slots booked at once.
+            if (in_array($show->ppvKey(), [PpvKey::Summerslam, PpvKey::RoyalRumble, PpvKey::SurvivorSeries], true)) {
                 $this->ai->bookShow($show, $context->save->rivalBrand());
             }
         }

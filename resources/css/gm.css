@@ -439,10 +439,13 @@
         padding-right: 1.4rem;
     }
 
+    /* The body runs 1px under the slanted tip: at a fractional width the two
+       pieces round to different pixels and left a see-through seam between
+       them (2026-11-15, "Match 1", "Match 4", "Main Event"). */
     .gm-chyron::before {
         background:
             linear-gradient(var(--gm-chyron-bg), var(--gm-chyron-bg)) left /
-                calc(100% - var(--gm-chyron-cut)) 100% no-repeat,
+                calc(100% - var(--gm-chyron-cut) + 1px) 100% no-repeat,
             linear-gradient(
                     to bottom right,
                     var(--gm-chyron-bg) 50%,
@@ -464,7 +467,7 @@
                 )
                 left / var(--gm-chyron-cut) 100% no-repeat,
             linear-gradient(var(--gm-chyron-bg), var(--gm-chyron-bg)) center /
-                calc(100% - 2 * var(--gm-chyron-cut)) 100% no-repeat,
+                calc(100% - 2 * var(--gm-chyron-cut) + 2px) 100% no-repeat,
             linear-gradient(
                     to bottom right,
                     var(--gm-chyron-bg) 50%,

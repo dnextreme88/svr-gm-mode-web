@@ -571,8 +571,9 @@ function MatchTypes({
                         <li>
                             Held only at the Royal Rumble PPV, an interbrand
                             card: {pluralize(rumbleEntrants, 'entrant')} from
-                            Raw and {rumbleEntrants} from Smackdown. You pick
-                            yours on the Royal Rumble entrants card.
+                            Raw and {rumbleEntrants} from Smackdown. It’s the
+                            Royal Rumble card’s main event, and you pick your
+                            entrants from its Pick entrants button.
                         </li>
                         <li>
                             Superstars are thrown over the top rope; the last
@@ -2489,17 +2490,32 @@ function AttendanceDocs({ attendance }: Pick<Props, 'attendance'>) {
                         </li>
                     </ul>
                 </Panel>
-                <Panel title="SummerSlam main event">
-                    <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                <Panel title="Shared PPV cards">
+                    <ul
+                        data-testid="shared-ppv-cards"
+                        className="list-disc space-y-2 pl-4 text-sm text-ink"
+                    >
                         <li>
-                            SummerSlam is one card both brands book, like
-                            WrestleMania.
+                            SummerSlam, the Royal Rumble and Survivor Series are
+                            each one 7-match card both brands book, like
+                            WrestleMania. The brand whose weekly shows drew more
+                            fans this season, up to that PPV’s week, gets the
+                            better slots.
                         </li>
                         <li>
-                            The brand whose weekly shows drew more fans this
-                            season, up to SummerSlam week, gets the main event:
-                            it books Match 1, Match 3 and the main event. The
-                            other brand books Matches 2 and 4.
+                            SummerSlam: that brand gets the main event: it books
+                            Match 1, Match 3, Match 5 and the main event. The
+                            other brand books Matches 2, 4 and 6.
+                        </li>
+                        <li>
+                            Royal Rumble: that brand books Matches 1, 2 and 6,
+                            the other brand 3, 4 and 5. The 30-man Royal Rumble
+                            is always the main event.
+                        </li>
+                        <li>
+                            Survivor Series: that brand books Matches 4, 5 and
+                            6, the other brand 1, 2 and 3. The Traditional 3 vs
+                            3 Elimination is always the main event.
                         </li>
                         <li>
                             A tie goes to the higher total draw score, then a
@@ -2604,6 +2620,36 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                     <li>
                         Simulation stops at WrestleMania, and the week you
                         picked is left for you to book. It can’t be undone.
+                    </li>
+                </ul>
+            </Panel>
+
+            <Panel title="WrestleMania card">
+                <ul
+                    data-testid="wrestlemania-card"
+                    className="list-disc space-y-2 pl-4 text-sm text-ink"
+                >
+                    <li>
+                        One card of 8 matches. The brand whose superstar won the
+                        Royal Rumble books Matches 1 and 3, the other brand
+                        Matches 2 and 4.
+                    </li>
+                    <li>
+                        Matches 5 to 7 are the interbrand series: a 1 on 1, a
+                        tag match and Money in the Bank. Each brand picks its
+                        own superstars for them, and the card can’t air until
+                        yours are picked.
+                    </li>
+                    <li>
+                        Match 8 is the main event: the Royal Rumble winner
+                        against their brand’s world champion, for the title. The
+                        brand that has it picks the match type (any one on one
+                        the title can be on the line in). The rival picks one
+                        that keeps both out of injury range.
+                    </li>
+                    <li>
+                        Every match’s ribbon shows whose it is: red for Raw,
+                        blue for Smackdown, gold when both brands share it.
                     </li>
                 </ul>
             </Panel>

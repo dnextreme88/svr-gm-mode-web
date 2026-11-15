@@ -7,6 +7,7 @@ use App\Enums\PpvKey;
 use App\Enums\ShowStatus;
 use App\Enums\ShowType;
 use App\Models\Concerns\BelongsToGame;
+use App\Services\Ppv\PpvCardService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Model;
@@ -115,16 +116,17 @@ class Show extends Model
 
     /**
      * 6 slots weekly, 5 on PPVs. A brand's Rumble / Survivor Series card gives
-     * one slot to the interbrand main event; WrestleMania is one 10-match card (§23).
+     * one slot to the interbrand main event; WrestleMania is one 8-match card (house rule, 2026-11-15).
      */
     public function matchSlotCount(): int
     {
         if ($this->isWrestleMania()) {
-            return 10;
+            return PpvCardService::WM_MATCHES;
         }
 
-        if ($this->isInterbrandMainEvent()) {
-            return 1;
+        // SummerSlam, the Royal Rumble and Survivor Series: one shared card.
+        if ($this->isInterbrand()) {
+            return PpvCardService::SHARED_PPV_MATCHES;
         }
 
         $count = (int) config($this->isPpv() ? 'gm.card.ppv_match_slots' : 'gm.card.weekly_match_slots');

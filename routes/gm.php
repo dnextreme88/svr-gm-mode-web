@@ -73,6 +73,8 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::put('shows/{show}/slots/{position}', [CardController::class, 'book'])->whereNumber('position')->name('card.book');
             Route::delete('shows/{show}/slots/{position}', [CardController::class, 'clear'])->whereNumber('position')->name('card.clear');
             Route::put('shows/{show}/slots-order', [CardController::class, 'reorder'])->name('card.reorder');
+            Route::put('shows/{show}/series/{position}', [CardController::class, 'series'])->whereNumber('position')->name('card.series');
+            Route::put('shows/{show}/main-event-type', [CardController::class, 'mainEventType'])->name('card.main-event-type');
             Route::post('shows/{show}/cash-in', [CardController::class, 'cashIn'])->name('card.cash-in');
             Route::post('shows/{show}/confirm', [CardController::class, 'confirm'])->name('card.confirm');
             Route::post('shows/{show}/unlock', [CardController::class, 'unlock'])->name('card.unlock');

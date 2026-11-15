@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { BookingAction, BookingSteps } from '@/components/gm/booking-steps';
 import type { BookingOrder } from '@/components/gm/booking-steps';
@@ -25,6 +25,8 @@ import type { ProposalView } from '@/components/gm/proposal-modal';
 import { StipulationPicker, TitleCycler } from '@/components/gm/title-tools';
 import { UnsavedChangesProvider } from '@/components/gm/unsaved-changes';
 import type { PromoFatigue } from '@/lib/card';
+import { MainEventTypeButton } from '@/components/gm/wrestlemania-tools';
+import type { SeriesOption } from '@/components/gm/wrestlemania-tools';
 import { requestJson } from '@/lib/http';
 import { saveVisit, slotSaveKey } from '@/lib/save-status';
 import { cn } from '@/lib/utils';
@@ -54,6 +56,10 @@ type Props = GamePageProps & {
     summerslam: { main_event: boolean; headliner: string } | null;
     /** Slots in the same match category as last week's (house rule, 2026-11-08). */
     repeats?: RepeatWarning;
+    /** The player's WrestleMania interbrand series spots (house rule, 2026-11-15). */
+    series?: Record<number, SeriesOption>;
+    /** Match types the WrestleMania main event can be, when the player has it. */
+    main_event_types?: number[];
 };
 
 export default function CardPage() {
@@ -72,6 +78,8 @@ export default function CardPage() {
         booking_order,
         summerslam,
         repeats,
+        series,
+        main_event_types,
     } = usePage<Props>().props;
     const types = useMemo(
         () => new Map(match_types.map((t) => [t.id, t])),
@@ -285,6 +293,21 @@ export default function CardPage() {
                         { preserveScroll: true },
                     )
                 }
+                // WrestleMania's interbrand series (house rule, 2026-11-15):
+                // your spots are ordinary pickers on the match; Save sends them.
+                series={series}
+                onSaveSeries={(position, picks) =>
+                    router.put(
+                        gm.card.series.url({ ...ids, position }),
+                        { ids: picks },
+                        {
+                            preserveScroll: true,
+                            ...saveVisit(
+                                slotSaveKey('match', show.id, position),
+                            ),
+                        },
+                    )
+                }
                 promoFatigue={promoFatigue}
                 titleContext={title_context}
                 renderTitle={(draft, update, drafts) => (
@@ -310,39 +333,90 @@ export default function CardPage() {
                         onChange={update}
                     />
                 )}
-                renderButtons={(draft) =>
-                    booking &&
-                    !draft.fixed && (
-                        <ProposalLauncher
-                            label="Randomize"
-                            mode="randomize"
-                            titleNames={titleNames}
-                            fetchProposal={async (roll) => {
-                                const { proposal } = await requestJson<{
-                                    proposal: ProposalView;
-                                }>(
-                                    'POST',
-                                    gm.card.randomize.url({
-                                        ...ids,
-                                        position: draft.position,
-                                    }),
-                                    {
-                                        match_type_id: draft.matchTypeId,
-                                        roll,
-                                    },
-                                );
+                renderButtons={(draft) => {
+                    const slot = slots.find(
+                        (s) => s.position === draft.position,
+                    );
 
-                                return {
-                                    proposals: [proposal],
-                                    unfilled_slots: [],
-                                    total_cost: proposal.cost,
-                                    deficit_warning: false,
-                                };
-                            }}
-                            onConfirm={saveProposals}
-                        />
-                    )
-                }
+                    // House rule (2026-11-15): the player picks the main
+                    // event's match type (series spots are picked on the
+                    // match itself, see `series` above).
+
+                    // The Royal Rumble or the Survivor Series 3 vs 3: the
+                    // entrants page picks the player's side.
+                    if (
+                        slot?.fixed_kind === 'royal_rumble' ||
+                        slot?.fixed_kind === 'survivor_series_main_event'
+                    ) {
+                        return (
+                            <Link
+                                href={gm.ppv.entrants.url(ids)}
+                                data-testid="pick-entrants"
+                                className={cn(
+                                    'gm-btn gm-btn-sm',
+                                    booking ? 'gm-btn-gold' : 'gm-btn-ghost',
+                                )}
+                            >
+                                {!booking
+                                    ? 'View entrants'
+                                    : slot.fixed_kind === 'royal_rumble'
+                                      ? 'Pick entrants'
+                                      : 'Pick your team'}
+                            </Link>
+                        );
+                    }
+
+                    if (
+                        booking &&
+                        slot?.fixed_kind === 'wrestlemania_main_event' &&
+                        (main_event_types?.length ?? 0) > 0
+                    ) {
+                        return (
+                            <MainEventTypeButton
+                                ids={ids}
+                                types={match_types.filter((t) =>
+                                    main_event_types?.includes(t.id),
+                                )}
+                                current={draft.matchTypeId}
+                                fatigueConfig={game.fatigue_config}
+                            />
+                        );
+                    }
+
+                    return (
+                        booking &&
+                        !draft.fixed && (
+                            <ProposalLauncher
+                                label="Randomize"
+                                mode="randomize"
+                                titleNames={titleNames}
+                                fetchProposal={async (roll) => {
+                                    const { proposal } = await requestJson<{
+                                        proposal: ProposalView;
+                                    }>(
+                                        'POST',
+                                        gm.card.randomize.url({
+                                            ...ids,
+                                            position: draft.position,
+                                        }),
+                                        {
+                                            match_type_id: draft.matchTypeId,
+                                            roll,
+                                        },
+                                    );
+
+                                    return {
+                                        proposals: [proposal],
+                                        unfilled_slots: [],
+                                        total_cost: proposal.cost,
+                                        deficit_warning: false,
+                                    };
+                                }}
+                                onConfirm={saveProposals}
+                            />
+                        )
+                    );
+                }}
                 renderActions={(draft, update, drafts) => (
                     <StipulationPicker
                         takenTitleIds={[

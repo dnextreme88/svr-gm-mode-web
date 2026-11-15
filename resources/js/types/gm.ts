@@ -155,6 +155,8 @@ export type CardSlot = {
     owner_brand: Brand | null;
     locked?: boolean;
     names?: Record<string, string>;
+    /** Each side's brand on a WrestleMania interbrand series match (house rule, 2026-11-15). */
+    side_brands?: Brand[] | null;
 };
 
 export type MatchTypeOption = {

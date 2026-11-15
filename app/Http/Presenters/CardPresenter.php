@@ -3,6 +3,7 @@
 namespace App\Http\Presenters;
 
 use App\Enums\Brand;
+use App\Enums\FixedSlotKind;
 use App\Enums\MatchFamily;
 use App\Enums\MatchMethod;
 use App\Enums\ParticipantRole;
@@ -14,6 +15,7 @@ use App\Models\MatchSlot;
 use App\Models\MatchType;
 use App\Models\Show;
 use App\Services\Factions\FactionNamer;
+use App\Services\Ppv\PpvCardService;
 
 /**
  * Card builder and outcome screen payloads (§4, §20).
@@ -88,6 +90,10 @@ class CardPresenter
             'fixed_kind' => $slot->fixed_kind?->value,
             'owner_brand' => $slot->owner_brand?->value,
             'locked' => $slot->fixed_kind !== null || ($playerBrand !== null && $slot->owner_brand !== null && $slot->owner_brand !== $playerBrand),
+            // House rule (2026-11-15): each interbrand series side's brand, for its border.
+            'side_brands' => $slot->fixed_kind === FixedSlotKind::InterbrandSeries
+                ? array_map(fn (int $side): string => in_array($side, PpvCardService::seriesSides($slot->position, Brand::Raw), true) ? Brand::Raw->value : Brand::Smackdown->value, range(0, max(1, count($slot->matchType->sides ?? [1, 1])) - 1))
+                : null,
             'names' => (object) $slot->participants->mapWithKeys(fn (MatchParticipant $p): array => [$p->save_wrestler_id => $p->saveWrestler->wrestler->name])->all(),
         ];
     }

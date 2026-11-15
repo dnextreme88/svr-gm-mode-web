@@ -81,14 +81,20 @@ function resolveWeek(Save $save): void
 }
 
 describe('Royal Rumble', function () {
-    it('adds an interbrand 30-man match and gives each brand card one fewer slot', function () {
+    it('is one 7-match card: the bigger draw books 1, 2 and 6, the other brand 3, 4 and 5, and the Rumble is Match 7 (house rule, 2026-11-15)', function () {
         $save = ppvSave(RUMBLE_WEEK);
         $rumble = interbrandShow($save, RUMBLE_WEEK);
-        $rawCard = Show::where('save_id', $save->id)->where('week_number', RUMBLE_WEEK)->where('brand', Brand::Raw)->where('show_type', 'ppv')->firstOrFail();
+        $slots = MatchSlot::where('show_id', $rumble->id)->orderBy('position')->get();
+        $lead = $slots->firstWhere('position', 1)->owner_brand;
 
-        expect($rumble->matchSlotCount())->toBe(1)
-            ->and(MatchSlot::where('show_id', $rumble->id)->sole()->fixed_kind)->toBe(FixedSlotKind::RoyalRumble)
-            ->and($rawCard->matchSlotCount())->toBe(4);
+        expect(Show::where('save_id', $save->id)->where('week_number', RUMBLE_WEEK)->where('show_type', 'ppv')->count())->toBe(1)
+            ->and($rumble->name)->toBe('Royal Rumble')
+            ->and($rumble->matchSlotCount())->toBe(7)
+            ->and($slots)->toHaveCount(7)
+            ->and($slots->whereIn('position', [1, 2, 6])->pluck('owner_brand')->unique()->values()->all())->toBe([$lead])
+            ->and($slots->whereIn('position', [3, 4, 5])->pluck('owner_brand')->unique()->values()->all())->toBe([$lead->rival()])
+            ->and($slots->firstWhere('position', 7)->fixed_kind)->toBe(FixedSlotKind::RoyalRumble)
+            ->and($slots->firstWhere('position', 7)->owner_brand)->toBeNull();
     });
 
     it('takes 15 entrants per brand and blocks the PPV until you pick them', function () {
@@ -102,7 +108,7 @@ describe('Royal Rumble', function () {
         $cards->setEntrants($rumble, Brand::Raw, rosterIds($save, Brand::Raw, 15));
         resolveWeek($save);
 
-        $slot = MatchSlot::with('participants.saveWrestler')->where('show_id', $rumble->id)->sole();
+        $slot = MatchSlot::with('participants.saveWrestler')->where('show_id', $rumble->id)->where('position', 7)->sole();
 
         expect($slot->participants->filter(fn ($p) => $p->saveWrestler->brand === Brand::Raw)->count())->toBe(15)
             ->and($slot->participants->filter(fn ($p) => $p->saveWrestler->brand === Brand::Smackdown)->count())->toBe(15)
@@ -130,7 +136,7 @@ describe('Royal Rumble', function () {
 
         $cards->randomEntrants($rumble, Brand::Raw, $save->rng('test.entrants', RUMBLE_WEEK));
 
-        $entrants = MatchSlot::with('participants.saveWrestler.wrestler')->where('show_id', $rumble->id)->sole()->participants;
+        $entrants = MatchSlot::with('participants.saveWrestler.wrestler')->where('show_id', $rumble->id)->where('position', 7)->sole()->participants;
 
         expect($entrants)->toHaveCount(12)
             ->and($entrants->filter(fn ($p): bool => $p->saveWrestler->wrestler->roster_type === RosterType::Diva))->toBeEmpty();
@@ -149,6 +155,17 @@ describe('Royal Rumble', function () {
 });
 
 describe('Survivor Series', function () {
+    it('is one 7-match card: the bigger draw books 4, 5 and 6, the other brand 1, 2 and 3, and the 3 vs 3 is Match 7 (house rule, 2026-11-15)', function () {
+        $save = ppvSave(SURVIVOR_WEEK);
+        $slots = MatchSlot::where('show_id', interbrandShow($save, SURVIVOR_WEEK)->id)->orderBy('position')->get();
+        $lead = $slots->firstWhere('position', 4)->owner_brand;
+
+        expect($slots)->toHaveCount(7)
+            ->and($slots->whereIn('position', [4, 5, 6])->pluck('owner_brand')->unique()->values()->all())->toBe([$lead])
+            ->and($slots->whereIn('position', [1, 2, 3])->pluck('owner_brand')->unique()->values()->all())->toBe([$lead->rival()])
+            ->and($slots->firstWhere('position', 7)->fixed_kind)->toBe(FixedSlotKind::SurvivorSeriesMainEvent);
+    });
+
     it('is a Raw vs SmackDown 3 vs 3 main event with no titles and no Divas', function () {
         $save = ppvSave(SURVIVOR_WEEK);
         $show = interbrandShow($save, SURVIVOR_WEEK);
@@ -161,7 +178,7 @@ describe('Survivor Series', function () {
         $cards->setEntrants($show, Brand::Raw, rosterIds($save, Brand::Raw, 3));
         resolveWeek($save);
 
-        $slot = MatchSlot::with(['participants.saveWrestler', 'result'])->where('show_id', $show->id)->sole();
+        $slot = MatchSlot::with(['participants.saveWrestler', 'result'])->where('show_id', $show->id)->where('position', 7)->sole();
 
         expect($slot->fixed_kind)->toBe(FixedSlotKind::SurvivorSeriesMainEvent)
             ->and($slot->sides())->toHaveCount(2)
@@ -185,24 +202,38 @@ describe('WrestleMania', function () {
 
         $save->update(['current_week' => MANIA_WEEK]);
         app(ShowScheduler::class)->ensureWeek($save, MANIA_WEEK);
+        // The player (Raw) picks their series entrants; here at random.
+        app(PpvCardService::class)->fillSeries(interbrandShow($save, MANIA_WEEK), Brand::Raw, $save->rng('test.series'));
 
         return $save->refresh();
     }
 
-    it('is one 10-match card: 3 Raw, 3 SmackDown, 3 interbrand series and the main event', function () {
-        $save = maniaSave();
+    it('is one 8-match card: the Rumble winner’s brand books 1, 3 and the main event, the other brand 2, 4, then the series 5–7 (house rule, 2026-11-15)', function () {
+        $save = maniaSave(); // Edge, Raw, won the Rumble
         $show = interbrandShow($save, MANIA_WEEK);
         $slots = MatchSlot::where('show_id', $show->id)->orderBy('position')->get();
 
-        expect($slots)->toHaveCount(10)
-            ->and($slots->whereIn('position', [1, 2, 3])->pluck('owner_brand')->unique()->values()->all())->toBe([Brand::Raw])
-            ->and($slots->whereIn('position', [4, 5, 6])->pluck('owner_brand')->unique()->values()->all())->toBe([Brand::Smackdown])
-            ->and($slots->whereIn('position', [7, 8, 9])->pluck('fixed_kind')->unique()->values()->all())->toBe([FixedSlotKind::InterbrandSeries]);
+        expect($slots)->toHaveCount(8)
+            ->and($slots->whereIn('position', [1, 3])->pluck('owner_brand')->unique()->values()->all())->toBe([Brand::Raw])
+            ->and($slots->whereIn('position', [2, 4])->pluck('owner_brand')->unique()->values()->all())->toBe([Brand::Smackdown])
+            ->and($slots->firstWhere('position', 8)->owner_brand)->toBe(Brand::Raw)
+            ->and($slots->whereIn('position', [5, 6, 7])->pluck('fixed_kind')->unique()->values()->all())->toBe([FixedSlotKind::InterbrandSeries]);
+    });
+
+    it('gives Matches 1 and 3 to Smackdown when a Smackdown superstar wins the Rumble', function () {
+        $probe = GameBuilder::inSeason(size: 16);
+        $name = SaveWrestler::with('wrestler')->where('save_id', $probe->id)->where('brand', Brand::Smackdown)->orderByDesc('id')->first()->name();
+        $save = maniaSave($name);
+        $slots = MatchSlot::where('show_id', interbrandShow($save, MANIA_WEEK)->id)->orderBy('position')->get();
+
+        expect($slots->whereIn('position', [1, 3])->pluck('owner_brand')->unique()->values()->all())->toBe([Brand::Smackdown])
+            ->and($slots->whereIn('position', [2, 4])->pluck('owner_brand')->unique()->values()->all())->toBe([Brand::Raw])
+            ->and($slots->firstWhere('position', 8)->owner_brand)->toBe(Brand::Smackdown);
     });
 
     it('puts the Royal Rumble winner against their brand’s world champion with the title on the line', function () {
         $save = maniaSave('Edge');
-        $main = MatchSlot::with('participants.saveWrestler.wrestler')->where('show_id', interbrandShow($save, MANIA_WEEK)->id)->where('position', 10)->sole();
+        $main = MatchSlot::with('participants.saveWrestler.wrestler')->where('show_id', interbrandShow($save, MANIA_WEEK)->id)->where('position', 8)->sole();
 
         expect($main->fixed_kind)->toBe(FixedSlotKind::WrestlemaniaMainEvent)
             ->and($main->owner_brand)->toBe(Brand::Raw)
@@ -218,14 +249,14 @@ describe('WrestleMania', function () {
         $save->update(['current_week' => MANIA_WEEK]);
         app(ShowScheduler::class)->ensureWeek($save, MANIA_WEEK);
 
-        $main = MatchSlot::where('show_id', interbrandShow($save, MANIA_WEEK)->id)->where('position', 10)->sole();
+        $main = MatchSlot::where('show_id', interbrandShow($save, MANIA_WEEK)->id)->where('position', 8)->sole();
 
         expect($main->fixed_kind)->toBeNull()
             ->and($main->owner_brand)->toBe(Brand::Raw)
             ->and($main->participants()->count())->toBe(0);
     });
 
-    it('draws the interbrand series from bookable non-champions only', function () {
+    it('has the rival pick its series entrants and leaves the player’s spots empty, all bookable non-champions (house rule, 2026-11-15)', function () {
         $save = GameBuilder::inSeason(size: 16);
         GameBuilder::giveTitle($save, 'wwe', ['John Cena']);
         GameBuilder::giveTitle($save, 'world_heavyweight', ['Batista']);
@@ -236,7 +267,16 @@ describe('WrestleMania', function () {
         $save->update(['current_week' => MANIA_WEEK]);
         app(ShowScheduler::class)->ensureWeek($save, MANIA_WEEK);
 
-        $series = app(PpvCardService::class)->seriesSlots(interbrandShow($save, MANIA_WEEK));
+        $cards = app(PpvCardService::class);
+        $show = interbrandShow($save, MANIA_WEEK);
+
+        // The rival (Smackdown) has picked; the player (Raw) hasn't.
+        expect($cards->seriesSlots($show)->map(fn ($s) => $s->participants->count())->all())->toBe([1, 2, 3])
+            ->and($cards->seriesSlots($show)->flatMap(fn ($s) => $s->participants->map(fn ($p) => $p->saveWrestler->brand))->unique()->values()->all())->toBe([Brand::Smackdown])
+            ->and($cards->seriesMissing($show, Brand::Raw))->toBe([5, 6, 7]);
+
+        $cards->fillSeries($show, Brand::Raw, $save->rng('test.series'));
+        $series = $cards->seriesSlots($show);
         $ids = $series->flatMap(fn ($s) => $s->participants->pluck('save_wrestler_id'))->all();
         $excluded = [GameBuilder::wrestler($save, 'John Cena')->id, GameBuilder::wrestler($save, 'Batista')->id, $hurt->id, $benched->id];
 
@@ -551,7 +591,7 @@ describe('re-draft', function () {
         $service->run($save->refresh());
 
         $page = app(NewsComposer::class)->compose($save->refresh(), MANIA_WEEK);
-        $main = MatchSlot::where('show_id', interbrandShow($save, MANIA_WEEK)->id)->where('position', 10)->first();
+        $main = MatchSlot::where('show_id', interbrandShow($save, MANIA_WEEK)->id)->where('position', 8)->first();
         $mainBrand = $main->owner_brand->value;
 
         expect($page['headlines']['neutral']['type'])->toBe('redraft_results')

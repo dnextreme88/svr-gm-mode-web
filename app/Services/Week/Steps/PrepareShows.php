@@ -39,6 +39,8 @@ class PrepareShows implements WeekStep
             // Entrants come last, once the rival's other cards of the night
             // are booked (its Royal Rumble picks avoid booked champions).
             if ($show->isInterbrandMainEvent()) {
+                // The rest of the shared card is the rival's to book too.
+                $this->ai->bookShow($show, $aiBrand);
                 $entrantCards[] = $show;
 
                 continue;

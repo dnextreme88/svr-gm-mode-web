@@ -134,7 +134,7 @@ class DemoSaves extends Command
         $this->ai->bookShow($wrestleMania, $save->rivalBrand());
         $this->leadCrowdRace($save, $mania);
 
-        $main = MatchSlot::where('show_id', $wrestleMania->id)->where('position', 10)->with('participants')->first();
+        $main = MatchSlot::where('show_id', $wrestleMania->id)->where('position', PpvCardService::WM_MAIN_EVENT)->with('participants')->first();
 
         if (! $main?->participants->contains('save_wrestler_id', $hardy->id)) {
             $this->warn("{$name} isn't in the WrestleMania main event of \"{$title}\" (he may hold the world title or have changed brands).");

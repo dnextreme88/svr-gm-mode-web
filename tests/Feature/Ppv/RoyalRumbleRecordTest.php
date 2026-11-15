@@ -47,7 +47,7 @@ it('records every entrant’s entry number and eliminations, the winner last', f
     $rumble = rumbleShow($save);
     $cards = app(PpvCardService::class);
     $cards->randomEntrants($rumble, Brand::Raw, $save->rng('test.entrants'));
-    $winner = SaveWrestler::find(MatchSlot::where('show_id', $rumble->id)->sole()->participants()->first()->save_wrestler_id);
+    $winner = SaveWrestler::find(MatchSlot::where('show_id', $rumble->id)->where('position', 7)->sole()->participants()->first()->save_wrestler_id);
     FixedOutcomes::queue($winner->name());
 
     app(WeekResolver::class)->resolve($save->refresh());
@@ -99,7 +99,7 @@ it('has the rival enter non-champions first', function () {
 
     app(PpvCardService::class)->aiEntrants($rumble, Brand::Smackdown, $save->rng('test.ai'));
 
-    $entered = MatchSlot::where('show_id', $rumble->id)->sole()->participants()->pluck('save_wrestler_id')->all();
+    $entered = MatchSlot::where('show_id', $rumble->id)->where('position', 7)->sole()->participants()->pluck('save_wrestler_id')->all();
 
     expect($entered)->toHaveCount(15)->and($entered)->not->toContain($champion->id);
 });
@@ -111,14 +111,15 @@ it('adds champions only when it’s short, unbooked ones before booked ones', fu
     GameBuilder::giveTitle($save, 'world_heavyweight', [$smackdown[0]->name()]);
     GameBuilder::giveTitle($save, 'united_states', [$smackdown[1]->name()]);
     GameBuilder::giveTitle($save, 'cruiserweight', [$smackdown[2]->name()]);
-    $ppv = Show::where('save_id', $save->id)->where('week_number', RECORD_RUMBLE_WEEK)->where('brand', Brand::Smackdown)->where('show_type', 'ppv')->firstOrFail();
-    // The world champion is booked elsewhere on the Royal Rumble night.
-    Card::book($save, $ppv, 1, Card::singles(), [[$smackdown[0]->name()], [$smackdown[5]->name()]]);
     $rumble = rumbleShow($save);
+    // The world champion is booked elsewhere on the Royal Rumble card, in
+    // one of Smackdown's slots (house rule, 2026-11-15: one shared card).
+    $slot = MatchSlot::where('show_id', $rumble->id)->where('owner_brand', Brand::Smackdown)->orderBy('position')->firstOrFail();
+    Card::book($save, $rumble, $slot->position, Card::singles(), [[$smackdown[0]->name()], [$smackdown[5]->name()]]);
 
     app(PpvCardService::class)->aiEntrants($rumble, Brand::Smackdown, $save->rng('test.ai'));
 
-    $entered = MatchSlot::where('show_id', $rumble->id)->sole()->participants()->pluck('save_wrestler_id')->all();
+    $entered = MatchSlot::where('show_id', $rumble->id)->where('position', 7)->sole()->participants()->pluck('save_wrestler_id')->all();
 
     expect($entered)->toHaveCount(15)
         ->and($entered)->toContain($smackdown[1]->id, $smackdown[2]->id)

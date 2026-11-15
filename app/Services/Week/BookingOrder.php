@@ -6,6 +6,7 @@ use App\Enums\ShowStatus;
 use App\Exceptions\GameRuleException;
 use App\Models\Save;
 use App\Models\Show;
+use App\Services\Ppv\PpvCardService;
 use Illuminate\Support\Collection;
 
 /**
@@ -129,6 +130,7 @@ class BookingOrder
             throw new GameRuleException("{$show->name} is the last card of its night. Air it instead.");
         }
 
+        $this->assertSeriesPicked($save, $show);
         $show->update(['confirmed_at' => now()]);
 
         return $next;
@@ -178,6 +180,26 @@ class BookingOrder
             if ($step->confirmed_at === null) {
                 throw new GameRuleException("Book and confirm {$step->name} before it can air.");
             }
+        }
+
+        foreach ($steps as $step) {
+            $this->assertSeriesPicked($save, $step);
+        }
+    }
+
+    /**
+     * House rule (2026-11-15): the player picks their own WrestleMania
+     * interbrand series entrants, so the card can't move on until every
+     * spot is filled.
+     */
+    private function assertSeriesPicked(Save $save, Show $show): void
+    {
+        $missing = app(PpvCardService::class)->seriesMissing($show, $save->player_brand);
+
+        if ($missing !== []) {
+            $matches = implode(' and ', array_map(fn (int $p): string => "Match {$p}", $missing));
+
+            throw new GameRuleException("Pick your superstars for the interbrand series first ({$matches}).");
         }
     }
 

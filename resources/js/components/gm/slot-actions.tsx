@@ -24,6 +24,8 @@ type Props = {
     name: string;
     /** Save, Discard and Clear show only when the slot can be edited. */
     editable?: boolean;
+    /** False hides Clear (a WrestleMania series match: the rival's side stays). */
+    clearable?: boolean;
     dirty: boolean;
     /** Everything the slot needs is filled in, so it can be saved. */
     ready: boolean;
@@ -54,6 +56,7 @@ type Props = {
 export function SlotActions({
     name,
     editable = true,
+    clearable = true,
     dirty,
     ready,
     filled,
@@ -95,15 +98,17 @@ export function SlotActions({
                             >
                                 Discard
                             </button>
-                            <button
-                                type="button"
-                                className="gm-btn gm-btn-danger gm-btn-sm"
-                                disabled={!filled}
-                                onClick={() => setConfirmClear(true)}
-                                aria-label={`Clear ${name}`}
-                            >
-                                Clear
-                            </button>
+                            {clearable && (
+                                <button
+                                    type="button"
+                                    className="gm-btn gm-btn-danger gm-btn-sm"
+                                    disabled={!filled}
+                                    onClick={() => setConfirmClear(true)}
+                                    aria-label={`Clear ${name}`}
+                                >
+                                    Clear
+                                </button>
+                            )}
                         </>
                     )}
                     {buttons}

@@ -929,10 +929,12 @@ describe('Docs page', () => {
         expect(factors).toHaveTextContent('up to -12');
 
         expect(
-            screen.getByRole('heading', { name: 'SummerSlam main event' }),
+            screen.getByRole('heading', { name: 'Shared PPV cards' }),
         ).toBeInTheDocument();
         expect(
-            screen.getByText(/it books Match 1, Match 3 and the main event/),
+            screen.getByText(
+                /it books Match 1, Match 3, Match 5 and the main event/,
+            ),
         ).toBeInTheDocument();
     });
 

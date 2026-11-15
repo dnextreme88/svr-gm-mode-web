@@ -69,8 +69,9 @@ class ShowScheduler
             return;
         }
 
-        // House rule (2026-11-01): SummerSlam is one card both brands book.
-        if ($ppv->key === PpvKey::Summerslam) {
+        // House rules: SummerSlam (2026-11-01), and the Royal Rumble and
+        // Survivor Series (2026-11-15) are one 7-match card both brands book.
+        if (in_array($ppv->key, [PpvKey::Summerslam, PpvKey::RoyalRumble, PpvKey::SurvivorSeries], true)) {
             $show = $this->ensureShow($save, $week, null, ShowType::Ppv, $ppv->id, $ppv->name);
 
             if ($show->wasRecentlyCreated) {
@@ -84,11 +85,6 @@ class ShowScheduler
             if ($ppv->runsOn($brand)) {
                 $this->ensureShow($save, $week, $brand, ShowType::Ppv, $ppv->id, $ppv->name);
             }
-        }
-
-        if (in_array($ppv->key, [PpvKey::RoyalRumble, PpvKey::SurvivorSeries], true)) {
-            $name = $ppv->key === PpvKey::RoyalRumble ? 'Royal Rumble Match' : 'Survivor Series: Raw vs. Smackdown';
-            $this->ppvCards->setUp($this->ensureShow($save, $week, null, ShowType::Ppv, $ppv->id, $name));
         }
     }
 
