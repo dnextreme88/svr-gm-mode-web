@@ -319,7 +319,13 @@ export default function Redraft() {
                                 <span className="gm-num w-8 text-ink-faint">
                                     #{p.pick_number}
                                 </span>
-                                <BrandBug brand={p.brand} size="sm" />
+                                {/* A fixed box: the logos differ in width, so names line up. */}
+                                <span
+                                    data-testid="redraft-pick-logo"
+                                    className="flex w-20 shrink-0 justify-center"
+                                >
+                                    <BrandBug brand={p.brand} size="sm" />
+                                </span>
                                 <span className="min-w-0 flex-1 font-medium">
                                     {p.skipped ? (
                                         <span className="text-ink-faint">

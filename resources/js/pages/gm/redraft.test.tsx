@@ -254,6 +254,10 @@ describe('WrestleMania Re-Draft', () => {
         expect(screen.getByTestId('redraft-picks')).toHaveTextContent(
             'Manual pick',
         );
+        // Every pick's logo sits in the same fixed-width box, so names align.
+        for (const logo of screen.getAllByTestId('redraft-pick-logo')) {
+            expect(logo).toHaveClass('w-20', 'shrink-0');
+        }
 
         await user.click(
             await screen.findByRole('button', { name: 'Continue' }),
