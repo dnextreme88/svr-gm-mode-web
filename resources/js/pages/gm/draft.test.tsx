@@ -172,7 +172,7 @@ describe('Random pick (house rule, 2026-11-12)', () => {
 
         expect(post).toHaveBeenCalledWith(
             expect.stringContaining('/draft/random'),
-            {},
+            { length: 52 },
             expect.objectContaining({ preserveScroll: true }),
         );
         const button = screen.getByRole('button', { name: /Drafting…/ });
@@ -190,5 +190,52 @@ describe('Random pick (house rule, 2026-11-12)', () => {
         render(<Draft />);
 
         expect(screen.getByRole('button', { name: /Random/ })).toBeDisabled();
+    });
+});
+
+describe('Contract length (house rule, 2026-11-15)', () => {
+    const quotes = [5, 12, 24, 36, 52].map((weeks, i) => ({
+        length_weeks: weeks,
+        label: ['1 month', '3 months', '6 months', '9 months', '12 months'][i],
+        weekly: Math.round((20_000 * [1, 3, 6, 9, 12][i]) / weeks),
+        total: 20_000 * [1, 3, 6, 9, 12][i],
+    }));
+    const edge = {
+        id: 77,
+        name: 'Edge',
+        slug: 'edge',
+        roster_type: 'superstar',
+        weight_class: 'heavyweight',
+        specialties: [],
+        quotes,
+    };
+
+    it('signs each pick for the length chosen on its row', async () => {
+        const user = userEvent.setup();
+        page.props = {
+            ...props,
+            pool: [edge],
+            contract_lengths: quotes.map((q) => ({
+                weeks: q.length_weeks,
+                label: q.label,
+            })),
+        };
+        render(<Draft />);
+
+        const row = screen.getByRole('row', { name: /Edge/ });
+        expect(row).toHaveTextContent('$240,000');
+
+        await user.selectOptions(
+            within(row).getByLabelText('Contract length for Edge'),
+            '24',
+        );
+        expect(row).toHaveTextContent('$120,000');
+
+        await user.click(within(row).getByRole('button', { name: 'Draft' }));
+        expect(post).toHaveBeenCalledWith(
+            expect.stringContaining('/draft/pick'),
+            { save_wrestler_id: 77, length: 24 },
+            expect.anything(),
+        );
     });
 });

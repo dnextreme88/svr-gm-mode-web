@@ -4,15 +4,11 @@ namespace App\Services\Week\Steps;
 
 use App\Enums\Brand;
 use App\Enums\MitbStatus;
-use App\Enums\NewsBrand;
-use App\Enums\NewsEventType;
-use App\Enums\NewsTier;
 use App\Enums\SaveStage;
 use App\Models\MoneyInTheBank;
 use App\Models\Season;
 use App\Models\Show;
 use App\Services\Mail\EmailService;
-use App\Services\News\NewsRecorder;
 use App\Services\Ppv\InterbrandSeriesService;
 use App\Services\Week\WeekContext;
 use App\Services\Week\WeekStep;
@@ -26,7 +22,6 @@ class WrestleManiaWrapUp implements WeekStep
 {
     public function __construct(
         private InterbrandSeriesService $series,
-        private NewsRecorder $news,
         private EmailService $emails,
     ) {}
 
@@ -55,9 +50,9 @@ class WrestleManiaWrapUp implements WeekStep
             ['started_week' => $context->week + 1, 'starting_budget' => null],
         );
 
+        // House rule (2026-11-15): the re-draft's own WWE headline
+        // (`redraft_results`) replaces the old season_reset news.
         $context->save->update(['stage' => SaveStage::Redrafting]);
-
-        $this->news->record($context->save, NewsEventType::SeasonReset, NewsTier::Headline, NewsBrand::Both, [], [], priority: 99, week: $context->week);
 
         foreach (Brand::cases() as $brand) {
             $this->emails->draftReminder($context->save, $brand, $context->week);

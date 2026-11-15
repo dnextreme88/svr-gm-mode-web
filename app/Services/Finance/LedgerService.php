@@ -20,7 +20,7 @@ class LedgerService
     /**
      * Record a line item. Positive amounts are income, negative are expenses.
      */
-    public function post(Save $save, Brand $brand, LedgerCategory $category, int $amount, string $memo, ?int $week = null, ?Model $subject = null): LedgerEntry
+    public function post(Save $save, Brand $brand, LedgerCategory $category, int $amount, string $memo, ?int $week = null, ?Model $subject = null, ?int $showId = null): LedgerEntry
     {
         $week ??= $save->current_week;
 
@@ -32,6 +32,7 @@ class LedgerService
             'category' => $category,
             'amount' => $amount,
             'memo' => $memo,
+            'show_id' => $showId,
         ]);
 
         if ($subject !== null) {

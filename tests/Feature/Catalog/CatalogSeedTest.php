@@ -31,12 +31,19 @@ describe('roster (§9)', function () {
     it('seeds 215 wrestlers: the Nov 2005 brands, free agents and Legends', function () {
         expect(Wrestler::count())->toBe(215)
             ->and(Wrestler::where('roster_type', RosterType::Superstar)->where('placeholder_brand', Brand::Raw)->count())->toBe(25)
-            ->and(Wrestler::where('roster_type', RosterType::Superstar)->where('placeholder_brand', Brand::Smackdown)->count())->toBe(28)
-            ->and(Wrestler::where('roster_type', RosterType::Superstar)->whereNull('placeholder_brand')->count())->toBe(87)
+            ->and(Wrestler::where('roster_type', RosterType::Superstar)->where('placeholder_brand', Brand::Smackdown)->count())->toBe(27)
+            ->and(Wrestler::where('roster_type', RosterType::Superstar)->whereNull('placeholder_brand')->count())->toBe(88)
             ->and(Wrestler::where('roster_type', RosterType::Diva)->where('placeholder_brand', Brand::Raw)->count())->toBe(5)
-            ->and(Wrestler::where('roster_type', RosterType::Diva)->where('placeholder_brand', Brand::Smackdown)->count())->toBe(2)
-            ->and(Wrestler::where('roster_type', RosterType::Diva)->whereNull('placeholder_brand')->count())->toBe(30)
+            ->and(Wrestler::where('roster_type', RosterType::Diva)->where('placeholder_brand', Brand::Smackdown)->count())->toBe(3)
+            ->and(Wrestler::where('roster_type', RosterType::Diva)->whereNull('placeholder_brand')->count())->toBe(29)
             ->and(Wrestler::where('roster_type', RosterType::Legend)->count())->toBe(38);
+    });
+
+    it('seeds a monthly salary by roster type (house rule, 2026-11-15)', function () {
+        expect(wrestler('Edge')->monthly_salary)->toBe(20_000)
+            ->and(wrestler('Trish Stratus')->monthly_salary)->toBe(12_000)
+            ->and(wrestler('Hulk Hogan')->monthly_salary)->toBe(45_000)
+            ->and(Wrestler::where('roster_type', RosterType::Diva)->pluck('monthly_salary')->unique()->all())->toBe([12_000]);
     });
 
     it('fills each brand to the 30-wrestler roster cap', function () {
@@ -53,7 +60,8 @@ describe('roster (§9)', function () {
         ['Rene Dupree', Brand::Raw],
         ['Road Warrior Animal', Brand::Smackdown],
         ['Eddie Guerrero', Brand::Smackdown],
-        ['Sylvain Grenier', Brand::Smackdown],
+        ['Sylvain Grenier', null],
+        ['Stacy Keibler', Brand::Smackdown],
         ['Stevie Richards', Brand::Smackdown],
         ['Chavo Guerrero', null],
         ['Jerry Lawler', null],
@@ -518,9 +526,10 @@ describe('championships (§14)', function () {
 });
 
 describe('promo types (§5)', function () {
-    it('seeds 14 promos with spec amounts and config success rates', function () {
-        expect(PromoType::count())->toBe(14)
-            ->and(PromoType::where('key', 'advertising')->value('base_amount'))->toBe(150_000)
+    it('seeds 15 promos with spec amounts and config success rates', function () {
+        expect(PromoType::count())->toBe(15)
+            ->and(PromoType::where('key', 'advertising')->value('base_amount'))->toBe(200_000)
+            ->and(PromoType::where('key', 'call_out')->value('base_amount'))->toBe(-10_000)
             ->and(PromoType::where('key', 'new_superstar')->value('base_amount'))->toBe(-50_000)
             ->and(PromoType::where('targets_rival', true)->pluck('key')->map->value->sort()->values()->all())->toBe(['interference_promotion', 'slander_promotion']);
 

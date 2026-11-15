@@ -52,7 +52,7 @@ class PromoType extends Model
             return null;
         }
 
-        $chances = array_map(fn (array $tier): float => (float) $tier['chance'], (array) config('gm.promos.merchandise_tiers'));
+        $chances = array_map(fn (mixed $chance): float => (float) $chance, (array) config('gm.promos.merchandise_chances'));
 
         return $chances === [] ? null : [min($chances), max($chances)];
     }

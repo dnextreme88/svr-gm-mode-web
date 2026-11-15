@@ -26,12 +26,15 @@ enum PromoTypeKey: string
     case ComebackReminder = 'comeback_reminder';
     case InterviewSpace = 'interview_space';
     case DivaBikiniContest = 'diva_bikini_contest';
+    // House rule (2026-11-15).
+    case CallOut = 'call_out';
 
     public function label(): string
     {
         return match ($this) {
             self::StartRivalry => 'Start a Rivalry',
             self::PpvHype => 'PPV Hype',
+            self::CallOut => 'Call-out',
             default => Str::of($this->name)->headline()->toString(),
         };
     }

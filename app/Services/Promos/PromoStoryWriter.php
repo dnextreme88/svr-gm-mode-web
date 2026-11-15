@@ -7,6 +7,7 @@ use App\Enums\InjurySeverity;
 use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
+use App\Enums\PromoAlignment;
 use App\Enums\PromoTypeKey;
 use App\Enums\RosterType;
 use App\Models\Injury;
@@ -183,6 +184,15 @@ class PromoStoryWriter
                     $event = NewsEventType::Debut;
                     $priority = 30;
                 }
+                break;
+
+            case PromoTypeKey::CallOut:
+                // House rule (2026-11-15): told by the face or heel who did the talking.
+                $alignment = $slot->alignment ?? PromoAlignment::Face;
+                $situations = ["{$alignment->value}.{$outcome}"];
+                $payload['alignment'] = $alignment->value;
+                $event = $alignment === PromoAlignment::Face ? NewsEventType::CallOutFace : NewsEventType::CallOutHeel;
+                $priority = (int) config('gm.news.promo_result_priority') + 5;
                 break;
 
             case PromoTypeKey::SlanderPromotion:

@@ -38,4 +38,7 @@ enum EmailTemplate: string
     // shared-PPV emails.
     case BookingTip = 'booking_tip';
     case RivalPpvTaunt = 'rival_ppv_taunt';
+    // House rule (2026-11-15): a superstar after their Call-out promo.
+    case CallOutFace = 'call_out_face';
+    case CallOutHeel = 'call_out_heel';
 }

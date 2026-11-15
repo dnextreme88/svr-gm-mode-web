@@ -31,6 +31,8 @@ class RivalryController extends Controller
                     'id' => $r->id,
                     'wrestler_a' => $a->name(),
                     'wrestler_b' => $b->name(),
+                    // The brand it started on (house rule, 2026-11-15), else where the rivals are now.
+                    'brand' => ($r->brand ?? ($a->brand !== null && $a->brand === $b->brand ? $a->brand : null))?->value,
                     'brand_a' => $a->brand?->value,
                     'brand_b' => $b->brand?->value,
                     'heat' => $r->heat,
@@ -59,6 +61,10 @@ class RivalryController extends Controller
                 'start_promo_bars' => (int) config('gm.promos.fatigue_bars.start_rivalry'),
                 'continue_promo_bars' => (int) config('gm.promos.fatigue_bars.continue_rivalry'),
                 'continue_promo_cost' => abs((int) config('gm.promos.amounts.continue_rivalry')),
+                // House rule (2026-11-15): Call-out and the Diva Bikini Contest.
+                'call_out_heat' => (int) config('gm.rivalries.heat_per_call_out'),
+                'call_out_cost' => abs((int) config('gm.promos.amounts.call_out')),
+                'call_out_chance' => (int) round((float) config('gm.promos.success_rates.call_out') * 100),
             ],
         ]);
     }

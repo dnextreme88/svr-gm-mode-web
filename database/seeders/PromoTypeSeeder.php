@@ -37,11 +37,11 @@ class PromoTypeSeeder extends Seeder
             'wrestler' => true,
         ],
         'advertising' => [
-            'effect' => 'Guaranteed flat payout next week.',
+            'effect' => 'Always pays a flat $200,000 the week it airs.',
             'requirement' => 'Nothing.',
         ],
         'merchandise_sponsorship' => [
-            'effect' => 'Always pays; the amount is low at first and scales up the more consistently it is used.',
+            'effect' => 'A free gamble: it draws a success chance (80%, 70%, 50% or 25%) and a payout ($10,000, $25,000, $50,000 or $100,000). A success pays it; a failure pays nothing.',
             'requirement' => 'Nothing.',
             'variable' => true,
         ],
@@ -54,7 +54,7 @@ class PromoTypeSeeder extends Seeder
             'requirement' => 'Nothing.',
         ],
         'interference_promotion' => [
-            'effect' => 'Sabotages the rival show, lowering their rating that week; backfires automatically on its 4th use within 5 weeks.',
+            'effect' => 'Sabotages the rival show: a success earns $100,000, a failure or backfire costs $25,000 more. Backfires automatically on its 4th use within 5 weeks.',
             'requirement' => 'A non-Diva superstar who isn’t seriously injured. They take the fatigue and can get injured.',
             'wrestler' => true,
             'rival' => true,
@@ -80,9 +80,14 @@ class PromoTypeSeeder extends Seeder
             'wrestler' => true,
         ],
         'diva_bikini_contest' => [
-            'effect' => 'Two Divas compete in a bikini contest to build popularity.',
+            'effect' => 'Two Divas compete in a bikini contest to build popularity. Two rival Divas also keep their rivalry going, like Continue Rivalry.',
             'requirement' => 'Two Divas who aren’t seriously injured.',
             'diva_pair' => true,
+        ],
+        'call_out' => [
+            'effect' => 'A superstar calls out their rival, as a face or a heel. A success adds 10 heat to the rivalry and keeps it from going quiet that week.',
+            'requirement' => 'An active rivalry; pick the rival who does the talking and how they play it.',
+            'pair' => true,
         ],
     ];
 

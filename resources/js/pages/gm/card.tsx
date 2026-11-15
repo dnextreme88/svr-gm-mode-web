@@ -278,6 +278,13 @@ export default function CardPage() {
                         preserveScroll: true,
                     })
                 }
+                onReorder={(order) =>
+                    router.put(
+                        gm.card.reorder.url(ids),
+                        { order },
+                        { preserveScroll: true },
+                    )
+                }
                 promoFatigue={promoFatigue}
                 titleContext={title_context}
                 renderTitle={(draft, update, drafts) => (

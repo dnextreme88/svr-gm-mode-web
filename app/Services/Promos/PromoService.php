@@ -4,6 +4,7 @@ namespace App\Services\Promos;
 
 use App\Enums\Brand;
 use App\Enums\LedgerCategory;
+use App\Enums\PromoAlignment;
 use App\Enums\PromoTypeKey;
 use App\Enums\RosterType;
 use App\Enums\ShowStatus;
@@ -47,7 +48,7 @@ class PromoService
         private EmailService $emails,
     ) {}
 
-    public function book(Show $show, int $position, PromoType $type, ?int $targetId = null, ?int $targetBId = null, ?int $championshipId = null, ?int $beforePosition = null): PromoSlot
+    public function book(Show $show, int $position, PromoType $type, ?int $targetId = null, ?int $targetBId = null, ?int $championshipId = null, ?int $beforePosition = null, ?PromoAlignment $alignment = null): PromoSlot
     {
         $brand = $show->brand ?? throw new GameRuleException('Promos run on brand shows.');
 
@@ -112,8 +113,17 @@ class PromoService
             }
         }
 
-        if ($type->key === PromoTypeKey::ContinueRivalry && $this->rivalries->between($show->game, (int) $targetId, (int) $targetBId) === null) {
-            throw new GameRuleException('Continue Rivalry needs an existing rivalry between those two.');
+        if (in_array($type->key, [PromoTypeKey::ContinueRivalry, PromoTypeKey::CallOut], true) && $this->rivalries->between($show->game, (int) $targetId, (int) $targetBId) === null) {
+            throw new GameRuleException("{$type->name} needs an existing rivalry between those two.");
+        }
+
+        // Call-out (house rule, 2026-11-15): the first target does the
+        // talking, as a face or a heel. The rival GM and Simulate to here
+        // leave it to a seeded coin flip.
+        if ($type->key === PromoTypeKey::CallOut) {
+            $alignment ??= $show->game->rng("promo.alignment.{$show->streamKey()}.{$position}", $show->week_number)->pick(PromoAlignment::cases());
+        } else {
+            $alignment = null;
         }
 
         if ($type->needs_championship && ($championshipId === null || ! in_array($championshipId, $rules['championship_ids'], true))) {
@@ -127,6 +137,7 @@ class PromoService
             'target_wrestler_id' => $target?->id,
             'target_wrestler_b_id' => $targetB?->id,
             'target_championship_id' => $type->needs_championship ? $championshipId : null,
+            'alignment' => $alignment,
             'cost_or_profit' => null,
             'succeeded' => null,
             'backfired' => false,
@@ -206,16 +217,18 @@ class PromoService
     }
 
     /**
-     * Merchandise Sponsorship's deal for this airing (house rule): one of
-     * the configured tiers, equal odds. Bigger deals land less often.
+     * Merchandise Sponsorship's gamble for this airing (house rule,
+     * 2026-11-15): a success chance and, separately, a payout, each drawn
+     * with equal odds from `gm.promos.merchandise_chances` / `_payouts`.
      *
      * @return array{amount: int, chance: float}
      */
     public function merchandiseTier(Rng $rng): array
     {
-        $tier = $rng->pick((array) config('gm.promos.merchandise_tiers'));
+        $chance = (float) $rng->pick(array_values((array) config('gm.promos.merchandise_chances')));
+        $amount = (int) $rng->pick(array_values((array) config('gm.promos.merchandise_payouts')));
 
-        return ['amount' => (int) $tier['amount'], 'chance' => (float) $tier['chance']];
+        return ['amount' => $amount, 'chance' => $chance];
     }
 
     /**
@@ -268,7 +281,7 @@ class PromoService
 
         // The cost is paid whether or not the promo works.
         if ($amount < 0) {
-            $this->ledger->post($save, $brand, LedgerCategory::PromoCost, $amount, "{$type->name} promo", $week, $slot);
+            $this->ledger->post($save, $brand, LedgerCategory::PromoCost, $amount, "{$type->name} promo", $week, $slot, $show->id);
         }
 
         $note = $succeeded ? 'Success' : ($backfired ? 'Backfired (overused)' : 'Failed');
@@ -293,6 +306,8 @@ class PromoService
                 PromoTypeKey::MerchandiseSponsorship => $this->income($show, $brand, $amount, $slot, $type->name),
                 PromoTypeKey::StartRivalry => $this->startRivalry($show, $slot),
                 PromoTypeKey::ContinueRivalry => $this->continueRivalry($show, $slot),
+                PromoTypeKey::DivaBikiniContest => $this->bikiniContest($show, $slot),
+                PromoTypeKey::CallOut => $this->callOut($show, $slot),
                 PromoTypeKey::NewSuperstar => $this->debut($show, $brand, $slot),
                 PromoTypeKey::InactiveSuperstar => 'Rested: recovers '.(int) config('gm.promos.recovery_bars.inactive_superstar').' extra fatigue bars',
                 default => 'Success (popularity and rating effects are deferred)',
@@ -305,12 +320,27 @@ class PromoService
             $note = $this->crashInterview($show, $brand, $slot, $rng) ?? $note;
         }
 
+        // House rule (2026-11-15): Interference pays off when it works and
+        // costs extra when it fails or backfires, on top of its cost.
+        if ($type->key === PromoTypeKey::InterferencePromotion) {
+            $result = (int) config('gm.promos.interference_payout.'.($succeeded ? 'success' : 'failure'));
+
+            if ($result !== 0) {
+                $this->ledger->post($save, $brand, LedgerCategory::InterferenceResult, $result, $succeeded ? 'Interference paid off' : 'Interference damage bill', $week, $slot, $show->id);
+            }
+        }
+
         $slot->update([
             'cost_or_profit' => $amount,
             'succeeded' => $succeeded,
             'backfired' => $backfired,
             'outcome_note' => $note,
         ]);
+
+        // The superstar who called out their rival writes to the GM.
+        if ($type->key === PromoTypeKey::CallOut && $slot->target !== null) {
+            $this->emails->callOut($save, $brand, $slot->target, $slot->targetB, $slot->alignment, $succeeded, $week);
+        }
 
         // The player's Slander gets the rival GM's reaction; the rival's
         // Slander gets the player a heads-up from JR / Tazz.
@@ -414,15 +444,15 @@ class PromoService
 
     private function advertising(Show $show, Brand $brand, int $amount, PromoSlot $slot): string
     {
-        // A guaranteed flat payout next week.
-        $this->ledger->post($show->game, $brand, LedgerCategory::PromoIncome, $amount, 'Advertising payout', $show->week_number + 1, $slot);
+        // House rule (2026-11-15): a flat payout the week it airs.
+        $this->ledger->post($show->game, $brand, LedgerCategory::PromoIncome, $amount, 'Advertising payout', $show->week_number, $slot, $show->id);
 
-        return 'Pays out next week';
+        return 'Paid '.number_format($amount);
     }
 
     private function income(Show $show, Brand $brand, int $amount, PromoSlot $slot, string $name): string
     {
-        $this->ledger->post($show->game, $brand, LedgerCategory::PromoIncome, $amount, $name, $show->week_number, $slot);
+        $this->ledger->post($show->game, $brand, LedgerCategory::PromoIncome, $amount, $name, $show->week_number, $slot, $show->id);
 
         return 'Paid '.number_format($amount);
     }
@@ -444,6 +474,39 @@ class PromoService
         }
 
         return 'Heat kept alive';
+    }
+
+    /**
+     * House rule (2026-11-15): two rival Divas in a Bikini Contest keep their
+     * rivalry going, like Continue Rivalry.
+     */
+    private function bikiniContest(Show $show, PromoSlot $slot): string
+    {
+        $rivalry = $this->rivalries->between($show->game, (int) $slot->target_wrestler_id, (int) $slot->target_wrestler_b_id);
+
+        if ($rivalry === null || ! $rivalry->active) {
+            return 'Success (popularity and rating effects are deferred)';
+        }
+
+        $this->rivalries->hold($rivalry, $show->week_number);
+
+        return 'Rivalry heat kept alive';
+    }
+
+    /**
+     * Call-out (house rule, 2026-11-15): a success heats the rivalry up.
+     */
+    private function callOut(Show $show, PromoSlot $slot): string
+    {
+        $rivalry = $this->rivalries->between($show->game, (int) $slot->target_wrestler_id, (int) $slot->target_wrestler_b_id);
+
+        if ($rivalry === null || ! $rivalry->active) {
+            return 'Success';
+        }
+
+        $this->rivalries->recordCallOut($rivalry, $show->week_number);
+
+        return 'Rivalry heats up (+'.(int) config('gm.rivalries.heat_per_call_out').' heat)';
     }
 
     private function debut(Show $show, Brand $brand, PromoSlot $slot): string

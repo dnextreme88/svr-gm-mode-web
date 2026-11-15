@@ -208,6 +208,8 @@ it('charges weekly upkeep to Financials in the same step', function () {
 
     $line = LedgerEntry::where('save_id', $save->id)->where('brand', Brand::Raw)->where('category', LedgerCategory::ContractUpkeep)->first();
 
-    expect($line->amount)->toBe(-16_000)
+    // House rule (2026-11-15): two male superstars on 12 months, $240,000 / 52 each.
+    expect($line->amount)->toBe(-2 * 4_615)
+        ->and($line->memo)->toBe('Salaries (2 superstars)')
         ->and($line->week_number)->toBe(1);
 });

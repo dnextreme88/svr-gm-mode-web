@@ -68,6 +68,11 @@
         "types:check": [
             "phpstan analyse"
         ],
+        "demo": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan migrate:fresh --seed --force",
+            "@php artisan gm:demo-saves"
+        ],
         "test": [
             "@php artisan config:clear --ansi",
             "@lint:check",

@@ -4,6 +4,7 @@ import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { PopoverPanel, usePopover } from '@/components/gm/popover';
 import { SlotActions } from '@/components/gm/slot-actions';
+import { SortableSlots } from '@/components/gm/sortable-slots';
 import { WrestlerPicker } from '@/components/gm/wrestler-picker';
 import type { PickerOption } from '@/components/gm/wrestler-picker';
 import { useReportUnsaved } from '@/components/gm/unsaved-changes';
@@ -55,6 +56,8 @@ export type CardBuilderProps = {
     promoFatigue?: PromoFatigue[];
     /** Read-only because the week's booking order hasn't reached this card, or it's confirmed. */
     lockedByOrder?: boolean;
+    /** Drag a match to another spot (house rule, 2026-11-15): the old positions in their new order. */
+    onReorder?: (order: number[]) => void;
     /**
      * Titles, their holders, Last Chance lockouts and #1 contenders: tags the
      * champions and greys out who can't challenge for the title on the line.
@@ -166,6 +169,7 @@ export function CardBuilder({
     promoFatigue = [],
     lockedByOrder = false,
     titleContext,
+    onReorder,
 }: CardBuilderProps) {
     const [drafts, setDrafts] = useState<SlotDraft[]>(() => slots.map(toDraft));
     const [dirty, setDirty] = useState<Set<number>>(new Set());
@@ -188,6 +192,7 @@ export function CardBuilder({
             .map((s) => s.position),
     );
     const readOnly = show.status !== 'booking' || lockedByOrder;
+    const canReorder = !readOnly && onReorder !== undefined;
     const complete = (d: SlotDraft) =>
         isComplete(d, d.matchTypeId ? types.get(d.matchTypeId) : undefined);
 
@@ -264,45 +269,79 @@ export function CardBuilder({
                     </span>
                 </span>
             </div>
-            {drafts.map((draft) => (
-                <SlotEditor
-                    key={draft.position}
-                    draft={draft}
-                    isMainEvent={draft.position === mainEventPosition}
-                    drafts={drafts}
-                    types={types}
-                    matchTypes={matchTypes}
-                    roster={roster}
-                    rosterById={rosterById}
-                    counts={counts}
-                    fatigueConfig={fatigueConfig}
-                    promoFatigue={promoFatigue}
-                    titleContext={titleContext}
-                    readOnly={readOnly || draft.fixed}
-                    canSave={!readOnly && !draft.fixed}
-                    dirty={dirty.has(draft.position)}
-                    saveKey={slotSaveKey('match', show.id, draft.position)}
-                    complete={complete(draft)}
-                    onChange={update}
-                    onSave={() => {
-                        onSave(draft.position, toPayload(draft));
-                        markClean(draft.position);
-                    }}
-                    onDiscard={() => discard(draft.position)}
-                    onClear={() => clearSlot(draft.position)}
-                    title={renderTitle?.(draft, update, drafts)}
-                    buttons={renderButtons?.(draft, update, drafts)}
-                    actions={renderActions?.(draft, update, drafts)}
-                    names={
-                        slots.find((s) => s.position === draft.position)?.names
-                    }
-                />
-            ))}
+            {canReorder && dirty.size > 0 && (
+                <p
+                    className="text-sm text-ink-dim"
+                    data-testid="reorder-locked"
+                >
+                    Save or discard your changes to move matches around.
+                </p>
+            )}
+            <SortableSlots
+                positions={drafts.map((d) => d.position)}
+                movable={(position) =>
+                    canReorder &&
+                    !drafts.find((d) => d.position === position)?.fixed
+                }
+                disabled={
+                    dirty.size > 0
+                        ? 'Save or discard your changes to move matches around.'
+                        : null
+                }
+                onReorder={(order) => onReorder?.(order)}
+            >
+                {(position, handle) => {
+                    const draft = drafts.find((d) => d.position === position)!;
+
+                    return (
+                        <SlotEditor
+                            key={draft.position}
+                            handle={handle?.handle}
+                            draft={draft}
+                            isMainEvent={draft.position === mainEventPosition}
+                            drafts={drafts}
+                            types={types}
+                            matchTypes={matchTypes}
+                            roster={roster}
+                            rosterById={rosterById}
+                            counts={counts}
+                            fatigueConfig={fatigueConfig}
+                            promoFatigue={promoFatigue}
+                            titleContext={titleContext}
+                            readOnly={readOnly || draft.fixed}
+                            canSave={!readOnly && !draft.fixed}
+                            dirty={dirty.has(draft.position)}
+                            saveKey={slotSaveKey(
+                                'match',
+                                show.id,
+                                draft.position,
+                            )}
+                            complete={complete(draft)}
+                            onChange={update}
+                            onSave={() => {
+                                onSave(draft.position, toPayload(draft));
+                                markClean(draft.position);
+                            }}
+                            onDiscard={() => discard(draft.position)}
+                            onClear={() => clearSlot(draft.position)}
+                            title={renderTitle?.(draft, update, drafts)}
+                            buttons={renderButtons?.(draft, update, drafts)}
+                            actions={renderActions?.(draft, update, drafts)}
+                            names={
+                                slots.find((s) => s.position === draft.position)
+                                    ?.names
+                            }
+                        />
+                    );
+                }}
+            </SortableSlots>
         </div>
     );
 }
 
 type SlotEditorProps = {
+    /** The drag handle and move buttons, when the slot can move. */
+    handle?: React.ReactNode;
     draft: SlotDraft;
     isMainEvent: boolean;
     drafts: SlotDraft[];
@@ -331,6 +370,7 @@ type SlotEditorProps = {
 };
 
 function SlotEditor({
+    handle,
     draft,
     isMainEvent,
     drafts,
@@ -550,7 +590,8 @@ function SlotEditor({
             {/* A size container: the match type panel sizes to the card. */}
             <header className="@container relative flex flex-wrap items-start gap-3 border-b border-white/6 px-4 py-2.5">
                 {/* Small screens: the label, the type picker and the cost line each get a line. */}
-                <div className="w-full sm:w-auto">
+                <div className="flex w-full items-center gap-1 sm:w-auto">
+                    {handle}
                     <span
                         className={cn(
                             'gm-chyron mt-0.5 inline-block py-1 pr-7 pl-3 font-condensed font-bold tracking-[0.18em] uppercase',

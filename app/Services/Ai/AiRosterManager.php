@@ -63,7 +63,7 @@ class AiRosterManager
 
             if ($level === null
                 || ! $rng->chance((float) config('gm.ai.morale.fix_chance.'.$level->value))
-                || ! $this->affords($save, $brand, $this->pricing->quote($wrestler->wrestler, $length)['upfront'])) {
+                || ! $this->affords($save, $brand, $this->pricing->quote($wrestler->wrestler, $length)['total'])) {
                 continue;
             }
 
@@ -100,7 +100,7 @@ class AiRosterManager
 
         foreach ($expiring as $wrestler) {
             foreach ($lengths as $option) {
-                if ($this->affords($save, $brand, $this->pricing->quote($wrestler->wrestler, $option)['upfront'], 0)) {
+                if ($this->affords($save, $brand, $this->pricing->quote($wrestler->wrestler, $option)['total'], 0)) {
                     $this->contracts->renegotiate($wrestler, $option, $week);
 
                     break;
@@ -120,7 +120,7 @@ class AiRosterManager
         $rng = $save->rng("ai.roster.{$brand->value}", $week);
 
         $agents = collect($rng->shuffle($this->roster->freeAgentsQuery($save, $week)->with('wrestler')->orderBy('id')->get()->all()));
-        $affordable = fn (SaveWrestler $w): bool => $this->affords($save, $brand, $this->pricing->quote($w->wrestler, $length)['upfront']);
+        $affordable = fn (SaveWrestler $w): bool => $this->affords($save, $brand, $this->pricing->quote($w->wrestler, $length)['total']);
 
         while ($this->roster->rosterCount($save, $brand) < $target) {
             $short = $this->shortTitles($save, $brand);
@@ -210,7 +210,7 @@ class AiRosterManager
             ->where('brand', $brand)
             ->get()
             ->filter(fn (SaveWrestler $w): bool => $w->activeContract !== null && $w->activeContract->weeks_remaining <= $window)
-            ->sum(fn (SaveWrestler $w): int => $this->pricing->quote($w->wrestler, $length)['upfront']);
+            ->sum(fn (SaveWrestler $w): int => $this->pricing->quote($w->wrestler, $length)['total']);
 
         return $budget < $due + (int) config('gm.ai.roster.cash_reserve');
     }

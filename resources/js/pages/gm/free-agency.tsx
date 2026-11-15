@@ -24,7 +24,7 @@ type Props = GamePageProps & {
     has_room: boolean;
 };
 
-type SortKey = 'name' | 'type' | 'class' | 'upfront' | 'weekly';
+type SortKey = 'name' | 'type' | 'class' | 'total' | 'weekly';
 
 const DEFAULT_LENGTH = 52;
 
@@ -58,8 +58,8 @@ export default function FreeAgency() {
                     return RosterTypeLabels[w.roster_type];
                 case 'class':
                     return WeightClassLabels[w.weight_class];
-                case 'upfront':
-                    return quoteFor(w, lengthById)?.upfront ?? 0;
+                case 'total':
+                    return quoteFor(w, lengthById)?.total ?? 0;
                 case 'weekly':
                     return quoteFor(w, lengthById)?.weekly ?? 0;
             }
@@ -140,9 +140,9 @@ export default function FreeAgency() {
                                     <th>Length</th>
                                     <th
                                         className="text-right"
-                                        aria-sort={ariaSort(sort, 'upfront')}
+                                        aria-sort={ariaSort(sort, 'total')}
                                     >
-                                        {header('upfront', 'Up front', true)}
+                                        {header('total', 'Total', true)}
                                     </th>
                                     <th
                                         className="text-right"
@@ -232,7 +232,7 @@ export default function FreeAgency() {
                                             </td>
                                             <td className="gm-num text-right">
                                                 {quote &&
-                                                    formatMoney(quote.upfront)}
+                                                    formatMoney(quote.total)}
                                             </td>
                                             <td className="gm-num text-right text-ink-dim">
                                                 {quote &&

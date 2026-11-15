@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property LedgerCategory $category
  * @property int $amount
  * @property string $memo
+ * @property int|null $show_id the show night it belongs to (null: week-wide)
  */
 #[Unguarded]
 class LedgerEntry extends Model

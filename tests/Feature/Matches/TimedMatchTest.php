@@ -8,6 +8,7 @@ use App\Models\MatchType;
 use App\Models\NewsEvent;
 use App\Services\Matches\MatchResolver;
 use App\Services\Matches\ResolvedMatch;
+use App\Services\News\NewsTemplates;
 use App\Services\Week\WeekResolver;
 use App\Support\Rng\SeededRng;
 use Illuminate\Support\Collection;
@@ -100,11 +101,14 @@ it('stores the score and writes it into the match news', function () {
     app(WeekResolver::class)->resolve($slot->show->game->refresh());
 
     $result = MatchResult::where('match_slot_id', $slot->id)->sole();
-    $news = NewsEvent::where('save_id', $slot->show->save_id)->get()->first(fn (NewsEvent $e): bool => str_contains((string) $e->rendered_text, 'Iron Man match with a'));
+    // The score is in the summary since the short headlines (house rule, 2026-11-15).
+    $summaries = NewsEvent::where('save_id', $slot->show->save_id)->get()
+        ->map(fn (NewsEvent $e): string => app(NewsTemplates::class)->summary($e->type, $e->payload));
+    $news = $summaries->first(fn (string $text): bool => str_contains($text, 'Iron Man match with a'));
 
     expect($result->winner_score)->toBeGreaterThan($result->loser_score)
         ->and($news)->not->toBeNull()
-        ->and($news->rendered_text)->toContain("{$result->winner_score}-{$result->loser_score} score");
+        ->and($news)->toContain("{$result->winner_score}-{$result->loser_score} score");
 });
 
 it('shows the score beside the method on the results', function () {

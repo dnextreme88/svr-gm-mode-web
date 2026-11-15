@@ -4,10 +4,12 @@ namespace App\Services\Card;
 
 use App\Enums\Brand;
 use App\Enums\InjurySeverity;
+use App\Enums\MatchFamily;
 use App\Enums\RosterType;
 use App\Exceptions\GameRuleException;
 use App\Models\MatchSlot;
 use App\Models\MatchType;
+use App\Models\Rivalry;
 use App\Models\SaveBrand;
 use App\Models\SaveWrestler;
 use App\Models\Show;
@@ -25,6 +27,12 @@ use Illuminate\Database\Eloquent\Collection;
  * if the match would leave them above `gm.card.randomize_max_fatigue`
  * (counting this week's other bookings and tiring promos), and wrestlers
  * carrying a minor injury are only picked when nobody else is left.
+ *
+ * House rules (2026-11-15): sides are gender-balanced (every side has the
+ * same number of Divas, and a singles-style match is all Divas or all
+ * men), managers are Divas first, Preset books at least one all-Diva
+ * match when it can, and it books up to `gm.card.rivalry_target` of the
+ * brand's rivalries in one of five shapes (see `rivalryProposal`).
  */
 class CardRandomizer
 {
@@ -101,11 +109,16 @@ class CardRandomizer
      * @param  list<int>  $titlesOnCard  championship ids already defended on the card
      * @param  list<int>  $replacing  other slots rebooked along with this one (Preset), whose bookings don't count
      */
-    public function proposeSlot(Show $show, int $position, ?MatchType $type, Rng $rng, array $exclude = [], array $titlesOnCard = [], ?Brand $brand = null, array $replacing = []): Proposal
+    public function proposeSlot(Show $show, int $position, ?MatchType $type, Rng $rng, array $exclude = [], array $titlesOnCard = [], ?Brand $brand = null, array $replacing = [], bool $divasOnly = false): Proposal
     {
         $brand ??= $show->brand ?? throw new GameRuleException('This slot has no brand to book from.');
         $rebooked = array_values(array_unique([$position, ...$replacing]));
         $pool = $this->pool($show, $brand, array_values(array_unique([...$this->bookedIds($show, $rebooked), ...$exclude])));
+
+        // Preset's all-Diva match (house rule, 2026-11-15).
+        if ($divasOnly) {
+            $pool = $pool->filter(fn (SaveWrestler $w): bool => $w->wrestler->isDiva())->values();
+        }
 
         if ($pool->count() < 2) {
             throw new GameRuleException("Not enough available superstars to book this match (need 2, have {$pool->count()}).");
@@ -130,7 +143,24 @@ class CardRandomizer
                 throw new GameRuleException('Everyone available is too tired to book a match without risking an injury.');
             }
 
-            $type = $rng->pick($fillable->all());
+            // Gender balance (house rule, 2026-11-15): a type that can't be
+            // filled with balanced sides is re-rolled.
+            $tries = max(1, (int) config('gm.card.gender_rerolls'));
+
+            for ($try = 0; $try < $tries && $fillable->isNotEmpty(); $try++) {
+                $type = $rng->pick($fillable->all());
+
+                if ($this->balancedSides($show, $type, $this->healthyFor($type, $pool, $fatigue, $minor), $rng) !== null) {
+                    break;
+                }
+
+                $fillable = $fillable->reject(fn (MatchType $t): bool => $t->is($type))->values();
+                $type = null;
+            }
+
+            if ($type === null) {
+                throw new GameRuleException('Nobody left to book a match with even sides.');
+            }
         }
 
         $need = $type->competitorCount();
@@ -162,6 +192,207 @@ class CardRandomizer
         $managers = $this->pickManagers($type, $pool, $sides, $referee, $rng);
 
         return new Proposal($position, new Booking($type, $sides, $managers, refereeId: $referee), $sides);
+    }
+
+    /**
+     * Randomize (one slot), house rule 2026-11-15: an earned title shot
+     * first (the caller), then, `gm.card.randomize_rivalry_chance` of the
+     * time, one of the brand's rivalries not on the card yet in a shape the
+     * slot's type fits; otherwise a random booking.
+     *
+     * @param  list<int>  $titlesOnCard
+     */
+    public function randomizeSlot(Show $show, int $position, ?MatchType $type, Rng $rng, array $titlesOnCard = [], ?Brand $brand = null): Proposal
+    {
+        $brand ??= $show->brand ?? throw new GameRuleException('This slot has no brand to book from.');
+
+        if ($rng->chance((float) config('gm.card.randomize_rivalry_chance'))) {
+            $pool = $this->pool($show, $brand, $this->bookedIds($show, [$position]));
+            $fatigue = $this->plannedFatigue->forWeek($show, $brand, $this->slotIds($show, [$position]));
+            $minor = $this->minorInjuredIds($show);
+            $rivalries = $this->rivalries($show, $pool);
+
+            foreach ($rng->shuffle($rivalries) as $pair) {
+                $shapes = $type === null ? $this->shapeOrder($rng) : $this->shapesFor($type);
+
+                foreach ($shapes as $shape) {
+                    $proposal = $this->rivalryProposal($show, $position, $shape, [$pair], $rivalries, $pool, $fatigue, $minor, $rng, $brand, $type);
+
+                    if ($proposal !== null) {
+                        return $proposal;
+                    }
+                }
+            }
+        }
+
+        return $this->proposeSlot($show, $position, $type, $rng, [], $titlesOnCard, $brand);
+    }
+
+    /**
+     * The brand's active rivalries with both rivals in the pool.
+     *
+     * @param  Collection<int, SaveWrestler>  $pool
+     * @return list<array{0: int, 1: int}>
+     */
+    public function rivalries(Show $show, Collection $pool): array
+    {
+        $ids = array_map('intval', $pool->modelKeys());
+
+        return array_values(Rivalry::where('save_id', $show->save_id)
+            ->where('active', true)
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (Rivalry $r): bool => in_array($r->wrestler_a_id, $ids, true) && in_array($r->wrestler_b_id, $ids, true))
+            ->map(fn (Rivalry $r): array => [$r->wrestler_a_id, $r->wrestler_b_id])
+            ->all());
+    }
+
+    /**
+     * The five rivalry shapes, the first drawn by weight, the rest in
+     * weight order as fallbacks.
+     *
+     * @return list<string>
+     */
+    private function shapeOrder(Rng $rng): array
+    {
+        $weights = array_map('intval', (array) config('gm.card.rivalry_shapes'));
+        $first = (string) $rng->weightedPick($weights);
+        arsort($weights);
+
+        return array_values(array_unique([$first, ...array_keys($weights), 'singles']));
+    }
+
+    /**
+     * The rivalry shapes a chosen match type can hold.
+     *
+     * @return list<string>
+     */
+    private function shapesFor(MatchType $type): array
+    {
+        return array_values(array_filter(array_keys((array) config('gm.card.rivalry_shapes')), fn (string $shape): bool => $this->fitsShape($type, $shape)));
+    }
+
+    private function fitsShape(MatchType $type, string $shape): bool
+    {
+        return match ($shape) {
+            'singles' => $type->sides === [1, 1] && $type->manager_sides === [] && ! $type->hasSpecialReferee(),
+            'triple_threat' => $type->sides === [1, 1, 1] && $type->manager_sides === [] && ! $type->hasSpecialReferee(),
+            'partners' => $type->sides === [2, 2] && $type->manager_sides === [] && ! $type->hasSpecialReferee(),
+            'manager' => $type->sides === [1, 1] && count($type->manager_sides) === 1 && ! $type->hasSpecialReferee(),
+            'two_rivalries' => $type->family === MatchFamily::BattleRoyal && $type->competitorCount() === 6,
+            default => false,
+        };
+    }
+
+    /**
+     * A rivalry booking (house rule, 2026-11-15) in one shape, or null when
+     * it can't be filled:
+     *  - singles: the rivals 1v1 in any singles type (Hardcore, Ladder…);
+     *  - triple_threat: the rivals and a random third;
+     *  - partners: the rivals as a team against a random team;
+     *  - manager: one rival against a random opponent, managed by the other rival;
+     *  - two_rivalries: two rivalries in a 6-Man Battle Royal with 2 random others.
+     * Everyone competing must fit the healthy-picks rule; fillers are the
+     * rivals' gender.
+     *
+     * @param  list<array{0: int, 1: int}>  $pairs  the rivalry (or, for two_rivalries, the first one)
+     * @param  list<array{0: int, 1: int}>  $others  rivalries that may join a two_rivalries battle royal
+     * @param  Collection<int, SaveWrestler>  $pool
+     * @param  array<int, int>  $fatigue
+     * @param  list<int>  $minor
+     */
+    public function rivalryProposal(Show $show, int $position, string $shape, array $pairs, array $others, Collection $pool, array $fatigue, array $minor, Rng $rng, Brand $brand, ?MatchType $only = null): ?Proposal
+    {
+        [$a, $b] = $pairs[0];
+        $byId = $pool->keyBy('id');
+
+        if (! $byId->has($a) || ! $byId->has($b)) {
+            return null;
+        }
+
+        $divas = $byId->get($a)->wrestler->isDiva();
+
+        if ($divas !== $byId->get($b)->wrestler->isDiva()) {
+            return null;
+        }
+
+        if ($shape === 'two_rivalries') {
+            $second = collect($rng->shuffle($others))->first(fn (array $p): bool => array_intersect($p, [$a, $b]) === []
+                && $byId->has($p[0]) && $byId->has($p[1])
+                && $byId->get($p[0])->wrestler->isDiva() === $divas && $byId->get($p[1])->wrestler->isDiva() === $divas);
+
+            if ($second === null) {
+                return null;
+            }
+
+            $pairs = [[$a, $b], $second];
+        }
+
+        $rivals = array_values(array_unique(array_merge(...$pairs)));
+        $types = $this->eligibleTypes($show, $brand)
+            ->filter(fn (MatchType $t): bool => ($only === null || $t->is($only)) && $this->fitsShape($t, $shape)
+                && ($divas ? ($t->divas_only || $t->divas_allowed) : ! $t->divas_only))
+            ->values()
+            ->all();
+
+        foreach ($rng->shuffle($types) as $type) {
+            $healthy = $this->healthyFor($type, $pool, $fatigue, $minor)
+                ->filter(fn (SaveWrestler $w): bool => $w->wrestler->isDiva() === $divas);
+            $healthyIds = array_map('intval', $healthy->modelKeys());
+            $competing = $shape === 'manager' ? [$a] : $rivals;
+
+            if (array_diff($competing, $healthyIds) !== []) {
+                continue;
+            }
+
+            $fillers = $rng->shuffle(array_values(array_diff($healthyIds, $rivals)));
+
+            $sides = match ($shape) {
+                'singles' => [[$a], [$b]],
+                'triple_threat' => count($fillers) >= 1 ? [[$a], [$b], [$fillers[0]]] : null,
+                'partners' => $this->partnersSides($show, [$a, $b], $fillers, $rng),
+                'manager' => count($fillers) >= 1 ? [[$a], [$fillers[0]]] : null,
+                'two_rivalries' => count($fillers) >= 2 ? array_map(fn (int $id): array => [$id], [...$rivals, $fillers[0], $fillers[1]]) : null,
+                default => null,
+            };
+
+            if ($sides === null) {
+                continue;
+            }
+
+            $managers = [];
+
+            if ($shape === 'manager') {
+                // The other rival manages the opponent.
+                $managers = [(int) $type->manager_sides[0] === 0 ? 0 : 1 => $b];
+
+                if ((int) $type->manager_sides[0] === 0) {
+                    $sides = [$sides[1], $sides[0]];
+                }
+            }
+
+            $names = $byId->only($rivals)->map(fn (SaveWrestler $w): string => $w->name())->all();
+            $note = 'Rivalry: '.implode(' and ', array_map(fn (array $p): string => ($names[$p[0]] ?? '').' vs. '.($names[$p[1]] ?? ''), $pairs)).'.';
+
+            return new Proposal($position, new Booking($type, $sides, $managers), $sides, note: $note);
+        }
+
+        return null;
+    }
+
+    /**
+     * The rivals as a team, against a tag team of their gender or two fillers.
+     *
+     * @param  list<int>  $rivals
+     * @param  list<int>  $fillers
+     * @return list<list<int>>|null
+     */
+    private function partnersSides(Show $show, array $rivals, array $fillers, Rng $rng): ?array
+    {
+        $team = collect($this->teams($show, $fillers, $rng))->first(fn (array $ids): bool => count($ids) === 2);
+        $opponents = $team ?? array_slice($fillers, 0, 2);
+
+        return count($opponents) === 2 ? [$rivals, $opponents] : null;
     }
 
     /**
@@ -242,6 +473,12 @@ class CardRandomizer
             array_merge(...$sides),
             $refereeId === null ? [] : [$refereeId],
         )));
+        // House rule (2026-11-15): Divas manage first, whoever competes.
+        $divaIds = array_map('intval', $pool->filter(fn (SaveWrestler $w): bool => $w->wrestler->isDiva())->modelKeys());
+        $left = [
+            ...array_values(array_filter($left, fn (int $id): bool => in_array($id, $divaIds, true))),
+            ...array_values(array_filter($left, fn (int $id): bool => ! in_array($id, $divaIds, true))),
+        ];
 
         if (count($left) < count($type->manager_sides)) {
             throw new GameRuleException("Not enough available superstars to book {$type->name} with its managers.");
@@ -314,6 +551,25 @@ class CardRandomizer
             $titles[] = (int) $obligation->titleChampionshipId;
         }
 
+        // House rule (2026-11-15): the brand's rivalries, then one all-Diva match.
+        if ($brand !== null) {
+            foreach ($this->presetRivalries($show, $open, $proposals, $taken, $replacing, $brand, $rng) as $proposal) {
+                $proposals[] = $proposal;
+                $taken = [...$taken, ...$proposal->booking->allIds()];
+            }
+
+            $diva = $this->presetDivaMatch($show, $open, $proposals, $taken, $titles, $replacing, $brand, $rng);
+
+            if ($diva !== null) {
+                $proposals[] = $diva;
+                $taken = [...$taken, ...$diva->booking->allIds()];
+
+                if ($diva->booking->titleChampionshipId !== null) {
+                    $titles[] = $diva->booking->titleChampionshipId;
+                }
+            }
+        }
+
         $usedPositions = array_map(fn (Proposal $p): int => $p->position, $proposals);
 
         foreach ($open as $slot) {
@@ -354,6 +610,102 @@ class CardRandomizer
     }
 
     /**
+     * Preset's rivalry bookings (house rule, 2026-11-15): up to
+     * `gm.card.rivalry_target` of the brand's rivalries, each in a random
+     * open slot and a shape drawn by weight (a two-rivalry battle royal
+     * counts as two).
+     *
+     * @param  \Illuminate\Support\Collection<int, MatchSlot>  $open
+     * @param  list<Proposal>  $proposals  already proposed
+     * @param  list<int>  $taken
+     * @param  list<int>  $replacing
+     * @return list<Proposal>
+     */
+    private function presetRivalries(Show $show, \Illuminate\Support\Collection $open, array $proposals, array $taken, array $replacing, Brand $brand, Rng $rng): array
+    {
+        $target = (int) config('gm.card.rivalry_target');
+        $used = array_map(fn (Proposal $p): int => $p->position, $proposals);
+        $slots = $rng->shuffle(array_values(array_filter(array_map('intval', $open->pluck('position')->all()), fn (int $pos): bool => ! in_array($pos, $used, true))));
+        $pool = $this->pool($show, $brand, array_values(array_unique([...$this->bookedIds($show, $replacing), ...$taken])));
+        $fatigue = $this->plannedFatigue->forWeek($show, $brand, $this->slotIds($show, $replacing));
+        $minor = $this->minorInjuredIds($show);
+        $rivalries = $rng->shuffle($this->rivalries($show, $pool));
+        $booked = [];
+        $count = 0;
+
+        foreach ($rivalries as $pair) {
+            if ($count >= $target || $slots === []) {
+                break;
+            }
+
+            if (array_intersect($pair, $taken) !== []) {
+                continue;
+            }
+
+            $free = array_values(array_filter($rivalries, fn (array $p): bool => array_intersect($p, $taken) === []));
+
+            foreach ($this->shapeOrder($rng) as $shape) {
+                if ($shape === 'two_rivalries' && $count + 2 > $target) {
+                    continue;
+                }
+
+                $proposal = $this->rivalryProposal($show, $slots[0], $shape, [$pair], $free, $pool, $fatigue, $minor, $rng, $brand);
+
+                if ($proposal === null) {
+                    continue;
+                }
+
+                $booked[] = $proposal;
+                array_shift($slots);
+                $taken = [...$taken, ...$proposal->booking->allIds()];
+                $pool = $pool->reject(fn (SaveWrestler $w): bool => in_array($w->id, $proposal->booking->allIds(), true))->values();
+                $count += $shape === 'two_rivalries' ? 2 : 1;
+
+                break;
+            }
+        }
+
+        return $booked;
+    }
+
+    /**
+     * Preset's all-Diva match (house rule, 2026-11-15): with 2+ Divas fresh
+     * enough to book and none in an all-Diva match yet, one random open slot
+     * gets one.
+     *
+     * @param  \Illuminate\Support\Collection<int, MatchSlot>  $open
+     * @param  list<Proposal>  $proposals
+     * @param  list<int>  $taken
+     * @param  list<int>  $titles
+     * @param  list<int>  $replacing
+     */
+    private function presetDivaMatch(Show $show, \Illuminate\Support\Collection $open, array $proposals, array $taken, array $titles, array $replacing, Brand $brand, Rng $rng): ?Proposal
+    {
+        $divaIds = array_map('intval', SaveWrestler::where('save_id', $show->save_id)->whereHas('wrestler', fn ($q) => $q->where('roster_type', RosterType::Diva))->pluck('id')->all());
+
+        foreach ($proposals as $proposal) {
+            $ids = $proposal->booking->competitorIds();
+
+            if ($ids !== [] && array_diff($ids, $divaIds) === []) {
+                return null;
+            }
+        }
+
+        $used = array_map(fn (Proposal $p): int => $p->position, $proposals);
+        $slots = $rng->shuffle(array_values(array_filter(array_map('intval', $open->pluck('position')->all()), fn (int $pos): bool => ! in_array($pos, $used, true))));
+
+        if ($slots === []) {
+            return null;
+        }
+
+        try {
+            return $this->proposeSlot($show, $slots[0], null, $rng, $taken, $titles, $brand, $replacing, divasOnly: true);
+        } catch (GameRuleException) {
+            return null;
+        }
+    }
+
+    /**
      * @param  Collection<int, SaveWrestler>  $pool
      * @return Collection<int, SaveWrestler>
      */
@@ -374,8 +726,74 @@ class CardRandomizer
      */
     public function fillSides(Show $show, MatchType $type, Collection $candidates, Rng $rng): array
     {
-        $available = array_values(array_map('intval', $candidates->pluck('id')->all()));
-        $available = $rng->shuffle($available);
+        return $this->balancedSides($show, $type, $candidates, $rng)
+            ?? throw new GameRuleException("Not enough superstars to book {$type->name} with even sides.");
+    }
+
+    /**
+     * Gender-balanced sides (house rule, 2026-11-15), or null if the type
+     * can't be filled that way. Every side gets the same number of Divas: a
+     * singles-style or uneven match is all Divas or all men (whichever the
+     * first random pick is, if there are enough), and an even team match
+     * puts one Diva on every team when the first pick is a Diva. Otherwise
+     * it's all men, then all Divas.
+     *
+     * @param  Collection<int, SaveWrestler>  $candidates
+     * @return list<list<int>>|null
+     */
+    public function balancedSides(Show $show, MatchType $type, Collection $candidates, Rng $rng): ?array
+    {
+        $ids = $rng->shuffle(array_values(array_map('intval', $candidates->pluck('id')->all())));
+        $need = $type->competitorCount();
+
+        if (count($ids) < $need) {
+            return null;
+        }
+
+        $byId = $candidates->keyBy('id');
+        $divas = array_values(array_filter($ids, fn (int $id): bool => (bool) $byId->get($id)?->wrestler->isDiva()));
+        $men = array_values(array_diff($ids, $divas));
+        $startDiva = in_array($ids[0], $divas, true);
+        $sizes = $type->sides;
+
+        if ($sizes === []) {
+            return null;
+        }
+
+        $even = count(array_unique($sizes)) === 1;
+        $teamSize = max($sizes);
+
+        // One Diva on every team of an even tag match.
+        if ($startDiva && $even && $teamSize > 1 && count($divas) >= count($sizes) && count($men) >= count($sizes) * ($teamSize - 1)) {
+            $sides = [];
+
+            foreach ($sizes as $i => $size) {
+                $sides[] = [$divas[$i], ...array_slice($men, $i * ($size - 1), $size - 1)];
+            }
+
+            return $sides;
+        }
+
+        $order = $startDiva ? [$divas, $men] : [$men, $divas];
+
+        foreach ($order as $group) {
+            if (count($group) >= $need) {
+                return $this->fillFrom($show, $type, $group, $rng);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Fill each side from one group; multi-wrestler sides prefer existing
+     * tag teams, then pairs.
+     *
+     * @param  list<int>  $available  already shuffled
+     * @return list<list<int>>
+     */
+    private function fillFrom(Show $show, MatchType $type, array $available, Rng $rng): array
+    {
         $teams = $type->isTagStyle() ? $this->teams($show, $available, $rng) : [];
         $sides = [];
 

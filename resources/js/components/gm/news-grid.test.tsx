@@ -155,13 +155,13 @@ describe('NewsGrid', () => {
     it('shows a summary under each headline instead of the raw payload', () => {
         render(<NewsGrid pages={[page(3)]} />);
 
-        const button = screen.getByRole('button', { name: /Raw headline 3/ });
+        const card = screen
+            .getAllByTestId('headline-card')
+            .find((c) => c.textContent?.includes('Raw headline 3'))!;
 
+        expect(within(card).getByText('Why: Raw headline 3')).toBeVisible();
         expect(
-            within(button).getByText('Why: Raw headline 3'),
-        ).toBeInTheDocument();
-        expect(
-            within(button).queryByText('WWE Championship'),
+            within(card).queryByText('WWE Championship'),
         ).not.toBeInTheDocument();
     });
 
@@ -169,15 +169,24 @@ describe('NewsGrid', () => {
         const user = userEvent.setup();
         render(<NewsGrid pages={[page(3)]} />);
 
+        // House rule (2026-11-15): a story's summary starts hidden.
         const button = screen.getByRole('button', { name: /Raw story A 3/ });
-        const summary = within(button).getByTestId('news-summary');
+        const panel = document.getElementById(
+            button.getAttribute('aria-controls')!,
+        )!;
         expect(button).toHaveAttribute('aria-expanded', 'false');
-        expect(summary).toHaveClass('line-clamp-2');
+        expect(button).toHaveTextContent('Show story');
+        expect(panel).toHaveAttribute('data-state', 'closed');
+        expect(panel).toHaveAttribute('inert');
 
         await user.click(button);
 
         expect(button).toHaveAttribute('aria-expanded', 'true');
-        expect(summary).not.toHaveClass('line-clamp-2');
+        expect(button).toHaveTextContent('Hide story');
+        expect(panel).toHaveAttribute('data-state', 'open');
+        expect(within(panel).getByTestId('news-summary')).toHaveTextContent(
+            'Why: Raw story A 3',
+        );
     });
 
     it('keeps the fallback cards on a quiet week', () => {

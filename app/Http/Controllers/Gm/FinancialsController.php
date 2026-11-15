@@ -15,7 +15,8 @@ use Inertia\Response;
 
 /**
  * Weekly income statement (§3 Financials, §7). `?brand=` shows either brand's
- * books (house rule, 2026-11-13): the rival's are read-only.
+ * books (house rule, 2026-11-13): the rival's are read-only. `?week=` (an
+ * absolute week) and `?season=` open any past week of either brand.
  */
 class FinancialsController extends Controller
 {
@@ -24,6 +25,14 @@ class FinancialsController extends Controller
         $brand = Brand::tryFrom((string) $request->query('brand')) ?? $save->player_brand;
         $history = $report->history($save, $brand);
         $latest = $history === [] ? $save->current_week : end($history)['week_number'];
+        $season = $request->integer('season');
+
+        // A season on its own opens on that season's last recorded week.
+        if ($season > 0 && $request->integer('week') === 0) {
+            $inSeason = array_values(array_filter($history, fn (array $h): bool => $h['season'] === $season));
+            $latest = $inSeason === [] ? $latest : end($inSeason)['week_number'];
+        }
+
         $week = $request->integer('week') ?: $latest;
 
         return Inertia::render('gm/financials', [

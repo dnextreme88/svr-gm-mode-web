@@ -86,6 +86,9 @@ class RivalryService
             'last_activity_week' => $week,
         ])->load(['wrestlerA.wrestler', 'wrestlerB.wrestler']);
 
+        // House rule (2026-11-15): the brand it started on, for the Rivalries page.
+        $rivalry->update(['brand' => $rivalry->wrestlerA->brand ?? $rivalry->wrestlerB->brand]);
+
         $this->news->record($save, NewsEventType::RivalryStarted, NewsTier::Story, $this->brandOf($rivalry), [
             'wrestler_a' => $rivalry->wrestlerA->name(),
             'wrestler_b' => $rivalry->wrestlerB->name(),
@@ -145,6 +148,16 @@ class RivalryService
     public function hold(Rivalry $rivalry, int $week): void
     {
         $rivalry->update(['last_activity_week' => max($rivalry->last_activity_week, $week)]);
+    }
+
+    /**
+     * A successful Call-out promo (house rule, 2026-11-15): the rivalry heats
+     * up and the week isn't idle.
+     */
+    public function recordCallOut(Rivalry $rivalry, int $week): void
+    {
+        $this->heatUp($rivalry, (int) config('gm.rivalries.heat_per_call_out'), $week);
+        $this->hold($rivalry, $week);
     }
 
     /**

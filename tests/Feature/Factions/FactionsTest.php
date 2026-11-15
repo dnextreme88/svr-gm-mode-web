@@ -19,6 +19,7 @@ use App\Services\Contracts\ContractService;
 use App\Services\Factions\FactionNamer;
 use App\Services\Factions\FactionService;
 use App\Services\Matches\ShowResolver;
+use App\Services\News\NewsTemplates;
 use App\Services\Roster\RosterService;
 use App\Services\Week\ShowScheduler;
 use App\Services\Week\Steps\FactionFormation;
@@ -167,8 +168,10 @@ describe('naming', function () {
 
         factionWeek($save);
 
-        expect(NewsEvent::where('type', NewsEventType::MatchResult)->where('brand', 'raw')->sole()->rendered_text)
-            ->toStartWith('Team Xtreme defeat Carlito & Snitsky in decisive fashion.');
+        $event = NewsEvent::where('type', NewsEventType::MatchResult)->where('brand', 'raw')->sole();
+
+        expect($event->rendered_text)->toBe('Team Xtreme defeat Carlito & Snitsky')
+            ->and(app(NewsTemplates::class)->summary($event->type, $event->payload))->toStartWith('Team Xtreme defeat Carlito & Snitsky in decisive fashion.');
     });
 });
 
@@ -214,7 +217,7 @@ describe('forming', function () {
             ->and($faction->date_formed?->toDateString())->toBe(app(CalendarService::class)->showDate(1, Brand::Smackdown)->toDateString())
             ->and(app(FactionService::class)->record($faction))->toBe(['wins' => 3, 'losses' => 0])
             ->and(NewsEvent::where('type', NewsEventType::FactionFormed)->sole()->rendered_text)
-            ->toBe("A new force is born: Rey Mysterio and Booker T are now {$faction->faction_name}!")
+            ->toBe("{$faction->faction_name} is born!")
             ->and(FactionPrompt::where('save_id', $save->id)->exists())->toBeFalse();
     });
 
@@ -303,7 +306,7 @@ describe('disbanding', function () {
 
         expect($faction->refresh()->disbanded_week)->toBe(1)
             ->and($faction->date_disbanded?->toDateString())->toBe('2005-04-03')
-            ->and(NewsEvent::where('type', NewsEventType::FactionDisbanded)->sole()->rendered_text)->toBe('Team Xtreme have gone their separate ways.')
+            ->and(NewsEvent::where('type', NewsEventType::FactionDisbanded)->sole()->rendered_text)->toBe('Team Xtreme split up')
             ->and(app(FactionNamer::class)->name($save->id, factionIds($save, ['Matt Hardy', 'Jeff Hardy']), 1))->toBe('Matt Hardy & Jeff Hardy');
 
         $this->post(route('gm.factions.disband', [$save, $faction]))->assertSessionHasErrors('game');
@@ -385,7 +388,8 @@ describe('title news', function () {
         $news = NewsEvent::where('type', NewsEventType::FactionTitleWon)->sole();
 
         expect($news->tier)->toBe(NewsTier::Headline)
-            ->and($news->rendered_text)->toBe('NEW CHAMPIONS! Team Xtreme defeat Carlito & Snitsky for the World Tag Team Championship via pinfall!')
+            ->and($news->rendered_text)->toBe('NEW CHAMPIONS: Team Xtreme!')
+            ->and(app(NewsTemplates::class)->summary($news->type, $news->payload))->toStartWith('Team Xtreme beat Carlito & Snitsky via pinfall and walk out with the World Tag Team Championship!')
             ->and(NewsEvent::where('type', NewsEventType::TitleChange)->exists())->toBeFalse();
     });
 
@@ -399,8 +403,8 @@ describe('title news', function () {
 
         factionWeek($save);
 
-        expect(NewsEvent::where('type', NewsEventType::FactionTitleLost)->sole()->rendered_text)->toBe('Team Xtreme lose the World Tag Team Championship to Carlito & Snitsky.')
-            ->and(NewsEvent::where('type', NewsEventType::TitleChange)->sole()->rendered_text)->toStartWith('NEW CHAMPION! Carlito & Snitsky defeats Team Xtreme');
+        expect(NewsEvent::where('type', NewsEventType::FactionTitleLost)->sole()->rendered_text)->toBe('Team Xtreme lose the gold')
+            ->and(NewsEvent::where('type', NewsEventType::TitleChange)->sole()->rendered_text)->toBe('NEW CHAMPION! Carlito & Snitsky wins the gold!');
     });
 });
 
@@ -422,7 +426,8 @@ it('puts a faction’s interbrand win on the WWE card', function () {
     $news = NewsEvent::where('type', NewsEventType::FactionInterbrandWin)->sole();
 
     expect($news->brand->value)->toBe('both')
-        ->and($news->rendered_text)->toBe('Team Xtreme win one for Raw at WrestleMania!');
+        ->and($news->rendered_text)->toBe('Team Xtreme win one for Raw!')
+        ->and(app(NewsTemplates::class)->summary($news->type, $news->payload))->toContain('stood up for Raw at WrestleMania');
 });
 
 it('lists the seeded factions on the docs page', function () {

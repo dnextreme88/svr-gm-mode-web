@@ -112,11 +112,22 @@ class DocsController extends Controller
             'specialists' => $specialists,
             // Fan attendance (house rule, 2026-11-01): the draw score, crowds and gate.
             'attendance' => (array) config('gm.attendance'),
+            // House rule (2026-11-15): salaries, running costs and income.
+            'finances' => [
+                // A month's salary per roster type, from the catalog.
+                'salaries' => Wrestler::query()->get()->groupBy(fn (Wrestler $w): string => $w->roster_type->value)
+                    ->map(fn ($group): int => (int) $group->max('monthly_salary'))->all(),
+                'months' => array_map('intval', (array) config('gm.contracts.months')),
+                'show_cost' => array_map('intval', (array) config('gm.finances.show_cost')),
+                'medical' => array_map('intval', (array) config('gm.finances.medical')),
+                'attendance_bonus' => (int) config('gm.finances.attendance_bonus'),
+                'ticket_prices' => array_map('intval', (array) config('gm.attendance.ticket_prices')),
+            ],
             'rosters' => [
                 'cap' => (int) config('gm.roster_cap'),
                 'starting_budget' => (int) config('gm.starting_budget'),
-                'weekly_show_income' => (int) config('gm.finances.weekly_show_income'),
                 'contract_weeks' => (int) config('gm.contracts.draft_default_length'),
+                'wwe_contract_weeks' => (int) config('gm.contracts.wwe_roster_length'),
                 'legends_draftable' => (bool) config('gm.draft.legends_draftable'),
                 'ai_roll_max' => (int) config('gm.draft.ai_roll_max'),
                 'ai_focus_from' => (int) config('gm.draft.ai_focus_from'),
@@ -162,7 +173,11 @@ class DocsController extends Controller
             ],
             'promos' => [
                 'slots' => (int) config('gm.card.weekly_promo_slots'),
-                'merchandise_tiers' => array_values((array) config('gm.promos.merchandise_tiers')),
+                'merchandise_chances' => array_values(array_map('floatval', (array) config('gm.promos.merchandise_chances'))),
+                'merchandise_payouts' => array_values(array_map('intval', (array) config('gm.promos.merchandise_payouts'))),
+                'advertising' => (int) config('gm.promos.amounts.advertising'),
+                'interference_payout' => array_map('intval', (array) config('gm.promos.interference_payout')),
+                'call_out_heat' => (int) config('gm.rivalries.heat_per_call_out'),
                 // Slander and Interference backfire when overused (house rule).
                 'overuse' => [
                     'window_weeks' => (int) config('gm.promos.overuse.window_weeks'),
@@ -232,6 +247,7 @@ class DocsController extends Controller
             ],
             'calendar' => [
                 'weekly_show_days' => (array) config('gm.calendar.weekly_show_days'),
+                'redraft_picks' => (int) config('gm.ppv.redraft_picks_per_brand'),
                 'weeks_per_season' => $calendar->weeksPerSeason(),
                 'season_start' => $calendar->date(1)->format('D M j, Y'),
                 'season_end' => $calendar->date($calendar->weeksPerSeason())->format('D M j, Y'),
@@ -355,6 +371,8 @@ class DocsController extends Controller
             ['Morale complaint', $superstar, 'When one of their complaints reaches Unsatisfied or Upset (losing streak, contract demand, no title match, not being used).', ['morale.losing_streak' => 'Losing streak', 'morale.contract_extension' => 'Contract demand', 'morale.title_match' => 'No title match', 'morale.inactivity' => 'Not being used', 'morale.unsatisfied' => 'Then, if Unsatisfied', 'morale.upset' => 'Then, if Upset']],
             ['Contract reminder', $superstar, "{$emails['contract_reminder_weeks']} weeks before their contract runs out.", ['contract_reminder' => 'The reminder']],
             ['Return notice', $superstar, "{$emails['injury_return_notice_weeks']} weeks before a serious injury heals.", ['injury_returning' => 'The notice']],
+            ['Call-out (face)', $superstar, 'After the superstar calls out their rival as a face. Sent by that superstar.', ['call_out.face.success' => 'It worked', 'call_out.face.failure' => 'It fell flat']],
+            ['Call-out (heel)', $superstar, 'After the superstar calls out their rival as a heel. Sent by that superstar.', ['call_out.heel.success' => 'It worked', 'call_out.heel.failure' => 'It fell flat']],
         ];
 
         return array_values(array_map(fn (array $row): array => [

@@ -72,6 +72,54 @@ class CardService
         return $slot->load(['participants', 'matchType']);
     }
 
+    /**
+     * Reorder a card's matches (house rule, 2026-11-15). `$order` lists the
+     * card's current positions in their new order. Only the booking brand's
+     * own, non-fixed slots move: a fixed slot (a cash-in, an interbrand
+     * card's fixed match) or another brand's slot keeps its place. Promos
+     * keep their spot (`before_position`), so a promo before the main event
+     * stays before the last match.
+     *
+     * @param  list<int>  $order
+     */
+    public function reorder(Show $show, array $order, ?Brand $bookingBrand = null): void
+    {
+        if ($show->status !== ShowStatus::Booking) {
+            throw new GameRuleException("{$show->name} has already aired.");
+        }
+
+        $slots = MatchSlot::where('show_id', $show->id)->orderBy('position')->get()->keyBy('position');
+        $current = array_map('intval', $slots->keys()->all());
+        $sorted = $order;
+        sort($sorted);
+
+        if ($sorted !== $current) {
+            throw new GameRuleException('That order doesn’t match the card’s matches.');
+        }
+
+        foreach ($order as $index => $from) {
+            $to = $current[$index];
+            $slot = $slots->get($from);
+            $movable = $slot !== null && ! $slot->isFixed()
+                && ($bookingBrand === null || $slot->owner_brand === null || $slot->owner_brand === $bookingBrand);
+
+            if ($from !== $to && ! $movable) {
+                throw new GameRuleException("Match {$from} can’t move: it’s fixed on this card.");
+            }
+        }
+
+        // Out of the way first, so the unique (show, position) index never clashes.
+        $offset = 1000;
+
+        foreach ($slots as $slot) {
+            $slot->update(['position' => $slot->position + $offset]);
+        }
+
+        foreach ($order as $index => $from) {
+            $slots->get($from)?->update(['position' => $current[$index]]);
+        }
+    }
+
     public function clear(Show $show, int $position, ?Brand $bookingBrand = null): MatchSlot
     {
         if ($show->status !== ShowStatus::Booking) {

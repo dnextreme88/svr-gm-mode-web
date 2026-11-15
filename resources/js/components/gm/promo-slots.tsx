@@ -41,6 +41,8 @@ export type PromoSlotView = {
     target_wrestler_id: number | null;
     target_wrestler_b_id: number | null;
     target_championship_id?: number | null;
+    /** Call-out: how the superstar plays it (house rule, 2026-11-15). */
+    alignment?: 'face' | 'heel' | null;
     succeeded: boolean | null;
     backfired: boolean;
     outcome_note: string | null;
@@ -61,6 +63,7 @@ export type PromoPayload = {
     target_wrestler_b_id: number | null;
     target_championship_id: number | null;
     before_position: number;
+    alignment?: 'face' | 'heel' | null;
 };
 
 type Props = {
@@ -220,6 +223,9 @@ function PromoEditor({
     const [title, setTitle] = useState<number | null>(
         slot.target_championship_id ?? null,
     );
+    const [alignment, setAlignment] = useState<'face' | 'heel' | null>(
+        slot.alignment ?? null,
+    );
     const savedBefore =
         slot.before_position ?? defaultSpot(taken, matchSlotCount);
     const [before, setBefore] = useState<number>(savedBefore);
@@ -232,6 +238,16 @@ function PromoEditor({
     const rules = type ? eligibility[type.key] : undefined;
     const pair = Boolean(type?.needs_rival_pair || type?.needs_diva_pair);
     const isContinue = type?.key === 'continue_rivalry';
+    // Call-out (house rule, 2026-11-15): a rivalry, which of the two does
+    // the talking, and whether they play it as a face or a heel.
+    const isCallOut = type?.key === 'call_out';
+    const pickRivalry = isContinue || isCallOut;
+    // Two rival Divas in a Bikini Contest keep their rivalry going.
+    const rivalPairs = eligibility.continue_rivalry?.pairs ?? [];
+    const rivals = (x: number | null, y: number) =>
+        rivalPairs.some(
+            ([p, q]) => (p === x && q === y) || (p === y && q === x),
+        );
     const rosterById = new Map(roster.map((w) => [w.id, w]));
 
     // House rule: a wrestler gets one of each promo per card, so anyone in
@@ -251,7 +267,10 @@ function PromoEditor({
         }
     }
 
-    const optionsFor = (ids: number[]): PickerOption[] =>
+    const optionsFor = (
+        ids: number[],
+        rivalOf?: number | null,
+    ): PickerOption[] =>
         ids
             .map((id) => rosterById.get(id))
             .filter((w): w is RosterEntry => w !== undefined)
@@ -259,13 +278,17 @@ function PromoEditor({
             .map((w) => {
                 const twin = twinOf.get(w.id);
 
-                return twin === undefined
-                    ? { wrestler: w }
-                    : {
-                          wrestler: w,
-                          disabled: true,
-                          note: `In Promo ${twin}`,
-                      };
+                if (twin !== undefined) {
+                    return {
+                        wrestler: w,
+                        disabled: true,
+                        note: `In Promo ${twin}`,
+                    };
+                }
+
+                return rivalOf != null && rivals(rivalOf, w.id)
+                    ? { wrestler: w, note: 'Rivals: keeps the heat' }
+                    : { wrestler: w };
             });
 
     // Continue Rivalry picks one of the brand's rivalries, "A vs. B",
@@ -291,7 +314,7 @@ function PromoEditor({
         );
 
     const firstIds = rules?.wrestler_ids ?? [];
-    const secondIds = isContinue
+    const secondIds = pickRivalry
         ? (rules?.pairs ?? [])
               .filter(([x, y]) => x === a || y === a)
               .map(([x, y]) => (x === a ? y : x))
@@ -303,6 +326,7 @@ function PromoEditor({
         (!type.needs_wrestler || a !== null) &&
         (!pair || (a !== null && b !== null && a !== b)) &&
         (!type.needs_championship || title !== null) &&
+        (!isCallOut || alignment !== null) &&
         !taken.has(before) &&
         (a === null || !twinOf.has(a)) &&
         (b === null || !twinOf.has(b));
@@ -316,6 +340,7 @@ function PromoEditor({
         a !== slot.target_wrestler_id ||
         (pair && b !== slot.target_wrestler_b_id) ||
         title !== (slot.target_championship_id ?? null) ||
+        (isCallOut && alignment !== (slot.alignment ?? null)) ||
         before !== savedBefore;
     useReportUnsaved(`Promo ${slot.position}`, dirty && !readOnly);
 
@@ -325,6 +350,7 @@ function PromoEditor({
         setA(slot.target_wrestler_id);
         setB(slot.target_wrestler_b_id);
         setTitle(slot.target_championship_id ?? null);
+        setAlignment(slot.alignment ?? null);
         setBefore(savedBefore);
     };
 
@@ -333,6 +359,7 @@ function PromoEditor({
         setA(null);
         setB(null);
         setTitle(null);
+        setAlignment(null);
     };
 
     return (
@@ -455,7 +482,7 @@ function PromoEditor({
                         )}
                     </div>
 
-                    {isContinue && (
+                    {pickRivalry && (
                         <div>
                             <div className="gm-label mb-1">Rivalry</div>
                             <RivalryPicker
@@ -471,7 +498,86 @@ function PromoEditor({
                         </div>
                     )}
 
-                    {(type.needs_wrestler || pair) && !isContinue && (
+                    {isCallOut && a !== null && b !== null && (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                                <div className="gm-label mb-1">
+                                    Who does the talking
+                                </div>
+                                <div
+                                    role="radiogroup"
+                                    aria-label={`Promo ${slot.position} speaker`}
+                                    className="flex flex-wrap gap-1.5"
+                                >
+                                    {[a, b].map((id) => {
+                                        const speaking = id === a;
+
+                                        return (
+                                            <button
+                                                key={id}
+                                                type="button"
+                                                role="radio"
+                                                aria-checked={speaking}
+                                                disabled={readOnly}
+                                                onClick={() => {
+                                                    if (!speaking) {
+                                                        setB(a);
+                                                        setA(id);
+                                                    }
+                                                }}
+                                                className={cn(
+                                                    'min-h-11 px-3 py-1.5 text-left text-sm sm:min-h-0',
+                                                    speaking
+                                                        ? 'bg-brand text-white'
+                                                        : 'bg-white/[0.05] text-ink-dim hover:text-ink',
+                                                )}
+                                            >
+                                                {rosterById.get(id)?.name}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div>
+                                <div className="gm-label mb-1">Plays it as</div>
+                                <div
+                                    role="radiogroup"
+                                    aria-label={`Promo ${slot.position} alignment`}
+                                    className="flex flex-wrap gap-1.5"
+                                >
+                                    {(['face', 'heel'] as const).map((al) => (
+                                        <button
+                                            key={al}
+                                            type="button"
+                                            role="radio"
+                                            aria-checked={alignment === al}
+                                            disabled={readOnly}
+                                            onClick={() => setAlignment(al)}
+                                            className={cn(
+                                                'min-h-11 px-3 py-1.5 text-left text-sm sm:min-h-0',
+                                                alignment === al
+                                                    ? 'bg-brand text-white'
+                                                    : 'bg-white/[0.05] text-ink-dim hover:text-ink',
+                                            )}
+                                        >
+                                            <span className="font-semibold">
+                                                {al === 'face'
+                                                    ? 'Face'
+                                                    : 'Heel'}
+                                            </span>
+                                            <span className="block text-xs opacity-80">
+                                                {al === 'face'
+                                                    ? 'Rally the fans'
+                                                    : 'Insult the fans'}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {(type.needs_wrestler || pair) && !pickRivalry && (
                         <div className="grid gap-2 sm:grid-cols-2">
                             <div>
                                 <div className="gm-label mb-1">
@@ -500,7 +606,10 @@ function PromoEditor({
                                     <WrestlerPicker
                                         label={`Promo ${slot.position} second superstar`}
                                         value={b}
-                                        options={optionsFor(secondIds)}
+                                        options={optionsFor(
+                                            secondIds,
+                                            type.needs_diva_pair ? a : null,
+                                        )}
                                         required
                                         disabled={readOnly || a === null}
                                         onChange={setB}
@@ -634,6 +743,7 @@ function PromoEditor({
                                 ? title
                                 : null,
                             before_position: before,
+                            ...(isCallOut ? { alignment } : {}),
                         })
                     }
                     onDiscard={discard}

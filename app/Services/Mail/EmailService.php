@@ -7,6 +7,7 @@ use App\Enums\ContractStatus;
 use App\Enums\EmailTemplate;
 use App\Enums\MatchFamily;
 use App\Enums\PpvKey;
+use App\Enums\PromoAlignment;
 use App\Models\Contract;
 use App\Models\Email;
 use App\Models\PendingRosterMove;
@@ -423,8 +424,7 @@ class EmailService
      */
     public function draftReminder(Save $save, Brand $brand, int $week): Email
     {
-        $max = (int) config('gm.ppv.redraft_max_picks');
-        $cap = (int) config('gm.roster_cap');
+        $picks = (int) config('gm.ppv.redraft_picks_per_brand');
 
         return $this->send(
             $save,
@@ -432,7 +432,7 @@ class EmailService
             EmailTemplate::DraftReminder,
             'The re-draft is open',
             [],
-            $this->text($save, 'draft_reminder', $brand, $week, ['max' => $max, 'cap' => $cap]),
+            $this->text($save, 'draft_reminder', $brand, $week, ['picks' => $picks]),
             $week,
             (string) config('gm.email_senders.vince'),
         );
@@ -532,6 +532,31 @@ class EmailService
             $this->text($wrestler->game, 'contract_reminder', $brand, $week, ['brand' => $brand->label(), 'weeks' => self::weeks($weeksLeft)], $wrestler->name()),
             $week,
             ['weeks_left' => $weeksLeft],
+        );
+    }
+
+    /**
+     * A superstar writes after their Call-out promo (house rule, 2026-11-15),
+     * as the face or heel they played. Only the player's inbox gets it.
+     */
+    public function callOut(Save $save, Brand $brand, SaveWrestler $wrestler, ?SaveWrestler $rival, ?PromoAlignment $alignment, bool $succeeded, int $week): ?Email
+    {
+        if (! $save->isHuman($brand)) {
+            return null;
+        }
+
+        $alignment ??= PromoAlignment::Face;
+        $template = $alignment === PromoAlignment::Face ? EmailTemplate::CallOutFace : EmailTemplate::CallOutHeel;
+        $rivalName = $rival?->name() ?? 'my rival';
+
+        return $this->fromSuperstar(
+            $wrestler,
+            $brand,
+            $template,
+            $succeeded ? "I called out {$rivalName}" : "About my call-out on {$rivalName}",
+            $this->text($save, "call_out.{$alignment->value}.".($succeeded ? 'success' : 'failure'), $brand, $week, ['rival' => $rivalName, 'brand' => $brand->label()], $wrestler->name()),
+            $week,
+            ['alignment' => $alignment->value, 'succeeded' => $succeeded],
         );
     }
 

@@ -1,4 +1,5 @@
 import { Head, usePage } from '@inertiajs/react';
+import { BrandBug } from '@/components/gm/brand-bug';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { formatMoney, pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
@@ -9,6 +10,8 @@ type RivalryRow = {
     id: number;
     wrestler_a: string;
     wrestler_b: string;
+    /** The brand the rivalry is on (house rule, 2026-11-15). */
+    brand: Brand | null;
     brand_a: Brand | null;
     brand_b: Brand | null;
     heat: number;
@@ -30,6 +33,9 @@ type RivalryRules = {
     start_promo_bars: number;
     continue_promo_bars: number;
     continue_promo_cost: number;
+    call_out_heat?: number;
+    call_out_cost?: number;
+    call_out_chance?: number;
 };
 
 type Props = GamePageProps & {
@@ -67,6 +73,7 @@ export default function Rivalries() {
                     <table className="gm-table">
                         <thead>
                             <tr>
+                                <th>Brand</th>
                                 <th>Rivalry</th>
                                 <th className="w-1/3">Heat</th>
                                 <th className="text-right">Duration</th>
@@ -79,6 +86,18 @@ export default function Rivalries() {
                                     key={r.id}
                                     className={cn(!r.active && 'opacity-50')}
                                 >
+                                    <td>
+                                        {r.brand ? (
+                                            <BrandBug
+                                                brand={r.brand}
+                                                size="sm"
+                                            />
+                                        ) : (
+                                            <span className="text-ink-faint">
+                                                —
+                                            </span>
+                                        )}
+                                    </td>
                                     <td className="font-semibold">
                                         <span
                                             data-brand-tint={
@@ -202,6 +221,19 @@ function RivalryRulesPanel({
                             The promo always works, costs{' '}
                             {formatMoney(r.continue_promo_cost)} and tires both
                             rivals {bars(r.continue_promo_bars)}.
+                        </li>
+                        {r.call_out_heat !== undefined && (
+                            <li>
+                                A Call-out promo (one rival calls the other out,
+                                as a face or a heel) adds {r.call_out_heat} heat
+                                when it works ({r.call_out_chance}% of the time)
+                                and keeps the week from going quiet. It costs{' '}
+                                {formatMoney(r.call_out_cost ?? 0)} either way.
+                            </li>
+                        )}
+                        <li>
+                            Two rival Divas in a Diva Bikini Contest keep their
+                            rivalry going, like Continue Rivalry.
                         </li>
                         <li>
                             Any other week loses {r.idle_decay} heat. At 0 or

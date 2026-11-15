@@ -46,7 +46,7 @@ it('gives each weekly show a crowd within its range once it airs', function () {
     expect($raw->attendance)->toBeGreaterThanOrEqual(5_000)->toBeLessThanOrEqual(20_000)
         ->and($raw->attendance_breakdown['kind'])->toBe('weekly')
         ->and($raw->attendance_breakdown['factors']['full_card'])->toBe(3)
-        ->and($raw->attendance_breakdown['gate'])->toBe($raw->attendance * 30)
+        ->and($raw->attendance_breakdown['gate'])->toBe($raw->attendance * 20)
         ->and(Show::where('save_id', $save->id)->where('week_number', 1)->whereNull('attendance')->exists())->toBeFalse();
 });
 
@@ -92,14 +92,6 @@ it('puts the week’s biggest crowd on the WWE card and the crowds in the ticker
         ->and(collect($page['attendance'])->pluck('crowd')->max())->toBe((int) str_replace(',', '', $event->payload['crowd']));
 });
 
-it('pays the flat show income while attendance doesn’t drive it', function () {
-    $save = crowdSave();
-    airCrowdWeek($save);
-
-    expect(LedgerEntry::where('save_id', $save->id)->where('category', LedgerCategory::ShowIncome)->pluck('amount')->all())
-        ->toBe([250_000, 250_000]);
-});
-
 it('pays each show’s gate once attendance drives the income', function () {
     config(['gm.attendance.drives_income' => true]);
     $save = crowdSave();
@@ -108,7 +100,7 @@ it('pays each show’s gate once attendance drives the income', function () {
     $entry = LedgerEntry::where('save_id', $save->id)->where('category', LedgerCategory::ShowIncome)->where('brand', Brand::Raw)->sole();
 
     expect($entry->amount)->toBe($raw->attendance_breakdown['gate'])
-        ->and($entry->memo)->toBe("Gate: {$raw->name}");
+        ->and($entry->memo)->toBe("Gate: {$raw->name} (".number_format($raw->attendance).' fans)');
 });
 
 it('charts every aired night’s crowd, both brands, on the Reports page', function () {

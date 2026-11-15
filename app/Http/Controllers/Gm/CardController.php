@@ -143,6 +143,7 @@ class CardController extends Controller
                 'before_position' => $p->before_position,
                 'target_wrestler_id' => $p->target_wrestler_id,
                 'target_wrestler_b_id' => $p->target_wrestler_b_id,
+                'alignment' => $p->alignment?->value,
                 'target_championship_id' => $p->target_championship_id,
                 'succeeded' => $p->succeeded,
                 'backfired' => $p->backfired,
@@ -191,6 +192,24 @@ class CardController extends Controller
         DB::transaction(fn () => $this->cards->book($show, $position, Booking::fromArray($data), $save->player_brand));
 
         // Randomize / Preset confirm via fetch (§24); a redirect would re-send the PUT.
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+            return response()->noContent();
+        }
+
+        return back();
+    }
+
+    /**
+     * Drag a match to another spot on the card (house rule, 2026-11-15).
+     */
+    public function reorder(Request $request, Save $save, Show $show): RedirectResponse|HttpResponse
+    {
+        $this->assertOwnShow($save, $show);
+        $this->order->assertEditable($save, $show);
+        $data = $request->validate(['order' => ['required', 'array', 'min:1'], 'order.*' => ['integer', 'min:1']]);
+
+        DB::transaction(fn () => $this->cards->reorder($show, array_values(array_map('intval', $data['order'])), $save->player_brand));
+
         if ($request->expectsJson() && ! $request->header('X-Inertia')) {
             return response()->noContent();
         }

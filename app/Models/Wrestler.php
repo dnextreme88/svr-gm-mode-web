@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property WeightClass $weight_class
  * @property int|null $billed_weight_lb
  * @property Brand|null $placeholder_brand
+ * @property int $monthly_salary
  * @property int|null $overall
  * @property string|null $hometown
  */

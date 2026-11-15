@@ -7,18 +7,21 @@ use App\Enums\ContendershipVoidReason;
 use App\Enums\DraftPhase;
 use App\Enums\DraftPickSource;
 use App\Enums\DraftPickType;
+use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
 use App\Enums\SaveStage;
 use App\Exceptions\GameRuleException;
 use App\Models\DraftPick;
 use App\Models\InterbrandSeries;
+use App\Models\MatchSlot;
+use App\Models\MoneyInTheBank;
 use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Services\Ai\AiTradeJudge;
+use App\Services\Attendance\SummerSlamMainEvent;
 use App\Services\Mail\EmailService;
 use App\Services\News\NewsRecorder;
-use App\Services\Roster\RosterService;
 use App\Services\Titles\ContendershipService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleService;
@@ -26,26 +29,40 @@ use App\Support\Rng\Rng;
 use Illuminate\Support\Collection;
 
 /**
- * The post-WrestleMania re-draft (§13, §23): up to 10 random picks per brand
- * from the rival roster's non-champions. The series winner swaps one random
- * pick for a hand-pick and protects one of its own wrestlers; the rival GM
- * tags the most valuable ones.
+ * The post-WrestleMania re-draft (house rule, 2026-11-15): 5 superstars
+ * swap brands each way, one pick at a time, alternating. No roster cap
+ * applies, since every pick is one for one.
+ *
+ * - The **immunity tag** goes to the brand whose weekly shows drew more fans
+ *   this season before WrestleMania (`SummerSlamMainEvent::totals`): it
+ *   protects one of its own non-champions from being picked.
+ * - The **manual draft pick** goes to the interbrand series winner: it
+ *   picks first, and its first pick is the superstar it chose.
+ *
+ * The rival GM tags its most valuable superstars (`AiTradeJudge`). The
+ * page steps the picks one at a time (`step()`) so it can animate them;
+ * `finish()` writes the WWE headline and opens the new season.
  */
 class ReDraftService
 {
     public function __construct(
-        private RosterService $roster,
         private TitleService $titles,
         private MitbService $mitb,
         private NewsRecorder $news,
         private EmailService $emails,
         private ContendershipService $contenderships,
         private AiTradeJudge $judge,
+        private SummerSlamMainEvent $crowds,
     ) {}
 
     public function series(Save $save): ?InterbrandSeries
     {
         return InterbrandSeries::where('save_id', $save->id)->where('redraft_done', false)->latest('id')->first();
+    }
+
+    public function perBrand(): int
+    {
+        return (int) config('gm.ppv.redraft_picks_per_brand');
     }
 
     /**
@@ -68,117 +85,251 @@ class ReDraftService
     }
 
     /**
-     * The winning GM's tags: one of its own non-champions to protect, and one
-     * rival non-champion to hand-pick.
+     * Each brand's weekly-show crowds this season before WrestleMania week.
+     *
+     * @return array<string, int>
      */
-    public function setTags(Save $save, ?int $exemptionId, ?int $handpickId): InterbrandSeries
+    public function crowds(Save $save, InterbrandSeries $series): array
     {
-        $series = $this->series($save) ?? throw new GameRuleException('There is no re-draft to set up.');
-        $winner = $series->winner_brand ?? throw new GameRuleException('Nobody won the brand battle, so there are no tags.');
-        $rival = $winner === Brand::Raw ? Brand::Smackdown : Brand::Raw;
+        $totals = $this->crowds->totals($save, $series->season, $series->week_number);
 
-        if ($exemptionId !== null && ! $this->eligibleFrom($save, $winner)->contains('id', $exemptionId)) {
-            throw new GameRuleException('The exemption must be one of your own non-champions.');
-        }
-
-        if ($handpickId !== null && ! $this->eligibleFrom($save, $rival)->contains('id', $handpickId)) {
-            throw new GameRuleException('The hand-pick must be one of the rival’s non-champions.');
-        }
-
-        $series->update(['exemption_wrestler_id' => $exemptionId, 'handpick_wrestler_id' => $handpickId]);
-
-        return $series;
+        return array_map(fn (array $t): int => $t['crowd'], $totals);
     }
 
     /**
-     * Run every pick. Order is randomized, then alternates. A brand at 30
-     * skips its remaining picks. Drafted wrestlers keep their contract and
-     * morale; a drafted briefcase holder loses the briefcase.
+     * Award the immunity tag (if it isn't yet) and let the rival GM use the
+     * tags it holds. Idempotent: the page calls it on every visit.
      */
-    public function run(Save $save): void
+    public function prepare(Save $save): ?InterbrandSeries
     {
-        if ($save->stage !== SaveStage::Redrafting) {
-            throw new GameRuleException('There is no re-draft in progress.');
-        }
-
         $series = $this->series($save);
-        $week = $save->current_week;
-        $rng = $save->rng('redraft', $week);
-        $winner = $series?->winner_brand;
 
-        if ($winner !== null && ! $save->isHuman($winner)) {
-            $this->aiTags($save, $series, $winner, $rng);
-            $series->refresh();
+        if ($series === null || $save->stage !== SaveStage::Redrafting) {
+            return $series;
         }
 
-        $max = (int) config('gm.ppv.redraft_max_picks');
-        $order = $rng->shuffle(Brand::cases());
-        $picks = ['raw' => 0, 'smackdown' => 0];
-        $moved = $series?->exemption_wrestler_id !== null ? [$series->exemption_wrestler_id] : [];
-        $number = 0;
-
-        for ($round = 0; $round < $max; $round++) {
-            foreach ($order as $brand) {
-                $rival = $brand === Brand::Raw ? Brand::Smackdown : Brand::Raw;
-                $number++;
-                $manual = $round === 0 && $brand === $winner && $series->handpick_wrestler_id !== null;
-
-                if (! $this->roster->hasRoom($save, $brand)) {
-                    $this->record($save, $number, $brand, null, $manual ? DraftPickType::Manual : DraftPickType::Random, true);
-
-                    continue;
-                }
-
-                $pool = $this->eligibleFrom($save, $rival, $moved);
-                $wrestler = $manual
-                    ? $pool->firstWhere('id', $series->handpick_wrestler_id)
-                    : ($pool->isEmpty() ? null : $rng->pick($pool->all()));
-
-                if ($wrestler === null) {
-                    $this->record($save, $number, $brand, null, DraftPickType::Random, true);
-
-                    continue;
-                }
-
-                $this->move($wrestler, $brand, $week);
-                $moved[] = $wrestler->id;
-                $picks[$brand->value]++;
-                $this->record($save, $number, $brand, $wrestler, $manual ? DraftPickType::Manual : DraftPickType::Random, false);
-
-                $this->news->record($save, NewsEventType::RedraftPick, NewsTier::Story, $brand, [
-                    'brand' => $brand->label(),
-                    'wrestler' => $wrestler->name(),
-                    'source' => $rival->label(),
-                ], ['wrestler_ids' => [$wrestler->id]], priority: 20, week: $week);
-            }
+        if ($series->immunity_brand === null) {
+            $series->update(['immunity_brand' => $this->immunityBrand($save, $series)]);
         }
 
-        $series?->update(['redraft_done' => true]);
+        $rng = $save->rng('redraft.tags', $series->week_number);
+        $immunity = $series->immunity_brand;
+
+        if ($immunity !== null && ! $save->isHuman($immunity) && $series->exemption_wrestler_id === null) {
+            $series->update(['exemption_wrestler_id' => $this->mostValuable($save, $immunity, $this->eligibleFrom($save, $immunity), $rng)?->id]);
+        }
+
+        // The manual pick waits for the immunity tag, so it can't take the
+        // protected superstar.
+        $winner = $series->winner_brand;
+
+        if ($winner !== null && ! $save->isHuman($winner) && $series->handpick_wrestler_id === null && $this->immunityDecided($save, $series)) {
+            $series->update(['handpick_wrestler_id' => $this->mostValuable($save, $winner, $this->handpickPool($save, $series), $rng)?->id]);
+        }
+
+        return $series->refresh();
+    }
+
+    /**
+     * Where the re-draft stands: `immunity` (the player protects someone),
+     * `manual` (the player hand-picks), `picks`, or `done`.
+     */
+    public function phase(Save $save, InterbrandSeries $series): string
+    {
+        if (! $this->immunityDecided($save, $series)) {
+            return 'immunity';
+        }
+
+        if ($series->winner_brand !== null && $save->isHuman($series->winner_brand) && $series->handpick_wrestler_id === null && $this->handpickPool($save, $series)->isNotEmpty()) {
+            return 'manual';
+        }
+
+        return $this->picks($save)->count() < count($this->order($save, $series)) ? 'picks' : 'done';
+    }
+
+    public function setImmunity(Save $save, int $wrestlerId): InterbrandSeries
+    {
+        $series = $this->openSeries($save);
+        $brand = $series->immunity_brand;
+
+        if ($brand === null || ! $save->isHuman($brand)) {
+            throw new GameRuleException('The other brand holds the immunity tag.');
+        }
+
+        if ($series->exemption_wrestler_id !== null) {
+            throw new GameRuleException('The immunity tag is already used.');
+        }
+
+        if (! $this->eligibleFrom($save, $brand)->contains('id', $wrestlerId)) {
+            throw new GameRuleException('The immunity tag must go to one of your own non-champions.');
+        }
+
+        $series->update(['exemption_wrestler_id' => $wrestlerId]);
+
+        return $this->prepare($save) ?? $series;
+    }
+
+    public function setHandpick(Save $save, int $wrestlerId): InterbrandSeries
+    {
+        $series = $this->openSeries($save);
+        $brand = $series->winner_brand;
+
+        if ($brand === null || ! $save->isHuman($brand)) {
+            throw new GameRuleException('The other brand holds the manual draft pick.');
+        }
+
+        if (! $this->immunityDecided($save, $series)) {
+            throw new GameRuleException('The immunity tag comes first.');
+        }
+
+        if ($series->handpick_wrestler_id !== null) {
+            throw new GameRuleException('The manual draft pick is already made.');
+        }
+
+        if (! $this->handpickPool($save, $series)->contains('id', $wrestlerId)) {
+            throw new GameRuleException('The manual pick must be one of the other brand’s non-champions, and not the one it protected.');
+        }
+
+        $series->update(['handpick_wrestler_id' => $wrestlerId]);
+
+        return $series->refresh();
+    }
+
+    /**
+     * The brand making each pick, in order: the manual pick's brand first
+     * (else a seeded coin flip), then alternating, 5 picks each.
+     *
+     * @return list<Brand>
+     */
+    public function order(Save $save, InterbrandSeries $series): array
+    {
+        $first = $series->winner_brand
+            ?? ($save->rng('redraft.order', $series->week_number)->chance(0.5) ? Brand::Raw : Brand::Smackdown);
+        $second = $first->rival();
+        $order = [];
+
+        foreach (range(1, $this->perBrand()) as $_) {
+            $order[] = $first;
+            $order[] = $second;
+        }
+
+        return $order;
+    }
+
+    /**
+     * This re-draft's picks so far.
+     *
+     * @return Collection<int, DraftPick>
+     */
+    public function picks(Save $save): Collection
+    {
+        return DraftPick::with('saveWrestler.wrestler')
+            ->where('save_id', $save->id)
+            ->where('phase', DraftPhase::WrestlemaniaReset)
+            ->where('season', $save->current_season)
+            ->orderBy('pick_number')
+            ->get();
+    }
+
+    /**
+     * Make the next pick: the manual one if it's the tag holder's first,
+     * else a random non-champion from the other brand who isn't protected
+     * and hasn't moved already. A brand with nobody left skips the pick.
+     */
+    public function step(Save $save): ?DraftPick
+    {
+        $series = $this->openSeries($save);
+
+        if ($this->phase($save, $series) !== 'picks') {
+            return null;
+        }
+
+        $done = $this->picks($save);
+        $number = $done->count() + 1;
+        $brand = $this->order($save, $series)[$number - 1];
+        $from = $brand->rival();
+        $moved = array_values(array_filter(array_map(fn (DraftPick $p): ?int => $p->save_wrestler_id, $done->all())));
+        $pool = $this->eligibleFrom($save, $from, [...$moved, ...array_filter([$series->exemption_wrestler_id])]);
+        $manual = $number === 1 && $brand === $series->winner_brand && $series->handpick_wrestler_id !== null;
+
+        $wrestler = $manual
+            ? $pool->firstWhere('id', $series->handpick_wrestler_id)
+            : ($pool->isEmpty() ? null : $save->rng("redraft.pick.{$number}", $series->week_number)->pick($pool->all()));
+
+        $pick = DraftPick::create([
+            'save_id' => $save->id,
+            'season' => $save->current_season,
+            'phase' => DraftPhase::WrestlemaniaReset,
+            'pick_number' => $number,
+            'brand' => $brand,
+            'save_wrestler_id' => $wrestler?->id,
+            'source' => DraftPickSource::RivalRoster,
+            'pick_type' => $manual ? DraftPickType::Manual : DraftPickType::Random,
+            'skipped' => $wrestler === null,
+        ]);
+
+        if ($wrestler !== null) {
+            $this->move($wrestler, $brand, $save->current_week);
+
+            $this->news->record($save, NewsEventType::RedraftPick, NewsTier::Ticker, $brand, [
+                'brand' => $brand->label(),
+                'wrestler' => $wrestler->name(),
+                'source' => $from->label(),
+            ], ['wrestler_ids' => [$wrestler->id]], priority: 20, week: $series->week_number);
+        }
+
+        return $pick->load('saveWrestler.wrestler');
+    }
+
+    /**
+     * Close the re-draft: the WWE headline for WrestleMania week, then the
+     * new season.
+     */
+    public function finish(Save $save): void
+    {
+        $series = $this->openSeries($save);
+
+        if ($this->phase($save, $series) !== 'done') {
+            throw new GameRuleException('The re-draft isn’t finished yet.');
+        }
+
+        $this->news->record($save, NewsEventType::RedraftResults, NewsTier::Headline, NewsBrand::Both, $this->headlinePayload($save, $series), [
+            'wrestler_ids' => array_values(array_filter($this->picks($save)->pluck('save_wrestler_id')->all())),
+        ], priority: 100, week: $series->week_number);
+
+        $series->update(['redraft_done' => true]);
         $save->update(['stage' => SaveStage::InSeason]);
         $this->emails->welcome($save, $save->player_brand, $save->current_week);
     }
 
-    private function move(SaveWrestler $wrestler, Brand $to, int $week): void
-    {
-        $this->mitb->voidFor($wrestler, 'redrafted', $week);
-        $this->contenderships->voidFor($wrestler, ContendershipVoidReason::Redrafted, $week);
-        $wrestler->update(['brand' => $to, 'joined_brand_week' => $week]);
-        $wrestler->activeContract?->update(['brand' => $to]);
-    }
-
     /**
-     * The rival GM's franchise tags (house rule, 2026-11-11): it hand-picks
-     * the player's most valuable non-champion and protects its own, valued
-     * the way it values a trade (`AiTradeJudge`). Ties go to the RNG.
+     * The whole re-draft in one go (Simulate, the demo save, tests): the
+     * player's tags go to their most valuable superstars, like the rival's.
      */
-    private function aiTags(Save $save, InterbrandSeries $series, Brand $winner, Rng $rng): void
+    public function run(Save $save): void
     {
-        $rival = $winner === Brand::Raw ? Brand::Smackdown : Brand::Raw;
+        $series = $this->prepare($save) ?? throw new GameRuleException('There is no re-draft in progress.');
+        $rng = $save->rng('redraft.player-tags', $series->week_number);
 
-        $series->update([
-            'exemption_wrestler_id' => $this->mostValuable($save, $winner, $this->eligibleFrom($save, $winner), $rng)?->id,
-            'handpick_wrestler_id' => $this->mostValuable($save, $winner, $this->eligibleFrom($save, $rival), $rng)?->id,
-        ]);
+        if ($this->phase($save, $series) === 'immunity' && $series->immunity_brand !== null) {
+            $id = $this->mostValuable($save, $series->immunity_brand, $this->eligibleFrom($save, $series->immunity_brand), $rng)?->id;
+            $id === null ? $series->update(['immunity_brand' => null]) : $this->setImmunity($save, $id);
+            $series->refresh();
+        }
+
+        if ($this->phase($save, $series) === 'manual' && $series->winner_brand !== null) {
+            $id = $this->mostValuable($save, $series->winner_brand, $this->handpickPool($save, $series), $rng)?->id;
+
+            if ($id !== null) {
+                $this->setHandpick($save, $id);
+            }
+        }
+
+        while ($this->step($save) !== null) {
+            // one pick at a time
+        }
+
+        $this->finish($save);
     }
 
     /**
@@ -196,18 +347,159 @@ class ReDraftService
         return $rng->pick($pool->filter(fn (SaveWrestler $w): bool => $values[$w->id] === $best)->values()->all());
     }
 
-    private function record(Save $save, int $number, Brand $brand, ?SaveWrestler $wrestler, DraftPickType $type, bool $skipped): void
+    /**
+     * Who the manual pick can take: the other brand's non-champions, less
+     * the superstar its immunity tag protects.
+     *
+     * @return Collection<int, SaveWrestler>
+     */
+    public function handpickPool(Save $save, InterbrandSeries $series): Collection
     {
-        DraftPick::create([
-            'save_id' => $save->id,
-            'season' => $save->current_season,
-            'phase' => DraftPhase::WrestlemaniaReset,
-            'pick_number' => $number,
-            'brand' => $brand,
-            'save_wrestler_id' => $wrestler?->id,
-            'source' => DraftPickSource::RivalRoster,
-            'pick_type' => $type,
-            'skipped' => $skipped,
-        ]);
+        $winner = $series->winner_brand;
+
+        return $winner === null ? collect() : $this->eligibleFrom($save, $winner->rival(), $series->exemption_wrestler_id === null ? [] : [$series->exemption_wrestler_id]);
+    }
+
+    private function immunityDecided(Save $save, InterbrandSeries $series): bool
+    {
+        return $series->immunity_brand === null
+            || $series->exemption_wrestler_id !== null
+            || $this->eligibleFrom($save, $series->immunity_brand)->isEmpty();
+    }
+
+    private function immunityBrand(Save $save, InterbrandSeries $series): Brand
+    {
+        $totals = $this->crowds->totals($save, $series->season, $series->week_number);
+        [$raw, $smackdown] = [$totals[Brand::Raw->value], $totals[Brand::Smackdown->value]];
+
+        if ($raw['crowd'] !== $smackdown['crowd']) {
+            return $raw['crowd'] > $smackdown['crowd'] ? Brand::Raw : Brand::Smackdown;
+        }
+
+        if ($raw['score'] !== $smackdown['score']) {
+            return $raw['score'] > $smackdown['score'] ? Brand::Raw : Brand::Smackdown;
+        }
+
+        return $save->rng('redraft.immunity', $series->week_number)->chance(0.5) ? Brand::Raw : Brand::Smackdown;
+    }
+
+    private function openSeries(Save $save): InterbrandSeries
+    {
+        if ($save->stage !== SaveStage::Redrafting) {
+            throw new GameRuleException('There is no re-draft in progress.');
+        }
+
+        return $this->prepare($save) ?? throw new GameRuleException('There is no re-draft in progress.');
+    }
+
+    private function move(SaveWrestler $wrestler, Brand $to, int $week): void
+    {
+        $this->mitb->voidFor($wrestler, 'redrafted', $week);
+        $this->contenderships->voidFor($wrestler, ContendershipVoidReason::Redrafted, $week);
+        $wrestler->update(['brand' => $to, 'joined_brand_week' => $week]);
+        $wrestler->activeContract?->update(['brand' => $to]);
+    }
+
+    /**
+     * The tokens of the WrestleMania week WWE headline: the picks, the tags
+     * and the interbrand series, plus each brand's last WrestleMania match
+     * (`headline_slots`), which leads that brand's card.
+     *
+     * @return array<string, mixed>
+     */
+    private function headlinePayload(Save $save, InterbrandSeries $series): array
+    {
+        $picks = $this->picks($save)->where('skipped', false);
+        $list = function (Brand $brand) use ($picks): string {
+            $names = array_values($picks->where('brand', $brand)->map(fn (DraftPick $p): string => $p->saveWrestler->name().($p->pick_type === DraftPickType::Manual ? ' (manual pick)' : ''))->all());
+
+            return $names === [] ? 'nobody' : $this->join($names).', all from '.$brand->rival()->label();
+        };
+        $crowds = $this->crowds($save, $series);
+        $immunity = $series->immunity_brand;
+        $slots = MatchSlot::with(['participants.saveWrestler.wrestler', 'result', 'show'])->whereIn('id', $series->match_ids)->orderBy('position')->get()->values();
+        $wins = [$series->raw_wins, $series->smackdown_wins];
+
+        return [
+            'season' => $series->season,
+            'next_season' => $series->season + 1,
+            'moved' => $picks->count(),
+            'raw_picks' => $list(Brand::Raw),
+            'smackdown_picks' => $list(Brand::Smackdown),
+            'immunity_brand' => $immunity?->label() ?? 'Neither brand',
+            // "433,500 fans to Raw's 416,550": the tag holder's crowd first.
+            'immunity_crowd' => number_format($crowds[($immunity ?? Brand::Raw)->value] ?? 0).' fans to '.($immunity ?? Brand::Raw)->rival()->label()."'s ".number_format($crowds[($immunity ?? Brand::Raw)->rival()->value] ?? 0),
+            'immune' => SaveWrestler::find($series->exemption_wrestler_id)?->name() ?? 'nobody',
+            'series_singles' => $this->seriesLine($series, $slots->get(0)),
+            'series_tag' => $this->seriesLine($series, $slots->get(1)),
+            'series_mitb' => $this->seriesLine($series, $slots->get(2)),
+            'manual_brand' => $series->winner_brand?->label() ?? 'Neither brand',
+            'series_score' => max($wins).'–'.min($wins),
+            'handpick' => SaveWrestler::find($series->handpick_wrestler_id)?->name() ?? 'nobody',
+            'headline_slots' => $this->headlineSlots($series),
+        ];
+    }
+
+    /**
+     * "Rob Van Dam of Raw, who beat Chris Benoit": a series match's winners,
+     * their brand and who they beat. Side 0 is Raw and side 1 Smackdown in
+     * the 1v1 and 2v2; the ladder match counts for the briefcase winner's brand.
+     */
+    private function seriesLine(InterbrandSeries $series, ?MatchSlot $slot): string
+    {
+        $result = $slot?->result;
+
+        if ($slot === null || $result === null) {
+            return 'nobody, since the match never happened';
+        }
+
+        $sides = $slot->sides();
+        $name = fn (int $id): string => $slot->participants->firstWhere('save_wrestler_id', $id)?->saveWrestler?->name() ?? 'someone';
+        $winners = array_map($name, $sides[$result->winner_side] ?? []);
+        $losers = [];
+
+        foreach ($sides as $side => $ids) {
+            if ($side !== $result->winner_side) {
+                array_push($losers, ...array_map($name, $ids));
+            }
+        }
+
+        $brand = count($sides) === 2
+            ? ($result->winner_side === 0 ? Brand::Raw : Brand::Smackdown)
+            : (MoneyInTheBank::where('save_id', $series->save_id)->where('won_week', $series->week_number)->value('brand') ?? Brand::Raw);
+        $brand = $brand instanceof Brand ? $brand : Brand::from((string) $brand);
+
+        return $this->join($winners).' of '.$brand->label().', who beat '.$this->join($losers);
+    }
+
+    /**
+     * Each brand's last match on the WrestleMania card: the main event for
+     * the brand that had it, else its last slot.
+     *
+     * @return array<string, int|null>
+     */
+    private function headlineSlots(InterbrandSeries $series): array
+    {
+        $show = MatchSlot::whereIn('id', $series->match_ids)->value('show_id');
+        $slots = $show === null ? collect() : MatchSlot::where('show_id', $show)->whereNotNull('owner_brand')->whereHas('result')->orderByDesc('position')->get();
+
+        return [
+            Brand::Raw->value => $slots->firstWhere('owner_brand', Brand::Raw)?->id,
+            Brand::Smackdown->value => $slots->firstWhere('owner_brand', Brand::Smackdown)?->id,
+        ];
+    }
+
+    /**
+     * @param  list<string>  $names
+     */
+    private function join(array $names): string
+    {
+        if (count($names) <= 1) {
+            return $names[0] ?? 'nobody';
+        }
+
+        $last = array_pop($names);
+
+        return implode(', ', $names).' and '.$last;
     }
 }

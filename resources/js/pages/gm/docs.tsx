@@ -131,11 +131,20 @@ type Props = {
         weight_class: WeightClass;
         specialties: MatchFamily[];
     }>;
+    /** Salaries, running costs and income (house rule, 2026-11-15). */
+    finances?: {
+        salaries: Record<string, number>;
+        months: Record<string, number>;
+        show_cost: { weekly: number; ppv: number };
+        medical: { minor: number; serious: number };
+        attendance_bonus: number;
+        ticket_prices: Record<string, number>;
+    };
     rosters: {
         cap: number;
         starting_budget: number;
-        weekly_show_income: number;
         contract_weeks: number;
+        wwe_contract_weeks?: number;
         legends_draftable: boolean;
         ai_roll_max: number;
         ai_focus_from: number;
@@ -224,7 +233,11 @@ type Props = {
     promos: {
         slots: number;
         types: Promo[];
-        merchandise_tiers: Array<{ amount: number; chance: number }>;
+        merchandise_chances: number[];
+        merchandise_payouts: number[];
+        advertising?: number;
+        interference_payout?: { success: number; failure: number };
+        call_out_heat?: number;
         overuse: { window_weeks: number; max_uses: number };
         rivalry_heat?: {
             auto_create_meetings: number;
@@ -287,6 +300,7 @@ type Props = {
     };
     calendar: {
         weekly_show_days: Record<'raw' | 'smackdown', string>;
+        redraft_picks: number;
         weeks_per_season: number;
         season_start: string;
         season_end: string;
@@ -1032,20 +1046,53 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                         <li>
                             Each promo rolls against its success probability.
                             The cost is paid whether it works or not. Every
-                            promo succeeds except Advertising, Interview Space,
-                            Interference, Slander and Merchandise Sponsorship.
+                            promo succeeds except Interview Space, Interference,
+                            Slander, Call-out and Merchandise Sponsorship.
+                        </li>
+                        <li>
+                            Advertising always pays a flat{' '}
+                            {formatMoney(promos.advertising ?? 200000)} the week
+                            it airs.
                         </li>
                         <li data-testid="merchandise-tiers">
-                            Merchandise Sponsorship rolls one deal when it airs,
-                            with equal odds:{' '}
-                            {promos.merchandise_tiers
-                                .map(
-                                    (t) =>
-                                        `${formatMoney(t.amount)} (${Math.round(t.chance * 100)}% success)`,
-                                )
+                            Merchandise Sponsorship is a free gamble. When it
+                            airs it draws a success chance (
+                            {promos.merchandise_chances
+                                .map((c) => `${Math.round(c * 100)}%`)
                                 .join(', ')}
-                            . A success pays that amount; a failure pays
-                            nothing.
+                            ) and, separately, a payout (
+                            {promos.merchandise_payouts
+                                .map((a) => formatMoney(a))
+                                .join(', ')}
+                            ), each with equal odds. A success pays the payout;
+                            a failure pays nothing.
+                        </li>
+                        {promos.interference_payout && (
+                            <li>
+                                On top of its cost, a successful Interference
+                                earns{' '}
+                                {formatMoney(
+                                    promos.interference_payout.success,
+                                )}
+                                ; a failed or backfired one costs{' '}
+                                {formatMoney(
+                                    Math.abs(
+                                        promos.interference_payout.failure,
+                                    ),
+                                )}{' '}
+                                more.
+                            </li>
+                        )}
+                        <li>
+                            Call-out: pick a rivalry, the rival who does the
+                            talking, and whether they play it as a face or a
+                            heel. A success adds {promos.call_out_heat ?? 10}{' '}
+                            heat and keeps the week from going quiet. The
+                            superstar emails you how it went.
+                        </li>
+                        <li>
+                            Two rival Divas in a Diva Bikini Contest keep their
+                            rivalry going, like Continue Rivalry.
                         </li>
                         <li>
                             A failed Interview Space for someone not booked on
@@ -1480,16 +1527,21 @@ function NewsAndEmail({
                             card shows cross-brand news, PPV news included.
                         </li>
                         <li>
+                            Headlines are short, six words at most (“New record
+                            for the Cruiserweight title!”). The summary under
+                            each one tells the full story. Story cards start
+                            with the summary hidden: open one with its arrow.
+                        </li>
+                        <li>
                             The WWE headline, in order: in a PPV week, the PPV’s
                             main event (who won, any title on the line, and the
-                            gimmick, e.g. “Backlash main event: John Cena
-                            defeats Edge in a Ladder match to win the WWE
-                            Championship!”), or the Royal Rumble winner. Then a
-                            Slander or Interference result. Then the week’s
-                            biggest crowd (see Fan attendance). Then other
-                            cross-brand news (trades, defections, the re-draft,
-                            “Backlash is 1 week away.”…). Last, tickets on sale
-                            for whatever airs next.
+                            gimmick, e.g. “Backlash: John Cena wins the gold!”),
+                            or the Royal Rumble winner. Then a Slander or
+                            Interference result. Then the week’s biggest crowd
+                            (see Fan attendance). Then other cross-brand news
+                            (trades, defections, the re-draft, “Backlash is 1
+                            week away.”…). Last, tickets on sale for whatever
+                            airs next.
                         </li>
                         <li>
                             {news.stories_per_brand} stories per brand under the
@@ -2037,6 +2089,106 @@ function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
     );
 }
 
+/** How the money works (house rule, 2026-11-15). */
+function FinancesDocs({
+    finances,
+}: {
+    finances: NonNullable<Props['finances']>;
+}) {
+    const tiers = [
+        ['superstar', 'Male superstars'],
+        ['diva', 'Divas'],
+        ['legend', 'Legends'],
+    ] as const;
+    const lengths = Object.entries(finances.months);
+
+    return (
+        <div className="mt-6 grid items-start gap-6 md:grid-cols-2">
+            <Panel
+                title="Finances: contracts"
+                bodyClassName="p-0 overflow-x-auto"
+            >
+                <p className="px-4 pt-3 text-sm text-ink-dim">
+                    A contract costs the superstar’s monthly salary times its
+                    months, paid in equal weekly cuts. Nothing is paid up front,
+                    but signing needs the whole contract’s value in the bank.
+                    Releasing someone early pays out the weeks left.
+                </p>
+                <table className="gm-table mt-2" data-testid="salary-table">
+                    <thead>
+                        <tr>
+                            <th>Salary</th>
+                            {lengths.map(([weeks, months]) => (
+                                <th key={weeks} className="text-right">
+                                    {pluralize(months, 'month')}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {tiers.map(([key, label]) => (
+                            <tr key={key}>
+                                <td>{label}</td>
+                                {lengths.map(([weeks, months]) => (
+                                    <td
+                                        key={weeks}
+                                        className="gm-num text-right"
+                                    >
+                                        {formatMoney(
+                                            (finances.salaries[key] ?? 0) *
+                                                months,
+                                        )}
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </Panel>
+            <Panel title="Finances: each week">
+                <ul className="list-disc space-y-2 pl-4 text-sm text-ink">
+                    <li>
+                        Income: each night’s gate (crowd × ticket price:{' '}
+                        {formatMoney(finances.ticket_prices.weekly ?? 0)} a
+                        weekly show,{' '}
+                        {formatMoney(finances.ticket_prices.brand_ppv ?? 0)} a
+                        brand PPV,{' '}
+                        {formatMoney(finances.ticket_prices.shared_ppv ?? 0)} a
+                        shared PPV), a shared night’s split between the brands.
+                    </li>
+                    <li>
+                        The brand that drew the bigger crowd that week earns a{' '}
+                        {formatMoney(finances.attendance_bonus)} Fan attendance
+                        bonus. A tie pays nobody.
+                    </li>
+                    <li>
+                        Production: {formatMoney(finances.show_cost.weekly)} for
+                        every weekly show and{' '}
+                        {formatMoney(finances.show_cost.ppv)} for every PPV
+                        night each brand is on.
+                    </li>
+                    <li>
+                        Every match’s price when it airs, and every promo’s cost
+                        (Advertising and Merchandise Sponsorship pay you
+                        instead).
+                    </li>
+                    <li>Salaries for every contract, every week.</li>
+                    <li>
+                        Medical rehab: {formatMoney(finances.medical.minor)} a
+                        week for each superstar with a minor injury,{' '}
+                        {formatMoney(finances.medical.serious)} for a serious
+                        one.
+                    </li>
+                    <li>
+                        The Financials page shows any week of either brand: a
+                        PPV week holds the PPV night and the weekly show.
+                    </li>
+                </ul>
+            </Panel>
+        </div>
+    );
+}
+
 function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
     return (
         <div className="space-y-6">
@@ -2045,13 +2197,8 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
                 brand starts with a {formatMoney(rosters.starting_budget)}{' '}
                 budget, granted once, and can hold up to{' '}
                 {pluralize(rosters.cap, 'superstar')}
-                (Superstars, Divas and Legends all count). Once each week is
-                done, both brands earn{' '}
-                <span data-testid="weekly-show-income">
-                    {formatMoney(rosters.weekly_show_income)}
-                </span>{' '}
-                for their shows (the attendance gate isn’t paid yet, see Fan
-                attendance).
+                (Superstars, Divas and Legends all count). Contracts, show
+                income and running costs are under Finances below.
             </p>
             <div className="grid items-start gap-6 md:grid-cols-2">
                 <Panel title="Manual draft pick">
@@ -2070,9 +2217,11 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
                                 : 'Legends can’t be drafted. They wait in Free Agency.'}
                         </li>
                         <li>
-                            Each pick signs a {rosters.contract_weeks}-week
-                            contract, and its signing fee comes out of the
-                            budget.
+                            Pick each superstar’s contract length (1, 3, 6, 9 or
+                            12 months) on their row. Salaries are paid weekly,
+                            but a pick needs the whole contract’s value within
+                            what’s left of the budget after the contracts you
+                            already hold.
                         </li>
                         <li>
                             The rival GM rolls 1–{rosters.ai_roll_max} on every
@@ -2109,9 +2258,12 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
                             out, trimmed to {rosters.cap} each.
                         </li>
                         <li>
-                            Signings work like draft picks: a{' '}
-                            {rosters.contract_weeks}-week contract, with its
-                            signing fee out of the budget.
+                            Everyone signs a 6-month contract (
+                            {pluralize(
+                                rosters.wwe_contract_weeks ?? 24,
+                                'week',
+                            )}
+                            ), paid weekly.
                         </li>
                         <li>
                             Everyone else, Legends included, starts in Free
@@ -2270,8 +2422,8 @@ function AttendanceDocs({ attendance }: Pick<Props, 'attendance'>) {
                     <p className="px-4 py-3 text-sm text-ink-dim">
                         The gate is the crowd times the ticket price.{' '}
                         {attendance.drives_income
-                            ? 'Each night’s gate is your show income, a PPV night’s split between the brands on it.'
-                            : 'For now it’s shown, not paid: show income is still the flat weekly amount (see Rosters & draft).'}
+                            ? 'Each night’s gate is your show income, a PPV night’s split between the brands on it. The brand that drew more fans that week also earns a bonus (see Finances).'
+                            : 'For now it’s shown, not paid.'}
                     </p>
                 </Panel>
             </div>
@@ -2393,6 +2545,14 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                             of the same night. Unlock it to make changes until
                             it airs.
                         </li>
+                        <li data-testid="reorder-matches">
+                            Drag a match by its grip (or use its up and down
+                            arrows, or Space and the arrow keys) to move it on
+                            the card. The last match is the Main Event, and
+                            promos keep their spot. Fixed matches don’t move,
+                            and nothing moves while a match or promo has unsaved
+                            changes.
+                        </li>
                         <li data-testid="ppv-night-first">
                             A PPV week airs in two steps. The PPV night’s last
                             card has Air (“Air Backlash”): it airs only the PPV.
@@ -2432,6 +2592,49 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                     <li>
                         Simulation stops at WrestleMania, and the week you
                         picked is left for you to book. It can’t be undone.
+                    </li>
+                </ul>
+            </Panel>
+
+            <Panel title="WrestleMania re-draft">
+                <ul
+                    data-testid="redraft-rules"
+                    className="list-disc space-y-2 pl-4 text-sm text-ink"
+                >
+                    <li>
+                        Right after WrestleMania the re-draft page opens. Each
+                        brand drafts{' '}
+                        {pluralize(calendar.redraft_picks, 'superstar')} from
+                        the other, one pick at a time, taking turns. Every pick
+                        is a swap, so the roster cap doesn’t apply.
+                    </li>
+                    <li>
+                        Picks are random from the other brand’s non-champions.
+                        Every champion, singles or tag, is exempt. Injured
+                        superstars, minor or serious, can still be drafted.
+                        Contracts move with the superstar, and a drafted Money
+                        in the Bank holder loses the briefcase.
+                    </li>
+                    <li>
+                        <strong>Immunity tag:</strong> the brand whose weekly
+                        shows drew more fans this season before WrestleMania (a
+                        tie goes to the higher draw score, then a coin flip).
+                        First, it protects one of its own non-champions, who
+                        can’t be picked.
+                    </li>
+                    <li>
+                        <strong>Manual draft pick:</strong> the brand that won
+                        the WrestleMania interbrand series (2 of its 3 matches).
+                        Second, it chooses one of the other brand’s
+                        non-champions (you confirm it). That brand picks first,
+                        and the superstar it chose is its first pick; every
+                        other pick is random.
+                    </li>
+                    <li>
+                        The rival GM uses its tags on its most valuable
+                        superstars. Continue opens WrestleMania week’s news: the
+                        re-draft is the WWE headline, and each brand’s card
+                        leads with its last WrestleMania match.
                     </li>
                 </ul>
             </Panel>
@@ -2957,7 +3160,15 @@ export default function Docs() {
                     </div>
                 )}
                 {tab === 'rosters' && (
-                    <RostersDocs rosters={props.rosters} rival={props.rival} />
+                    <>
+                        <RostersDocs
+                            rosters={props.rosters}
+                            rival={props.rival}
+                        />
+                        {props.finances && (
+                            <FinancesDocs finances={props.finances} />
+                        )}
+                    </>
                 )}
                 {tab === 'attendance' && (
                     <AttendanceDocs attendance={props.attendance} />

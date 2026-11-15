@@ -3,16 +3,20 @@
 namespace App\Http\Controllers\Gm;
 
 use App\Enums\Brand;
+use App\Enums\ContractLength;
 use App\Enums\ContractStatus;
+use App\Enums\LedgerCategory;
 use App\Http\Controllers\Controller;
 use App\Http\Presenters\WrestlerPresenter;
 use App\Models\Contract;
+use App\Models\LedgerEntry;
 use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\TitleReign;
 use App\Services\Contracts\ContractPricing;
 use App\Services\Injuries\InjuryStatus;
 use App\Services\Roster\RosterService;
+use App\Services\Roster\SuperstarCareer;
 use App\Services\Titles\TitleService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -29,6 +33,7 @@ class RosterController extends Controller
         private InjuryStatus $injuries,
         private TitleService $titles,
         private ContractPricing $pricing,
+        private SuperstarCareer $career,
     ) {}
 
     public function index(Request $request, Save $save): Response
@@ -73,12 +78,20 @@ class RosterController extends Controller
             ])
             ->values();
 
+        // What each early release cost (house rule, 2026-11-15).
+        $releaseFees = LedgerEntry::where('save_id', $save->id)
+            ->where('category', LedgerCategory::ReleaseFee)
+            ->where('subject_type', (new Contract)->getMorphClass())
+            ->pluck('amount', 'subject_id');
+
         $contracts = Contract::where('save_wrestler_id', $saveWrestler->id)
             ->orderByDesc('id')
             ->get()
             ->map(fn (Contract $c): array => [
                 'brand' => $c->brand->value,
                 'length_weeks' => $c->length_weeks,
+                'label' => ContractLength::tryFrom($c->length_weeks)?->label() ?? "{$c->length_weeks} weeks",
+                'release_fee' => isset($releaseFees[$c->id]) ? abs((int) $releaseFees[$c->id]) : null,
                 'weekly_cost' => $c->weekly_cost,
                 'upfront_fee' => $c->upfront_fee,
                 'signed_week' => $c->signed_week,
@@ -97,6 +110,14 @@ class RosterController extends Controller
             'title_history' => $history,
             'contracts' => $contracts,
             'quotes' => $this->pricing->allQuotes($saveWrestler->wrestler),
+            'salary' => [
+                'monthly' => $saveWrestler->wrestler->monthly_salary,
+                'tier' => $saveWrestler->wrestler->roster_type->value,
+            ],
+            'release_fee' => $saveWrestler->activeContract?->remainingValue(),
+            'budget' => $save->brand($save->player_brand)->budget,
+            'injury_history' => $this->career->injuries($save, $saveWrestler),
+            'special_info' => $this->career->moments($save, $saveWrestler),
             'is_own' => $saveWrestler->brand === $save->player_brand,
             'is_free_agent' => $saveWrestler->brand === null,
             'is_pending' => $this->roster->isPending($saveWrestler),

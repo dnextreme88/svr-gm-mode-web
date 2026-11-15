@@ -1,10 +1,14 @@
 <?php
 
 use App\Enums\Brand;
+use App\Enums\EmailTemplate;
 use App\Enums\LedgerCategory;
+use App\Enums\NewsEventType;
+use App\Enums\PromoAlignment;
 use App\Enums\PromoTypeKey;
 use App\Enums\ShowType;
 use App\Exceptions\GameRuleException;
+use App\Models\Email;
 use App\Models\LedgerEntry;
 use App\Models\NewsEvent;
 use App\Models\PromoSlot;
@@ -12,6 +16,7 @@ use App\Models\PromoType;
 use App\Models\Rivalry;
 use App\Models\Save;
 use App\Services\Promos\PromoService;
+use App\Services\Rivalries\RivalryService;
 use App\Services\Week\WeekResolver;
 use Tests\Support\Card;
 use Tests\Support\GameBuilder;
@@ -73,54 +78,74 @@ it('fixes the rival-targeting promos at 50%', function () {
         ->and(promoType(PromoTypeKey::SlanderPromotion)->successRate())->toBe(0.5);
 });
 
-it('pays Advertising’s flat $150,000 next week', function () {
+it('pays Advertising a flat $200,000 the week it airs (house rule, 2026-11-15)', function () {
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
-    bookPromo($save, PromoTypeKey::Advertising);
+    $slot = bookPromo($save, PromoTypeKey::Advertising);
 
     airPromos($save);
 
     $income = rawLedger($save, LedgerCategory::PromoIncome)->sole();
 
-    expect($income->amount)->toBe(150_000)
-        ->and($income->week_number)->toBe(2);
+    expect($income->amount)->toBe(200_000)
+        ->and($income->week_number)->toBe(1)
+        ->and($income->show_id)->toBe($slot->show_id)
+        ->and($slot->refresh()->succeeded)->toBeTrue();
 });
 
-it('rolls a Merchandise Sponsorship deal and pays it only on a success', function (float $chance, array $paid) {
-    config(['gm.promos.merchandise_tiers' => [['amount' => 250_000, 'chance' => $chance]]]);
+it('gambles Merchandise Sponsorship: a drawn payout, paid only on a success', function (float $chance, array $paid) {
+    config(['gm.promos.merchandise_chances' => [$chance], 'gm.promos.merchandise_payouts' => [50_000]]);
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
 
     $slot = bookPromo($save, PromoTypeKey::MerchandiseSponsorship);
     airPromos($save);
 
     expect(rawLedger($save, LedgerCategory::PromoIncome)->pluck('amount')->all())->toBe($paid)
-        ->and($slot->refresh()->cost_or_profit)->toBe(250_000);
+        ->and(rawLedger($save, LedgerCategory::PromoCost))->toHaveCount(0)
+        ->and($slot->refresh()->cost_or_profit)->toBe(50_000);
 })->with([
-    'lands' => [1.0, [250_000]],
+    'lands' => [1.0, [50_000]],
     'falls through' => [0.0, []],
 ]);
 
-it('rolls every Merchandise tier with equal odds, each with its own success odds', function () {
-    $tiers = config('gm.promos.merchandise_tiers');
-    $seen = [];
+it('draws Merchandise’s chance and payout separately, each with equal odds', function () {
+    $chances = [];
+    $payouts = [];
 
     foreach (range(1, 80) as $i) {
-        $seen[app(PromoService::class)->merchandiseTier(GameBuilder::newSave()->rng("merch.{$i}"))['amount']] = true;
+        $deal = app(PromoService::class)->merchandiseTier(GameBuilder::newSave()->rng("merch.{$i}"));
+        $chances[(string) $deal['chance']] = true;
+        $payouts[$deal['amount']] = true;
     }
 
-    expect(array_column($tiers, 'amount'))->toBe([100_000, 250_000, 500_000, 1_000_000])
-        ->and(array_column($tiers, 'chance'))->toBe([0.80, 0.70, 0.50, 0.25])
-        ->and(array_keys($seen))->toEqualCanonicalizing([100_000, 250_000, 500_000, 1_000_000]);
+    expect(config('gm.promos.merchandise_payouts'))->toBe([10_000, 25_000, 50_000, 100_000])
+        ->and(config('gm.promos.merchandise_chances'))->toBe([0.80, 0.70, 0.50, 0.25])
+        ->and(array_keys($payouts))->toEqualCanonicalizing([10_000, 25_000, 50_000, 100_000])
+        ->and(array_keys($chances))->toEqualCanonicalizing(['0.8', '0.7', '0.5', '0.25']);
 });
 
-it('makes every promo a sure thing except Advertising, Interview Space, Interference and Slander', function () {
+it('pays a successful Interference $100,000 and bills a failed one $25,000 more', function (float $chance, int $result) {
+    config(['gm.promos.success_rates.interference_promotion' => $chance]);
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+    bookPromo($save, PromoTypeKey::InterferencePromotion, 1, 'Edge');
+
+    airPromos($save);
+
+    expect(rawLedger($save, LedgerCategory::InterferenceResult)->sole()->amount)->toBe($result)
+        ->and(rawLedger($save, LedgerCategory::PromoCost)->sole()->amount)->toBe(-50_000);
+})->with([
+    'works' => [1.0, 100_000],
+    'fails' => [0.0, -25_000],
+]);
+
+it('makes every promo a sure thing except Interview Space, Interference, Slander and Call-out', function () {
     $rates = config('gm.promos.success_rates');
 
     expect(array_filter($rates, fn (float $rate): bool => $rate < 1.0))->toBe([
-        'advertising' => 0.80,
         'merchandise_sponsorship' => 0.80,
         'interference_promotion' => 0.50,
         'slander_promotion' => 0.50,
         'interview_space' => 0.90,
+        'call_out' => 0.80,
     ]);
 });
 
@@ -237,4 +262,62 @@ it('has two promo slots on weekly shows and none on PPVs', function () {
 
     expect(Card::show($save)->promoSlotCount())->toBe(2)
         ->and(fn () => app(PromoService::class)->book($ppv, 1, promoType(PromoTypeKey::Advertising)))->toThrow(GameRuleException::class, 'PPV');
+});
+
+describe('Call-out (house rule, 2026-11-15)', function () {
+    function promoCallOutSave(): Save
+    {
+        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Christian'], smackdown: ['Batista']);
+        app(RivalryService::class)->start($save, GameBuilder::wrestler($save, 'Edge')->id, GameBuilder::wrestler($save, 'Kane')->id, 1);
+
+        return $save->refresh();
+    }
+
+    it('needs an active rivalry between the two', function () {
+        $save = promoCallOutSave();
+
+        app(PromoService::class)->book(Card::show($save), 1, promoType(PromoTypeKey::CallOut), GameBuilder::wrestler($save, 'Edge')->id, GameBuilder::wrestler($save, 'Christian')->id);
+    })->throws(GameRuleException::class);
+
+    it('makes the news and emails the GM from the superstar who talked', function (PromoAlignment $alignment, NewsEventType $event, EmailTemplate $template) {
+        config(['gm.promos.success_rates.call_out' => 1.0]);
+        $save = promoCallOutSave();
+        $slot = app(PromoService::class)->book(Card::show($save), 1, promoType(PromoTypeKey::CallOut), GameBuilder::wrestler($save, 'Edge')->id, GameBuilder::wrestler($save, 'Kane')->id, alignment: $alignment);
+
+        airPromos($save);
+
+        $email = Email::where('save_id', $save->id)->where('template', $template)->sole();
+
+        expect($slot->refresh()->alignment)->toBe($alignment)
+            ->and($slot->succeeded)->toBeTrue()
+            ->and(rawLedger($save, LedgerCategory::PromoCost)->sole()->amount)->toBe(-10_000)
+            ->and(NewsEvent::where('type', $event)->sole()->payload['alignment'])->toBe($alignment->value)
+            ->and($email->sender)->toBe('Edge')
+            ->and($email->subject)->toBe('I called out Kane');
+    })->with([
+        'face' => [PromoAlignment::Face, NewsEventType::CallOutFace, EmailTemplate::CallOutFace],
+        'heel' => [PromoAlignment::Heel, NewsEventType::CallOutHeel, EmailTemplate::CallOutHeel],
+    ]);
+
+    it('adds 10 heat and keeps the rivalry from going quiet that week', function () {
+        config(['gm.promos.success_rates.call_out' => 1.0]);
+        $save = promoCallOutSave();
+        Rivalry::query()->update(['heat' => 30]);
+        app(PromoService::class)->book(Card::show($save), 1, promoType(PromoTypeKey::CallOut), GameBuilder::wrestler($save, 'Kane')->id, GameBuilder::wrestler($save, 'Edge')->id, alignment: PromoAlignment::Heel);
+
+        airPromos($save);
+
+        expect(Rivalry::sole()->heat)->toBe(40);
+    });
+});
+
+it('keeps two rival Divas’ rivalry going with a Bikini Contest (house rule, 2026-11-15)', function () {
+    $save = GameBuilder::inSeason(raw: ['Trish Stratus', 'Victoria', 'Edge'], smackdown: ['Batista']);
+    app(RivalryService::class)->start($save, GameBuilder::wrestler($save, 'Trish Stratus')->id, GameBuilder::wrestler($save, 'Victoria')->id, 1);
+    Rivalry::query()->update(['heat' => 30]);
+    bookPromo($save->refresh(), PromoTypeKey::DivaBikiniContest, 1, 'Trish Stratus', 'Victoria');
+
+    airPromos($save);
+
+    expect(Rivalry::sole()->heat)->toBe(30);
 });

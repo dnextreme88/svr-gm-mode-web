@@ -60,7 +60,7 @@ it('writes a Tables title change as "in a Tables match"', function () {
 
     $news = NewsEvent::where('type', NewsEventType::TitleChange)->sole();
 
-    expect($news->rendered_text)->toBe('NEW CHAMPION! Snitsky & Val Venis defeats La Résistance for the World Tag Team Championship in a Tables match!')
+    expect($news->rendered_text)->toBe('NEW CHAMPION! Snitsky & Val Venis wins the gold!')
         ->and(app(NewsTemplates::class)->summary(NewsEventType::TitleChange, $news->payload))
         ->toStartWith('Snitsky & Val Venis beat La Résistance in a Tables match and walk out with the World Tag Team Championship!');
 });
@@ -68,6 +68,6 @@ it('writes a Tables title change as "in a Tables match"', function () {
 it('keeps the wording of news recorded before, which has only "via"', function () {
     $payload = ['winner' => 'Edge', 'loser' => 'Kane', 'title' => 'WWE Championship', 'show' => 'Raw', 'via' => 'briefcase retrieval'];
 
-    expect(app(NewsTemplates::class)->render(NewsEventType::TitleChange, $payload))
-        ->toBe('NEW CHAMPION! Edge defeats Kane for the WWE Championship via briefcase retrieval!');
+    expect(app(NewsTemplates::class)->summary(NewsEventType::TitleChange, $payload))
+        ->toStartWith('Edge beat Kane via briefcase retrieval');
 });

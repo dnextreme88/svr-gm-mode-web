@@ -77,35 +77,53 @@ return [
         // is the one match that can go past a card's slots: 7 on a weekly
         // show, 6 on a PPV. The GM still books 6 / 5.
         'cash_in_extra_slots' => 1,
+        // House rule (2026-11-15): Preset books up to this many of the
+        // brand's active rivalries, each in a shape drawn by these weights
+        // (a shape that can't be filled falls back to the next, then a 1v1).
+        'rivalry_target' => 3,
+        'rivalry_shapes' => [
+            'singles' => 30,
+            'triple_threat' => 20,
+            'partners' => 20,
+            'manager' => 15,
+            'two_rivalries' => 15,
+        ],
+        // ASSUMPTION: Randomize (one slot) books a rivalry not on the card yet this often.
+        'randomize_rivalry_chance' => 0.5,
+        // House rule (2026-11-15): sides are gender-balanced. A match type
+        // that can't be filled that way is re-rolled this many times.
+        'gender_rerolls' => 6,
     ],
 
     /*
-    | §2 Contracts. ASSUMPTION: the spec gives no prices, only that shorter
-    | deals cost less up front and more per week. Flat rates per length,
-    | with a Legend multiplier. Draft picks sign the default length.
+    | §2 Contracts (house rule, 2026-11-15). A superstar's salary is seeded
+    | per roster type (`wrestlers.monthly_salary`: superstars $20,000, Divas
+    | $12,000, Legends $45,000 a month). A contract costs that × its months,
+    | paid in equal weekly cuts; nothing is charged up front. Releasing a
+    | superstar early pays out the weeks left (weekly × weeks remaining).
     */
     'contracts' => [
-        'pricing' => [
-            5 => ['upfront' => 10_000, 'weekly' => 20_000],
-            12 => ['upfront' => 25_000, 'weekly' => 15_000],
-            24 => ['upfront' => 50_000, 'weekly' => 12_000],
-            36 => ['upfront' => 75_000, 'weekly' => 10_000],
-            52 => ['upfront' => 100_000, 'weekly' => 8_000],
-        ],
-        'legend_multiplier' => 1.5,
+        // Contract length in weeks => months it's priced as.
+        'months' => [5 => 1, 12 => 3, 24 => 6, 36 => 9, 52 => 12],
         'draft_default_length' => 52,
+        // "Use WWE roster" signs everyone for 6 months.
+        'wwe_roster_length' => 24,
         'expiring_threshold_weeks' => 4,
     ],
 
     /*
-    | §7 Financials. ASSUMPTION: show income depends on the deferred rating
-    | system, so it's a flat stub. Deficit enforcement kicks in after this
-    | many consecutive weeks below $0.
+    | §7 Financials (house rule, 2026-11-15). Each brand pays for every show
+    | night it's on, a weekly rehab bill for its injured superstars, and
+    | earns its gate (see attendance) plus a bonus for the week's bigger
+    | crowd. Deficit enforcement kicks in after this many weeks below $0.
     */
     'finances' => [
-        // House rule (2026-10-28): each brand's shows earn a flat amount once
-        // the week is done, until Popularity and ratings can drive income.
-        'weekly_show_income' => 250_000,
+        // Production cost per brand per night: a weekly show, a PPV night.
+        'show_cost' => ['weekly' => 50_000, 'ppv' => 100_000],
+        // Medical rehab per injured superstar per week.
+        'medical' => ['minor' => 5_000, 'serious' => 10_000],
+        // To the brand whose nights drew the bigger crowd that week (a tie pays nobody).
+        'attendance_bonus' => 100_000,
         'deficit_weeks_limit' => 4,
     ],
 
@@ -153,10 +171,12 @@ return [
         'hot_heat' => 60,
         // The score moves by up to this many points either way (seeded).
         'noise' => 5,
-        // Gate = attendance × ticket price. Shown next to attendance; it only
-        // replaces the flat weekly show income when drives_income is true.
-        'ticket_prices' => ['weekly' => 30, 'brand_ppv' => 50, 'shared_ppv' => 75],
-        'drives_income' => false,
+        // Gate = attendance × ticket price. House rule (2026-11-15): the gate
+        // is each brand's show income (a shared night's split between them).
+        // Prices tuned 2026-11-15 so weekly shows about break even and PPVs carry
+        // the profit (a season of careful booking nets a few million).
+        'ticket_prices' => ['weekly' => 20, 'brand_ppv' => 35, 'shared_ppv' => 50],
+        'drives_income' => true,
     ],
 
     /*
@@ -440,7 +460,9 @@ return [
         // ASSUMPTION: a brand short of 15 bookable wrestlers enters what it can.
         'royal_rumble_min_entrants_per_brand' => 10,
         'survivor_series_team_size' => 3,
-        'redraft_max_picks' => 10,
+        // House rule (2026-11-15): the re-draft swaps this many superstars
+        // each way (5 from Raw to Smackdown, 5 back). No roster cap applies.
+        'redraft_picks_per_brand' => 5,
     ],
 
     /*
@@ -454,7 +476,8 @@ return [
             'continue_rivalry' => 1.00,
             'start_rivalry' => 1.00,
             'inactive_superstar' => 1.00,
-            'advertising' => 0.80,
+            // House rule (2026-11-15): Advertising always pays.
+            'advertising' => 1.00,
             'merchandise_sponsorship' => 0.80,
             'main_event_hype' => 1.00,
             'ppv_hype' => 1.00,
@@ -464,13 +487,15 @@ return [
             'comeback_reminder' => 1.00,
             'interview_space' => 0.90,
             'diva_bikini_contest' => 1.00,
+            'call_out' => 0.80,
         ],
         'amounts' => [
             'new_superstar' => -50_000,
             'continue_rivalry' => -2_000,
             'start_rivalry' => 0,
             'inactive_superstar' => -2_000,
-            'advertising' => 150_000,
+            // Paid the week it airs.
+            'advertising' => 200_000,
             'merchandise_sponsorship' => 0,
             'main_event_hype' => -50_000,
             'ppv_hype' => -10_000,
@@ -480,6 +505,7 @@ return [
             'comeback_reminder' => -2_000,
             'interview_space' => -2_000,
             'diva_bikini_contest' => -10_000,
+            'call_out' => -10_000,
         ],
         // House rule: these promos tire their wrestlers (and can injure them),
         // rolled at the point in the show where the promo airs.
@@ -506,15 +532,14 @@ return [
             'window_weeks' => 5,
             'max_uses' => 3,
         ],
-        // House rule (2026-10-25): Merchandise Sponsorship rolls one of these
-        // tiers (equal odds) when it airs; the bigger the deal, the less
-        // likely it lands. A success pays the tier's amount.
-        'merchandise_tiers' => [
-            ['amount' => 100_000, 'chance' => 0.80],
-            ['amount' => 250_000, 'chance' => 0.70],
-            ['amount' => 500_000, 'chance' => 0.50],
-            ['amount' => 1_000_000, 'chance' => 0.25],
-        ],
+        // House rule (2026-11-15): Merchandise Sponsorship is a gamble. When
+        // it airs it draws a success chance and, separately, a payout, each
+        // with equal odds. A success pays the payout; a failure pays nothing.
+        'merchandise_chances' => [0.80, 0.70, 0.50, 0.25],
+        'merchandise_payouts' => [10_000, 25_000, 50_000, 100_000],
+        // House rule (2026-11-15): Interference Promotion's result on top of
+        // its cost: a success earns, a failure or backfire costs extra.
+        'interference_payout' => ['success' => 100_000, 'failure' => -25_000],
     ],
 
     /*
@@ -534,6 +559,8 @@ return [
         // House rule (2026-11-11): a rival who runs in and costs their rival
         // the match (Rival Interference finish) heats it up too.
         'heat_per_interference' => 10,
+        // House rule (2026-11-15): a successful Call-out promo heats it up.
+        'heat_per_call_out' => 10,
         // A week with no shared match loses this much, unless a Continue
         // Rivalry promo for it aired (no heat either way); at 0 or below the
         // rivalry ends.
@@ -743,6 +770,8 @@ return [
                 'comeback_reminder' => 10,
                 'inactive_superstar' => 10,
                 'continue_rivalry' => 20,
+                // House rule (2026-11-15). ASSUMPTION: as often as Continue Rivalry.
+                'call_out' => 20,
                 'main_event_hype' => 15,
                 'interview_space' => 10,
                 'diva_bikini_contest' => 10,

@@ -2,8 +2,10 @@
 
 use App\Enums\Brand;
 use App\Enums\InjurySeverity;
+use App\Enums\LedgerCategory;
 use App\Enums\ShowType;
 use App\Exceptions\GameRuleException;
+use App\Models\LedgerEntry;
 use App\Models\MatchSlot;
 use App\Models\PromoSlot;
 use App\Services\Injuries\InjuryService;
@@ -132,12 +134,18 @@ it('refuses paid match types after choosing to downgrade during a deficit', func
 it('charges special match costs to Financials when the show airs', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
     $budget = $save->brand(Brand::Raw)->budget;
-    Card::book($save, Card::show($save), 1, Card::type('ladder', 'Single'), [['Edge'], ['Kane']]);
+    $show = Card::show($save);
+    Card::book($save, $show, 1, Card::type('ladder', 'Single'), [['Edge'], ['Kane']]);
 
     app(WeekResolver::class)->resolve($save->refresh());
 
-    // Upkeep and the Ladder match out, the week's show income in.
-    expect($save->brand(Brand::Raw)->budget)->toBe($budget - 12_000 - 16_000 + (int) config('gm.finances.weekly_show_income'));
+    $ledger = LedgerEntry::where('save_id', $save->id)->where('brand', Brand::Raw)->where('week_number', 1)->where('category', '!=', LedgerCategory::StartingBudget);
+    $match = (clone $ledger)->where('category', LedgerCategory::MatchCost)->sole();
+
+    // The Ladder match is charged with its show; the budget moves with the ledger.
+    expect($match->amount)->toBe(-12_000)
+        ->and($match->show_id)->toBe($show->id)
+        ->and($save->brand(Brand::Raw)->budget)->toBe($budget + (int) (clone $ledger)->sum('amount'));
 });
 
 it('has the AI book its own card before the week airs', function () {

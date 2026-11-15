@@ -36,6 +36,15 @@ function newsPromo(Save $save, PromoTypeKey $key, ?Brand $brand = null): void
     app(PromoService::class)->book(Card::show($save->refresh(), $brand ?? Brand::Raw), 1, PromoType::where('key', $key)->firstOrFail());
 }
 
+/**
+ * A news event's summary (short headlines, house rule 2026-11-15: the
+ * wording the headline used to carry opens the summary).
+ */
+function newsSummary(NewsEvent $event): string
+{
+    return app(NewsTemplates::class)->summary($event->type, $event->payload);
+}
+
 function newsOf(NewsEventType $type)
 {
     return NewsEvent::where('type', $type)->get();
@@ -55,10 +64,11 @@ it('records every aired match as a story for its brand', function () {
     expect($results)->toHaveCount(3)
         ->and($results->every(fn (NewsEvent $e): bool => $e->tier === NewsTier::Story))->toBeTrue()
         ->and($results->pluck('brand')->map->value->sort()->values()->all())->toBe(['raw', 'raw', 'smackdown'])
-        ->and($results->pluck('rendered_text')->implode(' | '))->toContain(
+        ->and($results->map(fn (NewsEvent $e): string => newsSummary($e))->implode(' | '))->toContain(
             'Edge defeats Kane in decisive fashion. He made sure to get the win via pinfall.',
             'Christian defeats Shelton Benjamin via disqualification. Not the cleanest win, but a win is a win.',
-        );
+        )
+        ->and($results->pluck('rendered_text')->all())->toContain('Edge defeats Kane', 'Christian steals a win');
 });
 
 it('sums up a match result with the match in a word, not its full type name', function () {
@@ -71,8 +81,8 @@ it('sums up a match result with the match in a word, not its full type name', fu
     $event = newsOf(NewsEventType::MatchResult)->sole();
     $templates = app(NewsTemplates::class);
 
-    expect($templates->render(NewsEventType::MatchResult, $event->payload))->toBe('Edge defeats Kane in decisive fashion. He made sure to get the win in a Ladder match.')
-        ->and($templates->summary(NewsEventType::MatchResult, $event->payload))->toStartWith('In what was a thrilling match, Edge got the win over Kane as they competed in a thrilling Ladder match! ');
+    expect($templates->render(NewsEventType::MatchResult, $event->payload))->toBe('Edge defeats Kane')
+        ->and($templates->summary(NewsEventType::MatchResult, $event->payload))->toStartWith('Edge defeats Kane in decisive fashion. He made sure to get the win in a Ladder match. It was a thrilling Ladder match from start to finish. ');
 });
 
 it('calls a Diva winner she and a singles match singles', function () {
@@ -84,8 +94,8 @@ it('calls a Diva winner she and a singles match singles', function () {
 
     $event = newsOf(NewsEventType::MatchResult)->sole();
 
-    expect($event->rendered_text)->toContain('She made sure to get the win via pinfall.')
-        ->and(app(NewsTemplates::class)->summary(NewsEventType::MatchResult, $event->payload))->toContain('in a thrilling singles match!');
+    expect(newsSummary($event))->toContain('She made sure to get the win via pinfall.')
+        ->and(newsSummary($event))->toContain('It was a thrilling singles match');
 });
 
 it('words a title change by how it was won, with she for the Women’s title and he for the rest', function (string $key, string $champion, string $challenger, string $pronoun) {
@@ -99,7 +109,7 @@ it('words a title change by how it was won, with she for the Women’s title and
     $event = newsOf(NewsEventType::TitleChange)->sole();
     $title = Championship::where('key', $key)->value('name');
 
-    expect($event->rendered_text)->toBe("NEW CHAMPION! {$challenger} defeats {$champion} for the {$title} via submission!")
+    expect($event->rendered_text)->toBe("NEW CHAMPION! {$challenger} wins the gold!")
         ->and(app(NewsTemplates::class)->summary(NewsEventType::TitleChange, $event->payload))
         ->toStartWith("{$challenger} beat {$champion} via submission and walks out with the {$title}! ")
         ->toContain("The champion looks forward to meeting new challengers that {$pronoun} will dethrone!");
@@ -189,7 +199,7 @@ it('words a tag team win in the plural and drops the stray period after a show n
 
     newsWeek($save);
 
-    $text = newsOf(NewsEventType::MatchResult)->sole()->rendered_text;
+    $text = newsSummary(newsOf(NewsEventType::MatchResult)->sole());
 
     expect($text)->toStartWith('Batista & JBL defeat Christian & Booker T in decisive fashion. They made sure')
         ->and($text)->not->toContain('!.');
@@ -230,7 +240,10 @@ it('reports a contract with 2 weeks left', function () {
 
     newsWeek($save);
 
-    expect(newsOf(NewsEventType::ContractExpiring)->sole()->rendered_text)->toBe("Edge's Raw contract runs out in 2 weeks.");
+    $event = newsOf(NewsEventType::ContractExpiring)->sole();
+
+    expect($event->rendered_text)->toBe("Edge's contract is almost up")
+        ->and(newsSummary($event))->toStartWith('Edge has 2 weeks left on their Raw contract.');
 });
 
 it('celebrates a rivalry that stays hot for 10 straight weeks, once', function (int $heat, int $expected) {

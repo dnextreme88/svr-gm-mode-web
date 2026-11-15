@@ -3,7 +3,6 @@
 namespace App\Services\Ai;
 
 use App\Enums\Brand;
-use App\Enums\ContractLength;
 use App\Enums\PromoTypeKey;
 use App\Enums\RosterType;
 use App\Enums\WeightClass;
@@ -18,6 +17,7 @@ use App\Models\Show;
 use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
 use App\Services\Contracts\ContractPricing;
+use App\Services\Draft\DraftService;
 use App\Services\Promos\PromoService;
 use App\Services\Roster\RosterService;
 use Illuminate\Support\Collection;
@@ -119,15 +119,16 @@ class AiGm
      */
     public function draftPick(Save $save, Brand $brand, int $pickNumber): ?SaveWrestler
     {
-        $budget = $save->brand($brand)->budget;
-        $length = ContractLength::from((int) config('gm.contracts.draft_default_length'));
+        // Salaries are weekly: what's left is the budget minus every contract's value.
+        $budget = app(DraftService::class)->availableBudget($save, $brand);
+        $length = DraftService::defaultLength();
 
         $pool = $this->roster->freeAgentsQuery($save, $save->current_week)
             ->with('wrestler')
             ->orderBy('id')
             ->get()
             ->filter(fn (SaveWrestler $w): bool => $w->wrestler->isDraftable()
-                && $this->pricing->quote($w->wrestler, $length)['upfront'] <= $budget)
+                && $this->pricing->quote($w->wrestler, $length)['total'] <= $budget)
             ->values();
 
         if ($pool->isEmpty()) {

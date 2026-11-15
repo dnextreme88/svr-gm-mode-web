@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PromoAlignment;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool|null $succeeded
  * @property bool $backfired
  * @property string|null $outcome_note
+ * @property PromoAlignment|null $alignment Call-out: face or heel
  * @property-read Show $show
  * @property-read PromoType|null $promoType
  * @property-read SaveWrestler|null $target
@@ -99,6 +101,7 @@ class PromoSlot extends Model
         return [
             'succeeded' => 'boolean',
             'backfired' => 'boolean',
+            'alignment' => PromoAlignment::class,
         ];
     }
 }

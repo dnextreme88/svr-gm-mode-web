@@ -53,13 +53,14 @@ it('makes the PPV main event the WWE headline, with the title and the gimmick, a
     $headline = ppvHeadline($save);
 
     expect($headline['type'])->toBe('ppv_results')
-        ->and($headline['text'])->toBe('Backlash main event: John Cena defeats Edge in a Ladder match to win the WWE Championship!')
+        ->and($headline['text'])->toBe('Backlash: John Cena wins the gold!')
+        // Short headlines (house rule, 2026-11-15): the summary opens with the full line.
         // Fan attendance (house rule, 2026-11-01) adds the night's crowd.
-        ->and($headline['summary'])->toStartWith('Backlash ended with a new champion: John Cena beat Edge in a Ladder match and walked out with the WWE Championship. ')
+        ->and($headline['summary'])->toStartWith('Backlash main event: John Cena defeats Edge in a Ladder match to win the WWE Championship! Backlash ended with a new champion: John Cena beat Edge in a Ladder match and walked out with the WWE Championship. ')
         ->and($headline['summary'])->toMatch('/ [\d,]+ fans were in the building\.\n\n/');
 });
 
-it('words a retained title and a plain non-title main event', function (bool $title, string $text) {
+it('words a retained title and a plain non-title main event', function (bool $title, string $text, string $summary) {
     $save = backlash();
     GameBuilder::giveTitle($save, 'wwe', ['Edge']);
     $ppv = Card::show($save, Brand::Raw, ShowType::Ppv, PPV_WEEK);
@@ -68,10 +69,11 @@ it('words a retained title and a plain non-title main event', function (bool $ti
 
     app(WeekResolver::class)->resolve($save);
 
-    expect(ppvHeadline($save)['text'])->toBe($text);
+    expect(ppvHeadline($save)['text'])->toBe($text)
+        ->and(ppvHeadline($save)['summary'])->toStartWith($summary);
 })->with([
-    'title retained' => [true, 'Backlash main event: Edge defeats John Cena to retain the WWE Championship!'],
-    'non-title' => [false, 'Backlash main event: Edge defeats John Cena via pinfall!'],
+    'title retained' => [true, 'Backlash: Edge retains!', 'Backlash main event: Edge defeats John Cena to retain the WWE Championship!'],
+    'non-title' => [false, 'Backlash: Edge wins the main event', 'Backlash main event: Edge defeats John Cena via pinfall!'],
 ]);
 
 it('keeps the title with the champion when the challenger wins the PPV main event by DQ', function () {
@@ -83,7 +85,8 @@ it('keeps the title with the champion when the challenger wins the PPV main even
 
     app(WeekResolver::class)->resolve($save);
 
-    expect(ppvHeadline($save)['text'])->toBe('Backlash main event: John Cena defeats Edge by disqualification, but the WWE Championship stays put!');
+    expect(ppvHeadline($save)['text'])->toBe('Backlash: the title stays put')
+        ->and(ppvHeadline($save)['summary'])->toStartWith('Backlash main event: John Cena defeats Edge by disqualification, but the WWE Championship stays put!');
 });
 
 it('puts every PPV’s buzz on the WWE card, brand PPVs included', function () {
@@ -96,5 +99,5 @@ it('puts every PPV’s buzz on the WWE card, brand PPVs included', function () {
 
     expect($buzz->brand)->toBe(NewsBrand::Both)
         ->and($buzz->tier)->toBe(NewsTier::Headline)
-        ->and(app(NewsTemplates::class)->render(NewsEventType::PpvUpcoming, $buzz->payload))->toBe('Backlash is 1 week away.');
+        ->and(app(NewsTemplates::class)->render(NewsEventType::PpvUpcoming, $buzz->payload))->toBe('Backlash is 1 week away');
 });

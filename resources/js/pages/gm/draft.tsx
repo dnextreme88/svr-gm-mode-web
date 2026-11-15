@@ -17,6 +17,7 @@ import {
     emptyPoolFilter,
     filterPool,
     formatMoney,
+    pluralize,
     prefersReducedMotion,
     readPreference,
     writePreference,
@@ -28,8 +29,16 @@ import type { Brand, RosterType, WeightClass } from '@/types/enums';
 import { RosterTypeLabels, WeightClassLabels } from '@/types/enums';
 import type { GamePageProps, WrestlerRow } from '@/types/gm';
 
+type Quote = {
+    length_weeks: number;
+    label: string;
+    weekly: number;
+    total: number;
+};
+
 type PoolRow = WrestlerRow & {
-    quote: { upfront: number; weekly: number; length_weeks: number };
+    /** Every contract length's price (house rule, 2026-11-15). */
+    quotes: Quote[];
 };
 
 type Pick = {
@@ -51,7 +60,9 @@ type Props = GamePageProps & {
     /** Both brands' running budgets. */
     budgets?: Record<Brand, number>;
     draft_order: Brand[];
+    /** The length picks sign for unless changed. */
     contract_length: number;
+    contract_lengths?: Array<{ weeks: number; label: string }>;
     player_done: boolean;
     /** The draft just ended: the overlay shows, then the champions open. */
     concluded?: boolean;
@@ -151,6 +162,20 @@ export default function Draft() {
     }, [skipAnimation]);
 
     useEffect(() => writePreference(BOARD_VIEW_KEY, boardView), [boardView]);
+
+    // Each pick's contract length (house rule, 2026-11-15): the pool's
+    // default, or one chosen on the superstar's row.
+    const lengths = props.contract_lengths ?? [
+        {
+            weeks: props.contract_length,
+            label: pluralize(props.contract_length, 'week'),
+        },
+    ];
+    const [defaultLength, setDefaultLength] = useState(props.contract_length);
+    const [lengthById, setLengthById] = useState<Record<number, number>>({});
+    const lengthFor = (id: number) => lengthById[id] ?? defaultLength;
+    const quoteFor = (w: PoolRow) =>
+        w.quotes.find((q) => q.length_weeks === lengthFor(w.id)) ?? w.quotes[0];
 
     const yourTurn = nextBrand === game.player_brand;
     const aiTurn = nextBrand !== null && nextBrand !== game.player_brand;
@@ -268,7 +293,7 @@ export default function Draft() {
         setRolling(true);
         router.post(
             gm.draft.random.url(game.id),
-            {},
+            { length: defaultLength },
             {
                 preserveScroll: true,
                 onFinish: () => {
@@ -283,7 +308,7 @@ export default function Draft() {
         setBusy(true);
         router.post(
             gm.draft.pick.url(game.id),
-            { save_wrestler_id: id },
+            { save_wrestler_id: id, length: lengthFor(id) },
             { preserveScroll: true, onFinish: () => setBusy(false) },
         );
     };
@@ -407,12 +432,35 @@ export default function Draft() {
                     className="xl:flex xl:min-h-0 xl:flex-col"
                     bodyClassName="p-0 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col"
                     actions={
-                        <PoolFilters
-                            value={poolFilter}
-                            onChange={setPoolFilter}
-                            types={poolTypes}
-                            disabled={animating}
-                        />
+                        <div className="flex flex-wrap items-center gap-2">
+                            <label className="flex items-center gap-2 text-xs text-ink-dim">
+                                Sign for
+                                <select
+                                    aria-label="Default contract length"
+                                    className="gm-input py-1 text-sm"
+                                    value={defaultLength}
+                                    disabled={animating}
+                                    onChange={(e) => {
+                                        setDefaultLength(
+                                            Number(e.target.value),
+                                        );
+                                        setLengthById({});
+                                    }}
+                                >
+                                    {lengths.map((l) => (
+                                        <option key={l.weeks} value={l.weeks}>
+                                            {l.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <PoolFilters
+                                value={poolFilter}
+                                onChange={setPoolFilter}
+                                types={poolTypes}
+                                disabled={animating}
+                            />
+                        </div>
                     }
                 >
                     <div className="gm-scroll max-h-[65vh] overflow-y-auto xl:max-h-none xl:min-h-0 xl:flex-1">
@@ -423,7 +471,8 @@ export default function Draft() {
                                     <th>Type</th>
                                     <th>Class</th>
                                     <th>Specialties</th>
-                                    <th className="text-right">Signing</th>
+                                    <th>Contract</th>
+                                    <th className="text-right">Total</th>
                                     <th className="text-right">Weekly</th>
                                     <th />
                                 </tr>
@@ -465,11 +514,35 @@ export default function Draft() {
                                                 ))}
                                             </div>
                                         </td>
+                                        <td>
+                                            <select
+                                                aria-label={`Contract length for ${w.name}`}
+                                                className="gm-input py-1 text-sm"
+                                                value={lengthFor(w.id)}
+                                                onChange={(e) =>
+                                                    setLengthById({
+                                                        ...lengthById,
+                                                        [w.id]: Number(
+                                                            e.target.value,
+                                                        ),
+                                                    })
+                                                }
+                                            >
+                                                {lengths.map((l) => (
+                                                    <option
+                                                        key={l.weeks}
+                                                        value={l.weeks}
+                                                    >
+                                                        {l.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </td>
                                         <td className="gm-num text-right">
-                                            {formatMoney(w.quote.upfront)}
+                                            {formatMoney(quoteFor(w).total)}
                                         </td>
                                         <td className="gm-num text-right text-ink-dim">
-                                            {formatMoney(w.quote.weekly)}
+                                            {formatMoney(quoteFor(w).weekly)}
                                         </td>
                                         <td className="text-right">
                                             <button
@@ -479,7 +552,8 @@ export default function Draft() {
                                                     !yourTurn ||
                                                     busy ||
                                                     animating ||
-                                                    yourBudget < w.quote.upfront
+                                                    yourBudget <
+                                                        quoteFor(w).total
                                                 }
                                                 onClick={() => pick(w.id)}
                                             >

@@ -47,6 +47,8 @@ class WeekResolver
         Steps\RecoverFatigue::class,
         Steps\InjuryReturns::class,
         Steps\TickContracts::class,
+        // House rule (2026-11-15): rehab for everyone still injured.
+        Steps\PayMedicalCosts::class,
         Steps\UpdateMorale::class,
         // After defections, so the rival GM can refill what it just lost.
         Steps\RivalRosterUpkeep::class,
@@ -54,6 +56,8 @@ class WeekResolver
         Steps\TitleUpkeep::class,
         // House rule: the rival awards or forfeits its vacated titles' #1 contenderships.
         Steps\SettleTitleVacancies::class,
+        // The week's gate counts before the deficit check (house rule, 2026-11-15).
+        Steps\PayShowIncome::class,
         Steps\TrackDeficit::class,
         Steps\SendContractEmails::class,
         Steps\SendReminders::class,
@@ -61,8 +65,6 @@ class WeekResolver
         Steps\WrestleManiaWrapUp::class,
         // Last before the week ends: fills whatever the week's news left empty.
         Steps\QuietWeekNews::class,
-        // Once the week is done: each brand's shows earn their income.
-        Steps\PayShowIncome::class,
         Steps\AdvanceWeek::class,
     ];
 

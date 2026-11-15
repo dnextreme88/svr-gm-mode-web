@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Gm;
 
 use App\Enums\Brand;
+use App\Enums\PromoAlignment;
 use App\Exceptions\GameRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\MatchSlot;
@@ -22,6 +23,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 /**
  * Randomize / Preset proposals (§24) and promo slots (§5). Randomize and
@@ -54,12 +56,12 @@ class CardToolsController extends Controller
             return response()->json(['proposal' => $owed->toArray($this->names($owed))]);
         }
 
-        $proposal = $this->randomizer->proposeSlot(
+        // House rule (2026-11-15): sometimes one of the brand's rivalries.
+        $proposal = $this->randomizer->randomizeSlot(
             $show,
             $position,
             $type,
             $save->rng("randomize.{$show->streamKey()}.{$position}.{$roll}", $show->week_number),
-            [],
             $titles,
             $brand,
         );
@@ -129,6 +131,7 @@ class CardToolsController extends Controller
             'target_wrestler_b_id' => ['nullable', 'integer'],
             'target_championship_id' => ['nullable', 'integer'],
             'before_position' => ['nullable', 'integer'],
+            'alignment' => ['nullable', Rule::enum(PromoAlignment::class)],
         ]);
 
         DB::transaction(fn () => $this->promos->book(
@@ -139,6 +142,7 @@ class CardToolsController extends Controller
             isset($data['target_wrestler_b_id']) ? (int) $data['target_wrestler_b_id'] : null,
             isset($data['target_championship_id']) ? (int) $data['target_championship_id'] : null,
             isset($data['before_position']) ? (int) $data['before_position'] : null,
+            isset($data['alignment']) ? PromoAlignment::from($data['alignment']) : null,
         ));
 
         return back();

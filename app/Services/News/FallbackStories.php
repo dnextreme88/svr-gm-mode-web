@@ -32,7 +32,7 @@ class FallbackStories
         ],
         // No PPV next: both weekly shows, each with its date.
         'tickets.shows' => [
-            ['Tickets on sale for Raw and Smackdown', "Monday Night Raw comes to town on {raw_date} and Smackdown on {smackdown_date}. Buy your tickets for these shows and don't miss out on the action! Both brands have plenty to prove this week. Title pictures are shifting and rivalries are heating up. Two nights, two arenas, one goal: winning the war between the brands."],
+            ['Raw and Smackdown tickets on sale', "Monday Night Raw comes to town on {raw_date} and Smackdown on {smackdown_date}. Buy your tickets for these shows and don't miss out on the action! Both brands have plenty to prove this week. Title pictures are shifting and rivalries are heating up. Two nights, two arenas, one goal: winning the war between the brands."],
         ],
 
         // Brand headline: the top champion's week, or the roster at HQ.
@@ -44,7 +44,7 @@ class FallbackStories
         ],
         'spotlight.hq' => [
             ['{brand} superstars hang out at WWE HQ', 'With no champions to send on tour, the {brand} roster spent the week at WWE headquarters, trading stories and pranks. Somebody filled a locker with packing peanuts, and nobody has owned up to it yet. The veterans told stories about the old days on the road. The younger superstars listened to every word. It was a good week for team spirit. {budget}'],
-            ['Fun and games at WWE HQ for {brand}', 'The {brand} locker room spent the week at headquarters, poking fun at each other. A ping-pong tournament broke out in the break room and got very competitive. The office staff placed bets on the final. The superstars laughed more than they have in weeks. Sometimes a quiet week is exactly what a roster needs. {budget}'],
+            ['Fun and games at WWE HQ', 'The {brand} locker room spent the week at headquarters, poking fun at each other. A ping-pong tournament broke out in the break room and got very competitive. The office staff placed bets on the final. The superstars laughed more than they have in weeks. Sometimes a quiet week is exactly what a roster needs. {budget}'],
             ['{brand} roster bonds at headquarters', "A quiet week for {brand} meant a lot of laughs at WWE HQ. The superstars watched old tapes together and argued about the greatest matches ever. A few of them ended up in the training ring, trying out new moves. The office staff got a close look at the locker room's sense of humor. Everybody left closer than they arrived. {budget}"],
             ['Pranks and stories at WWE HQ', 'The {brand} superstars spent the week at headquarters, and nobody was safe from a practical joke. Shoes went missing, chairs were rigged and the coffee was spiked with hot sauce. The culprits are still at large. The camaraderie in the locker room has never been better. The office just hopes the furniture survives. {budget}'],
         ],

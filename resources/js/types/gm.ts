@@ -114,10 +114,10 @@ export type WrestlerRow = {
     titles: string[];
 };
 
+/** A contract's price (house rule, 2026-11-15): salary × months, paid weekly. */
 export type ContractQuote = {
     length_weeks: number;
     label: string;
-    upfront: number;
     weekly: number;
     total: number;
 };
