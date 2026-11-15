@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { BrandBug, PpvBug } from '@/components/gm/brand-bug';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { PageTitle } from '@/components/gm/panel';
-import { pluralize } from '@/lib/gm';
+import { pluralize, readPreference, writePreference } from '@/lib/gm';
 import { requestJson } from '@/lib/http';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
@@ -46,6 +46,8 @@ type Props = GamePageProps & {
     seasons: number[];
     months: Month[];
     initial_month: string;
+    /** The new season to welcome, after the re-draft's News (2026-11-16). */
+    welcome_season?: number | null;
 };
 
 const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -85,8 +87,17 @@ function longDate(date: string): string {
  * order, or one of your own later show nights to simulate up to it.
  */
 export default function Schedule() {
-    const { game, season, seasons, months, initial_month } =
+    const { game, season, seasons, months, initial_month, welcome_season } =
         usePage<Props>().props;
+    // House rule (2026-11-16): a new season opens with a welcome, once per
+    // browser (a refresh doesn't bring it back).
+    const welcomeKey = `gm.season-welcome.${game.id}.${welcome_season ?? 0}`;
+    const [welcome, setWelcome] = useState(
+        () =>
+            welcome_season != null &&
+            readPreference(welcomeKey, 'unseen', ['unseen', 'seen']) ===
+                'unseen',
+    );
     const [index, setIndex] = useState(() =>
         Math.max(
             0,
@@ -244,6 +255,24 @@ export default function Schedule() {
                     </li>
                 </ul>
             </section>
+
+            <ConfirmDialog
+                open={welcome}
+                title={`Welcome to Season ${welcome_season ?? season}`}
+                message={
+                    <p data-testid="season-welcome">
+                        The re-draft is done and the rosters are set. Season{' '}
+                        {welcome_season ?? season} starts this week, and the
+                        road to WrestleMania starts again. Book your first show
+                        from the calendar.
+                    </p>
+                }
+                cancelLabel="Let’s go"
+                onCancel={() => {
+                    writePreference(welcomeKey, 'seen');
+                    setWelcome(false);
+                }}
+            />
 
             <ConfirmDialog
                 open={simulate !== null}

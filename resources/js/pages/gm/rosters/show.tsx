@@ -2,6 +2,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { MoraleBadge, SpecialtyBadge, TitleBelt } from '@/components/gm/badges';
+import { BrandBug, PpvBug } from '@/components/gm/brand-bug';
 import { BusyLabel } from '@/components/gm/busy-label';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { EmptyState, PageTitle, Panel, Stat } from '@/components/gm/panel';
@@ -13,6 +14,7 @@ import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type {
     ComplaintLevel,
+    Brand,
     ContractStatus,
     MoraleComplaintType,
     ReignEndReason,
@@ -66,6 +68,7 @@ type Props = GamePageProps & {
     injury_history?: InjuryRow[];
     special_info?: Moment[];
     royal_rumbles?: RumbleRow[];
+    redrafts?: RedraftRow[];
     is_own: boolean;
     is_free_agent: boolean;
     is_pending: boolean;
@@ -102,6 +105,18 @@ type RumbleRow = {
     eliminated_by: string | null;
     won: boolean;
     url: string;
+};
+
+/** A re-draft that moved them (house rule, 2026-11-16). */
+type RedraftRow = {
+    /** The season whose WrestleMania the re-draft followed. */
+    season: number;
+    from: Brand;
+    to: Brand;
+    /** That brand's Nth pick, out of `picks`. */
+    pick: number;
+    picks: number;
+    manual: boolean;
 };
 
 const salaryTier = {
@@ -238,15 +253,19 @@ function InjuryHistory({ injuries }: { injuries: InjuryRow[] }) {
 function SpecialInfo({
     moments,
     rumbles,
+    redrafts,
 }: {
     moments: Moment[];
     rumbles: RumbleRow[];
+    redrafts: RedraftRow[];
 }) {
     return (
         <Panel title="Special info" bodyClassName="p-0">
             {rumbles.length > 0 && <RoyalRumbles rows={rumbles} />}
+            {redrafts.length > 0 && <Redrafts rows={redrafts} />}
             {moments.length === 0 ? (
-                rumbles.length === 0 && (
+                rumbles.length === 0 &&
+                redrafts.length === 0 && (
                     <div className="p-4">
                         <EmptyState>Nothing special yet.</EmptyState>
                     </div>
@@ -360,6 +379,64 @@ function RoyalRumbles({ rows }: { rows: RumbleRow[] }) {
                                             </span>
                                             {r.eliminated_by &&
                                                 ` · by ${r.eliminated_by}`}
+                                        </span>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    );
+}
+
+/**
+ * Every post-WrestleMania re-draft that moved them: the brand they left,
+ * the brand that took them, the season, and which of its picks it was.
+ */
+function Redrafts({ rows }: { rows: RedraftRow[] }) {
+    return (
+        <section
+            aria-labelledby="redraft-heading"
+            className="border-b border-white/5"
+        >
+            <h3
+                id="redraft-heading"
+                className="gm-label px-4 pt-3 text-gold-hot"
+            >
+                Re-draft
+            </h3>
+            <div className="overflow-x-auto">
+                <table className="gm-table text-sm" data-testid="redrafts">
+                    <thead>
+                        <tr>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Season</th>
+                            <th className="text-right">Pick</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((r) => (
+                            <tr key={r.season}>
+                                <td>
+                                    <BrandBug brand={r.from} size="xs" />
+                                </td>
+                                <td>
+                                    <BrandBug brand={r.to} size="xs" />
+                                </td>
+                                <td>
+                                    <span className="inline-flex items-center gap-2">
+                                        <PpvBug ppv="wrestlemania" size="xs" />
+                                        Season {r.season}
+                                    </span>
+                                </td>
+                                <td className="gm-num text-right">
+                                    {r.pick}/{r.picks}
+                                    {r.manual && (
+                                        <span className="ml-1 text-gold-hot">
+                                            · Manual pick
                                         </span>
                                     )}
                                 </td>
@@ -764,6 +841,7 @@ export default function WrestlerDetail() {
                 <SpecialInfo
                     moments={props.special_info ?? []}
                     rumbles={props.royal_rumbles ?? []}
+                    redrafts={props.redrafts ?? []}
                 />
             </div>
         </>

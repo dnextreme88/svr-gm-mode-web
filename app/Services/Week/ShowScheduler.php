@@ -30,7 +30,9 @@ class ShowScheduler
      */
     public function ensureWeek(Save $save, int $week): Collection
     {
-        foreach (Brand::cases() as $brand) {
+        // House rule (2026-11-16): WrestleMania week has no weekly shows.
+        // The season ends on WrestleMania's main event, then the re-draft.
+        foreach ($this->calendar->isWrestleManiaWeek($week) ? [] : Brand::cases() as $brand) {
             $this->ensureShow($save, $week, $brand, ShowType::Weekly, null, $brand === Brand::Raw ? 'Monday Night Raw' : 'Friday Night Smackdown');
         }
 

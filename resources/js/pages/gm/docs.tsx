@@ -2593,15 +2593,22 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                         <li data-testid="ppv-night-first">
                             A PPV week airs in two steps. The PPV night’s last
                             card has Air (“Air Backlash”): it airs only the PPV.
-                            Your weekly show opens once the PPV’s results are
-                            in, so you book it knowing who won (a title shot
-                            earned at the PPV is due on it).
+                            Then the News opens with the PPV night’s news, and
+                            its Continue opens your weekly show, so you book it
+                            knowing who won (a title shot earned at the PPV is
+                            due on it).
                         </li>
                         <li>
                             Air week on your weekly show airs the weekly shows
                             and finishes the week (see Live results below). In a
                             week without a PPV it’s the only step. While a night
                             airs the button reads Resume results.
+                        </li>
+                        <li data-testid="wrestlemania-week">
+                            WrestleMania week has no weekly shows. WrestleMania
+                            ends the season: after its main event come the
+                            re-draft, then the News, then the Schedule welcomes
+                            you to the new season.
                         </li>
                         <li>Both buttons ask you to confirm first.</li>
                     </ul>
@@ -2675,11 +2682,20 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                     className="list-disc space-y-2 pl-4 text-sm text-ink"
                 >
                     <li>
-                        Right after WrestleMania the re-draft page opens. Each
+                        Right after WrestleMania’s main event the re-draft page
+                        opens (WrestleMania week has no weekly shows). Each
                         brand drafts{' '}
                         {pluralize(calendar.redraft_picks, 'superstar')} from
                         the other, one pick at a time, taking turns. Every pick
                         is a swap, so the roster cap doesn’t apply.
+                    </li>
+                    <li>
+                        Each random pick spins a reel through the superstars the
+                        picking brand could take, stops on the one drawn, then
+                        moves them across. Skip animation skips it. A
+                        superstar’s profile lists every re-draft that moved
+                        them: from, to, the season and that brand’s pick
+                        (“3/5”).
                     </li>
                     <li>
                         Picks are random from the other brand’s non-champions.
@@ -2707,7 +2723,8 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                         The rival GM uses its tags on its most valuable
                         superstars. Continue opens WrestleMania week’s news: the
                         re-draft is the WWE headline, and each brand’s card
-                        leads with its last WrestleMania match.
+                        leads with its last WrestleMania match. The News’s
+                        Continue opens the Schedule and the new season.
                     </li>
                 </ul>
             </Panel>
@@ -2998,11 +3015,13 @@ function ResultsDocs() {
                             placed in front of.
                         </li>
                         <li>
-                            After a PPV night’s last match, Continue opens your
-                            weekly show to book. After the weekly shows’ last
-                            match the rest of the week runs (recovery,
-                            contracts, morale, news, email) and Continue opens
-                            the News.
+                            After the last match of a PPV night you booked,
+                            Continue opens the News with that night’s news; its
+                            Continue opens your weekly show to book. The rival’s
+                            own PPV airs with the weekly shows. After the weekly
+                            shows’ last match the rest of the week runs
+                            (recovery, contracts, morale, news, email) and
+                            Continue opens the News, now with the whole week.
                         </li>
                         <li>
                             Signings, releases and trades wait until the week’s

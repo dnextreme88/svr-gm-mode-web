@@ -3,6 +3,7 @@
 namespace App\Services\Roster;
 
 use App\Enums\DraftPhase;
+use App\Enums\DraftPickType;
 use App\Enums\MatchFamily;
 use App\Enums\MitbStatus;
 use App\Enums\ParticipantRole;
@@ -82,7 +83,6 @@ class SuperstarCareer
             ...$this->briefcases($save, $wrestler),
             ...$this->survivorSeries($save, $wrestler),
             ...$this->interbrandSeries($save, $wrestler),
-            ...$this->redraft($save, $wrestler),
         ];
 
         usort($moments, fn (array $a, array $b): int => $b['absolute_week'] <=> $a['absolute_week']);
@@ -236,34 +236,34 @@ class SuperstarCareer
     }
 
     /**
-     * Re-draft picks that moved them, other than the hand-picked one.
+     * Every re-draft that moved them (house rule, 2026-11-16), newest first:
+     * the brand they left, the brand that drafted them, the season, and
+     * which of that brand's picks it was ("3/5"). The season is the one
+     * whose WrestleMania it followed.
      *
-     * @return list<Moment>
+     * @return list<array{season: int, from: string, to: string, pick: int, picks: int, manual: bool}>
      */
-    private function redraft(Save $save, SaveWrestler $wrestler): array
+    public function redrafts(Save $save, SaveWrestler $wrestler): array
     {
-        $handpicked = InterbrandSeries::where('save_id', $save->id)->where('handpick_wrestler_id', $wrestler->id)->pluck('season')->all();
+        $perBrand = (int) config('gm.ppv.redraft_picks_per_brand');
 
         return array_values(DraftPick::where('save_id', $save->id)
             ->where('save_wrestler_id', $wrestler->id)
             ->where('phase', DraftPhase::WrestlemaniaReset)
             ->where('skipped', false)
+            ->orderByDesc('season')
             ->get()
-            ->reject(fn (DraftPick $p): bool => in_array($p->season, $handpicked, true))
-            ->map(function (DraftPick $pick): array {
-                // The re-draft runs once the season's WrestleMania is over.
-                $week = $this->calendar->absoluteWeek($pick->season, $this->calendar->weeksPerSeason());
-
-                return [
-                    'kind' => 'redraft',
-                    'title' => 'Re-drafted',
-                    'detail' => "Taken by {$pick->brand->label()} in the post-WrestleMania re-draft (pick {$pick->pick_number}).",
-                    'week' => $this->label($week),
-                    'absolute_week' => $week,
-                    'outcome' => null,
-                    'url' => null,
-                ];
-            })
+            ->map(fn (DraftPick $pick): array => [
+                // Picks are stamped with the season they lead into; the
+                // re-draft follows the previous season's WrestleMania.
+                'season' => max(1, $pick->season - 1),
+                'from' => $pick->brand->rival()->value,
+                'to' => $pick->brand->value,
+                // The brands alternate, so a brand's Nth pick is overall pick 2N-1 or 2N.
+                'pick' => intdiv($pick->pick_number + 1, 2),
+                'picks' => $perBrand,
+                'manual' => $pick->pick_type === DraftPickType::Manual,
+            ])
             ->all());
     }
 

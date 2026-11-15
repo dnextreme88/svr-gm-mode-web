@@ -8,8 +8,10 @@ use App\Enums\NewsTier;
 use App\Models\NewsEvent;
 use App\Models\Save;
 use App\Models\Show;
+use App\Models\WeekAiring;
 use App\Services\Attendance\AttendanceNights;
 use App\Services\Calendar\CalendarService;
+use App\Services\Week\WeekResolver;
 use App\Support\Rng\Rng;
 use Illuminate\Support\Collection;
 
@@ -42,9 +44,30 @@ class NewsComposer
      */
     public function weeks(Save $save): array
     {
-        $latest = $save->current_week - 1;
+        // House rule (2026-11-16): a PPV night the player booked opens the
+        // News before the weekly show, so that week shows up already.
+        $latest = $this->ppvNightNewsFrom($save) !== null ? $save->current_week : $save->current_week - 1;
 
         return $latest < 1 ? [] : range($latest, 1);
+    }
+
+    /**
+     * The News opens after a PPV night the player booked, while the week
+     * waits for the weekly show (house rule, 2026-11-16): the id the
+     * night's news starts after, or null when no PPV night is waiting.
+     */
+    public function ppvNightNewsFrom(Save $save): ?int
+    {
+        $airing = WeekAiring::where('save_id', $save->id)
+            ->where('week_number', $save->current_week)
+            ->whereNull('completed_at')
+            ->first();
+
+        if ($airing === null || ($airing->context['phase'] ?? null) !== WeekResolver::PHASE_PPV_DONE) {
+            return null;
+        }
+
+        return (int) ($airing->context['news_after_id'] ?? 0);
     }
 
     /**
@@ -55,6 +78,12 @@ class NewsComposer
     public function pages(Save $save): array
     {
         $byWeek = NewsEvent::where('save_id', $save->id)->get()->groupBy('week_number');
+        $from = $this->ppvNightNewsFrom($save);
+
+        // Mid-week, after the PPV night: only what happened since it began.
+        if ($from !== null) {
+            $byWeek->put($save->current_week, $byWeek->get($save->current_week, collect())->filter(fn (NewsEvent $e): bool => $e->id > $from)->values());
+        }
         $shows = Show::with('ppvEvent')->where('save_id', $save->id)->whereNotNull('attendance')->orderBy('id')->get()->toBase()->groupBy('week_number');
 
         return array_map(fn (int $week): array => $this->compose($save, $week, $byWeek->get($week, collect()), $this->nights->group($shows->get($week, collect()))), $this->weeks($save));

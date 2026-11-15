@@ -54,7 +54,6 @@ type Props = GamePageProps & {
     picks: Pick[];
 };
 
-const BRANDS: Brand[] = ['raw', 'smackdown'];
 const SKIP_ANIMATION_KEY = 'gm.redraft.skip-animation';
 
 const sleep = (ms: number) =>
@@ -72,6 +71,8 @@ export default function Redraft() {
     const props = usePage<Props>().props;
     const { game, series, order, per_brand } = props;
     const player = game.player_brand;
+    // Like Propose Trade (2026-11-16): your brand on the left, the rival's on the right.
+    const brands: Brand[] = [player, player === 'raw' ? 'smackdown' : 'raw'];
     const { busy, track } = useBusy();
 
     const [rosters, setRosters] = useState(props.rosters);
@@ -254,7 +255,7 @@ export default function Redraft() {
             />
 
             <div className="mb-6 grid gap-4 md:grid-cols-2" aria-live="polite">
-                {BRANDS.map((brand) => (
+                {brands.map((brand) => (
                     <TagCard
                         key={brand}
                         brand={brand}
@@ -269,7 +270,7 @@ export default function Redraft() {
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                {BRANDS.map((brand) => (
+                {brands.map((brand) => (
                     <div
                         key={brand}
                         data-brand-tint={brand}
@@ -759,6 +760,13 @@ function RosterColumn({
                                         <span className="gm-num">
                                             {w.wins}–{w.losses}
                                         </span>
+                                        {/* Like Propose Trade (2026-11-16): the contract moves with them. */}
+                                        {w.contract && (
+                                            <span className="gm-num">
+                                                {w.contract.weeks_remaining}w
+                                                left
+                                            </span>
+                                        )}
                                     </span>
                                 </span>
                                 {w.locked ? (

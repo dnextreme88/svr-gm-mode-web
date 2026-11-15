@@ -35,3 +35,4 @@ Dated implementation and upgrade plans for this site. Each plan is a Markdown fi
 | **2026-11-15** | [Royal Rumble Record, Rival Rumble Entrants & Draft Lengths, SummerSlam & Injured Champion Fixes](20261115-royal-rumble-record-and-fixes.md) |
 | **2026-11-15** | [WrestleMania Re-Draft Rework](20261115-wrestlemania-redraft.md) |
 | **2026-11-15** | [Financials Overhaul, Call-out Promo, Rivalry Booking, Slot Reordering & Superstar Profile](20261115-financials-overhaul.md) |
+| **2026-11-16** | [PPV Night News, WrestleMania Season End & Re-Draft Polish](20261116-ppv-night-news-and-season-end.md) |

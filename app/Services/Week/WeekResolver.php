@@ -8,6 +8,7 @@ use App\Enums\ShowStatus;
 use App\Enums\ShowType;
 use App\Exceptions\GameRuleException;
 use App\Models\MatchSlot;
+use App\Models\NewsEvent;
 use App\Models\Save;
 use App\Models\Show;
 use App\Models\WeekAiring;
@@ -227,6 +228,10 @@ class WeekResolver
             $airing = WeekAiring::create(['save_id' => $locked->id, 'week_number' => $week, 'context' => [], 'rng_states' => []]);
             $context = new WeekContext($locked, $week, $this->calendar->seasonOf($week));
             $context->data['phase'] = $ppvNight ? self::PHASE_PPV : self::PHASE_WEEKLY;
+            // House rule (2026-11-16): the News opens after the PPV night,
+            // with only what happened from here on (not a signing made
+            // earlier in the week).
+            $context->data['news_after_id'] = (int) NewsEvent::where('save_id', $locked->id)->max('id');
 
             foreach ($this->opening() as $step) {
                 app($step)->handle($context);
@@ -513,7 +518,9 @@ class WeekResolver
         }
 
         // The PPV night is over: wait for the player to book the weekly show.
-        if (($context->data['phase'] ?? null) === self::PHASE_PPV) {
+        // WrestleMania week has none (house rule, 2026-11-16), so its night
+        // closes the week straight into the re-draft.
+        if (($context->data['phase'] ?? null) === self::PHASE_PPV && $this->hasWeeklyShows($context)) {
             $context->data['phase'] = self::PHASE_PPV_DONE;
             $airing->update(['context' => $context->data, 'rng_states' => $context->streamStates()]);
 
@@ -532,6 +539,14 @@ class WeekResolver
         ]);
 
         $airing->update(['context' => $context->data, 'rng_states' => $context->streamStates(), 'completed_at' => now()]);
+    }
+
+    private function hasWeeklyShows(WeekContext $context): bool
+    {
+        return Show::where('save_id', $context->save->id)
+            ->where('week_number', $context->week)
+            ->where('show_type', ShowType::Weekly)
+            ->exists();
     }
 
     /**

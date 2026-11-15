@@ -32,6 +32,7 @@ use App\Services\News\NewsComposer;
 use App\Services\News\NewsTemplates;
 use App\Services\Ppv\PpvCardService;
 use App\Services\Ppv\ReDraftService;
+use App\Services\Roster\SuperstarCareer;
 use App\Services\Titles\MitbService;
 use App\Services\Week\ShowScheduler;
 use App\Services\Week\WeekResolver;
@@ -622,6 +623,21 @@ describe('re-draft', function () {
         expect($save->refresh()->stage)->toBe(SaveStage::InSeason);
     });
 
+    it('lists every re-draft move on the superstar’s profile: from, to, season and that brand’s pick', function () {
+        $save = redraftSave(Brand::Raw, immunity: Brand::Raw);
+        app(ReDraftService::class)->run($save);
+        $picks = redraftPicks($save)->where('skipped', false)->values();
+        $third = $picks->first(fn ($p) => $p->pick_number === 5); // Raw's 3rd pick
+        $manual = $picks->first(fn ($p) => $p->pick_number === 1);
+
+        $row = app(SuperstarCareer::class)->redrafts($save, $third->saveWrestler)[0];
+        expect($row)->toBe(['season' => 1, 'from' => 'smackdown', 'to' => 'raw', 'pick' => 3, 'picks' => 5, 'manual' => false])
+            ->and(app(SuperstarCareer::class)->redrafts($save, $manual->saveWrestler)[0]['manual'])->toBeTrue();
+
+        $this->get(route('gm.rosters.show', [$save, $third->saveWrestler]))
+            ->assertInertia(fn ($page) => $page->where('redrafts.0.pick', 3)->where('redrafts.0.to', 'raw'));
+    });
+
     it('shows the 404 page for the re-draft before WrestleMania and after it ends', function () {
         $save = GameBuilder::inSeason(size: 16);
         $save->update(['current_week' => 7]);
@@ -635,7 +651,6 @@ describe('re-draft', function () {
 
         $done = redraftSave(Brand::Raw);
         app(ReDraftService::class)->run($done);
-        $this->post(route('gm.redraft.finish', $done));
         expect($done->refresh()->stage)->toBe(SaveStage::InSeason);
         $this->get(route('gm.redraft.show', $done))->assertNotFound();
     });

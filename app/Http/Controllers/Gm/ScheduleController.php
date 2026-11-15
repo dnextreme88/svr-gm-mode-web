@@ -50,6 +50,11 @@ class ScheduleController extends Controller
             'seasons' => range(1, $currentSeason),
             'months' => $months,
             'initial_month' => $season === $currentSeason ? $currentDate : $months[0]['key'],
+            // House rule (2026-11-16): after the re-draft, the News's Continue
+            // opens the Schedule with a welcome to the new season.
+            'welcome_season' => $request->boolean('welcome') && $currentSeason > 1 && $calendar->seasonWeek($save->current_week) === 1
+                ? $currentSeason
+                : null,
         ]);
     }
 

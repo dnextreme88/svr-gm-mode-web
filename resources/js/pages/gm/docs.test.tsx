@@ -950,9 +950,15 @@ describe('Docs page', () => {
         expect(screen.getByTestId('ppv-night-first')).toHaveTextContent(
             'A PPV week airs in two steps.',
         );
+        expect(screen.getByTestId('ppv-night-first')).toHaveTextContent(
+            'Then the News opens with the PPV night’s news',
+        );
         expect(
-            screen.getByText(/After a PPV night’s last match, Continue opens/),
+            screen.getByText(/Continue opens the News with that night’s news/),
         ).toBeInTheDocument();
+        expect(screen.getByTestId('wrestlemania-week')).toHaveTextContent(
+            'WrestleMania week has no weekly shows.',
+        );
     });
 
     it('explains the re-draft and who earns each tag', async () => {

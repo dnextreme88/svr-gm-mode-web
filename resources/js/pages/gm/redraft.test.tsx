@@ -56,7 +56,14 @@ const baseProps = {
     },
     rosters: {
         raw: [
-            row(1, 'Edge', 'raw'),
+            row(1, 'Edge', 'raw', {
+                contract: {
+                    length_weeks: 52,
+                    weeks_remaining: 21,
+                    weekly_cost: 4615,
+                    starts_week: 1,
+                },
+            }),
             row(2, 'John Cena', 'raw', {
                 titles: ['WWE Championship'],
                 locked: 'Champion',
@@ -92,6 +99,33 @@ describe('WrestleMania Re-Draft', () => {
         post.mockReset();
         requestJson.mockReset();
         window.localStorage.setItem('gm.redraft.skip-animation', 'on');
+    });
+
+    it('puts your brand on the left and the rival’s on the right', () => {
+        props = {
+            ...baseProps,
+            game: {
+                ...baseProps.game,
+                player_brand: 'smackdown',
+                rival_brand: 'raw',
+            },
+        };
+        render(<Redraft />);
+
+        const smackdown = screen.getByTestId('redraft-roster-smackdown');
+        const raw = screen.getByTestId('redraft-roster-raw');
+        expect(
+            smackdown.compareDocumentPosition(raw) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+    });
+
+    it('shows each superstar’s contract left, like Propose Trade', () => {
+        render(<Redraft />);
+
+        expect(screen.getByTestId('redraft-row-1')).toHaveTextContent(
+            '21w left',
+        );
     });
 
     it('explains who holds each tag and why', () => {
