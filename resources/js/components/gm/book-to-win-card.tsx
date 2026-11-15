@@ -52,11 +52,12 @@ export function BookToWinCard({
     return (
         <article className="gm-panel relative overflow-hidden px-6 py-8 md:px-10">
             <div className="text-center">
-                <div className="gm-label">
+                <p
+                    data-testid="book-heading"
+                    className="text-base text-ink-dim"
+                >
                     {showName} ·{' '}
-                    {isMainEvent ? 'Main Event' : `Match ${match.position}`}
-                </div>
-                <div className="mt-1 font-condensed text-sm tracking-wider text-ink-dim uppercase">
+                    {isMainEvent ? 'Main Event' : `Match ${match.position}`} ·{' '}
                     {match.match_type}
                     {match.title && (
                         <span className="ml-2 text-gold-hot">
@@ -70,7 +71,7 @@ export function BookToWinCard({
                             {!match.champions?.length && ' (vacant)'}
                         </span>
                     )}
-                </div>
+                </p>
                 {match.mitb_cash_in && <CashInTag className="mt-1 block" />}
             </div>
 

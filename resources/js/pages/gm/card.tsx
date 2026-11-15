@@ -1,9 +1,13 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { BookingAction, BookingSteps } from '@/components/gm/booking-steps';
 import type { BookingOrder } from '@/components/gm/booking-steps';
 import type { RepeatWarning } from '@/components/gm/air-week-button';
 import { BrandBug } from '@/components/gm/brand-bug';
+import {
+    LOADING_OVERLAY_DELAY_MS,
+    LoadingOverlay,
+} from '@/components/gm/loading-overlay';
 import { CardBuilder } from '@/components/gm/card-builder';
 import { CashInButton } from '@/components/gm/cash-in-button';
 import { PageTitle } from '@/components/gm/panel';
@@ -81,6 +85,7 @@ export default function CardPage() {
         series,
         main_event_types,
     } = usePage<Props>().props;
+    const [rearranging, setRearranging] = useState(false);
     const types = useMemo(
         () => new Map(match_types.map((t) => [t.id, t])),
         [match_types],
@@ -171,6 +176,12 @@ export default function CardPage() {
     return (
         <UnsavedChangesProvider>
             <Head title={`${show.name} card`} />
+            {rearranging && (
+                <LoadingOverlay
+                    text="Re-arranging your matches. Please wait."
+                    testId="reorder-overlay"
+                />
+            )}
             <PageTitle
                 kicker={`Week ${game.season_week} · ${show.show_type === 'ppv' ? 'PPV card' : 'Weekly show'}`}
                 title={
@@ -286,13 +297,30 @@ export default function CardPage() {
                         preserveScroll: true,
                     })
                 }
-                onReorder={(order) =>
+                onReorder={(order) => {
+                    // 2026-11-15: "Re-arranging your matches" covers the card
+                    // while the new order saves, for at least 2.5 seconds.
+                    const started = Date.now();
+                    setRearranging(true);
+
                     router.put(
                         gm.card.reorder.url(ids),
                         { order },
-                        { preserveScroll: true },
-                    )
-                }
+                        {
+                            preserveScroll: true,
+                            onFinish: () => {
+                                window.setTimeout(
+                                    () => setRearranging(false),
+                                    Math.max(
+                                        0,
+                                        LOADING_OVERLAY_DELAY_MS -
+                                            (Date.now() - started),
+                                    ),
+                                );
+                            },
+                        },
+                    );
+                }}
                 // WrestleMania's interbrand series (house rule, 2026-11-15):
                 // your spots are ordinary pickers on the match; Save sends them.
                 series={series}

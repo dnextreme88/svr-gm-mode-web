@@ -18,6 +18,7 @@ use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
+use App\Services\Card\TitleMatchPlanner;
 use App\Services\Contracts\ContractService;
 use App\Services\Injuries\InjuryService;
 use App\Services\Rivalries\RivalryService;
@@ -237,4 +238,21 @@ describe('superstar profile', function () {
                 ->has('quotes', 5)
                 ->where('quotes.4.total', 240_000));
     });
+});
+
+it('puts the champion(s) first in every title match Randomize and Preset book', function () {
+    GameBuilder::passiveRival();
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Christian', 'Carlito', 'Shelton Benjamin', 'Chris Masters', 'Tajiri', 'Snitsky'], smackdown: ['Batista']);
+    $tag = GameBuilder::giveTitle($save, 'world_tag_team', ['Tajiri', 'Snitsky']);
+    $ic = GameBuilder::giveTitle($save, 'intercontinental', ['Carlito']);
+    config(['gm.card.randomize_title_chance' => 1.0]);
+    $show = Card::show($save);
+    $pool = app(CardRandomizer::class)->pool($show, Brand::Raw);
+    $planner = app(TitleMatchPlanner::class);
+
+    $triple = $planner->plan($show, Brand::Raw, Card::type('single', 'Triple Threat'), $pool, [], $save->rng('t.triple', 1), order: [$ic->championship_id]);
+    $tagMatch = $planner->plan($show, Brand::Raw, Card::type('tag_team', 'Normal Tag'), $pool, [], $save->rng('t.tag', 1), order: [$tag->championship_id]);
+
+    expect($triple['sides'][0])->toBe($ic->holderIds())
+        ->and($tagMatch['sides'][0])->toBe($tag->holderIds());
 });

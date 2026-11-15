@@ -41,4 +41,19 @@ describe('OutcomeCard', () => {
 
         expect(screen.queryByTestId('kept-title')).toBeNull();
     });
+
+    it('says where the match was in one plain line, with no eyebrow labels (2026-11-15)', () => {
+        render(
+            <OutcomeCard
+                outcome={{ ...dqRetain, title: null, title_banner: null }}
+                showName="Survivor Series"
+                isMainEvent={false}
+            />,
+        );
+
+        expect(screen.getByTestId('outcome-heading')).toHaveTextContent(
+            'Survivor Series · Match 1 · Submission — Triple Threat',
+        );
+        expect(screen.queryByText('Winner')).toBeNull();
+    });
 });

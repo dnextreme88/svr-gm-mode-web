@@ -2,12 +2,13 @@ import {
     closestCenter,
     DndContext,
     KeyboardSensor,
+    pointerWithin,
     PointerSensor,
     TouchSensor,
     useSensor,
     useSensors,
 } from '@dnd-kit/core';
-import type { DragEndEvent } from '@dnd-kit/core';
+import type { CollisionDetection, DragEndEvent } from '@dnd-kit/core';
 import {
     arrayMove,
     SortableContext,
@@ -37,6 +38,19 @@ export function reorderPositions(
 
     return positions.map((p) => (movable(p) ? moved[next++] : p));
 }
+
+/**
+ * The match a drag lands on: the one under the pointer (2026-11-15). Match
+ * cards are tall and the handle sits at the top, so the dragged card's
+ * centre (dnd-kit's default) trails far below the pointer: dropping Match 5's
+ * handle on Match 3's header landed it in another spot. Between cards (or
+ * with the keyboard) the closest centre decides.
+ */
+export const dropTarget: CollisionDetection = (args) => {
+    const under = pointerWithin(args);
+
+    return under.length > 0 ? under : closestCenter(args);
+};
 
 export type SlotHandle = {
     /** The drag handle and the move up / move down buttons for the slot's header. */
@@ -90,7 +104,14 @@ export function SortableSlots({
     return (
         <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={dropTarget}
+            // Scroll only close to the window's edge, and gently: by default
+            // the top fifth of the window scrolled fast, so holding a card over
+            // the match you wanted kept scrolling past it (2026-11-15).
+            autoScroll={{
+                threshold: { x: 0, y: 0.08 },
+                acceleration: 4,
+            }}
             onDragEnd={onDragEnd}
             accessibility={{
                 screenReaderInstructions: {

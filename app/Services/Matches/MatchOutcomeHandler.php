@@ -95,7 +95,9 @@ class MatchOutcomeHandler
         if ($slot->matchType?->isMoneyInTheBank()) {
             $winner = SaveWrestler::with('wrestler')->findOrFail($resolved->winners[0]);
             $this->mitb->award($context->save, $winner, $context->week);
-            $stipulationOutcome = "{$winner->name()} earns a {$this->mitb->worldTitle($winner->brand ?? $slot->owner_brand ?? $slot->show->brand ?? Brand::Raw)->name} shot";
+            // "Chris Benoit of Smackdown earns a … shot anytime" (2026-11-15).
+            $briefcaseBrand = $winner->brand ?? $slot->owner_brand ?? $slot->show->brand ?? Brand::Raw;
+            $stipulationOutcome = "{$winner->name()} of {$briefcaseBrand->label()} earns a {$this->mitb->worldTitle($briefcaseBrand)->name} shot anytime";
         }
 
         if ($slot->fixed_kind === FixedSlotKind::RoyalRumble) {

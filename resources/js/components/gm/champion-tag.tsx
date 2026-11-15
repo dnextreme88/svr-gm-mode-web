@@ -110,7 +110,7 @@ export function BrandLabel({ brand }: { brand: string }) {
     return (
         <span
             data-testid="brand-label"
-            className="ml-2 mr-1 font-normal text-sm text-ink-dim"
+            className="mr-1 ml-2 text-sm font-normal text-ink-dim"
         >
             ({brand})
         </span>

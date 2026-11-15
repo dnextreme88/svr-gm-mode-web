@@ -52,3 +52,22 @@ it('tags the Rumble winner, briefcase holders and the weeks someone sits out on 
             ->and($rows['Kane']['sitting_out_weeks'])->toBeNull();
     });
 });
+
+it('names the Money in the Bank winner’s brand and says the shot is anytime', function () {
+    $save = GameBuilder::inSeason(size: 16);
+    GameBuilder::giveTitle($save, 'wwe', ['John Cena']);
+    GameBuilder::giveTitle($save, 'world_heavyweight', ['Batista']);
+    Season::where('save_id', $save->id)->update(['royal_rumble_winner_id' => GameBuilder::wrestler($save, 'Edge')->id]);
+    $save->update(['current_week' => 52]);
+    app(ShowScheduler::class)->ensureWeek($save, 52);
+    $show = Show::with('ppvEvent')->where('save_id', $save->id)->where('week_number', 52)->whereNull('brand')->sole();
+    app(PpvCardService::class)->fillSeries($show, Brand::Raw, $save->rng('test.series'));
+    $ladder = MatchSlot::with('participants.saveWrestler.wrestler')->where('show_id', $show->id)->where('position', 7)->sole();
+    $winner = $ladder->participants->first(fn ($p) => $p->saveWrestler->brand === Brand::Smackdown)->saveWrestler;
+    FixedOutcomes::queue($winner->name());
+
+    app(WeekResolver::class)->resolve($save->refresh());
+
+    expect(MatchResult::where('match_slot_id', $ladder->id)->sole()->stipulation_outcome)
+        ->toBe("{$winner->name()} of Smackdown earns a World Heavyweight Championship shot anytime");
+});
