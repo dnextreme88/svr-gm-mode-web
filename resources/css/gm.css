@@ -439,19 +439,24 @@
         padding-right: 1.4rem;
     }
 
-    /* The body runs 1px under the slanted tip: at a fractional width the two
-       pieces round to different pixels and left a see-through seam between
-       them (2026-11-15, "Match 1", "Match 4", "Main Event"). */
+    /* The shape is a mask over one flat fill. The body runs 1px under each
+       slanted tip, so a fractional width can't leave a see-through seam
+       between them (2026-11-15, "Match 1", "Main Event"), and because the
+       pieces only mask, the overlap can't paint a translucent colour twice
+       (the grey "Rival Interference" tag's lighter stripe, 2026-11-16). */
+    .gm-chyron::before,
+    .gm-chyron-both::before {
+        background: var(--gm-chyron-bg);
+    }
+
     .gm-chyron::before {
-        background:
-            linear-gradient(var(--gm-chyron-bg), var(--gm-chyron-bg)) left /
+        --gm-chyron-mask:
+            linear-gradient(#000, #000) left /
                 calc(100% - var(--gm-chyron-cut) + 1px) 100% no-repeat,
-            linear-gradient(
-                    to bottom right,
-                    var(--gm-chyron-bg) 50%,
-                    transparent 50%
-                )
-                right / var(--gm-chyron-cut) 100% no-repeat;
+            linear-gradient(to bottom right, #000 50%, transparent 50%) right /
+                var(--gm-chyron-cut) 100% no-repeat;
+        -webkit-mask: var(--gm-chyron-mask);
+        mask: var(--gm-chyron-mask);
     }
 
     .gm-chyron-both {
@@ -459,21 +464,15 @@
     }
 
     .gm-chyron-both::before {
-        background:
-            linear-gradient(
-                    to top left,
-                    var(--gm-chyron-bg) 50%,
-                    transparent 50%
-                )
-                left / var(--gm-chyron-cut) 100% no-repeat,
-            linear-gradient(var(--gm-chyron-bg), var(--gm-chyron-bg)) center /
+        --gm-chyron-mask:
+            linear-gradient(to top left, #000 50%, transparent 50%) left /
+                var(--gm-chyron-cut) 100% no-repeat,
+            linear-gradient(#000, #000) center /
                 calc(100% - 2 * var(--gm-chyron-cut) + 2px) 100% no-repeat,
-            linear-gradient(
-                    to bottom right,
-                    var(--gm-chyron-bg) 50%,
-                    transparent 50%
-                )
-                right / var(--gm-chyron-cut) 100% no-repeat;
+            linear-gradient(to bottom right, #000 50%, transparent 50%) right /
+                var(--gm-chyron-cut) 100% no-repeat;
+        -webkit-mask: var(--gm-chyron-mask);
+        mask: var(--gm-chyron-mask);
     }
 
     .gm-heading {
