@@ -840,6 +840,7 @@ function MatchRow({
                                         champions={o.champions}
                                         captains={o.captains}
                                         factions={o.factions}
+                                        brands={o.brands}
                                         manager={side.manager}
                                     />
                                 </Fragment>
@@ -851,6 +852,7 @@ function MatchRow({
                                     champions={o.champions}
                                     captains={o.captains}
                                     factions={o.factions}
+                                    brands={o.brands}
                                     manager={o.winner_manager}
                                 />
                                 <span className="mx-1.5 text-ink-faint group-hover:text-white/70">
@@ -864,6 +866,7 @@ function MatchRow({
                                             champions={o.champions}
                                             captains={o.captains}
                                             factions={o.factions}
+                                            brands={o.brands}
                                             manager={o.loser_side_managers?.[i]}
                                         />
                                     </Fragment>

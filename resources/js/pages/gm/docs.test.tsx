@@ -204,6 +204,7 @@ const props = {
         titles: {
             main_event_chance: { weekly: 0.6, ppv: 0.9 },
             other_slot_chance: 0.35,
+            interbrand_world_chance: 0.75,
             champion_vs_contender_chance: 0.1,
             number_one_contender_chance: 0.1,
             winner_takes_all_chance: { weekly: 0.08, ppv: 0.2 },

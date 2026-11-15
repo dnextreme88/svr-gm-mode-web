@@ -87,6 +87,7 @@ export function OutcomeCard({
                         champions={outcome.champions}
                         captains={outcome.captains}
                         factions={outcome.factions}
+                        brands={outcome.brands}
                         manager={outcome.winner_manager}
                     />
                 </h2>
@@ -100,6 +101,7 @@ export function OutcomeCard({
                                 champions={outcome.champions}
                                 captains={outcome.captains}
                                 factions={outcome.factions}
+                                brands={outcome.brands}
                                 manager={outcome.loser_side_managers?.[i]}
                             />
                         </Fragment>

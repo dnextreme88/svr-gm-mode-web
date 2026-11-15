@@ -6,12 +6,15 @@ use App\Enums\Brand;
 use App\Enums\ContractLength;
 use App\Enums\ContractStatus;
 use App\Enums\LedgerCategory;
+use App\Enums\MitbStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Presenters\WrestlerPresenter;
 use App\Models\Contract;
 use App\Models\LedgerEntry;
+use App\Models\MoneyInTheBank;
 use App\Models\Save;
 use App\Models\SaveWrestler;
+use App\Models\Season;
 use App\Models\TitleReign;
 use App\Services\Contracts\ContractPricing;
 use App\Services\Injuries\InjuryStatus;
@@ -44,10 +47,19 @@ class RosterController extends Controller
         $injuries = $this->injuries->activeByWrestler($save->id, $week);
         $reigns = $this->titles->currentReigns($save);
 
+        // Tags under the name (2026-11-15): who holds a Money in the Bank
+        // briefcase, and this season's Royal Rumble winner.
+        $briefcases = MoneyInTheBank::where('save_id', $save->id)->where('status', MitbStatus::Held)->pluck('save_wrestler_id')->map(fn ($id): int => (int) $id)->all();
+        $rumbleWinner = Season::where('save_id', $save->id)->where('number', $save->current_season)->value('royal_rumble_winner_id');
+
         return Inertia::render('gm/rosters/index', [
             'brand' => $brand->value,
             'wrestlers' => $this->roster->roster($save, $brand)
-                ->map(fn (SaveWrestler $w): array => WrestlerPresenter::row($w, $week, $injuries, $reigns))
+                ->map(fn (SaveWrestler $w): array => [
+                    ...WrestlerPresenter::row($w, $week, $injuries, $reigns),
+                    'mitb_winner' => in_array($w->id, $briefcases, true),
+                    'rumble_winner' => $rumbleWinner !== null && (int) $rumbleWinner === $w->id,
+                ])
                 ->values(),
             'pending' => $this->roster->pendingCount($save, $brand),
         ]);

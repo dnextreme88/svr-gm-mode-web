@@ -749,6 +749,10 @@ return [
             // ASSUMPTION: the main event's chance of being a title match.
             'main_event_chance' => ['weekly' => 0.6, 'ppv' => 0.9],
             'other_slot_chance' => 0.35,
+            // House rule (2026-11-15): the title match it always books on an
+            // interbrand PPV is its world title this often, else another of
+            // its titles at random.
+            'interbrand_world_chance' => 0.75,
             // ASSUMPTION
             'champion_vs_contender_chance' => 0.1,
             // ASSUMPTION (house rule, 2026-11-01): a non-title match that fits a

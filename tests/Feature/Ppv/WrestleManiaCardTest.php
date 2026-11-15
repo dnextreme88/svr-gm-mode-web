@@ -3,6 +3,7 @@
 use App\Enums\Brand;
 use App\Enums\FixedSlotKind;
 use App\Exceptions\GameRuleException;
+use App\Http\Presenters\CardPresenter;
 use App\Models\MatchSlot;
 use App\Models\MatchType;
 use App\Models\SaveWrestler;
@@ -114,4 +115,21 @@ it('marks each series side with its brand and colours interbrand slots by owner'
         ->where('slots.0.side_brands', null)
         ->has('series.7')
         ->has('main_event_types'));
+});
+
+it('labels each superstar’s brand in the results of the series and the Survivor Series 3 vs 3', function () {
+    [$save, $show] = wmCard();
+    app(PpvCardService::class)->fillSeries($show, Brand::Raw, $save->rng('test.series'));
+    $slot = MatchSlot::with(['participants.saveWrestler.wrestler', 'matchType'])->where('show_id', $show->id)->where('position', 5)->sole();
+    $brands = CardPresenter::pending($slot, true, [])['brands'];
+    $raw = $slot->participants->firstWhere('side', 0)->saveWrestler->wrestler->name;
+    $smackdown = $slot->participants->firstWhere('side', 1)->saveWrestler->wrestler->name;
+
+    expect($brands)->toBe([$raw => 'Raw', $smackdown => 'Smackdown'])
+        ->and(CardPresenter::pending(wmSlot($show, 1)->load('matchType'), true, [])['brands'])->toBeNull();
+
+    $survivor = new MatchSlot(['fixed_kind' => FixedSlotKind::SurvivorSeriesMainEvent, 'position' => 7]);
+
+    expect(CardPresenter::sideBrand($survivor, 0))->toBe(Brand::Raw)
+        ->and(CardPresenter::sideBrand($survivor, 1))->toBe(Brand::Smackdown);
 });

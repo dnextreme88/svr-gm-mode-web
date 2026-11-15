@@ -3,6 +3,7 @@ import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { Fragment, useState } from 'react';
 import { BusyLabel } from '@/components/gm/busy-label';
 import {
+    BrandLabel,
     CaptainTag,
     ChampionTag,
     FactionName,
@@ -208,6 +209,11 @@ function SideLabel({ match, side }: { match: PendingMatch; side: Side }) {
                             {members.some((m) =>
                                 match.captains.includes(m.name),
                             ) && <CaptainTag />}
+                            {match.brands?.[members[0].name] && (
+                                <BrandLabel
+                                    brand={match.brands[members[0].name]}
+                                />
+                            )}
                         </Fragment>
                     );
                 },

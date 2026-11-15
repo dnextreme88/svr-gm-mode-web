@@ -91,9 +91,7 @@ class CardPresenter
             'owner_brand' => $slot->owner_brand?->value,
             'locked' => $slot->fixed_kind !== null || ($playerBrand !== null && $slot->owner_brand !== null && $slot->owner_brand !== $playerBrand),
             // House rule (2026-11-15): each interbrand series side's brand, for its border.
-            'side_brands' => $slot->fixed_kind === FixedSlotKind::InterbrandSeries
-                ? array_map(fn (int $side): string => in_array($side, PpvCardService::seriesSides($slot->position, Brand::Raw), true) ? Brand::Raw->value : Brand::Smackdown->value, range(0, max(1, count($slot->matchType->sides ?? [1, 1])) - 1))
-                : null,
+            'side_brands' => self::sideBrandsOf($slot),
             'names' => (object) $slot->participants->mapWithKeys(fn (MatchParticipant $p): array => [$p->save_wrestler_id => $p->saveWrestler->wrestler->name])->all(),
         ];
     }
@@ -160,6 +158,7 @@ class CardPresenter
             'loser_sides' => array_values($losers),
             'booked' => $result->booked,
             'champions' => $result->championReign === null || $result->championReign->isVacant() ? [] : $result->championReign->holder_snapshot['names'],
+            'brands' => self::brands($slot),
             'captains' => self::captains($slot),
             'factions' => self::factions($slot),
             'winners_label' => self::sideLabel($slot, $result->winner_side),
@@ -235,6 +234,7 @@ class CardPresenter
             ...self::stipulationTitles($slot),
             'mitb_cash_in' => $slot->mitb_cash_in?->value,
             'champions' => $champions,
+            'brands' => self::brands($slot),
             'captains' => self::captains($slot),
             'factions' => self::factions($slot),
             'gauntlet' => $slot->matchType?->family === MatchFamily::Gauntlet,
@@ -297,6 +297,55 @@ class CardPresenter
     private static function sideLabel(MatchSlot $slot, int $side): string
     {
         return app(FactionNamer::class)->name($slot->show->save_id, $slot->sides()[$side] ?? [], $slot->show->week_number);
+    }
+
+    /**
+     * Which brand each side of a match represents, on the matches between
+     * the brands (house rule, 2026-11-15): WrestleMania's interbrand series
+     * (by spot) and the Survivor Series 3 vs 3 (Raw first). Null elsewhere.
+     */
+    public static function sideBrand(MatchSlot $slot, int $side): ?Brand
+    {
+        return match ($slot->fixed_kind) {
+            FixedSlotKind::InterbrandSeries => in_array($side, PpvCardService::seriesSides($slot->position, Brand::Raw), true) ? Brand::Raw : Brand::Smackdown,
+            FixedSlotKind::SurvivorSeriesMainEvent => $side === 0 ? Brand::Raw : Brand::Smackdown,
+            default => null,
+        };
+    }
+
+    /**
+     * @return list<string>|null each side's brand, for the card's borders
+     */
+    private static function sideBrandsOf(MatchSlot $slot): ?array
+    {
+        if (self::sideBrand($slot, 0) === null) {
+            return null;
+        }
+
+        return array_map(fn (int $side): string => self::sideBrand($slot, $side)->value ?? '', range(0, max(1, count($slot->matchType->sides ?? [1, 1])) - 1));
+    }
+
+    /**
+     * Each competitor's brand label by name ("Val Venis" => "Raw") on the
+     * matches between the brands, so the results can say who's whose.
+     *
+     * @return array<string, string>|null
+     */
+    private static function brands(MatchSlot $slot): ?array
+    {
+        if (self::sideBrand($slot, 0) === null) {
+            return null;
+        }
+
+        $brands = [];
+
+        foreach ($slot->participants as $p) {
+            if ($p->role === ParticipantRole::Competitor) {
+                $brands[$p->saveWrestler->wrestler->name] = self::sideBrand($slot, $p->side)?->label() ?? '';
+            }
+        }
+
+        return $brands;
     }
 
     /**

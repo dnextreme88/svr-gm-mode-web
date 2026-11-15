@@ -52,6 +52,8 @@ class WrestlerPresenter
                 'weeks_left' => $injury->weeksLeft($week),
             ],
             'sitting_out' => $w->isSittingOut($week),
+            // Weeks until they can be booked again (2026-11-15), null when bookable.
+            'sitting_out_weeks' => $w->isSittingOut($week) ? (int) $w->unbookable_until_week - $week : null,
             'unbookable_until_week' => $w->unbookable_until_week,
             'contract' => $contract === null ? null : [
                 'length_weeks' => $contract->length_weeks,

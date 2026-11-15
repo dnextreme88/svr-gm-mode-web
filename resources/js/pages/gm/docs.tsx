@@ -182,6 +182,7 @@ type Props = {
         titles: {
             main_event_chance: { weekly: number; ppv: number };
             other_slot_chance: number;
+            interbrand_world_chance: number;
             champion_vs_contender_chance: number;
             number_one_contender_chance: number;
             winner_takes_all_chance: { weekly: number; ppv: number };
@@ -2000,6 +2001,14 @@ function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
                     can become Champion vs. Contender (
                     {pct(t.champion_vs_contender_chance)}).
                 </li>
+                <li data-testid="rival-interbrand-title">
+                    <strong>Interbrand PPVs:</strong> on SummerSlam, the Royal
+                    Rumble, Survivor Series and WrestleMania it always books at
+                    least one title match in its own slots. If none of its
+                    matches has a title on the line yet, it books one: its world
+                    title {pct(t.interbrand_world_chance)} of the time,
+                    otherwise one of its other titles at random.
+                </li>
                 <li data-testid="rival-new-stipulations">
                     <strong>Contenders and Winner Takes All:</strong> a
                     non-title match that fits one of its titles (nobody in it
@@ -2650,6 +2659,12 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                     <li>
                         Every match’s ribbon shows whose it is: red for Raw,
                         blue for Smackdown, gold when both brands share it.
+                    </li>
+                    <li>
+                        On the results, the series matches and Survivor Series’
+                        3 vs 3 show each superstar’s brand after their name,
+                        like “Val Venis (Raw) vs Road Warrior Animal
+                        (Smackdown)”.
                     </li>
                 </ul>
             </Panel>

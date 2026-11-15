@@ -101,7 +101,10 @@ class MatchOutcomeHandler
         if ($slot->fixed_kind === FixedSlotKind::RoyalRumble) {
             $winner = SaveWrestler::with('wrestler')->findOrFail($resolved->winners[0]);
             Season::where('save_id', $context->save->id)->where('number', $context->season)->update(['royal_rumble_winner_id' => $winner->id]);
-            $stipulationOutcome = "{$winner->name()} is going to the WrestleMania main event";
+            // "Jeff Hardy of Raw is going…" (2026-11-15): the brand gets the main event.
+            $stipulationOutcome = $winner->brand !== null
+                ? "{$winner->name()} of {$winner->brand->label()} is going to the WrestleMania main event"
+                : "{$winner->name()} is going to the WrestleMania main event";
             // House rule (2026-11-15): entry numbers and eliminations, on its own stream.
             $this->rumbleLog->record($slot, $resolved, $context->season, $context->week, $context->stream("rumble.{$slot->show->streamKey()}"));
 

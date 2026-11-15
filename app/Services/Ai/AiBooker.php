@@ -118,6 +118,7 @@ class AiBooker
 
         [$open, $pairs] = $this->bookDivaMatch($open, $pairs);
         $open = $this->bookMainEventTitle($open);
+        $open = $this->bookInterbrandTitle($open);
         $open = $this->bookWinnerTakesAll($open);
 
         foreach ($pairs as $pair) {
@@ -260,6 +261,67 @@ class AiBooker
         }
 
         return $open;
+    }
+
+    /**
+     * House rule (2026-11-15): on an interbrand PPV (SummerSlam, the Royal
+     * Rumble, Survivor Series, WrestleMania) the rival books at least one
+     * title match in its own slots. When nothing it has booked so far puts
+     * a title on the line, it books one in its last open slot (else any
+     * other). Which title is a roll: its world title at
+     * `gm.ai.titles.interbrand_world_chance` (75%), else one of its other
+     * titles at random. A title it can't book falls back to the rest, so a
+     * title match still goes on. Careful first (nobody past the fatigue
+     * limit), then aggressive if it must.
+     *
+     * @param  list<int>  $open
+     * @return list<int>
+     */
+    private function bookInterbrandTitle(array $open): array
+    {
+        if (! $this->show->isInterbrand() || $open === [] || $this->hasOwnTitleMatch()) {
+            return $open;
+        }
+
+        $titles = Championship::where('brand', $this->brand)->orderBy('sort_order')->get();
+        $world = array_values(array_map('intval', $titles->where('is_world', true)->pluck('id')->all()));
+        $others = $this->rng->shuffle(array_values(array_map('intval', $titles->where('is_world', false)->pluck('id')->all())));
+        $order = $this->rng->chance((float) config('gm.ai.titles.interbrand_world_chance'))
+            ? [...$world, ...$others]
+            : [...$others, ...$world];
+        $positions = $open;
+        rsort($positions);
+
+        foreach ([[(int) config('gm.ai.booking.careful_max_fatigue'), false], [(int) config('gm.ai.booking.aggressive_max_fatigue'), true]] as [$limit, $aggressive]) {
+            foreach ($order as $championshipId) {
+                $booking = $this->singleGender($this->pool(), $limit, $aggressive, true, [$championshipId]);
+
+                if ($booking === null) {
+                    continue;
+                }
+
+                foreach ($positions as $position) {
+                    if ($this->tryBook($position, $booking)) {
+                        return array_values(array_diff($open, [$position]));
+                    }
+                }
+            }
+        }
+
+        return $open;
+    }
+
+    /**
+     * Whether one of this brand's matches on the card has its title on the
+     * line (or is a Winner Takes All for its titles).
+     */
+    private function hasOwnTitleMatch(): bool
+    {
+        $titles = array_values(array_map('intval', Championship::where('brand', $this->brand)->pluck('id')->all()));
+
+        return MatchSlot::where('show_id', $this->show->id)->get()
+            ->contains(fn (MatchSlot $s): bool => in_array((int) $s->title_championship_id, $titles, true)
+                || array_intersect(array_map('intval', $s->contested_title_ids ?? []), $titles) !== []);
     }
 
     /**
