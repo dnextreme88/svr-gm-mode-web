@@ -6,6 +6,7 @@ import { BusyLabel } from '@/components/gm/busy-label';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { PageTitle, Panel } from '@/components/gm/panel';
+import { SuperstarReel } from '@/components/gm/superstar-reel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import {
     brandName,
@@ -62,9 +63,10 @@ const sleep = (ms: number) =>
 /**
  * The post-WrestleMania re-draft (house rule, 2026-11-15), laid out like
  * Propose Trade: the immunity tag, the manual draft pick (confirmed in a
- * modal), then 5 picks each way, alternating, each one played out: the
- * list scrolls to the superstar, highlights them in the picking brand's
- * colour and moves them across. Continue opens WrestleMania week's news.
+ * modal), then 5 picks each way, alternating, each one played out: a
+ * random pick's reel stops on the superstar (SuperstarReel), then the
+ * list scrolls to them, highlights them in the picking brand's colour and
+ * moves them across. Continue opens WrestleMania week's news.
  */
 export default function Redraft() {
     const props = usePage<Props>().props;
@@ -76,7 +78,10 @@ export default function Redraft() {
     const [picks, setPicks] = useState(props.picks);
     const [phase, setPhase] = useState<Phase>(props.phase);
     const [choice, setChoice] = useState<number | null>(null);
-    const [confirmPick, setConfirmPick] = useState(false);
+    // Which tag's confirmation is open: the immunity tag or the manual pick.
+    const [confirming, setConfirming] = useState<
+        'immunity' | 'handpick' | null
+    >(null);
     const [running, setRunning] = useState(false);
     const [highlight, setHighlight] = useState<{
         id: number;
@@ -87,6 +92,19 @@ export default function Redraft() {
         () => readPreference(SKIP_ANIMATION_KEY, 'off', ['on', 'off']) === 'on',
     );
     const skip = useRef(skipAnimation);
+    // A random pick's slot-machine reveal (house rule, 2026-11-16): who it
+    // could have been, who it is, and the resolve that lets the move play.
+    const [reel, setReel] = useState<{
+        pool: Row[];
+        result: Row;
+        pick: Pick;
+    } | null>(null);
+    const reelDone = useRef<(() => void) | null>(null);
+    const rostersRef = useRef(rosters);
+
+    useEffect(() => {
+        rostersRef.current = rosters;
+    }, [rosters]);
     const rows = useRef(new Map<number, HTMLLIElement>());
     const started = useRef(false);
 
@@ -157,6 +175,33 @@ export default function Redraft() {
         await sleep(fast ? 0 : 450);
     }, []);
 
+    // Spin the reel over everyone the pick could have been (the other
+    // brand's superstars still unlocked), then stop on the drafted one. The
+    // manual pick was chosen, not drawn, so it has no reel; Skip animation
+    // skips it too.
+    const revealPick = useCallback(async (pick: Pick) => {
+        const id = pick.save_wrestler_id;
+
+        if (skip.current || pick.pick_type !== 'random' || id === null) {
+            return;
+        }
+
+        const pool = rostersRef.current[pick.from].filter(
+            (w) => w.locked === null,
+        );
+        const result = pool.find((w) => w.id === id);
+
+        if (!result) {
+            return;
+        }
+
+        await new Promise<void>((resolve) => {
+            reelDone.current = resolve;
+            setReel({ pool, result, pick });
+        });
+        setReel(null);
+    }, []);
+
     const runPicks = useCallback(async () => {
         if (started.current) {
             return;
@@ -173,6 +218,7 @@ export default function Redraft() {
                 }>('POST', gm.redraft.step.url(game.id));
 
                 if (step.pick) {
+                    await revealPick(step.pick);
                     await animatePick(step.pick);
                 }
 
@@ -186,7 +232,7 @@ export default function Redraft() {
             setRunning(false);
             setFlash(null);
         }
-    }, [animatePick, game.id]);
+    }, [animatePick, revealPick, game.id]);
 
     const pickNumber = picks.length;
     const nextBrand = order[pickNumber] ?? null;
@@ -347,22 +393,9 @@ export default function Redraft() {
                         type="button"
                         className="gm-btn gm-btn-gold"
                         disabled={chosen === null || busy !== null}
-                        aria-busy={busy === 'immunity' || undefined}
-                        onClick={() =>
-                            chosen &&
-                            router.post(
-                                gm.redraft.immunity.url(game.id),
-                                { save_wrestler_id: chosen.id },
-                                { preserveScroll: true, ...track('immunity') },
-                            )
-                        }
+                        onClick={() => setConfirming('immunity')}
                     >
-                        <BusyLabel
-                            busy={busy === 'immunity'}
-                            busyText="Protecting…"
-                        >
-                            Use the immunity tag
-                        </BusyLabel>
+                        Use the immunity tag
                     </button>
                 )}
 
@@ -371,7 +404,7 @@ export default function Redraft() {
                         type="button"
                         className="gm-btn gm-btn-gold"
                         disabled={chosen === null || busy !== null}
-                        onClick={() => setConfirmPick(true)}
+                        onClick={() => setConfirming('handpick')}
                     >
                         Use the manual pick
                     </button>
@@ -415,8 +448,48 @@ export default function Redraft() {
                 )}
             </section>
 
+            {reel && (
+                <SuperstarReel
+                    pool={reel.pool}
+                    result={reel.result}
+                    brand={reel.pick.brand}
+                    pickNumber={reel.pick.pick_number}
+                    onDone={() => reelDone.current?.()}
+                />
+            )}
+
             <ConfirmDialog
-                open={confirmPick && chosen !== null}
+                open={confirming === 'immunity' && chosen !== null}
+                title="Use the immunity tag?"
+                message={
+                    chosen && (
+                        <>
+                            <strong>{chosen.name}</strong> is protected and
+                            stays on {brandName(player)}: the other brand can’t
+                            draft them in this re-draft. This can’t be undone.
+                        </>
+                    )
+                }
+                confirmLabel={`Protect ${chosen?.name ?? ''}`}
+                busy={busy === 'immunity'}
+                busyText="Protecting…"
+                onCancel={() => setConfirming(null)}
+                onConfirm={() =>
+                    chosen &&
+                    router.post(
+                        gm.redraft.immunity.url(game.id),
+                        { save_wrestler_id: chosen.id },
+                        {
+                            preserveScroll: true,
+                            ...track('immunity'),
+                            onSuccess: () => setConfirming(null),
+                        },
+                    )
+                }
+            />
+
+            <ConfirmDialog
+                open={confirming === 'handpick' && chosen !== null}
                 title="Use the manual draft pick?"
                 message={
                     chosen && (
@@ -431,7 +504,7 @@ export default function Redraft() {
                 confirmLabel={`Draft ${chosen?.name ?? ''}`}
                 busy={busy === 'handpick'}
                 busyText="Drafting…"
-                onCancel={() => setConfirmPick(false)}
+                onCancel={() => setConfirming(null)}
                 onConfirm={() =>
                     chosen &&
                     router.post(
@@ -440,7 +513,7 @@ export default function Redraft() {
                         {
                             preserveScroll: true,
                             ...track('handpick'),
-                            onSuccess: () => setConfirmPick(false),
+                            onSuccess: () => setConfirming(null),
                         },
                     )
                 }

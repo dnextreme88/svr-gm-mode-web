@@ -259,6 +259,14 @@ describe('On air (house rule, 2026-11-12)', () => {
         expect(screen.queryByRole('navigation')).toBeNull();
     });
 
+    it('hides them on the re-draft, so nothing is clicked away mid-pick', () => {
+        pageState.component = 'gm/redraft';
+        renderAt(1100, 1400);
+
+        expect(screen.queryByTestId('gm-header')).toBeNull();
+        expect(screen.queryByRole('navigation')).toBeNull();
+    });
+
     it('keeps them on the results of a past week', () => {
         pageState.component = 'gm/results';
         pageState.extra = { airing: false, continue_to: null };

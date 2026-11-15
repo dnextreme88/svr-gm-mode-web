@@ -34,13 +34,11 @@ class RedraftController extends Controller
         private TitleService $titles,
     ) {}
 
-    public function show(Save $save): Response|RedirectResponse
+    public function show(Save $save): Response
     {
+        $this->assertRunning($save);
         $series = $this->redraft->prepare($save);
-
-        if ($save->stage !== SaveStage::Redrafting || $series === null) {
-            return to_route('gm.news', $save);
-        }
+        abort_if($series === null, 404);
 
         $week = $save->current_week;
         $injuries = $this->injuries->activeByWrestler($save->id, $week);
@@ -83,6 +81,7 @@ class RedraftController extends Controller
 
     public function immunity(Request $request, Save $save): RedirectResponse
     {
+        $this->assertRunning($save);
         $data = $request->validate(['save_wrestler_id' => ['required', 'integer']]);
 
         DB::transaction(fn () => $this->redraft->setImmunity($save, (int) $data['save_wrestler_id']));
@@ -92,6 +91,7 @@ class RedraftController extends Controller
 
     public function handpick(Request $request, Save $save): RedirectResponse
     {
+        $this->assertRunning($save);
         $data = $request->validate(['save_wrestler_id' => ['required', 'integer']]);
 
         DB::transaction(fn () => $this->redraft->setHandpick($save, (int) $data['save_wrestler_id']));
@@ -104,7 +104,8 @@ class RedraftController extends Controller
      */
     public function step(Save $save): JsonResponse
     {
-        $pick = $save->stage === SaveStage::Redrafting ? DB::transaction(fn (): ?DraftPick => $this->redraft->step($save)) : null;
+        $this->assertRunning($save);
+        $pick = DB::transaction(fn (): ?DraftPick => $this->redraft->step($save));
         $series = $this->redraft->series($save);
 
         return response()->json([
@@ -115,9 +116,20 @@ class RedraftController extends Controller
 
     public function finish(Save $save): RedirectResponse
     {
+        $this->assertRunning($save);
         DB::transaction(fn () => $this->redraft->finish($save));
 
         return to_route('gm.news', $save);
+    }
+
+    /**
+     * The re-draft only exists between WrestleMania's main event and
+     * Continue (house rule, 2026-11-16): any other time, typing the URL
+     * gets the 404 page, not a peek at next season's re-draft.
+     */
+    private function assertRunning(Save $save): void
+    {
+        abort_unless($save->stage === SaveStage::Redrafting, 404);
     }
 
     /**

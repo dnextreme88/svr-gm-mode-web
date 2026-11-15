@@ -105,7 +105,7 @@ describe('WrestleMania Re-Draft', () => {
         );
     });
 
-    it('protects one of your own with the immunity tag, never a champion', async () => {
+    it('protects one of your own with the immunity tag after a confirmation, never a champion', async () => {
         const user = userEvent.setup();
         render(<Redraft />);
 
@@ -127,6 +127,15 @@ describe('WrestleMania Re-Draft', () => {
         );
         await user.click(use);
 
+        // Nothing is sent until the confirmation is accepted.
+        expect(post).not.toHaveBeenCalled();
+        const dialog = screen.getByRole('dialog');
+        expect(dialog).toHaveTextContent('Use the immunity tag?');
+        expect(dialog).toHaveTextContent('Edge is protected and stays on Raw');
+
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Protect Edge' }),
+        );
         expect(post).toHaveBeenCalledWith(
             expect.stringContaining('/redraft/immunity'),
             { save_wrestler_id: 1 },
@@ -220,5 +229,74 @@ describe('WrestleMania Re-Draft', () => {
             {},
             expect.anything(),
         );
+    });
+
+    it('spins a reel for each random pick, never the manual one, unless animation is skipped', async () => {
+        window.localStorage.setItem('gm.redraft.skip-animation', 'off');
+        // Reduced motion keeps the reel and the move short for the test.
+        vi.stubGlobal('matchMedia', () => ({ matches: true }));
+        props = { ...baseProps, phase: 'picks' };
+        const manual = {
+            pick_number: 1,
+            brand: 'raw',
+            from: 'smackdown',
+            save_wrestler_id: 3,
+            name: 'Rey Mysterio',
+            pick_type: 'manual',
+            skipped: false,
+        };
+        const random = {
+            pick_number: 2,
+            brand: 'smackdown',
+            from: 'raw',
+            save_wrestler_id: 1,
+            name: 'Edge',
+            pick_type: 'random',
+            skipped: false,
+        };
+        let release: () => void = () => {};
+        requestJson
+            .mockResolvedValueOnce({ pick: manual, done: false })
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        release = () => resolve({ pick: random, done: true });
+                    }),
+            );
+        const user = userEvent.setup();
+        render(<Redraft />);
+
+        await user.click(
+            screen.getByRole('button', { name: 'Start the re-draft' }),
+        );
+
+        // The manual pick moves with no reel.
+        await waitFor(() =>
+            expect(
+                within(screen.getByTestId('redraft-roster-raw')).getByText(
+                    'Rey Mysterio',
+                ),
+            ).toBeInTheDocument(),
+        );
+        expect(screen.queryByTestId('superstar-reel-face')).toBeNull();
+
+        release();
+        const reel = await screen.findByRole('dialog', {
+            name: 'Re-draft pick 2',
+        });
+        await waitFor(() =>
+            expect(reel).toHaveTextContent('Smackdown drafts Edge!'),
+        );
+
+        // The reel closes on its own, then Edge moves across.
+        await waitFor(() =>
+            expect(
+                within(
+                    screen.getByTestId('redraft-roster-smackdown'),
+                ).getByText('Edge'),
+            ).toBeInTheDocument(),
+        );
+        expect(screen.queryByRole('dialog')).toBeNull();
+        vi.unstubAllGlobals();
     });
 });

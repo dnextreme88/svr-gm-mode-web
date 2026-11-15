@@ -2692,8 +2692,8 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                         <strong>Immunity tag:</strong> the brand whose weekly
                         shows drew more fans this season before WrestleMania (a
                         tie goes to the higher draw score, then a coin flip).
-                        First, it protects one of its own non-champions, who
-                        can’t be picked.
+                        First, it protects one of its own non-champions (you
+                        confirm it), who can’t be picked.
                     </li>
                     <li>
                         <strong>Manual draft pick:</strong> the brand that won

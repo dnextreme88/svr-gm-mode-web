@@ -493,12 +493,15 @@ export default function GmLayout({ children }: { children: ReactNode }) {
     // matches being decided, or a PPV night aired with the weekly show still
     // to book, or the week just finished with the News still to open), the
     // header and menu bar are hidden so the player stays on the show.
-    // Results of past weeks keep them.
+    // Results of past weeks keep them. The re-draft (2026-11-16) hides them
+    // too: it only opens while the re-draft runs, and nothing there should
+    // be clicked away from mid-pick. They come back on the News.
     const onAir =
-        page.component === 'gm/results' &&
-        (page.props.airing === true ||
-            Boolean(page.props.continue_to) ||
-            page.props.wrapping_up === true);
+        page.component === 'gm/redraft' ||
+        (page.component === 'gm/results' &&
+            (page.props.airing === true ||
+                Boolean(page.props.continue_to) ||
+                page.props.wrapping_up === true));
 
     return (
         <div

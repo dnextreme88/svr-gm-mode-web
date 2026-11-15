@@ -621,4 +621,22 @@ describe('re-draft', function () {
         $this->post(route('gm.redraft.finish', $save))->assertRedirect(route('gm.news', $save));
         expect($save->refresh()->stage)->toBe(SaveStage::InSeason);
     });
+
+    it('shows the 404 page for the re-draft before WrestleMania and after it ends', function () {
+        $save = GameBuilder::inSeason(size: 16);
+        $save->update(['current_week' => 7]);
+
+        $this->get(route('gm.redraft.show', $save))->assertNotFound()
+            ->assertInertia(fn ($page) => $page->component('gm/error')->where('status', 404));
+        $this->postJson(route('gm.redraft.step', $save))->assertNotFound();
+        $this->post(route('gm.redraft.immunity', $save), ['save_wrestler_id' => 1])->assertNotFound();
+        $this->post(route('gm.redraft.handpick', $save), ['save_wrestler_id' => 1])->assertNotFound();
+        $this->post(route('gm.redraft.finish', $save))->assertNotFound();
+
+        $done = redraftSave(Brand::Raw);
+        app(ReDraftService::class)->run($done);
+        $this->post(route('gm.redraft.finish', $done));
+        expect($done->refresh()->stage)->toBe(SaveStage::InSeason);
+        $this->get(route('gm.redraft.show', $done))->assertNotFound();
+    });
 });
