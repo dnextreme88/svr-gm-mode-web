@@ -12,6 +12,7 @@ use App\Models\InterbrandSeries;
 use App\Models\MatchParticipant;
 use App\Models\MatchSlot;
 use App\Models\MoneyInTheBank;
+use App\Models\RoyalRumbleEntry;
 use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\Show;
@@ -275,6 +276,34 @@ class SuperstarCareer
         $show = Show::with('ppvEvent')->whereKey(MatchSlot::whereKey($injury->match_slot_id)->value('show_id'))->first();
 
         return $show !== null && $show->isPpv() ? ($show->ppvEvent->name ?? $show->name) : null;
+    }
+
+    /**
+     * Every Royal Rumble they entered (house rule, 2026-11-15), newest
+     * first: when, their entry number, how many they eliminated and who
+     * eliminated them, and whether they won.
+     *
+     * @return list<array{season: int, week: string, ppv: string, entry_number: int, entrants: int, eliminations: int, eliminated_by: string|null, won: bool, url: string}>
+     */
+    public function rumbles(Save $save, SaveWrestler $wrestler): array
+    {
+        return array_values(RoyalRumbleEntry::with(['eliminatedBy.wrestler', 'matchSlot.show'])
+            ->where('save_id', $save->id)
+            ->where('save_wrestler_id', $wrestler->id)
+            ->orderByDesc('week_number')
+            ->get()
+            ->map(fn (RoyalRumbleEntry $e): array => [
+                'season' => $e->season,
+                'week' => $this->label($e->week_number),
+                'ppv' => 'Royal Rumble',
+                'entry_number' => $e->entry_number,
+                'entrants' => RoyalRumbleEntry::where('match_slot_id', $e->match_slot_id)->count(),
+                'eliminations' => $e->eliminations,
+                'eliminated_by' => $e->eliminatedBy?->name(),
+                'won' => $e->won,
+                'url' => $this->link($save, $e->matchSlot),
+            ])
+            ->all());
     }
 
     private function label(int $week): string

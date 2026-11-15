@@ -118,6 +118,7 @@ class RosterController extends Controller
             'budget' => $save->brand($save->player_brand)->budget,
             'injury_history' => $this->career->injuries($save, $saveWrestler),
             'special_info' => $this->career->moments($save, $saveWrestler),
+            'royal_rumbles' => $this->career->rumbles($save, $saveWrestler),
             'is_own' => $saveWrestler->brand === $save->player_brand,
             'is_free_agent' => $saveWrestler->brand === null,
             'is_pending' => $this->roster->isPending($saveWrestler),

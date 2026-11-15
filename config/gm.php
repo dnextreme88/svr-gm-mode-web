@@ -463,6 +463,14 @@ return [
         // House rule (2026-11-15): the re-draft swaps this many superstars
         // each way (5 from Raw to Smackdown, 5 back). No roster cap applies.
         'redraft_picks_per_brand' => 5,
+        // House rule (2026-11-15): how a Royal Rumble plays out for its log
+        // (entry numbers and eliminations). After each arrival someone is
+        // thrown out at this chance, and always while the ring holds more
+        // than ring_cap. ASSUMPTION: both numbers.
+        'rumble' => [
+            'elimination_chance' => 0.6,
+            'ring_cap' => 6,
+        ],
     ],
 
     /*

@@ -65,6 +65,7 @@ type Props = GamePageProps & {
     budget?: number;
     injury_history?: InjuryRow[];
     special_info?: Moment[];
+    royal_rumbles?: RumbleRow[];
     is_own: boolean;
     is_free_agent: boolean;
     is_pending: boolean;
@@ -88,6 +89,19 @@ type Moment = {
     week: string;
     outcome: string | null;
     url: string | null;
+};
+
+/** One Royal Rumble they entered (house rule, 2026-11-15). */
+type RumbleRow = {
+    season: number;
+    week: string;
+    ppv: string;
+    entry_number: number;
+    entrants: number;
+    eliminations: number;
+    eliminated_by: string | null;
+    won: boolean;
+    url: string;
 };
 
 const salaryTier = {
@@ -221,13 +235,22 @@ function InjuryHistory({ injuries }: { injuries: InjuryRow[] }) {
 }
 
 /** Money in the Bank, Survivor Series, WrestleMania and re-draft moments. */
-function SpecialInfo({ moments }: { moments: Moment[] }) {
+function SpecialInfo({
+    moments,
+    rumbles,
+}: {
+    moments: Moment[];
+    rumbles: RumbleRow[];
+}) {
     return (
         <Panel title="Special info" bodyClassName="p-0">
+            {rumbles.length > 0 && <RoyalRumbles rows={rumbles} />}
             {moments.length === 0 ? (
-                <div className="p-4">
-                    <EmptyState>Nothing special yet.</EmptyState>
-                </div>
+                rumbles.length === 0 && (
+                    <div className="p-4">
+                        <EmptyState>Nothing special yet.</EmptyState>
+                    </div>
+                )
             ) : (
                 <ul
                     className="divide-y divide-white/5 text-sm"
@@ -272,6 +295,80 @@ function SpecialInfo({ moments }: { moments: Moment[] }) {
                 </ul>
             )}
         </Panel>
+    );
+}
+
+/**
+ * Every Royal Rumble they entered: when, their entry number, how many
+ * they threw out, and whether they won (or who eliminated them).
+ */
+function RoyalRumbles({ rows }: { rows: RumbleRow[] }) {
+    return (
+        <section
+            aria-labelledby="royal-rumble-heading"
+            className="border-b border-white/5"
+        >
+            <h3
+                id="royal-rumble-heading"
+                className="gm-label px-4 pt-3 text-gold-hot"
+            >
+                Royal Rumble
+            </h3>
+            <div className="overflow-x-auto">
+                <table className="gm-table text-sm" data-testid="royal-rumbles">
+                    <thead>
+                        <tr>
+                            <th>Week</th>
+                            <th className="text-right">Entrant</th>
+                            <th className="text-right">Eliminations</th>
+                            <th>Won</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((r) => (
+                            <tr key={`${r.season}-${r.week}`}>
+                                <td>
+                                    <Link
+                                        href={r.url}
+                                        className="underline-offset-4 hover:underline"
+                                    >
+                                        {r.week}
+                                    </Link>
+                                    <span className="ml-1 text-ink-dim">
+                                        · {r.ppv}
+                                    </span>
+                                </td>
+                                <td className="gm-num text-right">
+                                    #{r.entry_number}
+                                    <span className="text-ink-faint">
+                                        {' '}
+                                        of {r.entrants}
+                                    </span>
+                                </td>
+                                <td className="gm-num text-right">
+                                    {r.eliminations}
+                                </td>
+                                <td>
+                                    {r.won ? (
+                                        <span className="font-semibold text-zone-safe">
+                                            Yes
+                                        </span>
+                                    ) : (
+                                        <span className="text-ink-dim">
+                                            <span className="font-semibold text-zone-serious">
+                                                No
+                                            </span>
+                                            {r.eliminated_by &&
+                                                ` · by ${r.eliminated_by}`}
+                                        </span>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
     );
 }
 
@@ -664,7 +761,10 @@ export default function WrestlerDetail() {
 
                 <InjuryHistory injuries={props.injury_history ?? []} />
 
-                <SpecialInfo moments={props.special_info ?? []} />
+                <SpecialInfo
+                    moments={props.special_info ?? []}
+                    rumbles={props.royal_rumbles ?? []}
+                />
             </div>
         </>
     );

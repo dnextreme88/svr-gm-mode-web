@@ -67,9 +67,12 @@ class ScheduleController extends Controller
         $mine = $air['brand'] === null || $air['brand'] === $player;
         // A shared PPV opens the player's own card for it (WrestleMania is one card).
         $brand = $air['brand'] ?? $player;
-        $show = $shows->first(fn (Show $s): bool => $s->week_number === $air['week']
-            && $s->show_type === ($air['kind'] === 'ppv' ? ShowType::Ppv : ShowType::Weekly)
-            && ($s->brand?->value === $brand || ($s->brand === null && $air['ppv']['key'] === 'wrestlemania')));
+        $night = $shows->filter(fn (Show $s): bool => $s->week_number === $air['week']
+            && $s->show_type === ($air['kind'] === 'ppv' ? ShowType::Ppv : ShowType::Weekly));
+        // The brand's own card, else the one card both brands share
+        // (WrestleMania, and SummerSlam since 2026-11-01).
+        $show = $night->first(fn (Show $s): bool => $s->brand?->value === $brand)
+            ?? ($air['kind'] === 'ppv' ? $night->first(fn (Show $s): bool => $s->brand === null) : null);
 
         $state = match (true) {
             // A show airing live opens its results, where its matches are decided.

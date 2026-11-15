@@ -2,6 +2,7 @@
 
 use App\Enums\Brand;
 use App\Enums\PpvKey;
+use App\Enums\ShowStatus;
 use App\Enums\ShowType;
 use App\Models\MatchResult;
 use App\Models\MatchSlot;
@@ -129,4 +130,22 @@ it('lets the player decide their SummerSlam matches while the rival’s simulate
             ->where('shows.0.outcomes.2.is_next', true));
 
     expect(MatchResult::whereIn('match_slot_id', $rivals->pluck('id'))->count())->toBe(1);
+});
+
+it('opens an aired SummerSlam from the Schedule (one shared card, no brand)', function () {
+    $save = GameBuilder::inSeason();
+    $week = summerSlamWeek();
+    app(ShowScheduler::class)->ensureWeek($save, $week);
+    $summerSlam = Show::with('ppvEvent')->where('save_id', $save->id)->where('week_number', $week)->whereNull('brand')->sole();
+    $summerSlam->update(['status' => ShowStatus::Aired]);
+    $save->update(['current_week' => $week + 1]);
+
+    $this->get(route('gm.schedule', $save))->assertInertia(function (Assert $page) use ($summerSlam) {
+        $airs = collect($page->toArray()['props']['months'])->flatMap(fn ($m) => collect($m['rows'])->flatten(1))->flatMap(fn ($d) => $d['airs']);
+        $night = $airs->first(fn ($a) => ($a['ppv']['key'] ?? null) === 'summerslam');
+
+        expect($night['state'])->toBe('aired')
+            ->and($night['show_id'])->toBe($summerSlam->id)
+            ->and($night['results_url'])->toContain('show='.$summerSlam->id);
+    });
 });

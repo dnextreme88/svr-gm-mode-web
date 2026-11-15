@@ -3,6 +3,7 @@
 namespace App\Services\Ai;
 
 use App\Enums\Brand;
+use App\Enums\ContractLength;
 use App\Enums\PromoTypeKey;
 use App\Enums\RosterType;
 use App\Enums\WeightClass;
@@ -109,6 +110,16 @@ class AiGm
     }
 
     /**
+     * How long the rival signs an initial draft pick for (house rule,
+     * 2026-11-15): 1, 3, 6, 9 or 12 months at random, on its own stream so
+     * it doesn't change who it picks.
+     */
+    public function draftLength(Save $save, Brand $brand, int $pickNumber): ContractLength
+    {
+        return $save->rng("ai.draft.length.{$brand->value}.{$pickNumber}", 0)->pick(ContractLength::cases());
+    }
+
+    /**
      * Pick an affordable, draftable free agent for the initial draft, or null
      * to stop. House rule: a roll of 1..`ai_roll_max` at or above
      * `ai_focus_from` makes the pick come from the brand's focus class when
@@ -121,7 +132,7 @@ class AiGm
     {
         // Salaries are weekly: what's left is the budget minus every contract's value.
         $budget = app(DraftService::class)->availableBudget($save, $brand);
-        $length = DraftService::defaultLength();
+        $length = $this->draftLength($save, $brand, $pickNumber);
 
         $pool = $this->roster->freeAgentsQuery($save, $save->current_week)
             ->with('wrestler')

@@ -268,6 +268,12 @@ class ShowResolver
 
         $this->outcomes->apply($slot, $result, $resolved, $context);
 
+        // Injuries are rolled before the title changes hands, so a winner
+        // seriously hurt in this match would otherwise keep the gold.
+        foreach ($resolved->winners as $winnerId) {
+            $this->injuries->vacateIfInjured($wrestlers[$winnerId]->refresh(), $week);
+        }
+
         if ($resolved->bouts !== []) {
             // A Gauntlet: each bout is its own meeting.
             $sides = $slot->sides();

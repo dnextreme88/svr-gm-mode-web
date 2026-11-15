@@ -32,5 +32,6 @@ Dated implementation and upgrade plans for this site. Each plan is a Markdown fi
 | **2026-11-12** | [Rivalry Heat Rework](20261112-rivalry-heat-rework.md) |
 | **2026-11-12** | [Air Week Overlay, Fatigue Modal, One-off Buttons, Draft Room & PPV Week Flow](20261112-air-week-overlay-and-fatigue-modal.md) |
 | **2026-11-13** | [Rival GM: Stipulations, Full Roster, Morale & Rival Financials](20261113-rival-gm-stipulations-roster-morale.md) |
+| **2026-11-15** | [Royal Rumble Record, Rival Rumble Entrants & Draft Lengths, SummerSlam & Injured Champion Fixes](20261115-royal-rumble-record-and-fixes.md) |
 | **2026-11-15** | [WrestleMania Re-Draft Rework](20261115-wrestlemania-redraft.md) |
 | **2026-11-15** | [Financials Overhaul, Call-out Promo, Rivalry Booking, Slot Reordering & Superstar Profile](20261115-financials-overhaul.md) |

@@ -13,6 +13,7 @@ use App\Enums\RosterType;
 use App\Enums\SaveStage;
 use App\Enums\ShowType;
 use App\Exceptions\GameRuleException;
+use App\Models\Championship;
 use App\Models\Contract;
 use App\Models\Injury;
 use App\Models\MatchParticipant;
@@ -30,6 +31,7 @@ use App\Services\Game\NewGameService;
 use App\Services\Ppv\PpvCardService;
 use App\Services\Ppv\ReDraftService;
 use App\Services\Titles\ChampionshipAssignment;
+use App\Services\Titles\TitleService;
 use App\Services\Week\ShowScheduler;
 use App\Services\Week\WeekResolver;
 use App\Services\Week\WeekSimulator;
@@ -75,6 +77,7 @@ class DemoSaves extends Command
         private AiGm $ai,
         private AiTradeJudge $judge,
         private SummerSlamMainEvent $crowds,
+        private TitleService $titleService,
     ) {
         parent::__construct();
     }
@@ -122,9 +125,10 @@ class DemoSaves extends Command
             }
         });
 
-        // Week 51's matches could still have hurt him before the main event
-        // was set: heal him and set it again.
+        // Week 51's matches could still have hurt him (or the champion he
+        // faces) before the main event was set: heal both and set it again.
         $this->heal($hardy, $mania);
+        $this->healWorldChampion($save, $hardy->refresh()->brand ?? $brand, $mania);
         $wrestleMania = $this->wrestleManiaShow($save, $mania);
         $this->ppvCards->setMainEvent($wrestleMania);
         $this->ai->bookShow($wrestleMania, $save->rivalBrand());
@@ -269,7 +273,8 @@ class DemoSaves extends Command
 
         foreach (Brand::cases() as $side) {
             if (! $this->ppvCards->entrantsSet($rumble, $side)) {
-                $this->ppvCards->randomEntrants($rumble, $side, $save->rng("demo.entrants.{$side->value}", $week));
+                $rng = $save->rng("demo.entrants.{$side->value}", $week);
+                $save->isHuman($side) ? $this->ppvCards->randomEntrants($rumble, $side, $rng) : $this->ppvCards->aiEntrants($rumble, $side, $rng);
             }
         }
 
@@ -298,6 +303,16 @@ class DemoSaves extends Command
             ->where('severity', InjurySeverity::Serious)
             ->where('ends_week', '>', $week)
             ->update(['healed_week' => $week]);
+    }
+
+    private function healWorldChampion(Save $save, Brand $brand, int $week): void
+    {
+        $championship = Championship::where('brand', $brand)->where('is_world', true)->first();
+        $reign = $championship === null ? null : $this->titleService->currentReign($save, $championship);
+
+        foreach (SaveWrestler::whereIn('id', $reign?->holderIds() ?? [])->get() as $holder) {
+            $this->heal($holder, $week);
+        }
     }
 
     private function wrestleManiaShow(Save $save, int $week): Show

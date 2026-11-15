@@ -580,6 +580,18 @@ function MatchTypes({
                             count-outs or ring outs.
                         </li>
                         <li>No titles on the line, and no Divas.</li>
+                        <li data-testid="rumble-record">
+                            Entry numbers are drawn when it airs. Every
+                            entrant’s number, eliminations and result go on
+                            their profile’s Special info.
+                        </li>
+                        <li>
+                            The rival GM enters non-champions first. Only when
+                            it has fewer than{' '}
+                            {pluralize(rumbleEntrants, 'non-champion')} does it
+                            add champions, those not booked elsewhere that night
+                            before those who are.
+                        </li>
                         <li>
                             The winner headlines that season’s WrestleMania: the
                             main event is the winner against their own brand’s

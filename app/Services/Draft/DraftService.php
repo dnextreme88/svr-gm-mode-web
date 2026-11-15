@@ -216,13 +216,15 @@ class DraftService
             return ['pick' => null, 'ai_turn' => false];
         }
 
-        $wrestler = $this->ai->draftPick($save, $brand, $this->picksMade($save, $brand) + 1);
+        $number = $this->picksMade($save, $brand) + 1;
+        $wrestler = $this->ai->draftPick($save, $brand, $number);
         $pick = null;
 
         if ($wrestler === null) {
             $this->finish($save, $brand);
         } else {
-            $pick = $this->pick($save, $brand, $wrestler, DraftPickType::Random);
+            // House rule (2026-11-15): the rival signs each pick for a random length.
+            $pick = $this->pick($save, $brand, $wrestler, DraftPickType::Random, $this->ai->draftLength($save, $brand, $number));
         }
 
         $next = $this->nextBrand($save);

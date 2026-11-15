@@ -10,6 +10,7 @@ use App\Enums\NewsTier;
 use App\Enums\ParticipantRole;
 use App\Enums\PpvKey;
 use App\Enums\RosterType;
+use App\Enums\ShowType;
 use App\Exceptions\GameRuleException;
 use App\Models\Championship;
 use App\Models\MatchParticipant;
@@ -161,6 +162,50 @@ class PpvCardService
         }
 
         $this->setEntrants($show, $brand, array_map('intval', $rng->sample($pool->pluck('id')->all(), $needed)));
+    }
+
+    /**
+     * The rival GM's entrants (house rule, 2026-11-15). For the Royal Rumble
+     * it sends non-champions first, at random; when it has fewer than 15 it
+     * adds champions, first those not booked on its other cards of the
+     * Royal Rumble night, then those who are. Survivor Series stays random.
+     */
+    public function aiEntrants(Show $show, Brand $brand, Rng $rng): void
+    {
+        $slot = $this->mainEventSlot($show);
+
+        if ($slot->fixed_kind !== FixedSlotKind::RoyalRumble) {
+            $this->randomEntrants($show, $brand, $rng);
+
+            return;
+        }
+
+        $needed = $this->rumbleEntrantsFor($show, $brand);
+        $champions = $this->titles->currentReigns($show->game)->flatMap(fn ($r) => $r->holderIds())->map(fn ($id): int => (int) $id)->all();
+        $booked = MatchParticipant::whereHas('matchSlot', fn ($q) => $q->where('id', '!=', $slot->id)
+            ->whereHas('show', fn ($s) => $s->where('save_id', $show->save_id)->where('week_number', $show->week_number)->where('show_type', ShowType::Ppv)))
+            ->pluck('save_wrestler_id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+        $ids = $this->entrantPool($show, $brand)->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        $tiers = [
+            array_values(array_diff($ids, $champions)),
+            array_values(array_diff(array_intersect($ids, $champions), $booked)),
+            array_values(array_intersect($ids, $champions, $booked)),
+        ];
+        $picked = [];
+
+        foreach ($tiers as $tier) {
+            $left = $needed - count($picked);
+
+            if ($left <= 0) {
+                break;
+            }
+
+            array_push($picked, ...array_map('intval', $rng->sample($tier, min($left, count($tier)))));
+        }
+
+        $this->setEntrants($show, $brand, $picked);
     }
 
     public function entrantsSet(Show $show, Brand $brand): bool

@@ -158,6 +158,25 @@ class InjuryService
     }
 
     /**
+     * A superstar who wins a title while their current injury vacates titles
+     * (most often a serious injury from the very match they won it in, which
+     * is rolled before the title changes hands) gives it up straight away,
+     * so nobody holds a title while seriously injured (§16).
+     *
+     * @return list<string> vacated title names
+     */
+    public function vacateIfInjured(SaveWrestler $wrestler, int $week): array
+    {
+        $injury = $this->status->active($wrestler, $week);
+
+        if ($injury === null || ! $this->vacatesTitles($injury) || ! $this->titles->isChampion($wrestler)) {
+            return [];
+        }
+
+        return $this->titles->vacateFor($wrestler, ReignEndReason::Injured, $week);
+    }
+
+    /**
      * A champion's injury vacates the title as soon as it's assigned (§16).
      */
     public function vacatesTitles(Injury $injury): bool

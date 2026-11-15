@@ -25,6 +25,7 @@ use App\Services\Contracts\ContractService;
 use App\Services\Factions\FactionNamer;
 use App\Services\Finance\LedgerService;
 use App\Services\News\NewsRecorder;
+use App\Services\Ppv\RoyalRumbleLog;
 use App\Services\Titles\ChampionshipAssignment;
 use App\Services\Titles\ContendershipService;
 use App\Services\Titles\LastChanceService;
@@ -54,6 +55,7 @@ class MatchOutcomeHandler
         private FactionNamer $factions,
         private ContendershipService $contenderships,
         private RematchClauseService $rematches,
+        private RoyalRumbleLog $rumbleLog,
     ) {}
 
     public function apply(MatchSlot $slot, MatchResult $result, ResolvedMatch $resolved, WeekContext $context): void
@@ -100,6 +102,8 @@ class MatchOutcomeHandler
             $winner = SaveWrestler::with('wrestler')->findOrFail($resolved->winners[0]);
             Season::where('save_id', $context->save->id)->where('number', $context->season)->update(['royal_rumble_winner_id' => $winner->id]);
             $stipulationOutcome = "{$winner->name()} is going to the WrestleMania main event";
+            // House rule (2026-11-15): entry numbers and eliminations, on its own stream.
+            $this->rumbleLog->record($slot, $resolved, $context->season, $context->week, $context->stream("rumble.{$slot->show->streamKey()}"));
 
             $this->news->record($context->save, NewsEventType::PpvResults, NewsTier::Headline, NewsBrand::Both, [
                 'ppv' => 'Royal Rumble',
