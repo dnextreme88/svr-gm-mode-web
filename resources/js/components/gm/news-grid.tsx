@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { BrandBug } from '@/components/gm/brand-bug';
+import { DisclosureChevron, DisclosurePanel } from '@/components/gm/disclosure';
 import { cn } from '@/lib/utils';
 import { NewsEventTypeLabels } from '@/types/enums';
 import type { NewsEventType, NewsTier } from '@/types/enums';
@@ -189,6 +190,9 @@ function NewsCardView({
     onToggle: () => void;
 }) {
     const tint = slot === 'neutral' ? undefined : slot;
+    const summaryId = useId();
+    // A story's header toggles its summary; a headline's is plain.
+    const Header = kind === 'story' ? 'button' : 'div';
 
     if (!item) {
         return (
@@ -212,10 +216,15 @@ function NewsCardView({
                     'shadow-[inset_0_2px_0_var(--color-gold)]',
             )}
         >
-            <button
-                type="button"
-                onClick={onToggle}
-                aria-expanded={expanded}
+            <Header
+                {...(kind === 'story'
+                    ? {
+                          type: 'button',
+                          onClick: onToggle,
+                          'aria-expanded': expanded,
+                          'aria-controls': summaryId,
+                      }
+                    : {})}
                 className="block w-full p-4 text-left"
             >
                 <div className="flex items-center justify-between gap-2">
@@ -241,16 +250,31 @@ function NewsCardView({
                 >
                     {item.text}
                 </p>
+                {kind === 'story' && (
+                    // House rule (2026-11-15): a story's summary starts hidden.
+                    <span className="mt-2 inline-flex min-h-11 items-center gap-1 font-condensed text-xs font-semibold tracking-wider text-ink-dim uppercase sm:min-h-0">
+                        <DisclosureChevron open={expanded} />
+                        {expanded ? 'Hide story' : 'Show story'}
+                    </span>
+                )}
+            </Header>
+            {kind === 'story' ? (
+                <DisclosurePanel open={expanded} id={summaryId}>
+                    <p
+                        data-testid="news-summary"
+                        className="mx-4 mb-4 border-t border-white/8 pt-3 text-sm leading-relaxed whitespace-pre-line text-ink-dim"
+                    >
+                        {item.summary}
+                    </p>
+                </DisclosurePanel>
+            ) : (
                 <p
                     data-testid="news-summary"
-                    className={cn(
-                        'mt-3 border-t border-white/8 pt-3 text-sm leading-relaxed whitespace-pre-line text-ink-dim',
-                        kind === 'story' && !expanded && 'line-clamp-2',
-                    )}
+                    className="mx-4 mb-4 border-t border-white/8 pt-3 text-sm leading-relaxed whitespace-pre-line text-ink-dim"
                 >
                     {item.summary}
                 </p>
-            </button>
+            )}
         </article>
     );
 }

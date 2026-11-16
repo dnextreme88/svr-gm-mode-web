@@ -17,6 +17,7 @@ final readonly class Proposal
         public Booking $booking,
         public array $sides,
         public bool $titleShot = false,
+        public ?string $note = null,
     ) {}
 
     /**
@@ -37,7 +38,7 @@ final readonly class Proposal
             'manager_names' => array_map(fn (int $id): string => $names[$id] ?? (string) $id, $this->booking->managers),
             'referee_id' => $this->booking->refereeId,
             'referee_name' => $this->booking->refereeId === null ? null : ($names[$this->booking->refereeId] ?? null),
-            'note' => $this->titleShot ? $this->titleShotNote($names) : null,
+            'note' => $this->titleShot ? $this->titleShotNote($names) : $this->note,
         ];
     }
 

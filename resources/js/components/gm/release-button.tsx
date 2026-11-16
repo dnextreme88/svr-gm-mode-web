@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
+import { formatMoney } from '@/lib/gm';
 import { useBusy } from '@/lib/use-busy';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
@@ -14,6 +15,7 @@ export function ReleaseButton({
     wrestlerId,
     name,
     message,
+    fee,
     className,
 }: {
     saveId: number;
@@ -21,6 +23,8 @@ export function ReleaseButton({
     name: string;
     /** Defaults to what a release does. */
     message?: string;
+    /** What releasing costs now: the weeks left on the deal (house rule, 2026-11-15). */
+    fee?: number | null;
     className?: string;
 }) {
     const [open, setOpen] = useState(false);
@@ -43,7 +47,11 @@ export function ReleaseButton({
                 title={`Release ${name}?`}
                 message={
                     message ??
-                    `${name} goes to Free Agency, where any brand can sign them. Any title they hold will be vacated.`
+                    `${name} goes to Free Agency, where any brand can sign them. Any title they hold will be vacated. ${
+                        fee !== undefined && fee !== null
+                            ? `Releasing them costs ${formatMoney(fee)}, the rest of their contract.`
+                            : 'Releasing them pays out the rest of their contract.'
+                    }`
                 }
                 confirmLabel="Release"
                 busy={busy !== null}

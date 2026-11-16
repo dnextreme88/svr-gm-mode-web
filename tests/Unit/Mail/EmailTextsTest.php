@@ -11,7 +11,7 @@ use App\Support\Rng\SeededRng;
 $vars = [
     'name' => 'Edge', 'brand' => 'Raw', 'rival' => 'Smackdown', 'weeks' => '3 weeks', 'n' => 5,
     'injury' => 'Torn Biceps', 'severity' => 'serious', 'amount' => '$400,000', 'season' => 2, 'to' => 'Smackdown',
-    'families' => 'Ladder', 'names' => 'the Legend Hulk Hogan', 'are' => 'is', 'max' => 10, 'cap' => 30,
+    'families' => 'Ladder', 'names' => 'the Legend Hulk Hogan', 'are' => 'is', 'max' => 10, 'cap' => 30, 'picks' => 5,
     'race' => 'Right now it is dead even.', 'our_crowd' => '120,000', 'your_crowd' => '110,000', 'slots' => '2 slots',
 ];
 

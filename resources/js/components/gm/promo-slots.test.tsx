@@ -60,6 +60,10 @@ const types = [
         needs_rival_pair: true,
         fatigue_bars: 2,
     }),
+    promo(7, 'call_out', 'Call-out', {
+        needs_rival_pair: true,
+        success_rate: 0.8,
+    }),
 ];
 
 function rules(
@@ -92,6 +96,10 @@ const eligibility: Record<string, PromoEligibilityView> = {
     }),
     title_match_hype: rules({ championship_ids: [7] }),
     start_a_rivalry: rules({ wrestler_ids: [10, 11, 12] }),
+    call_out: rules({
+        wrestler_ids: [11, 10],
+        pairs: [[11, 10]],
+    }),
 };
 
 function wrestler(id: number, name: string): RosterEntry {
@@ -304,6 +312,7 @@ describe('PromoSlots', () => {
 
         expect(names).toEqual([
             'Advertising',
+            'Call-out',
             'Continue Rivalry',
             'Inactive Superstar',
             'Interference Promotion',
@@ -434,6 +443,42 @@ describe('PromoSlots', () => {
                 promo_type_id: 4,
                 target_wrestler_id: 10,
                 target_wrestler_b_id: 11,
+            }),
+        );
+    });
+
+    it('books a Call-out: a rivalry, who talks, and face or heel (house rule, 2026-11-15)', async () => {
+        const { onSave, user } = setup();
+
+        await user.click(screen.getByTestId('promo-1-call_out'));
+        await user.click(
+            screen.getByRole('button', { name: 'Promo 1 rivalry' }),
+        );
+        await user.click(
+            within(
+                screen.getByRole('listbox', { name: 'Promo 1 rivalry' }),
+            ).getAllByRole('option')[0],
+        );
+
+        // Face or heel has to be picked before it can be saved.
+        expect(
+            screen.getByRole('button', { name: 'Save promo 1' }),
+        ).toBeDisabled();
+
+        const speaker = screen.getByRole('radiogroup', {
+            name: 'Promo 1 speaker',
+        });
+        await user.click(within(speaker).getByRole('radio', { name: 'Kane' }));
+        await user.click(screen.getByRole('radio', { name: /Heel/ }));
+        await user.click(screen.getByRole('button', { name: 'Save promo 1' }));
+
+        expect(onSave).toHaveBeenCalledWith(
+            1,
+            expect.objectContaining({
+                promo_type_id: 7,
+                target_wrestler_id: 11,
+                target_wrestler_b_id: 10,
+                alignment: 'heel',
             }),
         );
     });

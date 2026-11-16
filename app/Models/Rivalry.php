@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Brand;
 use App\Models\Concerns\BelongsToGame;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * A feud between two wrestlers (§3 Rivalry, §11).
  *
  * @property int $id
+ * @property Brand|null $brand the brand it started on
  * @property int $wrestler_a_id
  * @property int $wrestler_b_id
  * @property int $heat
@@ -56,6 +58,6 @@ class Rivalry extends Model
 
     protected function casts(): array
     {
-        return ['active' => 'boolean'];
+        return ['active' => 'boolean', 'brand' => Brand::class];
     }
 }

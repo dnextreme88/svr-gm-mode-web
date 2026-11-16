@@ -24,6 +24,7 @@ use App\Services\Card\Booking;
 use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
 use App\Services\Injuries\InjuryStatus;
+use App\Services\Ppv\PpvCardService;
 use App\Services\Promos\PromoEligibility;
 use App\Services\Rivalries\RivalryService;
 use App\Services\Roster\RosterService;
@@ -56,15 +57,12 @@ class CardController extends Controller
         private SummerSlamMainEvent $summerSlam,
         private RepeatMatches $repeats,
         private RivalryService $rivalries,
+        private PpvCardService $ppvCards,
     ) {}
 
     public function show(Save $save, Show $show): Response|RedirectResponse
     {
         $this->assertOwnShow($save, $show);
-
-        if ($show->isInterbrandMainEvent()) {
-            return to_route('gm.ppv.entrants', [$save, $show]);
-        }
 
         // PPV week (house rule, 2026-11-12): the weekly show doesn't open
         // until the PPV night has aired, so it goes to the PPV night's card
@@ -108,6 +106,13 @@ class CardController extends Controller
             'summerslam' => ($headliner = $this->summerSlam->cardHeadliner($show)) === null
                 ? null
                 : ['main_event' => $headliner === $save->player_brand, 'headliner' => $headliner->label()],
+            // House rule (2026-11-15): the player's spots in the WrestleMania
+            // interbrand series matches, and who can take them.
+            'series' => (object) $this->ppvCards->seriesOptions($show, $brand),
+            // The main event's match type, when this brand has it (house rule, 2026-11-15).
+            'main_event_types' => $show->isWrestleMania() && MatchSlot::where('show_id', $show->id)->where('position', PpvCardService::WM_MAIN_EVENT)->where('owner_brand', $brand)->whereNotNull('fixed_kind')->exists()
+                ? $this->ppvCards->mainEventTypes($show, $brand)->map(fn (MatchType $t): int => $t->id)->values()
+                : [],
             // House rule (2026-11-08): slots in the same category as last week's.
             'repeats' => ['slots' => $this->repeats->forShow($show), 'per_slot' => (int) config('gm.attendance.points.repeat_slot'), 'max' => (int) config('gm.attendance.points.repeat_max')],
             // Active Effects (house rule, 2026-11-11): the brand's rivalries
@@ -143,6 +148,7 @@ class CardController extends Controller
                 'before_position' => $p->before_position,
                 'target_wrestler_id' => $p->target_wrestler_id,
                 'target_wrestler_b_id' => $p->target_wrestler_b_id,
+                'alignment' => $p->alignment?->value,
                 'target_championship_id' => $p->target_championship_id,
                 'succeeded' => $p->succeeded,
                 'backfired' => $p->backfired,
@@ -191,6 +197,62 @@ class CardController extends Controller
         DB::transaction(fn () => $this->cards->book($show, $position, Booking::fromArray($data), $save->player_brand));
 
         // Randomize / Preset confirm via fetch (§24); a redirect would re-send the PUT.
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+            return response()->noContent();
+        }
+
+        return back();
+    }
+
+    /**
+     * Drag a match to another spot on the card (house rule, 2026-11-15).
+     */
+    public function reorder(Request $request, Save $save, Show $show): RedirectResponse|HttpResponse
+    {
+        $this->assertOwnShow($save, $show);
+        $this->order->assertEditable($save, $show);
+        $data = $request->validate(['order' => ['required', 'array', 'min:1'], 'order.*' => ['integer', 'min:1']]);
+
+        DB::transaction(fn () => $this->cards->reorder($show, array_values(array_map('intval', $data['order'])), $save->player_brand));
+
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+            return response()->noContent();
+        }
+
+        return back();
+    }
+
+    /**
+     * Swap the player's superstars in a WrestleMania interbrand series match
+     * (house rule, 2026-11-15).
+     */
+    public function series(Request $request, Save $save, Show $show, int $position): RedirectResponse|HttpResponse
+    {
+        $this->assertOwnShow($save, $show);
+        $this->order->assertEditable($save, $show);
+        $data = $request->validate(['ids' => ['required', 'array', 'min:1', 'max:3'], 'ids.*' => ['integer']]);
+
+        DB::transaction(fn () => $this->ppvCards->setSeriesEntrants($show, $position, $save->player_brand, array_values(array_map('intval', $data['ids']))));
+
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+            return response()->noContent();
+        }
+
+        return back();
+    }
+
+    /**
+     * The WrestleMania main event's match type, for the brand that has it
+     * (house rule, 2026-11-15).
+     */
+    public function mainEventType(Request $request, Save $save, Show $show): RedirectResponse|HttpResponse
+    {
+        $this->assertOwnShow($save, $show);
+        $this->order->assertEditable($save, $show);
+        $data = $request->validate(['match_type_id' => ['required', 'integer']]);
+
+        DB::transaction(fn () => $this->ppvCards->setMainEventType($show, $save->player_brand, (int) $data['match_type_id']));
+
         if ($request->expectsJson() && ! $request->header('X-Inertia')) {
             return response()->noContent();
         }

@@ -242,6 +242,14 @@ class AiPromoPlanner
             $options['continue_rivalry'] = [PromoTypeKey::ContinueRivalry, $rivalry[0], $rivalry[1]];
         }
 
+        // Call-out (house rule, 2026-11-15): either rival does the talking.
+        $callOut = $rules[PromoTypeKey::CallOut->value]['pairs'] ?? [];
+
+        if ($callOut !== []) {
+            $pair = $rng->shuffle($rng->pick($callOut));
+            $options['call_out'] = [PromoTypeKey::CallOut, $pair[0], $pair[1]];
+        }
+
         if ($this->mainEventWorthHyping($show, $brand)) {
             $options['main_event_hype'] = [PromoTypeKey::MainEventHype];
         }

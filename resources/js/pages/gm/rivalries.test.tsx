@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import Rivalries from '@/pages/gm/rivalries';
 
-const props = {
+const props: Record<string, unknown> = {
     game: { id: 1 },
     rivalries: [],
     max_heat: 100,
@@ -54,5 +54,35 @@ describe('Rivalries rules', () => {
         expect(within(heat).getByText(/makes the news/)).toHaveTextContent(
             'At 50',
         );
+    });
+});
+
+describe('Brand column (house rule, 2026-11-15)', () => {
+    it('shows the rivalry’s brand logo before the rivalry', () => {
+        props.rivalries = [
+            {
+                id: 1,
+                wrestler_a: 'Batista',
+                wrestler_b: 'Undertaker',
+                brand: 'smackdown',
+                brand_a: 'smackdown',
+                brand_b: 'smackdown',
+                heat: 40,
+                weeks_active: 3,
+                started_week: 2,
+                active: true,
+                ended_week: null,
+            },
+        ];
+        render(<Rivalries />);
+
+        const headers = screen
+            .getAllByRole('columnheader')
+            .map((h) => h.textContent);
+        expect(headers.slice(0, 2)).toEqual(['Brand', 'Rivalry']);
+        expect(
+            within(screen.getAllByRole('row')[1]).getByAltText('Smackdown'),
+        ).toBeInTheDocument();
+        props.rivalries = [];
     });
 });

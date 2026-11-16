@@ -2,7 +2,8 @@
 
 /*
 | Full roster (§9) with weight classes (§12) and specialties (§21).
-| Columns: name, roster_type, placeholder_brand, weight_class, billed_weight_lb.
+| Columns: name, roster_type, placeholder_brand, weight_class, billed_weight_lb,
+| monthly_salary.
 | Brands are the WWE rosters of Nov 14, 2005 (SvR 2006's release), trimmed
 | to 30 each (docs/20261024-2005-roster.md). A "Use WWE roster" game signs
 | them as listed; a manual draft ignores them. Free agents have no brand.
@@ -53,7 +54,6 @@ $smackdown = [
     ['Rey Mysterio', 'cruiserweight', 175],
     ['Scotty 2 Hotty', 'light_heavyweight', 209],
     ['Stevie Richards', 'light_heavyweight', 220],
-    ['Sylvain Grenier', 'heavyweight', 250],
     ['Undertaker', 'super_heavyweight', 309],
     ['William Regal', 'heavyweight', 240],
     ['Bobby Lashley', 'heavyweight', 273],
@@ -68,6 +68,8 @@ $smackdown = [
 ];
 
 $freeAgents = [
+    // House rule (2026-11-15): Stacy Keibler takes his Smackdown spot.
+    ['Sylvain Grenier', 'heavyweight', 250],
     ['Chavo Guerrero', 'cruiserweight', 215],
     ['Chris Jericho', 'light_heavyweight', 225],
     ['Danny Basham', 'heavyweight', 250],
@@ -166,10 +168,10 @@ $freeAgents = [
 ];
 
 $rawDivas = ['Trish Stratus', 'Lita', 'Mickie James', 'Victoria', 'Torrie Wilson'];
-$smackdownDivas = ['Melina', 'Sharmell'];
+$smackdownDivas = ['Melina', 'Sharmell', 'Stacy Keibler'];
 $freeAgentDivas = [
     'Ashley Massaro', 'Maria', 'Candice Michelle', 'Hiroko', 'Ivory', 'Molly Holly',
-    'Christy Hemme', 'Joy Giovanni', 'Michelle McCool', 'Stacy Keibler', 'Cherry',
+    'Christy Hemme', 'Joy Giovanni', 'Michelle McCool', 'Cherry',
     'Dawn Marie', 'Jillian Hall', 'Vickie Guerrero', 'Mae Young',
     // 2006–2007 debuts.
     'Beth Phoenix', 'Kristal', 'Layla', 'Ariel', 'Francine', 'Kelly Kelly',
@@ -219,22 +221,28 @@ $legends = [
     ['Bob Backlund', 'light_heavyweight', 234],
 ];
 
+/*
+| Salaries (house rule, 2026-11-15): a month's pay by roster type. A
+| contract costs this × its months (1, 3, 6, 9 or 12), paid weekly.
+*/
+$salary = ['superstar' => 20_000, 'diva' => 12_000, 'legend' => 45_000];
+
 $rows = [];
 
 foreach ([['raw', $raw], ['smackdown', $smackdown], [null, $freeAgents]] as [$brand, $list]) {
     foreach ($list as [$name, $class, $weight]) {
-        $rows[] = ['name' => $name, 'roster_type' => 'superstar', 'placeholder_brand' => $brand, 'weight_class' => $class, 'billed_weight_lb' => $weight];
+        $rows[] = ['name' => $name, 'roster_type' => 'superstar', 'placeholder_brand' => $brand, 'weight_class' => $class, 'billed_weight_lb' => $weight, 'monthly_salary' => $salary['superstar']];
     }
 }
 
 foreach ([['raw', $rawDivas], ['smackdown', $smackdownDivas], [null, $freeAgentDivas]] as [$brand, $list]) {
     foreach ($list as $name) {
-        $rows[] = ['name' => $name, 'roster_type' => 'diva', 'placeholder_brand' => $brand, 'weight_class' => 'featherweight', 'billed_weight_lb' => null];
+        $rows[] = ['name' => $name, 'roster_type' => 'diva', 'placeholder_brand' => $brand, 'weight_class' => 'featherweight', 'billed_weight_lb' => null, 'monthly_salary' => $salary['diva']];
     }
 }
 
 foreach ($legends as [$name, $class, $weight]) {
-    $rows[] = ['name' => $name, 'roster_type' => 'legend', 'placeholder_brand' => null, 'weight_class' => $class, 'billed_weight_lb' => $weight];
+    $rows[] = ['name' => $name, 'roster_type' => 'legend', 'placeholder_brand' => null, 'weight_class' => $class, 'billed_weight_lb' => $weight, 'monthly_salary' => $salary['legend']];
 }
 
 return [

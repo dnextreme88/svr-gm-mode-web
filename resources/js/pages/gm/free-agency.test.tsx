@@ -7,7 +7,7 @@ import FreeAgency from '@/pages/gm/free-agency';
 const agent = (
     id: number,
     name: string,
-    upfront: number,
+    total: number,
     extra: object = {},
 ) => ({
     id,
@@ -18,13 +18,12 @@ const agent = (
     injury: null,
     specialties: [],
     quotes: [
-        { length_weeks: 52, label: '1 year', upfront, weekly: 8000, total: 0 },
+        { length_weeks: 52, label: '12 months', weekly: 8000, total },
         {
             length_weeks: 5,
-            label: '5 weeks',
-            upfront: 10,
+            label: '1 month',
             weekly: 99999,
-            total: 0,
+            total: 10,
         },
     ],
     ...extra,
@@ -66,7 +65,7 @@ describe('Free Agency', () => {
         const user = userEvent.setup();
         render(<FreeAgency />);
 
-        await user.click(screen.getByRole('button', { name: 'Up front' }));
+        await user.click(screen.getByRole('button', { name: 'Total' }));
         expect(names()).toEqual(['Al Snow', 'Cherry', 'Bret Hart']);
 
         await user.selectOptions(

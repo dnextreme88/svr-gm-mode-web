@@ -15,7 +15,13 @@ import { PoolFilters } from '@/components/gm/pool-filters';
 import { ariaSort, nextSort, SortHeader } from '@/components/gm/sort-header';
 import { StreakMeter } from '@/components/gm/streak-meter';
 import type { PoolFilter, RosterSort, RosterSortKey } from '@/lib/gm';
-import { emptyPoolFilter, filterPool, formatMoney, sortRoster } from '@/lib/gm';
+import {
+    emptyPoolFilter,
+    filterPool,
+    formatMoney,
+    pluralize,
+    sortRoster,
+} from '@/lib/gm';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
@@ -25,7 +31,11 @@ import type { GamePageProps, WrestlerRow } from '@/types/gm';
 
 type Props = GamePageProps & {
     brand: Brand;
-    wrestlers: WrestlerRow[];
+    /** Tags under the name (2026-11-15): a briefcase holder, this season's Rumble winner. */
+    wrestlers: (WrestlerRow & {
+        mitb_winner?: boolean;
+        rumble_winner?: boolean;
+    })[];
     pending: number;
 };
 
@@ -196,7 +206,9 @@ export default function Rosters() {
                                             </Link>
                                             {(w.roster_type === 'legend' ||
                                                 w.titles.length > 0 ||
-                                                w.sitting_out) && (
+                                                w.sitting_out ||
+                                                w.mitb_winner ||
+                                                w.rumble_winner) && (
                                                 <div className="mt-0.5 flex flex-wrap gap-1 sm:flex-nowrap sm:whitespace-nowrap">
                                                     {w.roster_type ===
                                                         'legend' && (
@@ -215,9 +227,31 @@ export default function Rosters() {
                                                             name={t}
                                                         />
                                                     ))}
+                                                    {w.rumble_winner && (
+                                                        <span
+                                                            data-testid="tag-rumble-winner"
+                                                            className="font-condensed text-sm font-bold tracking-widest text-gold-hot uppercase"
+                                                        >
+                                                            Royal Rumble winner
+                                                        </span>
+                                                    )}
+                                                    {w.mitb_winner && (
+                                                        <span
+                                                            data-testid="tag-mitb-winner"
+                                                            className="font-condensed text-sm font-bold tracking-widest text-gold-hot uppercase"
+                                                        >
+                                                            MITB winner
+                                                        </span>
+                                                    )}
                                                     {w.sitting_out && (
-                                                        <span className="font-condensed text-sm font-bold tracking-widest text-zone-minor uppercase">
+                                                        <span
+                                                            data-testid="tag-sitting-out"
+                                                            className="font-condensed text-sm font-bold tracking-widest text-zone-minor uppercase"
+                                                        >
                                                             Sitting out
+                                                            {w.sitting_out_weeks
+                                                                ? ` · ${pluralize(w.sitting_out_weeks, 'week')}`
+                                                                : ''}
                                                         </span>
                                                     )}
                                                 </div>

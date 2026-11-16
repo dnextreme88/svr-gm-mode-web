@@ -3,16 +3,23 @@
 namespace App\Http\Controllers\Gm;
 
 use App\Enums\Brand;
+use App\Enums\ContractLength;
 use App\Enums\ContractStatus;
+use App\Enums\LedgerCategory;
+use App\Enums\MitbStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Presenters\WrestlerPresenter;
 use App\Models\Contract;
+use App\Models\LedgerEntry;
+use App\Models\MoneyInTheBank;
 use App\Models\Save;
 use App\Models\SaveWrestler;
+use App\Models\Season;
 use App\Models\TitleReign;
 use App\Services\Contracts\ContractPricing;
 use App\Services\Injuries\InjuryStatus;
 use App\Services\Roster\RosterService;
+use App\Services\Roster\SuperstarCareer;
 use App\Services\Titles\TitleService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -29,6 +36,7 @@ class RosterController extends Controller
         private InjuryStatus $injuries,
         private TitleService $titles,
         private ContractPricing $pricing,
+        private SuperstarCareer $career,
     ) {}
 
     public function index(Request $request, Save $save): Response
@@ -39,10 +47,19 @@ class RosterController extends Controller
         $injuries = $this->injuries->activeByWrestler($save->id, $week);
         $reigns = $this->titles->currentReigns($save);
 
+        // Tags under the name (2026-11-15): who holds a Money in the Bank
+        // briefcase, and this season's Royal Rumble winner.
+        $briefcases = MoneyInTheBank::where('save_id', $save->id)->where('status', MitbStatus::Held)->pluck('save_wrestler_id')->map(fn ($id): int => (int) $id)->all();
+        $rumbleWinner = Season::where('save_id', $save->id)->where('number', $save->current_season)->value('royal_rumble_winner_id');
+
         return Inertia::render('gm/rosters/index', [
             'brand' => $brand->value,
             'wrestlers' => $this->roster->roster($save, $brand)
-                ->map(fn (SaveWrestler $w): array => WrestlerPresenter::row($w, $week, $injuries, $reigns))
+                ->map(fn (SaveWrestler $w): array => [
+                    ...WrestlerPresenter::row($w, $week, $injuries, $reigns),
+                    'mitb_winner' => in_array($w->id, $briefcases, true),
+                    'rumble_winner' => $rumbleWinner !== null && (int) $rumbleWinner === $w->id,
+                ])
                 ->values(),
             'pending' => $this->roster->pendingCount($save, $brand),
         ]);
@@ -73,12 +90,20 @@ class RosterController extends Controller
             ])
             ->values();
 
+        // What each early release cost (house rule, 2026-11-15).
+        $releaseFees = LedgerEntry::where('save_id', $save->id)
+            ->where('category', LedgerCategory::ReleaseFee)
+            ->where('subject_type', (new Contract)->getMorphClass())
+            ->pluck('amount', 'subject_id');
+
         $contracts = Contract::where('save_wrestler_id', $saveWrestler->id)
             ->orderByDesc('id')
             ->get()
             ->map(fn (Contract $c): array => [
                 'brand' => $c->brand->value,
                 'length_weeks' => $c->length_weeks,
+                'label' => ContractLength::tryFrom($c->length_weeks)?->label() ?? "{$c->length_weeks} weeks",
+                'release_fee' => isset($releaseFees[$c->id]) ? abs((int) $releaseFees[$c->id]) : null,
                 'weekly_cost' => $c->weekly_cost,
                 'upfront_fee' => $c->upfront_fee,
                 'signed_week' => $c->signed_week,
@@ -97,6 +122,16 @@ class RosterController extends Controller
             'title_history' => $history,
             'contracts' => $contracts,
             'quotes' => $this->pricing->allQuotes($saveWrestler->wrestler),
+            'salary' => [
+                'monthly' => $saveWrestler->wrestler->monthly_salary,
+                'tier' => $saveWrestler->wrestler->roster_type->value,
+            ],
+            'release_fee' => $saveWrestler->activeContract?->remainingValue(),
+            'budget' => $save->brand($save->player_brand)->budget,
+            'injury_history' => $this->career->injuries($save, $saveWrestler),
+            'special_info' => $this->career->moments($save, $saveWrestler),
+            'royal_rumbles' => $this->career->rumbles($save, $saveWrestler),
+            'redrafts' => $this->career->redrafts($save, $saveWrestler),
             'is_own' => $saveWrestler->brand === $save->player_brand,
             'is_free_agent' => $saveWrestler->brand === null,
             'is_pending' => $this->roster->isPending($saveWrestler),

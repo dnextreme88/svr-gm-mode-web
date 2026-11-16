@@ -18,6 +18,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -42,7 +43,7 @@ class DraftController extends Controller
         }
 
         $week = $save->current_week;
-        $length = ContractLength::from((int) config('gm.contracts.draft_default_length'));
+        $length = DraftService::defaultLength();
 
         $pool = SaveWrestler::with('wrestler.specialties')
             ->where('save_id', $save->id)
@@ -52,7 +53,8 @@ class DraftController extends Controller
             ->sortBy(fn (SaveWrestler $w): string => $w->wrestler->name)
             ->map(fn (SaveWrestler $w): array => [
                 ...WrestlerPresenter::row($w, $week),
-                'quote' => $this->pricing->quote($w->wrestler, $length),
+                // House rule (2026-11-15): every length's price, for the length picker.
+                'quotes' => $this->pricing->allQuotes($w->wrestler),
             ])
             ->values();
 
@@ -73,13 +75,12 @@ class DraftController extends Controller
                 'raw' => $this->draft->picksMade($save, Brand::Raw),
                 'smackdown' => $this->draft->picksMade($save, Brand::Smackdown),
             ],
-            // Both brands' running budgets, for the brand cards.
-            'budgets' => [
-                'raw' => $save->brand(Brand::Raw)->budget,
-                'smackdown' => $save->brand(Brand::Smackdown)->budget,
-            ],
+            // Both brands' running budgets, for the brand cards: the budget
+            // minus every drafted contract's value (salaries are paid weekly).
+            'budgets' => $this->budgets($save),
             'draft_order' => $save->draft_order,
             'contract_length' => $length->value,
+            'contract_lengths' => array_map(fn (ContractLength $l): array => ['weeks' => $l->value, 'label' => $l->label()], ContractLength::cases()),
             'player_done' => ! $this->draft->canStillPick($save, $save->player_brand),
             'concluded' => $concluded,
         ]);
@@ -87,12 +88,16 @@ class DraftController extends Controller
 
     public function pick(Request $request, Save $save): RedirectResponse
     {
-        $data = $request->validate(['save_wrestler_id' => ['required', 'integer']]);
+        $data = $request->validate([
+            'save_wrestler_id' => ['required', 'integer'],
+            'length' => ['nullable', Rule::enum(ContractLength::class)],
+        ]);
         $wrestler = SaveWrestler::where('save_id', $save->id)->whereKey($data['save_wrestler_id'])->firstOrFail();
+        $length = isset($data['length']) ? ContractLength::from((int) $data['length']) : null;
 
         // The AI answers one pick at a time through aiStep, so the draft room can animate it.
-        DB::transaction(function () use ($save, $wrestler): void {
-            $this->draft->pick($save, $save->player_brand, $wrestler);
+        DB::transaction(function () use ($save, $wrestler, $length): void {
+            $this->draft->pick($save, $save->player_brand, $wrestler, length: $length);
             $this->draft->finalize($save);
         });
 
@@ -103,10 +108,13 @@ class DraftController extends Controller
      * The Random button (house rule, 2026-11-12): the player's pick, drawn
      * from the affordable pool by the seeded RNG.
      */
-    public function random(Save $save): RedirectResponse
+    public function random(Request $request, Save $save): RedirectResponse
     {
-        DB::transaction(function () use ($save): void {
-            $this->draft->randomPick($save, $save->player_brand);
+        $data = $request->validate(['length' => ['nullable', Rule::enum(ContractLength::class)]]);
+        $length = isset($data['length']) ? ContractLength::from((int) $data['length']) : null;
+
+        DB::transaction(function () use ($save, $length): void {
+            $this->draft->randomPick($save, $save->player_brand, $length);
             $this->draft->finalize($save);
         });
 
@@ -145,11 +153,19 @@ class DraftController extends Controller
             'ai_turn' => $result['ai_turn'],
             'next_brand' => $this->draft->nextBrand($save)?->value,
             'draft_over' => $save->stage !== SaveStage::Drafting,
-            'budgets' => [
-                'raw' => $save->brand(Brand::Raw)->budget,
-                'smackdown' => $save->brand(Brand::Smackdown)->budget,
-            ],
+            'budgets' => $this->budgets($save),
         ]);
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function budgets(Save $save): array
+    {
+        return [
+            'raw' => $this->draft->availableBudget($save, Brand::Raw),
+            'smackdown' => $this->draft->availableBudget($save, Brand::Smackdown),
+        ];
     }
 
     /**

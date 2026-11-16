@@ -64,7 +64,7 @@ type Props = GamePageProps & {
     from_schedule?: boolean;
     /** The week is airing live: the player's matches are still being decided. */
     airing?: boolean;
-    /** After a PPV night (house rule, 2026-11-01): the weekly show to book next. */
+    /** After a PPV night (house rule, 2026-11-01): the weekly show to book next. Continue opens the News first (2026-11-16); the layout hides the header while it is set. */
     continue_to?: { name: string; url: string } | null;
     /** House rule: the briefcase holder may cash in after the world title match that just aired. */
     cash_in_offer?: { holder: string; champion: string; title: string } | null;
@@ -161,7 +161,6 @@ export default function Results() {
         airing = false,
         cash_in_offer = null,
         conditional_stories = [],
-        continue_to = null,
         shows,
         new_emails,
     } = usePage<Props>().props;
@@ -499,10 +498,6 @@ export default function Results() {
                             Continue
                         </button>
                     </>
-                ) : continue_to ? (
-                    <Link href={continue_to.url} className="gm-btn">
-                        Continue to {continue_to.name}
-                    </Link>
                 ) : (
                     <Link href={gm.news.url(game.id)} className="gm-btn">
                         Continue
@@ -840,6 +835,7 @@ function MatchRow({
                                         champions={o.champions}
                                         captains={o.captains}
                                         factions={o.factions}
+                                        brands={o.brands}
                                         manager={side.manager}
                                     />
                                 </Fragment>
@@ -851,6 +847,7 @@ function MatchRow({
                                     champions={o.champions}
                                     captains={o.captains}
                                     factions={o.factions}
+                                    brands={o.brands}
                                     manager={o.winner_manager}
                                 />
                                 <span className="mx-1.5 text-ink-faint group-hover:text-white/70">
@@ -864,6 +861,7 @@ function MatchRow({
                                             champions={o.champions}
                                             captains={o.captains}
                                             factions={o.factions}
+                                            brands={o.brands}
                                             manager={o.loser_side_managers?.[i]}
                                         />
                                     </Fragment>

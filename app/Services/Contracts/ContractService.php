@@ -46,14 +46,14 @@ class ContractService
      * Sign a drafted wrestler immediately (§1 initial draft). The roster cap
      * holds here too, so nothing can put a brand over it.
      */
-    public function signDrafted(Save $save, SaveWrestler $wrestler, Brand $brand, int $week, ?ContractLength $length = null): Contract
+    public function signDrafted(Save $save, SaveWrestler $wrestler, Brand $brand, int $week, ?ContractLength $length = null, bool $checkBudget = true): Contract
     {
         if (! $this->roster->hasRoom($save, $brand)) {
             throw new GameRuleException("The {$brand->label()} roster is full ({$this->roster->cap()}).");
         }
 
         $length ??= ContractLength::from((int) config('gm.contracts.draft_default_length'));
-        $contract = $this->createContract($save, $wrestler, $brand, $length, $week, $week);
+        $contract = $this->createContract($save, $wrestler, $brand, $length, $week, $week, checkBudget: $checkBudget);
 
         $wrestler->update(['brand' => $brand, 'joined_brand_week' => $week]);
         $this->morale->startHappy($wrestler, $week);
@@ -173,7 +173,15 @@ class ContractService
             default => ContendershipVoidReason::Released,
         }, $week);
 
-        $wrestler->activeContract?->update([
+        $contract = $wrestler->activeContract;
+
+        // House rule (2026-11-15): releasing a superstar early pays out the
+        // weeks left on the deal. Expiry, Loser Leaves and defection don't.
+        if ($reason === ReignEndReason::Released && $contract !== null && $contract->remainingValue() > 0) {
+            $this->ledger->post($wrestler->game, $brand, LedgerCategory::ReleaseFee, -$contract->remainingValue(), "Released {$wrestler->name()} ({$contract->weeks_remaining} ".Str::plural('week', $contract->weeks_remaining).' left)', $week, $contract);
+        }
+
+        $contract?->update([
             'status' => $reason === ReignEndReason::ContractExpired ? ContractStatus::Expired : ContractStatus::Released,
             'ended_week' => $week,
         ]);
@@ -231,7 +239,7 @@ class ContractService
         }
 
         foreach ($upkeep as $brand => $line) {
-            $this->ledger->post($save, Brand::from($brand), LedgerCategory::ContractUpkeep, -$line['total'], "Contract upkeep ({$line['count']} ".Str::plural('superstar', $line['count']).')', $week);
+            $this->ledger->post($save, Brand::from($brand), LedgerCategory::ContractUpkeep, -$line['total'], "Salaries ({$line['count']} ".Str::plural('superstar', $line['count']).')', $week);
         }
 
         foreach ($contracts->where('weeks_remaining', 0) as $contract) {
@@ -253,17 +261,25 @@ class ContractService
         return $result;
     }
 
-    private function createContract(Save $save, SaveWrestler $wrestler, Brand $brand, ContractLength $length, int $week, int $startsWeek, ?int $lastTicked = null): Contract
+    /**
+     * House rule (2026-11-15): a signing needs the whole contract's value in
+     * the bank. Salaries are then paid weekly; nothing is charged up front.
+     */
+    private function createContract(Save $save, SaveWrestler $wrestler, Brand $brand, ContractLength $length, int $week, int $startsWeek, ?int $lastTicked = null, bool $checkBudget = true): Contract
     {
         $wrestler->loadMissing('wrestler');
         $quote = $this->pricing->quote($wrestler->wrestler, $length);
+
+        if ($checkBudget && $this->ledger->budget($save, $brand) < $quote['total']) {
+            throw new GameRuleException("{$brand->label()} can’t afford {$wrestler->name()} for {$length->label()} (\$".number_format($quote['total']).').');
+        }
 
         $contract = Contract::create([
             'save_id' => $save->id,
             'save_wrestler_id' => $wrestler->id,
             'brand' => $brand,
             'length_weeks' => $length->value,
-            'upfront_fee' => $quote['upfront'],
+            'upfront_fee' => 0,
             'weekly_cost' => $quote['weekly'],
             'signed_week' => $week,
             'starts_week' => $startsWeek,
@@ -271,8 +287,6 @@ class ContractService
             'last_ticked_week' => $lastTicked,
             'status' => ContractStatus::Active,
         ]);
-
-        $this->ledger->post($save, $brand, LedgerCategory::SigningFee, -$quote['upfront'], "Signed {$wrestler->name()} ({$length->label()})", $week, $contract);
 
         return $contract;
     }

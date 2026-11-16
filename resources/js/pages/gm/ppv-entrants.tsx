@@ -104,11 +104,13 @@ export default function PpvEntrants() {
                         </button>
                     </>
                 )}
+                {/* The Rumble and the 3 vs 3 are Match 7 of their PPV's card
+                    (house rule, 2026-11-15). */}
                 <Link
-                    href={gm.schedule.url(game.id)}
+                    href={gm.card.show.url({ save: game.id, show: show.id })}
                     className="gm-btn gm-btn-ghost gm-btn-sm"
                 >
-                    Schedule
+                    Back to the card
                 </Link>
                 <BookingAction
                     game={game}

@@ -8,8 +8,11 @@ use App\Enums\FixedSlotKind;
 use App\Enums\InjurySeverity;
 use App\Enums\LedgerCategory;
 use App\Enums\MitbStatus;
+use App\Enums\NewsEventType;
+use App\Enums\NewsTier;
 use App\Enums\RosterType;
 use App\Enums\SaveStage;
+use App\Enums\ShowType;
 use App\Exceptions\GameRuleException;
 use App\Models\Championship;
 use App\Models\DraftPick;
@@ -18,19 +21,24 @@ use App\Models\InterbrandSeries;
 use App\Models\LedgerEntry;
 use App\Models\MatchSlot;
 use App\Models\MoneyInTheBank;
+use App\Models\NewsEvent;
 use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\Season;
 use App\Models\Show;
-use App\Models\TitleReign;
 use App\Services\Contracts\ContractService;
 use App\Services\Injuries\InjuryService;
+use App\Services\News\NewsComposer;
+use App\Services\News\NewsTemplates;
 use App\Services\Ppv\PpvCardService;
 use App\Services\Ppv\ReDraftService;
+use App\Services\Roster\SuperstarCareer;
 use App\Services\Titles\MitbService;
 use App\Services\Week\ShowScheduler;
 use App\Services\Week\WeekResolver;
 use App\Support\Rng\SeededRng;
+use App\Support\Text\StoryText;
+use Illuminate\Support\Collection;
 use Tests\Support\FixedOutcomes;
 use Tests\Support\GameBuilder;
 
@@ -74,14 +82,20 @@ function resolveWeek(Save $save): void
 }
 
 describe('Royal Rumble', function () {
-    it('adds an interbrand 30-man match and gives each brand card one fewer slot', function () {
+    it('is one 7-match card: the bigger draw books 1, 2 and 6, the other brand 3, 4 and 5, and the Rumble is Match 7 (house rule, 2026-11-15)', function () {
         $save = ppvSave(RUMBLE_WEEK);
         $rumble = interbrandShow($save, RUMBLE_WEEK);
-        $rawCard = Show::where('save_id', $save->id)->where('week_number', RUMBLE_WEEK)->where('brand', Brand::Raw)->where('show_type', 'ppv')->firstOrFail();
+        $slots = MatchSlot::where('show_id', $rumble->id)->orderBy('position')->get();
+        $lead = $slots->firstWhere('position', 1)->owner_brand;
 
-        expect($rumble->matchSlotCount())->toBe(1)
-            ->and(MatchSlot::where('show_id', $rumble->id)->sole()->fixed_kind)->toBe(FixedSlotKind::RoyalRumble)
-            ->and($rawCard->matchSlotCount())->toBe(4);
+        expect(Show::where('save_id', $save->id)->where('week_number', RUMBLE_WEEK)->where('show_type', 'ppv')->count())->toBe(1)
+            ->and($rumble->name)->toBe('Royal Rumble')
+            ->and($rumble->matchSlotCount())->toBe(7)
+            ->and($slots)->toHaveCount(7)
+            ->and($slots->whereIn('position', [1, 2, 6])->pluck('owner_brand')->unique()->values()->all())->toBe([$lead])
+            ->and($slots->whereIn('position', [3, 4, 5])->pluck('owner_brand')->unique()->values()->all())->toBe([$lead->rival()])
+            ->and($slots->firstWhere('position', 7)->fixed_kind)->toBe(FixedSlotKind::RoyalRumble)
+            ->and($slots->firstWhere('position', 7)->owner_brand)->toBeNull();
     });
 
     it('takes 15 entrants per brand and blocks the PPV until you pick them', function () {
@@ -95,7 +109,7 @@ describe('Royal Rumble', function () {
         $cards->setEntrants($rumble, Brand::Raw, rosterIds($save, Brand::Raw, 15));
         resolveWeek($save);
 
-        $slot = MatchSlot::with('participants.saveWrestler')->where('show_id', $rumble->id)->sole();
+        $slot = MatchSlot::with('participants.saveWrestler')->where('show_id', $rumble->id)->where('position', 7)->sole();
 
         expect($slot->participants->filter(fn ($p) => $p->saveWrestler->brand === Brand::Raw)->count())->toBe(15)
             ->and($slot->participants->filter(fn ($p) => $p->saveWrestler->brand === Brand::Smackdown)->count())->toBe(15)
@@ -123,7 +137,7 @@ describe('Royal Rumble', function () {
 
         $cards->randomEntrants($rumble, Brand::Raw, $save->rng('test.entrants', RUMBLE_WEEK));
 
-        $entrants = MatchSlot::with('participants.saveWrestler.wrestler')->where('show_id', $rumble->id)->sole()->participants;
+        $entrants = MatchSlot::with('participants.saveWrestler.wrestler')->where('show_id', $rumble->id)->where('position', 7)->sole()->participants;
 
         expect($entrants)->toHaveCount(12)
             ->and($entrants->filter(fn ($p): bool => $p->saveWrestler->wrestler->roster_type === RosterType::Diva))->toBeEmpty();
@@ -142,6 +156,17 @@ describe('Royal Rumble', function () {
 });
 
 describe('Survivor Series', function () {
+    it('is one 7-match card: the bigger draw books 4, 5 and 6, the other brand 1, 2 and 3, and the 3 vs 3 is Match 7 (house rule, 2026-11-15)', function () {
+        $save = ppvSave(SURVIVOR_WEEK);
+        $slots = MatchSlot::where('show_id', interbrandShow($save, SURVIVOR_WEEK)->id)->orderBy('position')->get();
+        $lead = $slots->firstWhere('position', 4)->owner_brand;
+
+        expect($slots)->toHaveCount(7)
+            ->and($slots->whereIn('position', [4, 5, 6])->pluck('owner_brand')->unique()->values()->all())->toBe([$lead])
+            ->and($slots->whereIn('position', [1, 2, 3])->pluck('owner_brand')->unique()->values()->all())->toBe([$lead->rival()])
+            ->and($slots->firstWhere('position', 7)->fixed_kind)->toBe(FixedSlotKind::SurvivorSeriesMainEvent);
+    });
+
     it('is a Raw vs SmackDown 3 vs 3 main event with no titles and no Divas', function () {
         $save = ppvSave(SURVIVOR_WEEK);
         $show = interbrandShow($save, SURVIVOR_WEEK);
@@ -154,7 +179,7 @@ describe('Survivor Series', function () {
         $cards->setEntrants($show, Brand::Raw, rosterIds($save, Brand::Raw, 3));
         resolveWeek($save);
 
-        $slot = MatchSlot::with(['participants.saveWrestler', 'result'])->where('show_id', $show->id)->sole();
+        $slot = MatchSlot::with(['participants.saveWrestler', 'result'])->where('show_id', $show->id)->where('position', 7)->sole();
 
         expect($slot->fixed_kind)->toBe(FixedSlotKind::SurvivorSeriesMainEvent)
             ->and($slot->sides())->toHaveCount(2)
@@ -178,24 +203,38 @@ describe('WrestleMania', function () {
 
         $save->update(['current_week' => MANIA_WEEK]);
         app(ShowScheduler::class)->ensureWeek($save, MANIA_WEEK);
+        // The player (Raw) picks their series entrants; here at random.
+        app(PpvCardService::class)->fillSeries(interbrandShow($save, MANIA_WEEK), Brand::Raw, $save->rng('test.series'));
 
         return $save->refresh();
     }
 
-    it('is one 10-match card: 3 Raw, 3 SmackDown, 3 interbrand series and the main event', function () {
-        $save = maniaSave();
+    it('is one 8-match card: the Rumble winner’s brand books 1, 3 and the main event, the other brand 2, 4, then the series 5–7 (house rule, 2026-11-15)', function () {
+        $save = maniaSave(); // Edge, Raw, won the Rumble
         $show = interbrandShow($save, MANIA_WEEK);
         $slots = MatchSlot::where('show_id', $show->id)->orderBy('position')->get();
 
-        expect($slots)->toHaveCount(10)
-            ->and($slots->whereIn('position', [1, 2, 3])->pluck('owner_brand')->unique()->values()->all())->toBe([Brand::Raw])
-            ->and($slots->whereIn('position', [4, 5, 6])->pluck('owner_brand')->unique()->values()->all())->toBe([Brand::Smackdown])
-            ->and($slots->whereIn('position', [7, 8, 9])->pluck('fixed_kind')->unique()->values()->all())->toBe([FixedSlotKind::InterbrandSeries]);
+        expect($slots)->toHaveCount(8)
+            ->and($slots->whereIn('position', [1, 3])->pluck('owner_brand')->unique()->values()->all())->toBe([Brand::Raw])
+            ->and($slots->whereIn('position', [2, 4])->pluck('owner_brand')->unique()->values()->all())->toBe([Brand::Smackdown])
+            ->and($slots->firstWhere('position', 8)->owner_brand)->toBe(Brand::Raw)
+            ->and($slots->whereIn('position', [5, 6, 7])->pluck('fixed_kind')->unique()->values()->all())->toBe([FixedSlotKind::InterbrandSeries]);
+    });
+
+    it('gives Matches 1 and 3 to Smackdown when a Smackdown superstar wins the Rumble', function () {
+        $probe = GameBuilder::inSeason(size: 16);
+        $name = SaveWrestler::with('wrestler')->where('save_id', $probe->id)->where('brand', Brand::Smackdown)->orderByDesc('id')->first()->name();
+        $save = maniaSave($name);
+        $slots = MatchSlot::where('show_id', interbrandShow($save, MANIA_WEEK)->id)->orderBy('position')->get();
+
+        expect($slots->whereIn('position', [1, 3])->pluck('owner_brand')->unique()->values()->all())->toBe([Brand::Smackdown])
+            ->and($slots->whereIn('position', [2, 4])->pluck('owner_brand')->unique()->values()->all())->toBe([Brand::Raw])
+            ->and($slots->firstWhere('position', 8)->owner_brand)->toBe(Brand::Smackdown);
     });
 
     it('puts the Royal Rumble winner against their brand’s world champion with the title on the line', function () {
         $save = maniaSave('Edge');
-        $main = MatchSlot::with('participants.saveWrestler.wrestler')->where('show_id', interbrandShow($save, MANIA_WEEK)->id)->where('position', 10)->sole();
+        $main = MatchSlot::with('participants.saveWrestler.wrestler')->where('show_id', interbrandShow($save, MANIA_WEEK)->id)->where('position', 8)->sole();
 
         expect($main->fixed_kind)->toBe(FixedSlotKind::WrestlemaniaMainEvent)
             ->and($main->owner_brand)->toBe(Brand::Raw)
@@ -211,14 +250,14 @@ describe('WrestleMania', function () {
         $save->update(['current_week' => MANIA_WEEK]);
         app(ShowScheduler::class)->ensureWeek($save, MANIA_WEEK);
 
-        $main = MatchSlot::where('show_id', interbrandShow($save, MANIA_WEEK)->id)->where('position', 10)->sole();
+        $main = MatchSlot::where('show_id', interbrandShow($save, MANIA_WEEK)->id)->where('position', 8)->sole();
 
         expect($main->fixed_kind)->toBeNull()
             ->and($main->owner_brand)->toBe(Brand::Raw)
             ->and($main->participants()->count())->toBe(0);
     });
 
-    it('draws the interbrand series from bookable non-champions only', function () {
+    it('has the rival pick its series entrants and leaves the player’s spots empty, all bookable non-champions (house rule, 2026-11-15)', function () {
         $save = GameBuilder::inSeason(size: 16);
         GameBuilder::giveTitle($save, 'wwe', ['John Cena']);
         GameBuilder::giveTitle($save, 'world_heavyweight', ['Batista']);
@@ -229,7 +268,16 @@ describe('WrestleMania', function () {
         $save->update(['current_week' => MANIA_WEEK]);
         app(ShowScheduler::class)->ensureWeek($save, MANIA_WEEK);
 
-        $series = app(PpvCardService::class)->seriesSlots(interbrandShow($save, MANIA_WEEK));
+        $cards = app(PpvCardService::class);
+        $show = interbrandShow($save, MANIA_WEEK);
+
+        // The rival (Smackdown) has picked; the player (Raw) hasn't.
+        expect($cards->seriesSlots($show)->map(fn ($s) => $s->participants->count())->all())->toBe([1, 2, 3])
+            ->and($cards->seriesSlots($show)->flatMap(fn ($s) => $s->participants->map(fn ($p) => $p->saveWrestler->brand))->unique()->values()->all())->toBe([Brand::Smackdown])
+            ->and($cards->seriesMissing($show, Brand::Raw))->toBe([5, 6, 7]);
+
+        $cards->fillSeries($show, Brand::Raw, $save->rng('test.series'));
+        $series = $cards->seriesSlots($show);
         $ids = $series->flatMap(fn ($s) => $s->participants->pluck('save_wrestler_id'))->all();
         $excluded = [GameBuilder::wrestler($save, 'John Cena')->id, GameBuilder::wrestler($save, 'Batista')->id, $hurt->id, $benched->id];
 
@@ -289,20 +337,25 @@ describe('WrestleMania', function () {
 
         expect($emails)->toHaveCount(2)
             ->and($emails->pluck('sender')->unique()->all())->toBe(['Vince McMahon'])
-            ->and($emails[0]->body)->toContain('up to 10 random picks');
+            ->and($emails[0]->body)->toContain('5 superstars');
     });
 });
 
 describe('re-draft', function () {
-    function redraftSave(Brand $winner = Brand::Raw, int $size = 16): Save
+    function redraftSave(Brand $winner = Brand::Raw, int $size = 16, ?Brand $immunity = null): Save
     {
         $save = GameBuilder::inSeason(size: $size);
         GameBuilder::giveTitle($save, 'world_heavyweight', ['Batista']);
         $save->update(['stage' => SaveStage::Redrafting, 'current_week' => 53, 'current_season' => 2]);
         Season::create(['save_id' => $save->id, 'number' => 2, 'started_week' => 53]);
-        InterbrandSeries::create(['save_id' => $save->id, 'season' => 1, 'week_number' => 52, 'match_ids' => [], 'raw_wins' => 2, 'smackdown_wins' => 1, 'winner_brand' => $winner]);
+        InterbrandSeries::create(['save_id' => $save->id, 'season' => 1, 'week_number' => 52, 'match_ids' => [], 'raw_wins' => $winner === Brand::Raw ? 2 : 1, 'smackdown_wins' => $winner === Brand::Raw ? 1 : 2, 'winner_brand' => $winner, 'immunity_brand' => $immunity ?? $winner]);
 
         return $save->refresh();
+    }
+
+    function redraftPicks(Save $save): Collection
+    {
+        return DraftPick::where('save_id', $save->id)->where('phase', DraftPhase::WrestlemaniaReset)->orderBy('pick_number')->get();
     }
 
     it('welcomes the player to the new season once the re-draft is done', function () {
@@ -315,76 +368,35 @@ describe('re-draft', function () {
         expect($welcome->brand)->toBe(Brand::Raw)
             ->and($welcome->sender)->toBe('JR')
             ->and($welcome->subject)->toBe('Season 2 starts now')
-            ->and($welcome->body)->toContain('check your email');
+            ->and($save->refresh()->stage)->toBe(SaveStage::InSeason);
     });
 
-    it('makes up to 10 random picks per brand from the rival’s non-champions, keeping contracts', function () {
-        $save = redraftSave();
+    it('swaps 5 non-champions each way, alternating, keeping contracts and roster sizes (house rule, 2026-11-15)', function () {
+        $save = redraftSave(Brand::Smackdown);
         $batista = GameBuilder::wrestler($save, 'Batista');
+        $sizes = [Brand::Raw->value => SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Raw)->count(), Brand::Smackdown->value => SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Smackdown)->count()];
         $contracts = SaveWrestler::where('save_id', $save->id)->whereNotNull('brand')->with('activeContract')->get()->mapWithKeys(fn ($w) => [$w->id => $w->activeContract->id]);
-        $budget = $save->brand(Brand::Raw)->budget;
 
         app(ReDraftService::class)->run($save);
 
-        $picks = DraftPick::where('save_id', $save->id)->where('phase', DraftPhase::WrestlemaniaReset)->where('skipped', false)->get();
+        $picks = redraftPicks($save);
 
-        expect($picks->where('brand', Brand::Raw)->count())->toBeLessThanOrEqual(10)
-            ->and($picks->where('brand', Brand::Smackdown)->count())->toBeLessThanOrEqual(10)
+        expect($picks)->toHaveCount(10)
+            ->and($picks->where('skipped', true))->toBeEmpty()
+            ->and($picks->pluck('brand')->map->value->all())->toBe(['smackdown', 'raw', 'smackdown', 'raw', 'smackdown', 'raw', 'smackdown', 'raw', 'smackdown', 'raw'])
+            ->and($picks->pluck('save_wrestler_id')->unique())->toHaveCount(10)
             ->and($picks->pluck('save_wrestler_id')->contains($batista->id))->toBeFalse()
             ->and($batista->refresh()->brand)->toBe(Brand::Smackdown)
-            ->and(TitleReign::where('save_id', $save->id)->whereNotNull('lost_week')->count())->toBe(0)
-            ->and($save->refresh()->stage)->toBe(SaveStage::InSeason)
-            ->and($save->brand(Brand::Raw)->budget)->toBe($budget);
+            ->and(SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Raw)->count())->toBe($sizes['raw'])
+            ->and(SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Smackdown)->count())->toBe($sizes['smackdown']);
 
-        $picks->each(fn ($p) => expect(SaveWrestler::with('activeContract')->find($p->save_wrestler_id)->activeContract->id)->toBe($contracts[$p->save_wrestler_id]));
+        $picks->each(function (DraftPick $p) use ($contracts) {
+            $w = SaveWrestler::with('activeContract')->find($p->save_wrestler_id);
+            expect($w->brand)->toBe($p->brand)->and($w->activeContract->id)->toBe($contracts[$w->id]);
+        });
     });
 
-    it('honours the winner’s exemption and replaces one random pick with the hand-pick', function () {
-        $save = redraftSave(Brand::Raw);
-        $protected = GameBuilder::wrestler($save, 'Edge');
-        $target = SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Smackdown)->where('id', '!=', GameBuilder::wrestler($save, 'Batista')->id)->orderBy('id')->firstOrFail();
-        app(ReDraftService::class)->setTags($save, $protected->id, $target->id);
-
-        app(ReDraftService::class)->run($save);
-
-        $raw = DraftPick::where('save_id', $save->id)->where('brand', Brand::Raw)->where('skipped', false)->get();
-
-        expect($protected->refresh()->brand)->toBe(Brand::Raw)
-            ->and($target->refresh()->brand)->toBe(Brand::Raw)
-            ->and($raw->where('pick_type', DraftPickType::Manual)->sole()->save_wrestler_id)->toBe($target->id)
-            ->and($raw->where('pick_type', DraftPickType::Random)->count())->toBe(9);
-    });
-
-    it('lets a winning rival GM hand-pick the player’s most valuable superstar and protect its own (house rule, 2026-11-11)', function () {
-        $save = redraftSave(Brand::Smackdown);
-        $star = GameBuilder::wrestler($save, 'Edge');
-        $star->update(['win_streak' => 20]);
-        $own = SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Smackdown)->where('id', '!=', GameBuilder::wrestler($save, 'Batista')->id)->orderBy('id')->firstOrFail();
-        $own->update(['win_streak' => 20]);
-
-        app(ReDraftService::class)->run($save);
-
-        $series = InterbrandSeries::where('save_id', $save->id)->sole();
-        $manual = DraftPick::where('save_id', $save->id)->where('brand', Brand::Smackdown)->where('pick_type', DraftPickType::Manual)->sole();
-
-        expect($series->handpick_wrestler_id)->toBe($star->id)
-            ->and($series->exemption_wrestler_id)->toBe($own->id)
-            ->and($manual->save_wrestler_id)->toBe($star->id)
-            ->and($star->refresh()->brand)->toBe(Brand::Smackdown)
-            ->and($own->refresh()->brand)->toBe(Brand::Smackdown);
-    });
-
-    it('breaks a tie for the most valuable superstar with the RNG', function () {
-        $save = redraftSave(Brand::Smackdown);
-        $service = app(ReDraftService::class);
-        $pool = $service->eligibleFrom($save, Brand::Raw);
-
-        $picked = collect(range(1, 20))->map(fn (int $i) => $service->mostValuable($save, Brand::Smackdown, $pool, new SeededRng("tie-{$i}"))?->id)->unique();
-
-        expect($picked->count())->toBeGreaterThan(1);
-    });
-
-    it('skips picks for a brand already at 30', function () {
+    it('swaps even when both rosters are full', function () {
         $save = redraftSave(Brand::Raw, size: 16);
 
         foreach ([Brand::Raw, Brand::Smackdown] as $brand) {
@@ -397,9 +409,147 @@ describe('re-draft', function () {
 
         app(ReDraftService::class)->run($save->refresh());
 
-        expect(SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Raw)->count())->toBe(30)
-            ->and(SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Smackdown)->count())->toBe(30)
-            ->and(DraftPick::where('save_id', $save->id)->where('phase', DraftPhase::WrestlemaniaReset)->where('skipped', true)->count())->toBe(20);
+        expect(redraftPicks($save)->where('skipped', false))->toHaveCount(10)
+            ->and(SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Raw)->count())->toBe(30)
+            ->and(SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Smackdown)->count())->toBe(30);
+    });
+
+    it('gives the immunity tag to the brand that drew more fans before WrestleMania, and the manual pick to the series winner', function () {
+        $save = redraftSave(Brand::Raw);
+        InterbrandSeries::where('save_id', $save->id)->update(['immunity_brand' => null]);
+
+        foreach ([1, 2] as $week) {
+            app(ShowScheduler::class)->ensureWeek($save, $week);
+            Show::where('save_id', $save->id)->where('week_number', $week)->where('brand', 'smackdown')->where('show_type', ShowType::Weekly)->update(['attendance' => 12_000]);
+            Show::where('save_id', $save->id)->where('week_number', $week)->where('brand', 'raw')->where('show_type', ShowType::Weekly)->update(['attendance' => 9_000]);
+        }
+
+        $series = app(ReDraftService::class)->prepare($save);
+
+        expect($series->immunity_brand)->toBe(Brand::Smackdown)
+            ->and($series->winner_brand)->toBe(Brand::Raw)
+            // Smackdown is the rival here: it protects its own at once. Raw (the
+            // player) still has to make its manual pick.
+            ->and($series->exemption_wrestler_id)->not->toBeNull()
+            ->and(SaveWrestler::find($series->exemption_wrestler_id)->brand)->toBe(Brand::Smackdown)
+            ->and(app(ReDraftService::class)->phase($save, $series))->toBe('manual');
+    });
+
+    it('takes the immunity tag first, then the manual pick, which is the first pick', function () {
+        $save = redraftSave(Brand::Raw);
+        $service = app(ReDraftService::class);
+        $protected = GameBuilder::wrestler($save, 'Edge');
+        $target = SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Smackdown)->where('id', '!=', GameBuilder::wrestler($save, 'Batista')->id)->orderBy('id')->firstOrFail();
+
+        expect($service->phase($save, $service->prepare($save)))->toBe('immunity')
+            ->and(fn () => $service->setHandpick($save, $target->id))->toThrow(GameRuleException::class, 'immunity tag comes first');
+
+        $service->setImmunity($save, $protected->id);
+        expect($service->phase($save, $service->series($save)))->toBe('manual');
+
+        $service->setHandpick($save, $target->id);
+        expect($service->phase($save, $service->series($save)))->toBe('picks');
+
+        while ($service->step($save) !== null) {
+            // every pick
+        }
+
+        $first = redraftPicks($save)->first();
+
+        expect($first->pick_type)->toBe(DraftPickType::Manual)
+            ->and($first->save_wrestler_id)->toBe($target->id)
+            ->and($first->brand)->toBe(Brand::Raw)
+            ->and($protected->refresh()->brand)->toBe(Brand::Raw)
+            ->and(redraftPicks($save)->where('pick_type', DraftPickType::Manual))->toHaveCount(1);
+    });
+
+    it('refuses a champion for the manual pick', function () {
+        $save = redraftSave(Brand::Raw);
+        $service = app(ReDraftService::class);
+        $service->setImmunity($save, GameBuilder::wrestler($save, 'Edge')->id);
+
+        $service->setHandpick($save, GameBuilder::wrestler($save, 'Batista')->id);
+    })->throws(GameRuleException::class, 'non-champions');
+
+    it('refuses a champion for the immunity tag', function () {
+        $save = redraftSave(Brand::Raw);
+        $champion = GameBuilder::wrestler($save, 'Edge');
+        GameBuilder::giveTitle($save, 'intercontinental', ['Edge']);
+
+        app(ReDraftService::class)->setImmunity($save, $champion->id);
+    })->throws(GameRuleException::class, 'non-champions');
+
+    it('exempts every champion, singles and tag, while injured non-champions can still be drafted', function () {
+        $save = GameBuilder::inSeason(
+            raw: ['John Cena', 'Kane', 'Christian', 'Edge', 'Carlito', 'Shelton Benjamin', 'Chris Masters', 'Tajiri'],
+            smackdown: ['Batista', 'Paul London', 'Brian Kendrick', 'Randy Orton', 'Chris Benoit', 'Booker T', 'JBL', 'Orlando Jordan', 'Hardcore Holly'],
+        );
+        $champions = collect([
+            GameBuilder::giveTitle($save, 'wwe', ['John Cena']),
+            GameBuilder::giveTitle($save, 'world_tag_team', ['Kane', 'Christian']),
+            GameBuilder::giveTitle($save, 'world_heavyweight', ['Batista']),
+            GameBuilder::giveTitle($save, 'wwe_tag_team', ['Paul London', 'Brian Kendrick']),
+        ])->flatMap(fn ($reign) => $reign->holderIds())->all();
+        $injuries = app(InjuryService::class);
+        $minor = GameBuilder::wrestler($save, 'Carlito');
+        $serious = GameBuilder::wrestler($save, 'Tajiri');
+        $injuries->injure($minor, InjurySeverity::Minor, 50, $save->rng('t', 1));
+        $injuries->injure($serious, InjurySeverity::Serious, 50, $save->rng('t', 2));
+        $save->update(['stage' => SaveStage::Redrafting, 'current_week' => 53, 'current_season' => 2]);
+        Season::create(['save_id' => $save->id, 'number' => 2, 'started_week' => 53]);
+        // The rival (Smackdown) holds both tags, so it uses them itself.
+        InterbrandSeries::create(['save_id' => $save->id, 'season' => 1, 'week_number' => 52, 'match_ids' => [], 'raw_wins' => 1, 'smackdown_wins' => 2, 'winner_brand' => Brand::Smackdown, 'immunity_brand' => Brand::Smackdown]);
+        $service = app(ReDraftService::class);
+        $rawNonChampions = $service->eligibleFrom($save->refresh(), Brand::Raw)->pluck('id')->sort()->values()->all();
+
+        expect($service->eligibleFrom($save, Brand::Raw)->pluck('id'))->toContain($minor->id, $serious->id)
+            ->and(array_intersect($rawNonChampions, $champions))->toBeEmpty();
+
+        $series = $service->prepare($save);
+
+        expect($champions)->not->toContain($series->exemption_wrestler_id)
+            ->and($champions)->not->toContain($series->handpick_wrestler_id)
+            ->and(SaveWrestler::find($series->exemption_wrestler_id)->brand)->toBe(Brand::Smackdown)
+            ->and(SaveWrestler::find($series->handpick_wrestler_id)->brand)->toBe(Brand::Raw);
+
+        $service->run($save->refresh());
+
+        $picks = redraftPicks($save)->where('skipped', false);
+
+        // Raw has exactly 5 non-champions, so Smackdown drafts every one of
+        // them, the injured two included.
+        expect($picks->where('brand', Brand::Smackdown)->pluck('save_wrestler_id')->sort()->values()->all())->toBe($rawNonChampions)
+            ->and($picks->pluck('save_wrestler_id')->intersect($champions))->toBeEmpty()
+            ->and($picks->pluck('save_wrestler_id'))->not->toContain($series->exemption_wrestler_id)
+            ->and($minor->refresh()->brand)->toBe(Brand::Smackdown)
+            ->and($serious->refresh()->brand)->toBe(Brand::Smackdown);
+
+        foreach ($champions as $id) {
+            expect(SaveWrestler::find($id)->brand)->toBe(in_array($id, [GameBuilder::wrestler($save, 'John Cena')->id, GameBuilder::wrestler($save, 'Kane')->id, GameBuilder::wrestler($save, 'Christian')->id], true) ? Brand::Raw : Brand::Smackdown);
+        }
+    });
+
+    it('lets a rival GM tag its most valuable superstars (house rule, 2026-11-11)', function () {
+        $save = redraftSave(Brand::Smackdown);
+        $star = GameBuilder::wrestler($save, 'Edge');
+        $star->update(['win_streak' => 20]);
+        $own = SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Smackdown)->where('id', '!=', GameBuilder::wrestler($save, 'Batista')->id)->orderBy('id')->firstOrFail();
+        $own->update(['win_streak' => 20]);
+
+        $series = app(ReDraftService::class)->prepare($save);
+
+        expect($series->handpick_wrestler_id)->toBe($star->id)
+            ->and($series->exemption_wrestler_id)->toBe($own->id);
+    });
+
+    it('breaks a tie for the most valuable superstar with the RNG', function () {
+        $save = redraftSave(Brand::Smackdown);
+        $service = app(ReDraftService::class);
+        $pool = $service->eligibleFrom($save, Brand::Raw);
+
+        $picked = collect(range(1, 20))->map(fn (int $i) => $service->mostValuable($save, Brand::Smackdown, $pool, new SeededRng("tie-{$i}"))?->id)->unique();
+
+        expect($picked->count())->toBeGreaterThan(1);
     });
 
     it('voids a drafted briefcase holder’s Money in the Bank', function () {
@@ -415,12 +565,93 @@ describe('re-draft', function () {
         });
     });
 
-    it('renders the re-draft and PPV entrant screens', function () {
-        $save = redraftSave();
-        $this->get(route('gm.redraft.show', $save))->assertInertia(fn ($page) => $page->component('gm/redraft')->where('you_won', true));
+    it('writes the WrestleMania week WWE headline: picks, tags and series, then the close', function () {
+        $save = redraftSave(Brand::Raw);
 
-        $rumble = ppvSave(RUMBLE_WEEK);
-        $this->get(route('gm.ppv.entrants', [$rumble, interbrandShow($rumble, RUMBLE_WEEK)]))
-            ->assertInertia(fn ($page) => $page->component('gm/ppv-entrants')->where('mode', 'rumble')->where('needed', 15));
+        app(ReDraftService::class)->run($save);
+
+        $event = NewsEvent::where('save_id', $save->id)->where('type', NewsEventType::RedraftResults)->sole();
+        $summary = app(NewsTemplates::class)->summary(NewsEventType::RedraftResults, $event->payload);
+        $raw = redraftPicks($save)->where('brand', Brand::Raw)->map(fn ($p) => $p->saveWrestler->name())->values()->all();
+
+        expect($event->week_number)->toBe(52)
+            ->and($event->tier)->toBe(NewsTier::Headline)
+            ->and(StoryText::paragraphs($summary))->toHaveCount(3)
+            ->and(StoryText::fits($summary))->toBeTrue()
+            ->and($summary)->toContain('Season 1 re-draft')
+            ->and($summary)->toContain('Season 2 starts now')
+            ->and($summary)->toContain(...$raw)
+            ->and(NewsEvent::where('save_id', $save->id)->where('type', NewsEventType::RedraftPick)->pluck('tier')->unique()->values()->all())->toBe([NewsTier::Ticker]);
+    });
+
+    it('puts the re-draft first and each brand’s last WrestleMania match on its card', function () {
+        $save = maniaSave();
+        resolveWeek($save);
+        $service = app(ReDraftService::class);
+
+        $service->run($save->refresh());
+
+        $page = app(NewsComposer::class)->compose($save->refresh(), MANIA_WEEK);
+        $main = MatchSlot::where('show_id', interbrandShow($save, MANIA_WEEK)->id)->where('position', 8)->first();
+        $mainBrand = $main->owner_brand->value;
+
+        expect($page['headlines']['neutral']['type'])->toBe('redraft_results')
+            ->and($page['headlines'][$mainBrand])->not->toBeNull()
+            ->and(NewsEvent::find($page['headlines'][$mainBrand]['id'])->dedupe_key)->toBe("slot:{$main->id}");
+    });
+
+    it('sends the News to the re-draft while it runs, and finishes into the news', function () {
+        $save = redraftSave(Brand::Smackdown, immunity: Brand::Smackdown);
+
+        $this->get(route('gm.news', $save))->assertRedirect(route('gm.redraft.show', $save));
+        $this->get(route('gm.redraft.show', $save))->assertInertia(fn ($page) => $page->component('gm/redraft')
+            ->where('phase', 'picks')
+            ->where('per_brand', 5)
+            ->has('order', 10)
+            ->where('order.0', 'smackdown'));
+
+        $step = $this->postJson(route('gm.redraft.step', $save))->assertOk()->json();
+        expect($step['pick']['pick_number'])->toBe(1)
+            ->and($step['pick']['pick_type'])->toBe('manual')
+            ->and($step['done'])->toBeFalse();
+
+        while (! $this->postJson(route('gm.redraft.step', $save))->json('done')) {
+            // every pick
+        }
+
+        $this->post(route('gm.redraft.finish', $save))->assertRedirect(route('gm.news', $save));
+        expect($save->refresh()->stage)->toBe(SaveStage::InSeason);
+    });
+
+    it('lists every re-draft move on the superstar’s profile: from, to, season and that brand’s pick', function () {
+        $save = redraftSave(Brand::Raw, immunity: Brand::Raw);
+        app(ReDraftService::class)->run($save);
+        $picks = redraftPicks($save)->where('skipped', false)->values();
+        $third = $picks->first(fn ($p) => $p->pick_number === 5); // Raw's 3rd pick
+        $manual = $picks->first(fn ($p) => $p->pick_number === 1);
+
+        $row = app(SuperstarCareer::class)->redrafts($save, $third->saveWrestler)[0];
+        expect($row)->toBe(['season' => 1, 'from' => 'smackdown', 'to' => 'raw', 'pick' => 3, 'picks' => 5, 'manual' => false])
+            ->and(app(SuperstarCareer::class)->redrafts($save, $manual->saveWrestler)[0]['manual'])->toBeTrue();
+
+        $this->get(route('gm.rosters.show', [$save, $third->saveWrestler]))
+            ->assertInertia(fn ($page) => $page->where('redrafts.0.pick', 3)->where('redrafts.0.to', 'raw'));
+    });
+
+    it('shows the 404 page for the re-draft before WrestleMania and after it ends', function () {
+        $save = GameBuilder::inSeason(size: 16);
+        $save->update(['current_week' => 7]);
+
+        $this->get(route('gm.redraft.show', $save))->assertNotFound()
+            ->assertInertia(fn ($page) => $page->component('gm/error')->where('status', 404));
+        $this->postJson(route('gm.redraft.step', $save))->assertNotFound();
+        $this->post(route('gm.redraft.immunity', $save), ['save_wrestler_id' => 1])->assertNotFound();
+        $this->post(route('gm.redraft.handpick', $save), ['save_wrestler_id' => 1])->assertNotFound();
+        $this->post(route('gm.redraft.finish', $save))->assertNotFound();
+
+        $done = redraftSave(Brand::Raw);
+        app(ReDraftService::class)->run($done);
+        expect($done->refresh()->stage)->toBe(SaveStage::InSeason);
+        $this->get(route('gm.redraft.show', $done))->assertNotFound();
     });
 });

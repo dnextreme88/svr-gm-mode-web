@@ -2,6 +2,7 @@
 
 namespace App\Services\Matches;
 
+use App\Enums\Brand;
 use App\Enums\FixedSlotKind;
 use App\Enums\InjurySeverity;
 use App\Enums\LedgerCategory;
@@ -132,10 +133,37 @@ class ShowResolver
         $this->promos->resolve($show, $promoRng);
         // Attendance first: an unbooked Interview Space can quote the crowd.
         $this->attendance->tally($show, $context);
+        $this->chargeProduction($show, $context);
         $this->promoStories->write($show, $context->rng("promo-stories.{$show->streamKey()}"));
         $this->confirmInjuredWins($show);
 
         $show->update(['status' => ShowStatus::Aired]);
+    }
+
+    /**
+     * House rule (2026-11-15): each brand on a night pays its production
+     * once the night's last card closes (a weekly show, or a PPV night's
+     * cards together): `gm.finances.show_cost`.
+     */
+    private function chargeProduction(Show $show, WeekContext $context): void
+    {
+        // The tally only sets the crowd once the whole night has aired.
+        if ($show->attendance === null) {
+            return;
+        }
+
+        $cards = $this->attendance->nightCards($show);
+        $brands = $cards->contains(fn (Show $card): bool => $card->brand === null)
+            ? Brand::cases()
+            : array_values(array_unique(array_map(fn (Show $card): Brand => $card->brand ?? Brand::Raw, $cards->all()), SORT_REGULAR));
+        $cost = (int) config('gm.finances.show_cost.'.($show->isPpv() ? 'ppv' : 'weekly'));
+        $name = $show->isPpv() ? ($show->ppvEvent->name ?? $show->name) : $show->name;
+
+        foreach ($brands as $brand) {
+            if ($cost > 0) {
+                $this->ledger->post($context->save, $brand, LedgerCategory::ShowProduction, -$cost, "Production: {$name}", $context->week, null, $show->id);
+            }
+        }
     }
 
     /**
@@ -240,6 +268,12 @@ class ShowResolver
 
         $this->outcomes->apply($slot, $result, $resolved, $context);
 
+        // Injuries are rolled before the title changes hands, so a winner
+        // seriously hurt in this match would otherwise keep the gold.
+        foreach ($resolved->winners as $winnerId) {
+            $this->injuries->vacateIfInjured($wrestlers[$winnerId]->refresh(), $week);
+        }
+
         if ($resolved->bouts !== []) {
             // A Gauntlet: each bout is its own meeting.
             $sides = $slot->sides();
@@ -285,7 +319,7 @@ class ShowResolver
         $brand = $slot->owner_brand ?? $show->brand;
 
         if ($slot->cost > 0 && $brand !== null) {
-            $this->ledger->post($context->save, $brand, LedgerCategory::MatchCost, -$slot->cost, "{$type->name} ({$show->name})", $week, $slot);
+            $this->ledger->post($context->save, $brand, LedgerCategory::MatchCost, -$slot->cost, "{$type->name} ({$show->name})", $week, $slot, $show->id);
         }
     }
 

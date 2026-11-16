@@ -1107,3 +1107,63 @@ describe('ordinal', () => {
         ]);
     });
 });
+
+describe('WrestleMania interbrand series (house rule, 2026-11-15)', () => {
+    it('opens only your spots as pickers, from who’s eligible, and saves them without a Clear', async () => {
+        const user = userEvent.setup();
+        const onSaveSeries = vi.fn();
+        const slot: CardSlot = {
+            ...emptySlot(5),
+            match_type_id: 1,
+            sides: [[null], [11]],
+            fixed_kind: 'interbrand_series',
+            owner_brand: null,
+            locked: true,
+            side_brands: ['raw', 'smackdown'],
+            names: { 11: 'Kane' },
+        };
+
+        render(
+            <UnsavedChangesProvider>
+                <CardBuilder
+                    show={{ ...show, brand: null, show_type: 'ppv' }}
+                    slots={[slot]}
+                    matchTypes={matchTypes}
+                    roster={roster}
+                    fatigueConfig={config}
+                    onSave={vi.fn()}
+                    onClear={vi.fn()}
+                    series={{ 5: { sides: [0], eligible: [10] } }}
+                    onSaveSeries={onSaveSeries}
+                />
+            </UnsavedChangesProvider>,
+        );
+
+        const yours = screen.getByRole('button', {
+            name: 'Match 5 side 1 superstar 1',
+        });
+        expect(yours).toBeEnabled();
+        expect(yours).toHaveTextContent('VACANT');
+        expect(
+            screen.getByRole('button', { name: 'Match 5 side 2 superstar 1' }),
+        ).toBeDisabled();
+        expect(screen.getByTestId('side-brand-5-0')).toHaveAttribute(
+            'data-brand-tint',
+            'raw',
+        );
+        expect(screen.getByTestId('side-brand-5-1')).toHaveAttribute(
+            'data-brand-tint',
+            'smackdown',
+        );
+        expect(
+            screen.queryByRole('button', { name: /Clear match 5/i }),
+        ).toBeNull();
+
+        await user.click(yours);
+        expect(screen.queryByRole('option', { name: /Lita/ })).toBeNull();
+        await user.click(screen.getByRole('option', { name: /Edge/ }));
+        await user.click(screen.getByRole('button', { name: 'Save match 5' }));
+
+        expect(onSaveSeries).toHaveBeenCalledWith(5, [10]);
+    });
+});

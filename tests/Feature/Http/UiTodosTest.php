@@ -138,7 +138,7 @@ it('renders the documentation page from the catalog', function () {
             ->has('injuries.minor')
             ->has('injuries.serious')
             ->has('stipulations', 5)
-            ->has('promo_stories', 14)
+            ->has('promo_stories', 15)
             ->has('quiet_stories', 5)
             ->has('rosters.wwe.raw', 30)
             ->has('rosters.wwe.smackdown', 30)
@@ -184,7 +184,7 @@ it('documents every news event and GM email on the docs page', function () {
             ->component('gm/docs')
             ->where('news.stories_per_brand', 2)
             ->has('news.events', count(NewsEventType::cases()))
-            ->where('news.events', fn ($events) => collect($events)->firstWhere('type', 'match_result')['headline'] === '{winner} defeats {loser} in decisive fashion. {pronoun} made sure to get the win {how}.'
+            ->where('news.events', fn ($events) => collect($events)->firstWhere('type', 'match_result')['headline'] === '{winner} defeats {loser}'
                 && collect($events)->firstWhere('type', 'upset_win')['active'] === false)
             ->where('emails', fn ($emails) => collect($emails)->contains(fn ($e) => $e['email'] === 'Low on cash' && str_contains($e['when'], '$500,000'))
                 && collect($emails)->contains(fn ($e) => $e['email'] === 'PPV reminder' && $e['from'] === 'Vince McMahon')));

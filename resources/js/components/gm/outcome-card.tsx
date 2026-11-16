@@ -21,11 +21,9 @@ export function OutcomeCard({
             key={`${showName}-${outcome.position}`}
             className="gm-panel relative overflow-hidden px-6 py-10 text-center md:px-12"
         >
-            <div className="gm-label">
+            <p data-testid="outcome-heading" className="text-base text-ink-dim">
                 {showName} ·{' '}
-                {isMainEvent ? 'Main Event' : `Match ${outcome.position}`}
-            </div>
-            <div className="mt-1 font-condensed text-sm tracking-wider text-ink-dim uppercase">
+                {isMainEvent ? 'Main Event' : `Match ${outcome.position}`} ·{' '}
                 {outcome.match_type}
                 {outcome.title && (
                     <span className="ml-2 text-gold-hot">
@@ -39,7 +37,7 @@ export function OutcomeCard({
                         {!outcome.champions?.length && ' (vacant)'}
                     </span>
                 )}
-            </div>
+            </p>
 
             {outcome.title_banner && (
                 <div
@@ -80,13 +78,13 @@ export function OutcomeCard({
                 )}
 
             <div className="mt-8 animate-gm-rise">
-                <div className="gm-label text-zone-safe">Winner</div>
-                <h2 className="gm-heading mt-1 text-3xl font-bold text-ink md:text-5xl">
+                <h2 className="gm-heading text-3xl font-bold text-ink md:text-5xl">
                     <SideNames
                         names={outcome.winners}
                         champions={outcome.champions}
                         captains={outcome.captains}
                         factions={outcome.factions}
+                        brands={outcome.brands}
                         manager={outcome.winner_manager}
                     />
                 </h2>
@@ -100,6 +98,7 @@ export function OutcomeCard({
                                 champions={outcome.champions}
                                 captains={outcome.captains}
                                 factions={outcome.factions}
+                                brands={outcome.brands}
                                 manager={outcome.loser_side_managers?.[i]}
                             />
                         </Fragment>

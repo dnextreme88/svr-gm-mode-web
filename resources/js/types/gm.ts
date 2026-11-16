@@ -109,15 +109,17 @@ export type WrestlerRow = {
     specialties: MatchFamily[];
     injury: InjuryInfo | null;
     sitting_out: boolean;
+    /** Weeks until they can be booked again, while sitting out. */
+    sitting_out_weeks?: number | null;
     unbookable_until_week: number | null;
     contract: ContractInfo | null;
     titles: string[];
 };
 
+/** A contract's price (house rule, 2026-11-15): salary × months, paid weekly. */
 export type ContractQuote = {
     length_weeks: number;
     label: string;
-    upfront: number;
     weekly: number;
     total: number;
 };
@@ -155,6 +157,8 @@ export type CardSlot = {
     owner_brand: Brand | null;
     locked?: boolean;
     names?: Record<string, string>;
+    /** Each side's brand on a WrestleMania interbrand series match (house rule, 2026-11-15). */
+    side_brands?: Brand[] | null;
 };
 
 export type MatchTypeOption = {
@@ -217,6 +221,8 @@ export type MatchOutcome = {
     champions: string[];
     /** Each side's captain in a Captain Fall match, for the (Cpt) tag. */
     captains: string[];
+    /** Each competitor's brand by name on the matches between the brands (2026-11-15). */
+    brands?: Record<string, string> | null;
     managers: string[];
     referee?: string | null;
     method: import('./enums').MatchMethod;
@@ -286,6 +292,8 @@ export type PendingMatch = {
     champions: string[];
     /** Each side's captain in a Captain Fall match, for the (Cpt) tag. */
     captains: string[];
+    /** Each competitor's brand by name on the matches between the brands (2026-11-15). */
+    brands?: Record<string, string> | null;
     /** Factions teaming in this match (house rule). */
     factions?: MatchFaction[];
     /** A Gauntlet: the sides are the entrants in order, decided bout by bout. */

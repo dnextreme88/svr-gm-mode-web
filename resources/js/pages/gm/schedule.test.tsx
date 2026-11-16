@@ -361,3 +361,33 @@ describe('Schedule calendar', () => {
         );
     });
 });
+
+describe('Season welcome (house rule, 2026-11-16)', () => {
+    const page = props as typeof props & { welcome_season?: number | null };
+
+    beforeEach(() => window.localStorage.clear());
+
+    it('welcomes the new season after the re-draft, once per browser', async () => {
+        page.welcome_season = 2;
+        const user = userEvent.setup();
+        const { unmount } = render(<Schedule />);
+
+        const dialog = screen.getByRole('dialog');
+        expect(dialog).toHaveTextContent('Welcome to Season 2');
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Let’s go' }),
+        );
+        expect(screen.queryByRole('dialog')).toBeNull();
+
+        unmount();
+        render(<Schedule />);
+        expect(screen.queryByRole('dialog')).toBeNull();
+        page.welcome_season = null;
+    });
+
+    it('stays quiet on an ordinary visit', () => {
+        render(<Schedule />);
+
+        expect(screen.queryByText(/Welcome to Season/)).toBeNull();
+    });
+});

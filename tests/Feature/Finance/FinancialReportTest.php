@@ -4,7 +4,11 @@ use App\Enums\Brand;
 use App\Enums\LedgerCategory;
 use App\Models\Contract;
 use App\Models\LedgerEntry;
+use App\Models\PromoType;
 use App\Services\Finance\FinancialReport;
+use App\Services\Promos\PromoService;
+use App\Services\Week\WeekResolver;
+use Tests\Support\Card;
 use Tests\Support\GameBuilder;
 
 /*
@@ -37,7 +41,28 @@ it('keeps the starting budget out of the week’s income, expenses and net', fun
         ->and($week['income'])->toBe(250_000)
         ->and($week['expenses'])->toBe(-100_000)
         ->and($week['net'])->toBe(150_000)
-        ->and(collect($week['lines'])->pluck('category')->all())->toBe(['signing_fee', 'show_income']);
+        ->and(collect($week['groups'])->flatMap(fn (array $g): array => $g['lines'])->pluck('category')->all())->toBe(['signing_fee', 'show_income']);
+});
+
+it('groups a week by night, then week-wide, and folds promos into one line (house rule, 2026-11-15)', function () {
+    GameBuilder::passiveRival();
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+    $show = Card::show($save);
+    Card::book($save, $show, 1, Card::type('ladder', 'Single'), [['Edge'], ['Kane']]);
+    app(PromoService::class)->book($show, 1, PromoType::where('key', 'advertising')->sole());
+
+    app(WeekResolver::class)->resolve($save->refresh());
+
+    $week = app(FinancialReport::class)->forWeek($save, Brand::Raw, 1);
+    $night = collect($week['groups'])->firstWhere('name', $show->name);
+    $weekWide = collect($week['groups'])->firstWhere('key', 'week');
+
+    expect($week['title'])->toBe($show->name)
+        ->and(collect($night['lines'])->pluck('group')->all())->toContain('match_cost', 'promos', 'show_production', 'show_income')
+        ->and(collect($night['lines'])->firstWhere('group', 'promos')['label'])->toBe('Promos')
+        ->and(collect($weekWide['lines'])->pluck('category')->all())->toContain('contract_upkeep')
+        ->and(collect($week['totals'])->firstWhere('group', 'promos')['amount'])->toBe(200_000)
+        ->and($week['net'])->toBe(collect($week['groups'])->sum('total'));
 });
 
 it('still counts the starting budget in the running balance', function () {

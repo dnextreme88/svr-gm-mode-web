@@ -165,7 +165,7 @@ describe('Loser Leaves Show', function () {
         $refund = LedgerEntry::where('category', LedgerCategory::LoserLeavesRefund)->sole();
 
         expect($edge->brand)->toBeNull()
-            ->and($refund->amount)->toBe(52 * 8_000)
+            ->and($refund->amount)->toBe(52 * 4_615)
             ->and($refund->memo)->toContain('Loser Leaves Show refund')
             ->and(TitleReign::where('save_id', $save->id)->orderBy('id')->first()->end_reason)->toBe(ReignEndReason::LoserLeaves)
             ->and(MoneyInTheBank::sole()->status)->toBe(MitbStatus::Voided)

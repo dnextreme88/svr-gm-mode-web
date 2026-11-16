@@ -142,10 +142,18 @@ const props = {
             ],
         },
     ],
+    finances: {
+        salaries: { superstar: 20000, diva: 12000, legend: 45000 },
+        months: { 5: 1, 12: 3, 24: 6, 36: 9, 52: 12 },
+        show_cost: { weekly: 50000, ppv: 100000 },
+        medical: { minor: 5000, serious: 10000 },
+        attendance_bonus: 100000,
+        ticket_prices: { weekly: 30, brand_ppv: 50, shared_ppv: 75 },
+    },
     rosters: {
         cap: 30,
         starting_budget: 15000000,
-        weekly_show_income: 250000,
+        wwe_contract_weeks: 24,
         contract_weeks: 52,
         legends_draftable: false,
         ai_roll_max: 100,
@@ -196,6 +204,7 @@ const props = {
         titles: {
             main_event_chance: { weekly: 0.6, ppv: 0.9 },
             other_slot_chance: 0.35,
+            interbrand_world_chance: 0.75,
             champion_vs_contender_chance: 0.1,
             number_one_contender_chance: 0.1,
             winner_takes_all_chance: { weekly: 0.08, ppv: 0.2 },
@@ -247,10 +256,11 @@ const props = {
     promos: {
         slots: 2,
         overuse: { window_weeks: 5, max_uses: 3 },
-        merchandise_tiers: [
-            { amount: 100000, chance: 0.8 },
-            { amount: 1000000, chance: 0.25 },
-        ],
+        merchandise_chances: [0.8, 0.7, 0.5, 0.25],
+        merchandise_payouts: [10000, 25000, 50000, 100000],
+        advertising: 200000,
+        interference_payout: { success: 100000, failure: -25000 },
+        call_out_heat: 10,
         types: [
             {
                 key: 'advertising',
@@ -380,6 +390,7 @@ const props = {
     results: { buried_alive_weeks: 4, rumble_entrants_per_brand: 15 },
     calendar: {
         weekly_show_days: { raw: 'Monday', smackdown: 'Friday' },
+        redraft_picks: 5,
         weeks_per_season: 52,
         season_start: 'Sun Apr 3, 2005',
         season_end: 'Sun Mar 26, 2006',
@@ -771,15 +782,17 @@ describe('Docs page', () => {
         expect(rules).toHaveTextContent('Snitsky w/ Eugene');
     });
 
-    it('states the weekly show income from config', async () => {
+    it('lists every salary tier by contract length (house rule, 2026-11-15)', async () => {
         const user = userEvent.setup();
         render(<Docs />);
 
         await user.click(screen.getByRole('tab', { name: 'Rosters & draft' }));
 
-        expect(screen.getByTestId('weekly-show-income')).toHaveTextContent(
-            '$250,000',
-        );
+        const table = screen.getByTestId('salary-table');
+        expect(table).toHaveTextContent('Male superstars');
+        // A male superstar's 9 months.
+        expect(table).toHaveTextContent('$180,000');
+        expect(table).toHaveTextContent('$540,000');
     });
 
     it('explains the rival drafting teammates, from config', async () => {
@@ -833,8 +846,9 @@ describe('Docs page', () => {
         await user.click(screen.getByRole('tab', { name: 'Promos' }));
 
         const tiers = screen.getByTestId('merchandise-tiers');
-        expect(tiers).toHaveTextContent('80% success');
-        expect(tiers).toHaveTextContent('25% success');
+        expect(tiers).toHaveTextContent('80%, 70%, 50%, 25%');
+        expect(tiers).toHaveTextContent('$10,000');
+        expect(tiers).toHaveTextContent('$100,000');
     });
 
     it('draws Inactive Superstar’s recovery as green bars', async () => {
@@ -916,10 +930,12 @@ describe('Docs page', () => {
         expect(factors).toHaveTextContent('up to -12');
 
         expect(
-            screen.getByRole('heading', { name: 'SummerSlam main event' }),
+            screen.getByRole('heading', { name: 'Shared PPV cards' }),
         ).toBeInTheDocument();
         expect(
-            screen.getByText(/it books Match 1, Match 3 and the main event/),
+            screen.getByText(
+                /it books Match 1, Match 3, Match 5 and the main event/,
+            ),
         ).toBeInTheDocument();
     });
 
@@ -934,9 +950,39 @@ describe('Docs page', () => {
         expect(screen.getByTestId('ppv-night-first')).toHaveTextContent(
             'A PPV week airs in two steps.',
         );
+        expect(screen.getByTestId('ppv-night-first')).toHaveTextContent(
+            'Then the News opens with the PPV night’s news',
+        );
         expect(
-            screen.getByText(/After a PPV night’s last match, Continue opens/),
+            screen.getByText(/Continue opens the News with that night’s news/),
         ).toBeInTheDocument();
+        expect(screen.getByTestId('wrestlemania-week')).toHaveTextContent(
+            'WrestleMania week has no weekly shows.',
+        );
+    });
+
+    it('explains the re-draft and who earns each tag', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(
+            screen.getByRole('tab', { name: 'Booking and Scheduling' }),
+        );
+
+        const rules = screen.getByTestId('redraft-rules');
+        expect(rules).toHaveTextContent('drafts 5 superstars from the other');
+        expect(rules).toHaveTextContent(
+            'Every champion, singles or tag, is exempt.',
+        );
+        expect(rules).toHaveTextContent(
+            'Injured superstars, minor or serious, can still be drafted.',
+        );
+        expect(rules).toHaveTextContent(
+            'Immunity tag: the brand whose weekly shows drew more fans',
+        );
+        expect(rules).toHaveTextContent(
+            'Manual draft pick: the brand that won the WrestleMania interbrand series',
+        );
     });
 
     it('explains the rival’s #1 Contender’s Match and Winner Takes All', async () => {

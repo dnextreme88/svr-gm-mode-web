@@ -56,12 +56,15 @@ export function SideNames({
     captains = [],
     factions = [],
     manager = null,
+    brands = null,
 }: {
     names: string[];
     champions: string[];
     captains?: string[];
     factions?: MatchFaction[];
     manager?: string | null;
+    /** Each name's brand, on the matches between the brands: "Val Venis (Raw)". */
+    brands?: Record<string, string> | null;
 }) {
     return (
         <>
@@ -88,10 +91,28 @@ export function SideNames({
                         {members.some((m) => captains.includes(m)) && (
                             <CaptainTag />
                         )}
+                        {brands?.[members[0]] && (
+                            <BrandLabel brand={brands[members[0]]} />
+                        )}
                     </Fragment>
                 );
             })}
             {manager && <ManagerTag name={manager} />}
         </>
+    );
+}
+
+/**
+ * "(Raw)" after a name on the matches between the brands: WrestleMania's
+ * interbrand series and the Survivor Series 3 vs 3 (2026-11-15).
+ */
+export function BrandLabel({ brand }: { brand: string }) {
+    return (
+        <span
+            data-testid="brand-label"
+            className="mr-1 ml-2 text-sm font-normal text-ink-dim"
+        >
+            ({brand})
+        </span>
     );
 }

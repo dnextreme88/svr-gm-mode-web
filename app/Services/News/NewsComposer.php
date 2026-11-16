@@ -8,8 +8,10 @@ use App\Enums\NewsTier;
 use App\Models\NewsEvent;
 use App\Models\Save;
 use App\Models\Show;
+use App\Models\WeekAiring;
 use App\Services\Attendance\AttendanceNights;
 use App\Services\Calendar\CalendarService;
+use App\Services\Week\WeekResolver;
 use App\Support\Rng\Rng;
 use Illuminate\Support\Collection;
 
@@ -42,9 +44,30 @@ class NewsComposer
      */
     public function weeks(Save $save): array
     {
-        $latest = $save->current_week - 1;
+        // House rule (2026-11-16): a PPV night the player booked opens the
+        // News before the weekly show, so that week shows up already.
+        $latest = $this->ppvNightNewsFrom($save) !== null ? $save->current_week : $save->current_week - 1;
 
         return $latest < 1 ? [] : range($latest, 1);
+    }
+
+    /**
+     * The News opens after a PPV night the player booked, while the week
+     * waits for the weekly show (house rule, 2026-11-16): the id the
+     * night's news starts after, or null when no PPV night is waiting.
+     */
+    public function ppvNightNewsFrom(Save $save): ?int
+    {
+        $airing = WeekAiring::where('save_id', $save->id)
+            ->where('week_number', $save->current_week)
+            ->whereNull('completed_at')
+            ->first();
+
+        if ($airing === null || ($airing->context['phase'] ?? null) !== WeekResolver::PHASE_PPV_DONE) {
+            return null;
+        }
+
+        return (int) ($airing->context['news_after_id'] ?? 0);
     }
 
     /**
@@ -55,6 +78,12 @@ class NewsComposer
     public function pages(Save $save): array
     {
         $byWeek = NewsEvent::where('save_id', $save->id)->get()->groupBy('week_number');
+        $from = $this->ppvNightNewsFrom($save);
+
+        // Mid-week, after the PPV night: only what happened since it began.
+        if ($from !== null) {
+            $byWeek->put($save->current_week, $byWeek->get($save->current_week, collect())->filter(fn (NewsEvent $e): bool => $e->id > $from)->values());
+        }
         $shows = Show::with('ppvEvent')->where('save_id', $save->id)->whereNotNull('attendance')->orderBy('id')->get()->toBase()->groupBy('week_number');
 
         return array_map(fn (int $week): array => $this->compose($save, $week, $byWeek->get($week, collect()), $this->nights->group($shows->get($week, collect()))), $this->weeks($save));
@@ -72,6 +101,12 @@ class NewsComposer
         $rows = $this->dedupe($events->sortBy([['priority', 'desc'], ['id', 'asc']])->values());
         $matchRanks = $this->matchRanks($events);
         $rng = $save->rng('news.page', $week);
+        // House rule (2026-11-15): WrestleMania week. The re-draft leads the
+        // WWE card, and each brand's card leads with its last match on the
+        // WrestleMania card (the main event for the brand that had it).
+        $redraft = $rows->first(fn (array $e): bool => $e['type'] === NewsEventType::RedraftResults->value);
+        $leadSlots = (array) ($redraft['payload']['headline_slots'] ?? []);
+        $keys = $events->pluck('dedupe_key', 'id');
 
         $headlines = [];
         $stories = ['raw' => [], 'smackdown' => []];
@@ -81,7 +116,8 @@ class NewsComposer
             $pool = $rows->filter(fn (array $e): bool => $e['slot'] === $slot && $e['tier'] !== NewsTier::Ticker->value)->values();
             // House rule: in a PPV week the PPV wins the WWE headline: its main
             // event (or the Royal Rumble), biggest first.
-            $headline = $slot === 'neutral' ? $pool->filter(fn (array $e): bool => $e['type'] === NewsEventType::PpvResults->value)->sortByDesc('priority')->first() : null;
+            $headline = $slot === 'neutral' ? $redraft : $this->leadingMatch($rows, $keys, $leadSlots[$slot] ?? null, $picked);
+            $headline ??= $slot === 'neutral' ? $pool->filter(fn (array $e): bool => $e['type'] === NewsEventType::PpvResults->value)->sortByDesc('priority')->first() : null;
             $headline ??= $slot === 'neutral' ? $pool->first(fn (array $e): bool => in_array($e['type'], self::FORCED_NEUTRAL, true)) : null;
             // House rule (2026-11-01): then the week's biggest crowd.
             $headline ??= $slot === 'neutral' ? $pool->first(fn (array $e): bool => $e['type'] === NewsEventType::Attendance->value) : null;
@@ -139,6 +175,26 @@ class NewsComposer
             // The ticker's gold Fan attendance line.
             'attendance' => array_map(fn (array $n): array => ['name' => $n['name'], 'ppv' => $n['ppv'], 'crowd' => $n['crowd']], $nights),
         ];
+    }
+
+    /**
+     * The biggest news about one match (a title change before a plain
+     * result), from any card, for a brand's WrestleMania week headline.
+     *
+     * @param  Collection<int, array{id: int, type: string, tier: string, slot: string, priority: int, text: string, summary: string, payload: array<string, mixed>, promoted: bool}>  $rows
+     * @param  Collection<int|string, mixed>  $keys  dedupe keys by event id
+     * @param  array<int, bool>  $picked
+     * @return array<string, mixed>|null
+     */
+    private function leadingMatch(Collection $rows, Collection $keys, mixed $slotId, array $picked): ?array
+    {
+        if (! is_int($slotId)) {
+            return null;
+        }
+
+        return $rows->filter(fn (array $e): bool => ($keys[$e['id']] ?? null) === "slot:{$slotId}" && $e['tier'] !== NewsTier::Ticker->value && ! isset($picked[$e['id']]))
+            ->sortBy([fn (array $a, array $b): int => $this->rank($a['tier']) <=> $this->rank($b['tier']), fn (array $a, array $b): int => $b['priority'] <=> $a['priority']])
+            ->first();
     }
 
     /**

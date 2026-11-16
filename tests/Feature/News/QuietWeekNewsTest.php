@@ -53,7 +53,7 @@ it('sells tickets for both weekly shows, each with its date', function () {
     $tickets = quiet(NewsEventType::TicketsOnSale)->sole();
 
     expect($tickets->payload['story'])->toBe('tickets.shows')
-        ->and($tickets->rendered_text)->toBe('Tickets on sale for Raw and Smackdown')
+        ->and($tickets->rendered_text)->toBe('Raw and Smackdown tickets on sale')
         ->and(app(NewsTemplates::class)->summary(NewsEventType::TicketsOnSale, $tickets->payload))
         ->toStartWith("Monday Night Raw comes to town on April 11, 2005 and Smackdown on April 15, 2005. Buy your tickets for these shows and don't miss out on the action!");
 });

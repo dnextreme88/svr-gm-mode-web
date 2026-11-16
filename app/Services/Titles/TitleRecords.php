@@ -112,6 +112,8 @@ class TitleRecords
         $this->news->record($reign->game, NewsEventType::RecordBroken, NewsTier::Headline, $reign->brand, [
             'wrestler' => $reign->holderName(),
             'record' => $record,
+            // For the short headline (house rule, 2026-11-15): "Cruiserweight title".
+            'title_short' => str_replace(' Championship', ' title', $reign->championship->name),
         ], ['championship_id' => $reign->championship_id, 'wrestler_ids' => $reign->holderIds()], priority: 65, week: $week);
     }
 }

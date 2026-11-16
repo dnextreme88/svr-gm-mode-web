@@ -20,11 +20,21 @@ enum LedgerCategory: string
     case MatchCost = 'match_cost';
     case LoserLeavesRefund = 'loser_leaves_refund';
     case ShowIncome = 'show_income';
+    // House rule (2026-11-15).
+    case ShowProduction = 'show_production';
+    case MedicalRehab = 'medical_rehab';
+    case ReleaseFee = 'release_fee';
+    case AttendanceBonus = 'attendance_bonus';
+    case InterferenceResult = 'interference_result';
 
     public function label(): string
     {
         return match ($this) {
             self::LoserLeavesRefund => 'Loser Leaves Show refund',
+            self::ContractUpkeep => 'Superstar salaries',
+            self::ShowIncome => 'Fan attendance gate',
+            self::ShowProduction => 'Show production',
+            self::AttendanceBonus => 'Fan attendance bonus',
             default => Str::of($this->name)->headline()->toString(),
         };
     }

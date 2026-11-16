@@ -17,14 +17,22 @@ enum ContractLength: int
     case NineMonths = 36;
     case OneYear = 52;
 
+    /**
+     * Months a contract of this length is priced as (house rule, 2026-11-15).
+     */
+    public function months(): int
+    {
+        return (int) config('gm.contracts.months.'.$this->value);
+    }
+
     public function label(): string
     {
         return match ($this) {
-            self::FiveWeeks => '5 weeks',
+            self::FiveWeeks => '1 month',
             self::ThreeMonths => '3 months',
             self::SixMonths => '6 months',
             self::NineMonths => '9 months',
-            self::OneYear => '1 year',
+            self::OneYear => '12 months',
         };
     }
 }

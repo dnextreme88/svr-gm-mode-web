@@ -1,23 +1,20 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import {
-    InjuryChip,
-    MoraleBadge,
-    SpecialtyBadge,
-    TitleBelt,
-} from '@/components/gm/badges';
+import { MoraleBadge, SpecialtyBadge, TitleBelt } from '@/components/gm/badges';
+import { BrandBug, PpvBug } from '@/components/gm/brand-bug';
 import { BusyLabel } from '@/components/gm/busy-label';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { EmptyState, PageTitle, Panel, Stat } from '@/components/gm/panel';
 import { ReleaseButton } from '@/components/gm/release-button';
 import { StreakMeter } from '@/components/gm/streak-meter';
-import { formatMoney } from '@/lib/gm';
+import { formatMoney, pluralize } from '@/lib/gm';
 import { useBusy } from '@/lib/use-busy';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type {
     ComplaintLevel,
+    Brand,
     ContractStatus,
     MoraleComplaintType,
     ReignEndReason,
@@ -51,18 +48,406 @@ type Props = GamePageProps & {
     }>;
     contracts: Array<{
         length_weeks: number;
+        label: string;
         weekly_cost: number;
         upfront_fee: number;
+        /** What releasing it early cost, if it was released. */
+        release_fee: number | null;
         signed_week: number;
         weeks_remaining: number;
         status: ContractStatus;
         active: boolean;
     }>;
     quotes: ContractQuote[];
+    /** A month's salary and the roster type it comes from (house rule, 2026-11-15). */
+    salary?: { monthly: number; tier: 'superstar' | 'diva' | 'legend' };
+    /** What releasing them now costs: the weeks left on the deal. */
+    release_fee?: number | null;
+    /** The player's budget, to check a signing fits. */
+    budget?: number;
+    injury_history?: InjuryRow[];
+    special_info?: Moment[];
+    royal_rumbles?: RumbleRow[];
+    redrafts?: RedraftRow[];
     is_own: boolean;
     is_free_agent: boolean;
     is_pending: boolean;
 };
+
+type InjuryRow = {
+    id: number;
+    week: string;
+    ppv: string | null;
+    severity: 'minor' | 'serious';
+    escalated: boolean;
+    name: string;
+    ended: string;
+    active: boolean;
+};
+
+type Moment = {
+    kind: string;
+    title: string;
+    detail: string;
+    week: string;
+    outcome: string | null;
+    url: string | null;
+};
+
+/** One Royal Rumble they entered (house rule, 2026-11-15). */
+type RumbleRow = {
+    season: number;
+    week: string;
+    ppv: string;
+    entry_number: number;
+    entrants: number;
+    eliminations: number;
+    eliminated_by: string | null;
+    won: boolean;
+    url: string;
+};
+
+/** A re-draft that moved them (house rule, 2026-11-16). */
+type RedraftRow = {
+    /** The season whose WrestleMania the re-draft followed. */
+    season: number;
+    from: Brand;
+    to: Brand;
+    /** That brand's Nth pick, out of `picks`. */
+    pick: number;
+    picks: number;
+    manual: boolean;
+};
+
+const salaryTier = {
+    superstar: 'Superstar',
+    diva: 'Diva',
+    legend: 'Legend',
+} as const;
+
+/** Short length labels for the contract buttons. */
+const shortLength = (label: string) => label.replace(/ months?/, ' mo');
+
+type InjuryFilter = 'all' | 'minor' | 'serious';
+
+/** Every injury the superstar has had, filterable by severity. */
+function InjuryHistory({ injuries }: { injuries: InjuryRow[] }) {
+    const [filter, setFilter] = useState<InjuryFilter>('all');
+    const counts = {
+        all: injuries.length,
+        minor: injuries.filter((i) => i.severity === 'minor').length,
+        serious: injuries.filter((i) => i.severity === 'serious').length,
+    };
+    const shown =
+        filter === 'all'
+            ? injuries
+            : injuries.filter((i) => i.severity === filter);
+
+    return (
+        <Panel
+            title="Injury history"
+            className="lg:col-span-2"
+            bodyClassName="p-0"
+            actions={
+                injuries.length > 0 && (
+                    <div
+                        role="group"
+                        aria-label="Injury severity"
+                        className="flex gap-1"
+                    >
+                        {(['all', 'minor', 'serious'] as const).map((f) => (
+                            <button
+                                key={f}
+                                type="button"
+                                aria-pressed={filter === f}
+                                onClick={() => setFilter(f)}
+                                className={cn(
+                                    'gm-btn gm-btn-sm',
+                                    filter !== f && 'gm-btn-ghost',
+                                )}
+                            >
+                                {f === 'all'
+                                    ? 'All'
+                                    : f === 'minor'
+                                      ? 'Minor'
+                                      : 'Serious'}{' '}
+                                <span className="gm-num opacity-70">
+                                    {counts[f]}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                )
+            }
+        >
+            {shown.length === 0 ? (
+                <div className="p-4">
+                    <EmptyState>
+                        {injuries.length === 0
+                            ? 'No injuries yet.'
+                            : `No ${filter} injuries.`}
+                    </EmptyState>
+                </div>
+            ) : (
+                <table className="gm-table" data-testid="injury-history">
+                    <thead>
+                        <tr>
+                            <th>Week</th>
+                            <th>Type</th>
+                            <th>Name</th>
+                            <th>Ended</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {shown.map((i) => (
+                            <tr key={i.id}>
+                                <td className="gm-num whitespace-nowrap">
+                                    {i.week}
+                                    {i.ppv && (
+                                        <span className="block text-xs text-gold-hot">
+                                            {i.ppv}
+                                        </span>
+                                    )}
+                                </td>
+                                <td>
+                                    <span
+                                        className={cn(
+                                            'inline-block px-1.5 py-0.5 font-condensed text-xs font-semibold tracking-wider uppercase',
+                                            i.severity === 'serious'
+                                                ? 'bg-zone-serious/20 text-zone-serious'
+                                                : 'bg-zone-minor/20 text-zone-minor',
+                                        )}
+                                    >
+                                        {i.severity === 'serious'
+                                            ? 'Serious'
+                                            : 'Minor'}
+                                    </span>
+                                    {i.escalated &&
+                                        i.severity === 'serious' && (
+                                            <span className="ml-1 text-xs text-ink-dim">
+                                                (from minor)
+                                            </span>
+                                        )}
+                                </td>
+                                <td>{i.name}</td>
+                                <td
+                                    className={cn(
+                                        'whitespace-nowrap',
+                                        i.active
+                                            ? 'text-zone-serious'
+                                            : 'text-ink-dim',
+                                    )}
+                                >
+                                    {i.ended}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+        </Panel>
+    );
+}
+
+/** Money in the Bank, Survivor Series, WrestleMania and re-draft moments. */
+function SpecialInfo({
+    moments,
+    rumbles,
+    redrafts,
+}: {
+    moments: Moment[];
+    rumbles: RumbleRow[];
+    redrafts: RedraftRow[];
+}) {
+    return (
+        <Panel title="Special info" bodyClassName="p-0">
+            {rumbles.length > 0 && <RoyalRumbles rows={rumbles} />}
+            {redrafts.length > 0 && <Redrafts rows={redrafts} />}
+            {moments.length === 0 ? (
+                rumbles.length === 0 &&
+                redrafts.length === 0 && (
+                    <div className="p-4">
+                        <EmptyState>Nothing special yet.</EmptyState>
+                    </div>
+                )
+            ) : (
+                <ul
+                    className="divide-y divide-white/5 text-sm"
+                    data-testid="special-info"
+                >
+                    {moments.map((m, i) => (
+                        <li key={i} className="px-4 py-3">
+                            <div className="flex items-baseline justify-between gap-3">
+                                <span className="font-semibold text-gold-hot">
+                                    {m.url ? (
+                                        <Link
+                                            href={m.url}
+                                            className="underline-offset-4 hover:underline"
+                                        >
+                                            {m.title}
+                                        </Link>
+                                    ) : (
+                                        m.title
+                                    )}
+                                </span>
+                                <span className="gm-num shrink-0 text-xs text-ink-faint">
+                                    {m.week}
+                                </span>
+                            </div>
+                            <p className="mt-0.5 text-ink-dim">
+                                {m.detail}
+                                {m.outcome && (
+                                    <span
+                                        className={cn(
+                                            'ml-1 font-semibold',
+                                            m.outcome.startsWith('Won')
+                                                ? 'text-zone-safe'
+                                                : 'text-zone-serious',
+                                        )}
+                                    >
+                                        {m.outcome}
+                                    </span>
+                                )}
+                            </p>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </Panel>
+    );
+}
+
+/**
+ * Every Royal Rumble they entered: when, their entry number, how many
+ * they threw out, and whether they won (or who eliminated them).
+ */
+function RoyalRumbles({ rows }: { rows: RumbleRow[] }) {
+    return (
+        <section
+            aria-labelledby="royal-rumble-heading"
+            className="border-b border-white/5"
+        >
+            <h3
+                id="royal-rumble-heading"
+                className="gm-label px-4 pt-3 text-gold-hot"
+            >
+                Royal Rumble
+            </h3>
+            <div className="overflow-x-auto">
+                <table className="gm-table text-sm" data-testid="royal-rumbles">
+                    <thead>
+                        <tr>
+                            <th>Week</th>
+                            <th className="text-right">Entrant</th>
+                            <th className="text-right">Eliminations</th>
+                            <th>Won</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((r) => (
+                            <tr key={`${r.season}-${r.week}`}>
+                                <td>
+                                    <Link
+                                        href={r.url}
+                                        className="underline-offset-4 hover:underline"
+                                    >
+                                        {r.week}
+                                    </Link>
+                                    <span className="ml-1 text-ink-dim">
+                                        · {r.ppv}
+                                    </span>
+                                </td>
+                                <td className="gm-num text-right">
+                                    #{r.entry_number}
+                                    <span className="text-ink-faint">
+                                        {' '}
+                                        of {r.entrants}
+                                    </span>
+                                </td>
+                                <td className="gm-num text-right">
+                                    {r.eliminations}
+                                </td>
+                                <td>
+                                    {r.won ? (
+                                        <span className="font-semibold text-zone-safe">
+                                            Yes
+                                        </span>
+                                    ) : (
+                                        <span className="text-ink-dim">
+                                            <span className="font-semibold text-zone-serious">
+                                                No
+                                            </span>
+                                            {r.eliminated_by &&
+                                                ` · by ${r.eliminated_by}`}
+                                        </span>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    );
+}
+
+/**
+ * Every post-WrestleMania re-draft that moved them: the brand they left,
+ * the brand that took them, the season, and which of its picks it was.
+ */
+function Redrafts({ rows }: { rows: RedraftRow[] }) {
+    return (
+        <section
+            aria-labelledby="redraft-heading"
+            className="border-b border-white/5"
+        >
+            <h3
+                id="redraft-heading"
+                className="gm-label px-4 pt-3 text-gold-hot"
+            >
+                Re-draft
+            </h3>
+            <div className="overflow-x-auto">
+                <table className="gm-table text-sm" data-testid="redrafts">
+                    <thead>
+                        <tr>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Season</th>
+                            <th className="text-right">Pick</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((r) => (
+                            <tr key={r.season}>
+                                <td>
+                                    <BrandBug brand={r.from} size="xs" />
+                                </td>
+                                <td>
+                                    <BrandBug brand={r.to} size="xs" />
+                                </td>
+                                <td>
+                                    <span className="inline-flex items-center gap-2">
+                                        <PpvBug ppv="wrestlemania" size="xs" />
+                                        Season {r.season}
+                                    </span>
+                                </td>
+                                <td className="gm-num text-right">
+                                    {r.pick}/{r.picks}
+                                    {r.manual && (
+                                        <span className="ml-1 text-gold-hot">
+                                            · Manual pick
+                                        </span>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    );
+}
 
 /** A labelled cell in the Status grid. */
 function StatusField({
@@ -97,6 +482,10 @@ export default function WrestlerDetail() {
     );
     const quote = quotes.find((q) => q.length_weeks === length);
     const { busy, track } = useBusy();
+    const props = usePage<Props>().props;
+    const budget = props.budget ?? game.budget;
+    // A signing needs the whole contract's value in the bank.
+    const affordable = quote === undefined || budget >= quote.total;
 
     return (
         <>
@@ -144,9 +533,17 @@ export default function WrestlerDetail() {
                                 {WeightClassLabels[wrestler.weight_class]}
                             </span>
                         </StatusField>
-                        <StatusField label="Injury">
-                            <InjuryChip injury={wrestler.injury} />
-                        </StatusField>
+                        {props.salary && (
+                            <StatusField label="Salary">
+                                <span className="gm-num text-lg">
+                                    {formatMoney(props.salary.monthly)}
+                                </span>
+                                <span className="block text-xs text-ink-dim">
+                                    a month · {salaryTier[props.salary.tier]}{' '}
+                                    rate
+                                </span>
+                            </StatusField>
+                        )}
                         <StatusField label="Fatigue">
                             <FatigueMeter
                                 fatigue={wrestler.fatigue}
@@ -217,6 +614,20 @@ export default function WrestlerDetail() {
                                     wrestler.contract.weekly_cost,
                                 )}
                             />
+                            {is_own && props.release_fee != null && (
+                                <div className="col-span-2 text-sm text-ink-dim">
+                                    Releasing now costs{' '}
+                                    <span className="gm-num text-ink">
+                                        {formatMoney(props.release_fee)}
+                                    </span>{' '}
+                                    (
+                                    {pluralize(
+                                        wrestler.contract.weeks_remaining,
+                                        'week',
+                                    )}{' '}
+                                    left).
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <p className="mb-4 text-sm text-ink-dim">
@@ -249,22 +660,18 @@ export default function WrestlerDetail() {
                                                 : 'bg-white/[0.05] text-ink-dim hover:text-ink',
                                         )}
                                     >
-                                        {q.length_weeks}w
+                                        {shortLength(q.label)}
                                     </button>
                                 ))}
                             </div>
                             {quote && (
                                 <dl className="mt-3 grid grid-cols-2 gap-y-1 text-sm">
-                                    <dt className="text-ink-dim">Up front</dt>
-                                    <dd className="gm-num text-right">
-                                        {formatMoney(quote.upfront)}
-                                    </dd>
                                     <dt className="text-ink-dim">Per week</dt>
                                     <dd className="gm-num text-right">
                                         {formatMoney(quote.weekly)}
                                     </dd>
                                     <dt className="text-ink-dim">
-                                        Total over {quote.label}
+                                        Contract total ({quote.label})
                                     </dt>
                                     <dd className="gm-num text-right">
                                         {formatMoney(quote.total)}
@@ -275,7 +682,7 @@ export default function WrestlerDetail() {
                                 <button
                                     type="button"
                                     className="gm-btn gm-btn-sm"
-                                    disabled={busy !== null}
+                                    disabled={busy !== null || !affordable}
                                     aria-busy={busy !== null || undefined}
                                     onClick={() =>
                                         router.post(
@@ -310,9 +717,16 @@ export default function WrestlerDetail() {
                                         saveId={game.id}
                                         wrestlerId={wrestler.id}
                                         name={wrestler.name}
+                                        fee={props.release_fee}
                                     />
                                 )}
                             </div>
+                            {!affordable && quote && (
+                                <p className="mt-2 text-sm text-zone-serious">
+                                    You need {formatMoney(quote.total)} in the
+                                    bank to sign this deal.
+                                </p>
+                            )}
                         </>
                     )}
                 </Panel>
@@ -398,15 +812,37 @@ export default function WrestlerDetail() {
                                 )}
                             >
                                 <span>
-                                    {c.length_weeks}w · W{c.signed_week}
+                                    {c.label ??
+                                        pluralize(c.length_weeks, 'week')}{' '}
+                                    · signed W{c.signed_week}
+                                    {c.upfront_fee > 0 && (
+                                        <span className="block text-xs text-ink-faint">
+                                            +{formatMoney(c.upfront_fee)} up
+                                            front
+                                        </span>
+                                    )}
+                                    {c.release_fee != null && (
+                                        <span className="block text-xs text-zone-serious">
+                                            Release fee{' '}
+                                            {formatMoney(c.release_fee)}
+                                        </span>
+                                    )}
                                 </span>
-                                <span className="gm-num">
+                                <span className="gm-num text-right">
                                     {formatMoney(c.weekly_cost)}/wk · {c.status}
                                 </span>
                             </li>
                         ))}
                     </ul>
                 </Panel>
+
+                <InjuryHistory injuries={props.injury_history ?? []} />
+
+                <SpecialInfo
+                    moments={props.special_info ?? []}
+                    rumbles={props.royal_rumbles ?? []}
+                    redrafts={props.redrafts ?? []}
+                />
             </div>
         </>
     );

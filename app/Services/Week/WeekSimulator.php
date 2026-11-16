@@ -153,8 +153,7 @@ class WeekSimulator
                         // Nobody bookable: the brand sends no one.
                     }
                 }
-
-                continue;
+                // The rest of the shared card (house rule, 2026-11-15) books below.
             }
 
             $this->bookRandomPromos($save, $show);

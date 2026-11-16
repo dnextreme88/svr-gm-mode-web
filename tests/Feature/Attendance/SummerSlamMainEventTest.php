@@ -2,6 +2,7 @@
 
 use App\Enums\Brand;
 use App\Enums\PpvKey;
+use App\Enums\ShowStatus;
 use App\Enums\ShowType;
 use App\Models\MatchResult;
 use App\Models\MatchSlot;
@@ -67,7 +68,7 @@ it('settles a dead heat with the same seeded coin flip every time', function () 
     expect($summerSlam->headliner($save, 1, summerSlamWeek()))->toBe($summerSlam->headliner($save, 1, summerSlamWeek()));
 });
 
-it('makes SummerSlam one card: Matches 1, 3 and the main event for the bigger draw, 2 and 4 for the other', function () {
+it('makes SummerSlam one 7-match card: 1, 3, 5 and the main event for the bigger draw, 2, 4 and 6 for the other (house rule, 2026-11-15)', function () {
     $save = GameBuilder::inSeason();
     drawCrowds($save, ['raw' => [15_000, 60], 'smackdown' => [8_000, 20]]);
     $week = summerSlamWeek();
@@ -78,7 +79,7 @@ it('makes SummerSlam one card: Matches 1, 3 and the main event for the bigger dr
     expect($cards)->toHaveCount(1)
         ->and($cards[0]->brand)->toBeNull()
         ->and($cards[0]->name)->toBe('SummerSlam')
-        ->and($owners)->toBe([1 => 'raw', 2 => 'smackdown', 3 => 'raw', 4 => 'smackdown', 5 => 'raw'])
+        ->and($owners)->toBe([1 => 'raw', 2 => 'smackdown', 3 => 'raw', 4 => 'smackdown', 5 => 'raw', 6 => 'smackdown', 7 => 'raw'])
         ->and(app(SummerSlamMainEvent::class)->cardHeadliner($cards[0]))->toBe(Brand::Raw);
 });
 
@@ -95,8 +96,11 @@ it('has the rival book its SummerSlam matches as soon as the week opens', functi
     $booked = MatchSlot::with('participants')->where('show_id', $card->id)->orderBy('position')->get()
         ->mapWithKeys(fn (MatchSlot $s): array => [$s->position => $s->isBooked()])->all();
 
-    // The rival (SmackDown) has Matches 2 and 4; the player's are left to book.
-    expect($booked)->toBe([1 => false, 2 => true, 3 => false, 4 => true, 5 => false]);
+    // The rival (SmackDown) has Matches 2, 4 and 6 (it books what it can
+    // fill); the player's (1, 3, 5 and the main event) are left to book.
+    expect(array_intersect_key($booked, array_flip([1, 3, 5, 7])))->toBe([1 => false, 3 => false, 5 => false, 7 => false])
+        ->and($booked[2])->toBeTrue()
+        ->and($booked[4])->toBeTrue();
 });
 
 it('lets the player decide their SummerSlam matches while the rival’s simulate', function () {
@@ -129,4 +133,22 @@ it('lets the player decide their SummerSlam matches while the rival’s simulate
             ->where('shows.0.outcomes.2.is_next', true));
 
     expect(MatchResult::whereIn('match_slot_id', $rivals->pluck('id'))->count())->toBe(1);
+});
+
+it('opens an aired SummerSlam from the Schedule (one shared card, no brand)', function () {
+    $save = GameBuilder::inSeason();
+    $week = summerSlamWeek();
+    app(ShowScheduler::class)->ensureWeek($save, $week);
+    $summerSlam = Show::with('ppvEvent')->where('save_id', $save->id)->where('week_number', $week)->whereNull('brand')->sole();
+    $summerSlam->update(['status' => ShowStatus::Aired]);
+    $save->update(['current_week' => $week + 1]);
+
+    $this->get(route('gm.schedule', $save))->assertInertia(function (Assert $page) use ($summerSlam) {
+        $airs = collect($page->toArray()['props']['months'])->flatMap(fn ($m) => collect($m['rows'])->flatten(1))->flatMap(fn ($d) => $d['airs']);
+        $night = $airs->first(fn ($a) => ($a['ppv']['key'] ?? null) === 'summerslam');
+
+        expect($night['state'])->toBe('aired')
+            ->and($night['show_id'])->toBe($summerSlam->id)
+            ->and($night['results_url'])->toContain('show='.$summerSlam->id);
+    });
 });

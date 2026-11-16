@@ -9,8 +9,10 @@ use App\Models\InjuryType;
 use App\Models\TitleReign;
 use App\Services\Fatigue\FatigueZones;
 use App\Services\Injuries\InjuryService;
+use App\Services\Titles\TitleService;
 use App\Services\Week\WeekResolver;
 use Tests\Support\Card;
+use Tests\Support\FixedOutcomes;
 use Tests\Support\GameBuilder;
 
 /*
@@ -198,4 +200,60 @@ it('keeps the title through a minor injury', function () {
     app(InjuryService::class)->injure(GameBuilder::wrestler($save, 'Edge'), InjurySeverity::Minor, 1, $save->rng('test'));
 
     expect(TitleReign::where('save_id', $save->id)->count())->toBe(1);
+});
+
+/*
+| Injuries are rolled before a title changes hands, so a challenger who
+| wins the gold and is seriously hurt in the same match must give it up.
+*/
+
+it('vacates a title won in the match that seriously injured the winner', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+    $reign = GameBuilder::giveTitle($save, 'wwe', ['Edge']);
+    // 80% going into a 3-bar Ladder match ends at 110%: always serious.
+    GameBuilder::wrestler($save, 'Kane')->update(['fatigue' => 80]);
+    Card::book($save, Card::show($save), 1, Card::type('ladder', 'Single'), [['Edge'], ['Kane']], [], $reign->championship_id);
+    FixedOutcomes::queue('Kane');
+
+    airWeek($save);
+
+    $kane = GameBuilder::wrestler($save, 'Kane');
+    $reigns = TitleReign::where('save_id', $save->id)->where('championship_id', $reign->championship_id)->orderBy('id')->get();
+
+    expect(Injury::where('save_wrestler_id', $kane->id)->sole()->severity)->toBe(InjurySeverity::Serious)
+        ->and($reigns->pluck('end_reason')->all())->toBe([ReignEndReason::LostMatch, ReignEndReason::Injured, ReignEndReason::Injured])
+        ->and($reigns[1]->save_wrestler_id)->toBe($kane->id)
+        ->and($reigns[2]->isVacant())->toBeTrue()
+        ->and(app(TitleService::class)->isChampion($kane->refresh()))->toBeFalse();
+});
+
+it('vacates a vacant title won by a superstar the match seriously injured', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Christian'], smackdown: ['Batista']);
+    $reign = GameBuilder::giveTitle($save, 'wwe', ['Christian']);
+    app(TitleService::class)->vacate($save, $reign->championship, ReignEndReason::Injured, 1);
+    GameBuilder::wrestler($save, 'Kane')->update(['fatigue' => 80]);
+    Card::book($save, Card::show($save), 1, Card::type('ladder', 'Single'), [['Edge'], ['Kane']], [], $reign->championship_id);
+    FixedOutcomes::queue('Kane');
+
+    airWeek($save);
+
+    $current = app(TitleService::class)->currentReign($save->refresh(), $reign->championship);
+
+    expect($current === null || $current->isVacant())->toBeTrue()
+        ->and(app(TitleService::class)->isChampion(GameBuilder::wrestler($save, 'Kane')))->toBeFalse();
+});
+
+it('keeps a title won through a minor injury from the same match', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+    config(['gm.injuries.serious_share' => 0.0]);
+    $reign = GameBuilder::giveTitle($save, 'wwe', ['Edge']);
+    // 60% into a 3-bar Ladder match ends at 90%: an injury, minor here.
+    GameBuilder::wrestler($save, 'Kane')->update(['fatigue' => 60]);
+    Card::book($save, Card::show($save), 1, Card::type('ladder', 'Single'), [['Edge'], ['Kane']], [], $reign->championship_id);
+    FixedOutcomes::queue('Kane');
+
+    airWeek($save);
+
+    expect(Injury::where('save_wrestler_id', GameBuilder::wrestler($save, 'Kane')->id)->sole()->severity)->toBe(InjurySeverity::Minor)
+        ->and(app(TitleService::class)->isChampion(GameBuilder::wrestler($save, 'Kane')))->toBeTrue();
 });

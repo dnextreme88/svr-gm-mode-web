@@ -25,6 +25,7 @@ use App\Services\Contracts\ContractService;
 use App\Services\Factions\FactionNamer;
 use App\Services\Finance\LedgerService;
 use App\Services\News\NewsRecorder;
+use App\Services\Ppv\RoyalRumbleLog;
 use App\Services\Titles\ChampionshipAssignment;
 use App\Services\Titles\ContendershipService;
 use App\Services\Titles\LastChanceService;
@@ -54,6 +55,7 @@ class MatchOutcomeHandler
         private FactionNamer $factions,
         private ContendershipService $contenderships,
         private RematchClauseService $rematches,
+        private RoyalRumbleLog $rumbleLog,
     ) {}
 
     public function apply(MatchSlot $slot, MatchResult $result, ResolvedMatch $resolved, WeekContext $context): void
@@ -93,13 +95,20 @@ class MatchOutcomeHandler
         if ($slot->matchType?->isMoneyInTheBank()) {
             $winner = SaveWrestler::with('wrestler')->findOrFail($resolved->winners[0]);
             $this->mitb->award($context->save, $winner, $context->week);
-            $stipulationOutcome = "{$winner->name()} earns a {$this->mitb->worldTitle($winner->brand ?? $slot->owner_brand ?? $slot->show->brand ?? Brand::Raw)->name} shot";
+            // "Chris Benoit of Smackdown earns a … shot anytime" (2026-11-15).
+            $briefcaseBrand = $winner->brand ?? $slot->owner_brand ?? $slot->show->brand ?? Brand::Raw;
+            $stipulationOutcome = "{$winner->name()} of {$briefcaseBrand->label()} earns a {$this->mitb->worldTitle($briefcaseBrand)->name} shot anytime";
         }
 
         if ($slot->fixed_kind === FixedSlotKind::RoyalRumble) {
             $winner = SaveWrestler::with('wrestler')->findOrFail($resolved->winners[0]);
             Season::where('save_id', $context->save->id)->where('number', $context->season)->update(['royal_rumble_winner_id' => $winner->id]);
-            $stipulationOutcome = "{$winner->name()} is going to the WrestleMania main event";
+            // "Jeff Hardy of Raw is going…" (2026-11-15): the brand gets the main event.
+            $stipulationOutcome = $winner->brand !== null
+                ? "{$winner->name()} of {$winner->brand->label()} is going to the WrestleMania main event"
+                : "{$winner->name()} is going to the WrestleMania main event";
+            // House rule (2026-11-15): entry numbers and eliminations, on its own stream.
+            $this->rumbleLog->record($slot, $resolved, $context->season, $context->week, $context->stream("rumble.{$slot->show->streamKey()}"));
 
             $this->news->record($context->save, NewsEventType::PpvResults, NewsTier::Headline, NewsBrand::Both, [
                 'ppv' => 'Royal Rumble',

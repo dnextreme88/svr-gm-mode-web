@@ -84,13 +84,16 @@ class NewsCatalog
         'released' => ['group' => 'Roster and contracts', 'card' => 'brand', 'tier' => 'Story'],
         'contract_expiring' => ['group' => 'Roster and contracts', 'card' => 'brand', 'tier' => 'Story'],
         'trade_completed' => ['group' => 'Roster and contracts', 'card' => 'wwe', 'tier' => 'Headline'],
-        'redraft_pick' => ['group' => 'Roster and contracts', 'card' => 'brand', 'tier' => 'Story'],
+        'redraft_pick' => ['group' => 'Roster and contracts', 'card' => 'brand', 'tier' => 'Ticker'],
         'defection_attempt' => ['group' => 'Roster and contracts', 'card' => 'brand', 'tier' => 'Story'],
         'defection_blocked' => ['group' => 'Roster and contracts', 'card' => 'brand', 'tier' => 'Story'],
         'defection_completed' => ['group' => 'Roster and contracts', 'card' => 'wwe', 'tier' => 'Headline'],
         'season_reset' => ['group' => 'Roster and contracts', 'card' => 'wwe', 'tier' => 'Headline'],
+        'redraft_results' => ['group' => 'Roster and contracts', 'card' => 'wwe', 'tier' => 'Headline'],
 
         'promo_result' => ['group' => 'Promos', 'card' => 'brand', 'tier' => 'Story (worded by the promo story, see Promo stories)'],
+        'call_out_face' => ['group' => 'Promos', 'card' => 'brand', 'tier' => 'Story (a face Call-out, worded by the promo story)'],
+        'call_out_heel' => ['group' => 'Promos', 'card' => 'brand', 'tier' => 'Story (a heel Call-out, worded by the promo story)'],
         'slander_result' => ['group' => 'Promos', 'card' => 'wwe', 'tier' => 'Headline (always takes the WWE card)'],
         'interference_promo_result' => ['group' => 'Promos', 'card' => 'wwe', 'tier' => 'Headline (always takes the WWE card)'],
 

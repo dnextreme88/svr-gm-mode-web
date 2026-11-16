@@ -9,6 +9,7 @@ use App\Models\MatchResult;
 use App\Models\NewsEvent;
 use App\Models\Rivalry;
 use App\Models\Save;
+use App\Services\News\NewsTemplates;
 use App\Services\Rivalries\RivalryService;
 use App\Services\Week\WeekResolver;
 use Tests\Support\Card;
@@ -161,8 +162,9 @@ it('ends a rivalry the week after it reaches 100, with a headline', function () 
 
     expect($rivalry->refresh()->active)->toBeFalse()
         ->and($rivalry->ended_week)->toBe(3)
-        ->and($news->rendered_text)->toContain('Edge')
-        ->and($news->rendered_text)->toContain('Kane')
+        ->and($news->rendered_text)->toBe('A rivalry reaches its end')
+        ->and(app(NewsTemplates::class)->summary($news->type, $news->payload))->toContain('Edge')
+        ->and(app(NewsTemplates::class)->summary($news->type, $news->payload))->toContain('Kane')
         ->and($news->tier->value)->toBe('headline');
 });
 

@@ -125,11 +125,11 @@ export const ContractLength = {
 } as const;
 export type ContractLength = (typeof ContractLength)[keyof typeof ContractLength];
 export const ContractLengthLabels: Record<ContractLength, string> = {
-    5: '5 weeks',
+    5: '1 month',
     12: '3 months',
     24: '6 months',
     36: '9 months',
-    52: '1 year',
+    52: '12 months',
 };
 
 export const ContractStatus = {
@@ -228,6 +228,8 @@ export const EmailTemplate = {
     FreeAgentReminder: 'free_agent_reminder',
     BookingTip: 'booking_tip',
     RivalPpvTaunt: 'rival_ppv_taunt',
+    CallOutFace: 'call_out_face',
+    CallOutHeel: 'call_out_heel',
 } as const;
 export type EmailTemplate = (typeof EmailTemplate)[keyof typeof EmailTemplate];
 export const EmailTemplateLabels: Record<EmailTemplate, string> = {
@@ -256,6 +258,8 @@ export const EmailTemplateLabels: Record<EmailTemplate, string> = {
     'free_agent_reminder': 'Free Agent Reminder',
     'booking_tip': 'Booking Tip',
     'rival_ppv_taunt': 'Rival Ppv Taunt',
+    'call_out_face': 'Call Out Face',
+    'call_out_heel': 'Call Out Heel',
 };
 
 export const FactionOrigin = {
@@ -365,17 +369,27 @@ export const LedgerCategory = {
     MatchCost: 'match_cost',
     LoserLeavesRefund: 'loser_leaves_refund',
     ShowIncome: 'show_income',
+    ShowProduction: 'show_production',
+    MedicalRehab: 'medical_rehab',
+    ReleaseFee: 'release_fee',
+    AttendanceBonus: 'attendance_bonus',
+    InterferenceResult: 'interference_result',
 } as const;
 export type LedgerCategory = (typeof LedgerCategory)[keyof typeof LedgerCategory];
 export const LedgerCategoryLabels: Record<LedgerCategory, string> = {
     'starting_budget': 'Starting Budget',
     'signing_fee': 'Signing Fee',
-    'contract_upkeep': 'Contract Upkeep',
+    'contract_upkeep': 'Superstar salaries',
     'promo_cost': 'Promo Cost',
     'promo_income': 'Promo Income',
     'match_cost': 'Match Cost',
     'loser_leaves_refund': 'Loser Leaves Show refund',
-    'show_income': 'Show Income',
+    'show_income': 'Fan attendance gate',
+    'show_production': 'Show production',
+    'medical_rehab': 'Medical Rehab',
+    'release_fee': 'Release Fee',
+    'attendance_bonus': 'Fan attendance bonus',
+    'interference_result': 'Interference Result',
 };
 
 export const MatchFamily = {
@@ -558,6 +572,7 @@ export const NewsEventType = {
     LoserLeaves: 'loser_leaves',
     TradeCompleted: 'trade_completed',
     RedraftPick: 'redraft_pick',
+    RedraftResults: 'redraft_results',
     Injury: 'injury',
     InjuryEscalated: 'injury_escalated',
     InjuryReturn: 'injury_return',
@@ -575,6 +590,8 @@ export const NewsEventType = {
     MatchResult: 'match_result',
     MainEventHypeResult: 'main_event_hype_result',
     PromoResult: 'promo_result',
+    CallOutFace: 'call_out_face',
+    CallOutHeel: 'call_out_heel',
     ContractExpiring: 'contract_expiring',
     RivalryMilestone: 'rivalry_milestone',
     Attendance: 'attendance',
@@ -631,6 +648,7 @@ export const NewsEventTypeLabels: Record<NewsEventType, string> = {
     'loser_leaves': 'Loser Leaves',
     'trade_completed': 'Trade Completed',
     'redraft_pick': 'Redraft Pick',
+    'redraft_results': 'Redraft Results',
     'injury': 'Injury',
     'injury_escalated': 'Injury Escalated',
     'injury_return': 'Injury Return',
@@ -648,6 +666,8 @@ export const NewsEventTypeLabels: Record<NewsEventType, string> = {
     'match_result': 'Match Result',
     'main_event_hype_result': 'Main Event Hype Result',
     'promo_result': 'Promo Result',
+    'call_out_face': 'Call Out Face',
+    'call_out_heel': 'Call Out Heel',
     'contract_expiring': 'Contract Expiring',
     'rivalry_milestone': 'Rivalry Milestone',
     'attendance': 'Attendance',
@@ -736,6 +756,16 @@ export const PpvKeyLabels: Record<PpvKey, string> = {
     'tribute_to_the_troops': 'Tribute to the Troops',
 };
 
+export const PromoAlignment = {
+    Face: 'face',
+    Heel: 'heel',
+} as const;
+export type PromoAlignment = (typeof PromoAlignment)[keyof typeof PromoAlignment];
+export const PromoAlignmentLabels: Record<PromoAlignment, string> = {
+    'face': 'Face',
+    'heel': 'Heel',
+};
+
 export const PromoTypeKey = {
     NewSuperstar: 'new_superstar',
     ContinueRivalry: 'continue_rivalry',
@@ -751,6 +781,7 @@ export const PromoTypeKey = {
     ComebackReminder: 'comeback_reminder',
     InterviewSpace: 'interview_space',
     DivaBikiniContest: 'diva_bikini_contest',
+    CallOut: 'call_out',
 } as const;
 export type PromoTypeKey = (typeof PromoTypeKey)[keyof typeof PromoTypeKey];
 export const PromoTypeKeyLabels: Record<PromoTypeKey, string> = {
@@ -768,6 +799,7 @@ export const PromoTypeKeyLabels: Record<PromoTypeKey, string> = {
     'comeback_reminder': 'Comeback Reminder',
     'interview_space': 'Interview Space',
     'diva_bikini_contest': 'Diva Bikini Contest',
+    'call_out': 'Call-out',
 };
 
 export const ReignEndReason = {

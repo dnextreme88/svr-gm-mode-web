@@ -7,6 +7,7 @@ use App\Models\MatchSlot;
 use App\Models\NewsEvent;
 use App\Models\Save;
 use App\Services\Injuries\InjuryService;
+use App\Services\News\NewsTemplates;
 use App\Services\Week\WeekResolver;
 use Tests\Support\Card;
 use Tests\Support\FixedOutcomes;
@@ -18,9 +19,15 @@ use Tests\Support\GameBuilder;
 | show is over, gets its own match result headline.
 */
 
+/**
+ * The match result's summary: since the short headlines (house rule,
+ * 2026-11-15) it opens with the wording the headline used to carry.
+ */
 function resultHeadline(MatchSlot $slot): string
 {
-    return (string) NewsEvent::where('type', NewsEventType::MatchResult)->where('dedupe_key', "slot:{$slot->id}")->value('rendered_text');
+    $event = NewsEvent::where('type', NewsEventType::MatchResult)->where('dedupe_key', "slot:{$slot->id}")->sole();
+
+    return app(NewsTemplates::class)->summary($event->type, $event->payload);
 }
 
 function hurt(Save $save, string $name): void
@@ -38,7 +45,7 @@ it('praises a winner who went in with a minor injury', function () {
 
     app(WeekResolver::class)->resolve($save->refresh());
 
-    expect(resultHeadline($slot))->toBe('Handicapped and determined, Edge defeats Kane in a hard-hitting match via pinfall despite suffering a minor injury. Remember, an injury is not a hindrance to winning the match!');
+    expect(resultHeadline($slot))->toStartWith('Handicapped and determined, Edge defeats Kane in a hard-hitting match via pinfall despite suffering a minor injury. Remember, an injury is not a hindrance to winning the match!');
 });
 
 it('keeps the usual headlines when the injured superstar loses or wins by DQ', function () {
@@ -54,7 +61,7 @@ it('keeps the usual headlines when the injured superstar loses or wins by DQ', f
     app(WeekResolver::class)->resolve($save->refresh());
 
     expect(resultHeadline($lost))->toStartWith('Kane defeats Edge in decisive fashion.')
-        ->and(resultHeadline($dq))->toBe('Carlito defeats Chris Masters via disqualification. Not the cleanest win, but a win is a win.');
+        ->and(resultHeadline($dq))->toStartWith('Carlito defeats Chris Masters via disqualification. Not the cleanest win, but a win is a win.');
 });
 
 it('drops the injured-win headline when the injury turns serious later in the show', function () {
@@ -69,5 +76,5 @@ it('drops the injured-win headline when the injury turns serious later in the sh
 
     app(WeekResolver::class)->resolve($save->refresh());
 
-    expect(resultHeadline($first))->toBe('Edge defeats Kane in decisive fashion. He made sure to get the win via pinfall.');
+    expect(resultHeadline($first))->toStartWith('Edge defeats Kane in decisive fashion. He made sure to get the win via pinfall.');
 });

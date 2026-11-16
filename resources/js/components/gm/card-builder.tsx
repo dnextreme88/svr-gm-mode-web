@@ -4,6 +4,7 @@ import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { PopoverPanel, usePopover } from '@/components/gm/popover';
 import { SlotActions } from '@/components/gm/slot-actions';
+import { SortableSlots } from '@/components/gm/sortable-slots';
 import { WrestlerPicker } from '@/components/gm/wrestler-picker';
 import type { PickerOption } from '@/components/gm/wrestler-picker';
 import { useReportUnsaved } from '@/components/gm/unsaved-changes';
@@ -20,6 +21,7 @@ import { fatigueZone, formatMoney, pluralize, zoneLabel } from '@/lib/gm';
 import { slotSaveKey, useSaveStatus } from '@/lib/save-status';
 import { cn } from '@/lib/utils';
 import { MatchFamilyLabels } from '@/types/enums';
+import type { Brand } from '@/types/enums';
 import type {
     BookingPayload,
     CardShow,
@@ -44,6 +46,10 @@ export type CardBuilderProps = {
     roster: RosterEntry[];
     fatigueConfig: FatigueConfig;
     onSave: (position: number, payload: BookingPayload) => void;
+    /** WrestleMania's interbrand series: the player's spots, by match. */
+    series?: Record<number, { sides: number[]; eligible: number[] }>;
+    /** Saves the player's series picks, spot by spot. */
+    onSaveSeries?: (position: number, ids: number[]) => void;
     onClear: (position: number) => void;
     /** The title cycler, shown in each slot's header. */
     renderTitle?: SlotTools;
@@ -55,6 +61,8 @@ export type CardBuilderProps = {
     promoFatigue?: PromoFatigue[];
     /** Read-only because the week's booking order hasn't reached this card, or it's confirmed. */
     lockedByOrder?: boolean;
+    /** Drag a match to another spot (house rule, 2026-11-15): the old positions in their new order. */
+    onReorder?: (order: number[]) => void;
     /**
      * Titles, their holders, Last Chance lockouts and #1 contenders: tags the
      * champions and greys out who can't challenge for the title on the line.
@@ -94,6 +102,24 @@ export function toPayload(draft: SlotDraft): BookingPayload {
         stipulation_championship_id: draft.stipulationChampionshipId,
         referee_id: draft.refereeId,
     };
+}
+
+/**
+ * The player's series picks in spot order: each of their sides in turn,
+ * every superstar on it (the 2v2 has two spots on one side).
+ */
+export function seriesPicks(draft: SlotDraft, sides: number[]): number[] {
+    const picks: number[] = [];
+
+    for (const side of new Set(sides)) {
+        for (const id of draft.sides[side] ?? []) {
+            if (id !== null) {
+                picks.push(id);
+            }
+        }
+    }
+
+    return picks;
 }
 
 /** A match type's price: green, and italic when it's free. */
@@ -166,6 +192,9 @@ export function CardBuilder({
     promoFatigue = [],
     lockedByOrder = false,
     titleContext,
+    onReorder,
+    series,
+    onSaveSeries,
 }: CardBuilderProps) {
     const [drafts, setDrafts] = useState<SlotDraft[]>(() => slots.map(toDraft));
     const [dirty, setDirty] = useState<Set<number>>(new Set());
@@ -188,6 +217,11 @@ export function CardBuilder({
             .map((s) => s.position),
     );
     const readOnly = show.status !== 'booking' || lockedByOrder;
+    const canReorder = !readOnly && onReorder !== undefined;
+    // WrestleMania's interbrand series (house rule, 2026-11-15): the player
+    // picks their own spots right on the match, like any other booking.
+    const seriesFor = (d: SlotDraft) =>
+        onSaveSeries ? (series?.[d.position] ?? null) : null;
     const complete = (d: SlotDraft) =>
         isComplete(d, d.matchTypeId ? types.get(d.matchTypeId) : undefined);
 
@@ -264,45 +298,105 @@ export function CardBuilder({
                     </span>
                 </span>
             </div>
-            {drafts.map((draft) => (
-                <SlotEditor
-                    key={draft.position}
-                    draft={draft}
-                    isMainEvent={draft.position === mainEventPosition}
-                    drafts={drafts}
-                    types={types}
-                    matchTypes={matchTypes}
-                    roster={roster}
-                    rosterById={rosterById}
-                    counts={counts}
-                    fatigueConfig={fatigueConfig}
-                    promoFatigue={promoFatigue}
-                    titleContext={titleContext}
-                    readOnly={readOnly || draft.fixed}
-                    canSave={!readOnly && !draft.fixed}
-                    dirty={dirty.has(draft.position)}
-                    saveKey={slotSaveKey('match', show.id, draft.position)}
-                    complete={complete(draft)}
-                    onChange={update}
-                    onSave={() => {
-                        onSave(draft.position, toPayload(draft));
-                        markClean(draft.position);
-                    }}
-                    onDiscard={() => discard(draft.position)}
-                    onClear={() => clearSlot(draft.position)}
-                    title={renderTitle?.(draft, update, drafts)}
-                    buttons={renderButtons?.(draft, update, drafts)}
-                    actions={renderActions?.(draft, update, drafts)}
-                    names={
-                        slots.find((s) => s.position === draft.position)?.names
-                    }
-                />
-            ))}
+            {canReorder && dirty.size > 0 && (
+                <p
+                    className="text-sm text-ink-dim"
+                    data-testid="reorder-locked"
+                >
+                    Save or discard your changes to move matches around.
+                </p>
+            )}
+            <SortableSlots
+                positions={drafts.map((d) => d.position)}
+                movable={(position) =>
+                    canReorder &&
+                    !drafts.find((d) => d.position === position)?.fixed
+                }
+                disabled={
+                    dirty.size > 0
+                        ? 'Save or discard your changes to move matches around.'
+                        : null
+                }
+                onReorder={(order) => onReorder?.(order)}
+            >
+                {(position, handle) => {
+                    const draft = drafts.find((d) => d.position === position)!;
+
+                    return (
+                        <SlotEditor
+                            key={draft.position}
+                            handle={handle?.handle}
+                            draft={draft}
+                            isMainEvent={draft.position === mainEventPosition}
+                            drafts={drafts}
+                            types={types}
+                            matchTypes={matchTypes}
+                            roster={roster}
+                            rosterById={rosterById}
+                            counts={counts}
+                            fatigueConfig={fatigueConfig}
+                            promoFatigue={promoFatigue}
+                            titleContext={titleContext}
+                            readOnly={readOnly || draft.fixed}
+                            canSave={
+                                !readOnly &&
+                                (!draft.fixed || seriesFor(draft) !== null)
+                            }
+                            dirty={dirty.has(draft.position)}
+                            saveKey={slotSaveKey(
+                                'match',
+                                show.id,
+                                draft.position,
+                            )}
+                            complete={complete(draft)}
+                            onChange={update}
+                            onSave={() => {
+                                const spots = seriesFor(draft);
+
+                                if (spots) {
+                                    onSaveSeries?.(
+                                        draft.position,
+                                        seriesPicks(draft, spots.sides),
+                                    );
+                                } else {
+                                    onSave(draft.position, toPayload(draft));
+                                }
+
+                                markClean(draft.position);
+                            }}
+                            seriesSides={
+                                !readOnly ? seriesFor(draft)?.sides : undefined
+                            }
+                            seriesEligible={seriesFor(draft)?.eligible}
+                            onDiscard={() => discard(draft.position)}
+                            onClear={() => clearSlot(draft.position)}
+                            title={renderTitle?.(draft, update, drafts)}
+                            buttons={renderButtons?.(draft, update, drafts)}
+                            actions={renderActions?.(draft, update, drafts)}
+                            names={
+                                slots.find((s) => s.position === draft.position)
+                                    ?.names
+                            }
+                            sideBrands={
+                                slots.find((s) => s.position === draft.position)
+                                    ?.side_brands ?? undefined
+                            }
+                            interbrand={show.brand === null}
+                            ownerBrand={
+                                slots.find((s) => s.position === draft.position)
+                                    ?.owner_brand ?? null
+                            }
+                        />
+                    );
+                }}
+            </SortableSlots>
         </div>
     );
 }
 
 type SlotEditorProps = {
+    /** The drag handle and move buttons, when the slot can move. */
+    handle?: React.ReactNode;
     draft: SlotDraft;
     isMainEvent: boolean;
     drafts: SlotDraft[];
@@ -328,9 +422,19 @@ type SlotEditorProps = {
     buttons?: React.ReactNode;
     actions?: React.ReactNode;
     names?: Record<string, string>;
+    /** Each side's brand, on WrestleMania's interbrand series matches. */
+    sideBrands?: Brand[];
+    /** On an interbrand card: the brand that books this slot (null when shared). */
+    interbrand?: boolean;
+    ownerBrand?: Brand | null;
+    /** WrestleMania's interbrand series: the sides that are the player's to pick. */
+    seriesSides?: number[];
+    /** …and who can go in them. */
+    seriesEligible?: number[];
 };
 
 function SlotEditor({
+    handle,
     draft,
     isMainEvent,
     drafts,
@@ -355,6 +459,11 @@ function SlotEditor({
     buttons,
     actions,
     names,
+    sideBrands,
+    interbrand = false,
+    ownerBrand = null,
+    seriesSides,
+    seriesEligible,
 }: SlotEditorProps) {
     const type = draft.matchTypeId ? types.get(draft.matchTypeId) : undefined;
     const label = `Match ${draft.position}`;
@@ -397,6 +506,12 @@ function SlotEditor({
             .filter((w) => {
                 if (w.id === current) {
                     return true;
+                }
+
+                // WrestleMania's interbrand series (house rule, 2026-11-15):
+                // your bookable non-champions not in another series match.
+                if (seriesEligible && !seriesEligible.includes(w.id)) {
+                    return false;
                 }
 
                 if (type?.divas_only && w.roster_type !== 'diva') {
@@ -447,7 +562,22 @@ function SlotEditor({
         className: string,
     ) =>
         type ? (
-            <div className={cn('space-y-2', className)}>
+            <div
+                // WrestleMania's interbrand series: each side wears its brand's
+                // colour, Raw red and Smackdown blue (house rule, 2026-11-15).
+                data-brand-tint={sideBrands?.[sideIndex]}
+                data-testid={
+                    sideBrands?.[sideIndex]
+                        ? `side-brand-${draft.position}-${sideIndex}`
+                        : undefined
+                }
+                className={cn(
+                    'space-y-2',
+                    sideBrands?.[sideIndex] &&
+                        'border-l-4 border-[var(--gm-brand)] pl-3',
+                    className,
+                )}
+            >
                 {side.map((id, index) => (
                     <CompetitorSlot
                         key={index}
@@ -462,7 +592,7 @@ function SlotEditor({
                         )}
                         options={competitorOptions(sideIndex, index)}
                         fallbackName={id !== null ? names?.[id] : undefined}
-                        readOnly={readOnly}
+                        readOnly={readOnly && !seriesSides?.includes(sideIndex)}
                         onChange={(next) =>
                             setCompetitor(sideIndex, index, next)
                         }
@@ -541,8 +671,15 @@ function SlotEditor({
         <section
             aria-label={label}
             data-dirty={dirty || undefined}
+            // Interbrand cards (house rule, 2026-11-15): a slot wears its
+            // owner's colour, and a slot both brands share WWE gold.
+            data-brand-tint={interbrand ? (ownerBrand ?? undefined) : undefined}
+            data-slot-owner={interbrand ? (ownerBrand ?? 'shared') : undefined}
             className={cn(
                 'gm-panel',
+                interbrand &&
+                    !ownerBrand &&
+                    '[--gm-brand:var(--color-gold)] [--gm-chyron-bg:var(--color-gold)]',
                 isMainEvent && 'shadow-[0_0_0_1px_var(--color-gold)]',
                 dirty && 'gm-panel-dirty',
             )}
@@ -550,11 +687,12 @@ function SlotEditor({
             {/* A size container: the match type panel sizes to the card. */}
             <header className="@container relative flex flex-wrap items-start gap-3 border-b border-white/6 px-4 py-2.5">
                 {/* Small screens: the label, the type picker and the cost line each get a line. */}
-                <div className="w-full sm:w-auto">
+                <div className="flex w-full items-center gap-1 sm:w-auto">
+                    {handle}
                     <span
                         className={cn(
                             'gm-chyron mt-0.5 inline-block py-1 pr-7 pl-3 font-condensed font-bold tracking-[0.18em] uppercase',
-                            isMainEvent
+                            isMainEvent || (interbrand && !ownerBrand)
                                 ? 'text-arena [--gm-chyron-bg:var(--color-gold)]'
                                 : 'text-white',
                         )}
@@ -668,6 +806,7 @@ function SlotEditor({
                     filled={draft.matchTypeId !== null}
                     saveStatus={saveStatus}
                     clearMessage="This removes the match type, every superstar, the title and the stipulation from this slot."
+                    clearable={seriesSides === undefined}
                     onSave={onSave}
                     onDiscard={onDiscard}
                     onClear={onClear}

@@ -127,7 +127,7 @@ it('scores each aired promo on its own (house rule, 2026-11-08)', function () {
     $facts = fn (): array => app(AttendanceService::class)->facts(collect([$show]), new WeekContext($save, 1, 1));
 
     $promo(1, PromoTypeKey::SlanderPromotion, false, backfired: true);
-    $promo(2, PromoTypeKey::Advertising, false);
+    $promo(2, PromoTypeKey::InterviewSpace, false);
     expect($facts()['rival_promos'])->toBe(['succeeded' => 0, 'backfired' => 1])
         ->and($facts()['other_promos'])->toBe(['succeeded' => 0, 'failed' => 1]);
 

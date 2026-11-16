@@ -14,6 +14,14 @@ enum Brand: string
     case Raw = 'raw';
     case Smackdown = 'smackdown';
 
+    /**
+     * The other brand.
+     */
+    public function rival(): self
+    {
+        return $this === self::Raw ? self::Smackdown : self::Raw;
+    }
+
     public function label(): string
     {
         return match ($this) {

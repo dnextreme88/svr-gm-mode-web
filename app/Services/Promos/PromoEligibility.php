@@ -63,6 +63,7 @@ class PromoEligibility
         [$ids, $pairs, $titles, $reason] = match ($type->key) {
             PromoTypeKey::NewSuperstar => [$c['joined'], [], [], 'Only works on a freshly signed or traded-in superstar, and nobody joined recently.'],
             PromoTypeKey::ContinueRivalry => [$this->idsIn($c['rivals']), $c['rivals'], [], 'You have no active rivalries.'],
+            PromoTypeKey::CallOut => [$this->idsIn($c['rivals']), $c['rivals'], [], 'Needs an active rivalry.'],
             PromoTypeKey::StartRivalry => [array_values(array_diff($healthy, $c['inRivalry'])), [], [], 'Needs two healthy superstars who aren’t already in a rivalry.'],
             PromoTypeKey::InactiveSuperstar => [array_values(array_diff($c['all'], $c['booked'])), [], [], 'Everyone on your roster is booked on this card.'],
             PromoTypeKey::ComebackReminder => [$c['longOut'], [], [], 'Nobody has been out injured for more than '.(int) config('gm.promos.comeback_reminder_min_weeks_out').' weeks.'],
@@ -75,7 +76,7 @@ class PromoEligibility
 
         $available = match (true) {
             $type->needs_championship => $titles !== [],
-            $type->key === PromoTypeKey::ContinueRivalry => $pairs !== [],
+            in_array($type->key, [PromoTypeKey::ContinueRivalry, PromoTypeKey::CallOut], true) => $pairs !== [],
             $type->needsPair() => count($ids) >= 2,
             $type->needs_wrestler => $ids !== [],
             default => true,

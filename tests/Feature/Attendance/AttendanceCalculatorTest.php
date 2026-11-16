@@ -124,7 +124,7 @@ it('keeps the score within 0 to 100 and the crowd within each range', function (
 });
 
 it('prices the gate by the kind of show', function () {
-    expect(attendance()->gate('weekly', 15_050))->toBe(451_500)
-        ->and(attendance()->gate('brand_ppv', 20_000))->toBe(1_000_000)
-        ->and(attendance()->gate('shared_ppv', 40_000))->toBe(3_000_000);
+    expect(attendance()->gate('weekly', 15_050))->toBe(301_000)
+        ->and(attendance()->gate('brand_ppv', 20_000))->toBe(700_000)
+        ->and(attendance()->gate('shared_ppv', 40_000))->toBe(2_000_000);
 });

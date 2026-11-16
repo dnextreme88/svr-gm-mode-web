@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $raw_wins
  * @property int $smackdown_wins
  * @property Brand|null $winner_brand
+ * @property Brand|null $immunity_brand
  * @property int|null $exemption_wrestler_id
  * @property int|null $handpick_wrestler_id
  * @property bool $redraft_done
@@ -52,6 +53,7 @@ class InterbrandSeries extends Model
         return [
             'match_ids' => 'array',
             'winner_brand' => Brand::class,
+            'immunity_brand' => Brand::class,
             'redraft_done' => 'boolean',
         ];
     }

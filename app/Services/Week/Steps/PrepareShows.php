@@ -31,12 +31,17 @@ class PrepareShows implements WeekStep
     {
         $shows = $this->shows->ensureWeek($context->save, $context->week);
         $aiBrand = $context->save->rivalBrand();
+        $entrantCards = [];
 
         foreach ($shows as $show) {
             $this->cards->ensureSlots($show);
 
+            // Entrants come last, once the rival's other cards of the night
+            // are booked (its Royal Rumble picks avoid booked champions).
             if ($show->isInterbrandMainEvent()) {
-                $this->entrants($show, $aiBrand, $context);
+                // The rest of the shared card is the rival's to book too.
+                $this->ai->bookShow($show, $aiBrand);
+                $entrantCards[] = $show;
 
                 continue;
             }
@@ -63,6 +68,10 @@ class PrepareShows implements WeekStep
             }
         }
 
+        foreach ($entrantCards as $show) {
+            $this->entrants($show, $aiBrand, $context);
+        }
+
         $context->data['shows'] = $shows->map(fn (Show $s): int => $s->id)->all();
     }
 
@@ -73,7 +82,7 @@ class PrepareShows implements WeekStep
         }
 
         try {
-            $this->ppvCards->randomEntrants($show, $brand, $context->rng("ai.entrants.{$show->streamKey()}"));
+            $this->ppvCards->aiEntrants($show, $brand, $context->rng("ai.entrants.{$show->streamKey()}"));
         } catch (GameRuleException) {
             // A brand with nobody bookable simply sends no one.
         }

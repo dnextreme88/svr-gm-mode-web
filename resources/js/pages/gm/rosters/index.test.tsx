@@ -39,7 +39,7 @@ const props = {
     brand: 'raw',
     pending: 0,
     wrestlers: [
-        wrestler,
+        { ...wrestler, mitb_winner: true, rumble_winner: true },
         {
             ...wrestler,
             id: 2,
@@ -57,6 +57,8 @@ const props = {
             ...wrestler,
             id: 3,
             name: 'Kane',
+            sitting_out: true,
+            sitting_out_weeks: 2,
             fatigue: 60,
             morale: 'upset',
             wins: 0,
@@ -151,6 +153,27 @@ describe('Rosters table', () => {
 
         expect(names()).toEqual(['Trish Stratus']);
         expect(screen.getByText('1 of 3')).toBeInTheDocument();
+    });
+
+    it('tags the Royal Rumble winner, a briefcase holder, and how long someone sits out (2026-11-15)', () => {
+        render(<Rosters />);
+
+        const edge = screen
+            .getAllByTestId('roster-row')
+            .find((r) => r.textContent?.includes('Edge'))!;
+        const kane = screen
+            .getAllByTestId('roster-row')
+            .find((r) => r.textContent?.includes('Kane'))!;
+
+        expect(within(edge).getByTestId('tag-rumble-winner')).toHaveTextContent(
+            'Royal Rumble winner',
+        );
+        expect(within(edge).getByTestId('tag-mitb-winner')).toHaveTextContent(
+            'MITB winner',
+        );
+        expect(within(kane).getByTestId('tag-sitting-out')).toHaveTextContent(
+            'Sitting out · 2 weeks',
+        );
     });
 
     it('flags an expiring contract with more than colour', () => {

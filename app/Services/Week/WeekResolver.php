@@ -8,6 +8,7 @@ use App\Enums\ShowStatus;
 use App\Enums\ShowType;
 use App\Exceptions\GameRuleException;
 use App\Models\MatchSlot;
+use App\Models\NewsEvent;
 use App\Models\Save;
 use App\Models\Show;
 use App\Models\WeekAiring;
@@ -47,6 +48,8 @@ class WeekResolver
         Steps\RecoverFatigue::class,
         Steps\InjuryReturns::class,
         Steps\TickContracts::class,
+        // House rule (2026-11-15): rehab for everyone still injured.
+        Steps\PayMedicalCosts::class,
         Steps\UpdateMorale::class,
         // After defections, so the rival GM can refill what it just lost.
         Steps\RivalRosterUpkeep::class,
@@ -54,6 +57,8 @@ class WeekResolver
         Steps\TitleUpkeep::class,
         // House rule: the rival awards or forfeits its vacated titles' #1 contenderships.
         Steps\SettleTitleVacancies::class,
+        // The week's gate counts before the deficit check (house rule, 2026-11-15).
+        Steps\PayShowIncome::class,
         Steps\TrackDeficit::class,
         Steps\SendContractEmails::class,
         Steps\SendReminders::class,
@@ -61,8 +66,6 @@ class WeekResolver
         Steps\WrestleManiaWrapUp::class,
         // Last before the week ends: fills whatever the week's news left empty.
         Steps\QuietWeekNews::class,
-        // Once the week is done: each brand's shows earn their income.
-        Steps\PayShowIncome::class,
         Steps\AdvanceWeek::class,
     ];
 
@@ -225,6 +228,10 @@ class WeekResolver
             $airing = WeekAiring::create(['save_id' => $locked->id, 'week_number' => $week, 'context' => [], 'rng_states' => []]);
             $context = new WeekContext($locked, $week, $this->calendar->seasonOf($week));
             $context->data['phase'] = $ppvNight ? self::PHASE_PPV : self::PHASE_WEEKLY;
+            // House rule (2026-11-16): the News opens after the PPV night,
+            // with only what happened from here on (not a signing made
+            // earlier in the week).
+            $context->data['news_after_id'] = (int) NewsEvent::where('save_id', $locked->id)->max('id');
 
             foreach ($this->opening() as $step) {
                 app($step)->handle($context);
@@ -511,7 +518,9 @@ class WeekResolver
         }
 
         // The PPV night is over: wait for the player to book the weekly show.
-        if (($context->data['phase'] ?? null) === self::PHASE_PPV) {
+        // WrestleMania week has none (house rule, 2026-11-16), so its night
+        // closes the week straight into the re-draft.
+        if (($context->data['phase'] ?? null) === self::PHASE_PPV && $this->hasWeeklyShows($context)) {
             $context->data['phase'] = self::PHASE_PPV_DONE;
             $airing->update(['context' => $context->data, 'rng_states' => $context->streamStates()]);
 
@@ -530,6 +539,14 @@ class WeekResolver
         ]);
 
         $airing->update(['context' => $context->data, 'rng_states' => $context->streamStates(), 'completed_at' => now()]);
+    }
+
+    private function hasWeeklyShows(WeekContext $context): bool
+    {
+        return Show::where('save_id', $context->save->id)
+            ->where('week_number', $context->week)
+            ->where('show_type', ShowType::Weekly)
+            ->exists();
     }
 
     /**

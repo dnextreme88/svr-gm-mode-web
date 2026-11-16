@@ -4,11 +4,13 @@ namespace App\Services\Draft;
 
 use App\Enums\Brand;
 use App\Enums\ContractLength;
+use App\Enums\ContractStatus;
 use App\Enums\DraftPhase;
 use App\Enums\DraftPickSource;
 use App\Enums\DraftPickType;
 use App\Enums\SaveStage;
 use App\Exceptions\GameRuleException;
+use App\Models\Contract;
 use App\Models\DraftPick;
 use App\Models\Save;
 use App\Models\SaveBrand;
@@ -85,7 +87,7 @@ class DraftService
             && $this->roster->hasRoom($save, $brand);
     }
 
-    public function pick(Save $save, Brand $brand, SaveWrestler $wrestler, DraftPickType $type = DraftPickType::Manual): DraftPick
+    public function pick(Save $save, Brand $brand, SaveWrestler $wrestler, DraftPickType $type = DraftPickType::Manual, ?ContractLength $length = null): DraftPick
     {
         if ($this->nextBrand($save) !== $brand) {
             throw new GameRuleException("It isn't {$brand->label()}'s pick.");
@@ -101,10 +103,11 @@ class DraftService
             throw new GameRuleException("{$wrestler->name()} is a Legend. Legends sign through Free Agency after the draft.");
         }
 
-        $quote = $this->pricing->quote($wrestler->wrestler, ContractLength::from((int) config('gm.contracts.draft_default_length')));
+        $length ??= self::defaultLength();
+        $quote = $this->pricing->quote($wrestler->wrestler, $length);
 
-        if ($save->brand($brand)->budget < $quote['upfront']) {
-            throw new GameRuleException("Not enough budget to sign {$wrestler->name()}.");
+        if ($this->availableBudget($save, $brand) < $quote['total']) {
+            throw new GameRuleException("Not enough budget to sign {$wrestler->name()} for {$length->label()}.");
         }
 
         $number = DraftPick::where('save_id', $save->id)->where('season', $save->current_season)->where('phase', DraftPhase::Initial)->count() + 1;
@@ -120,9 +123,30 @@ class DraftService
             'pick_type' => $type,
         ]);
 
-        $this->contracts->signDrafted($save, $wrestler, $brand, $save->current_week);
+        $this->contracts->signDrafted($save, $wrestler, $brand, $save->current_week, $length, checkBudget: false);
 
         return $pick;
+    }
+
+    public static function defaultLength(): ContractLength
+    {
+        return ContractLength::from((int) config('gm.contracts.draft_default_length'));
+    }
+
+    /**
+     * House rule (2026-11-15): salaries are paid weekly, so drafting doesn't
+     * touch the budget. What's left to draft with is the budget minus the
+     * full value of every contract the brand holds.
+     */
+    public function availableBudget(Save $save, Brand $brand): int
+    {
+        $committed = (int) Contract::where('save_id', $save->id)
+            ->where('brand', $brand)
+            ->where('status', ContractStatus::Active)
+            ->get()
+            ->sum(fn (Contract $c): int => $c->remainingValue());
+
+        return $save->brand($brand)->budget - $committed;
     }
 
     /**
@@ -130,16 +154,16 @@ class DraftService
      * superstar or Diva from the pool, among those the brand can afford.
      * Legends can't be drafted, so they're left out.
      */
-    public function randomPick(Save $save, Brand $brand): DraftPick
+    public function randomPick(Save $save, Brand $brand, ?ContractLength $length = null): DraftPick
     {
-        $budget = $save->brand($brand)->budget;
-        $length = ContractLength::from((int) config('gm.contracts.draft_default_length'));
+        $budget = $this->availableBudget($save, $brand);
+        $length ??= self::defaultLength();
         $pool = $this->roster->freeAgentsQuery($save, $save->current_week)
             ->with('wrestler')
             ->orderBy('id')
             ->get()
             ->filter(fn (SaveWrestler $w): bool => $w->wrestler->isDraftable()
-                && $this->pricing->quote($w->wrestler, $length)['upfront'] <= $budget)
+                && $this->pricing->quote($w->wrestler, $length)['total'] <= $budget)
             ->values();
 
         if ($pool->isEmpty()) {
@@ -149,7 +173,7 @@ class DraftService
         $number = $this->picksMade($save, $brand) + 1;
         $wrestler = $save->rng("draft.random.{$brand->value}.{$number}", 0)->pick($pool->all());
 
-        return $this->pick($save, $brand, $wrestler, DraftPickType::Random);
+        return $this->pick($save, $brand, $wrestler, DraftPickType::Random, $length);
     }
 
     /**
@@ -192,13 +216,15 @@ class DraftService
             return ['pick' => null, 'ai_turn' => false];
         }
 
-        $wrestler = $this->ai->draftPick($save, $brand, $this->picksMade($save, $brand) + 1);
+        $number = $this->picksMade($save, $brand) + 1;
+        $wrestler = $this->ai->draftPick($save, $brand, $number);
         $pick = null;
 
         if ($wrestler === null) {
             $this->finish($save, $brand);
         } else {
-            $pick = $this->pick($save, $brand, $wrestler, DraftPickType::Random);
+            // House rule (2026-11-15): the rival signs each pick for a random length.
+            $pick = $this->pick($save, $brand, $wrestler, DraftPickType::Random, $this->ai->draftLength($save, $brand, $number));
         }
 
         $next = $this->nextBrand($save);
@@ -212,8 +238,8 @@ class DraftService
 
     /**
      * "Use WWE roster": skip the draft. Each brand signs everyone the
-     * catalog places on it, on the same contract and fee as a draft pick,
-     * and the save moves on to championship assignment.
+     * catalog places on it for 6 months (house rule, 2026-11-15), and the
+     * save moves on to championship assignment.
      */
     public function signWweRosters(Save $save): void
     {
@@ -226,7 +252,7 @@ class DraftService
         foreach ($wrestlers as $wrestler) {
             /** @var Brand $brand */
             $brand = $wrestler->wrestler->placeholder_brand;
-            $this->contracts->signDrafted($save, $wrestler, $brand, $save->current_week);
+            $this->contracts->signDrafted($save, $wrestler, $brand, $save->current_week, ContractLength::from((int) config('gm.contracts.wwe_roster_length')), checkBudget: false);
         }
 
         foreach (Brand::cases() as $brand) {

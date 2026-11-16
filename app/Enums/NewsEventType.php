@@ -51,6 +51,7 @@ enum NewsEventType: string
     case LoserLeaves = 'loser_leaves';
     case TradeCompleted = 'trade_completed';
     case RedraftPick = 'redraft_pick';
+    case RedraftResults = 'redraft_results';
     case Injury = 'injury';
     case InjuryEscalated = 'injury_escalated';
     case InjuryReturn = 'injury_return';
@@ -68,6 +69,9 @@ enum NewsEventType: string
     case MatchResult = 'match_result';
     case MainEventHypeResult = 'main_event_hype_result';
     case PromoResult = 'promo_result';
+    // House rule (2026-11-15): Call-out promos, as a face or a heel.
+    case CallOutFace = 'call_out_face';
+    case CallOutHeel = 'call_out_heel';
     case ContractExpiring = 'contract_expiring';
     case RivalryMilestone = 'rivalry_milestone';
 
