@@ -637,9 +637,13 @@ return [
     ],
 
     'news' => [
-        'win_streaks' => [3, 5, 10],
+        // House rule (2026-11-17): a win streak makes the news at 10 wins,
+        // then at 15 and every 5 after (20, 25…), always as a headline. A
+        // snapped streak makes the news only when it had reached 10.
+        'win_streak_from' => 10,
+        'win_streak_every' => 5,
         'win_streak_headline_at' => 10,
-        'streak_snapped_min' => 5,
+        'streak_snapped_min' => 10,
         'losing_streak_min' => 4,
         'reign_milestones' => [10, 25, 52],
         'ppv_upcoming_weeks' => [2, 1],

@@ -573,7 +573,7 @@ class ShowResolver
 
         $brand = $wrestler->brand ?? NewsBrand::Both;
 
-        if ($won && in_array($wrestler->win_streak, (array) config('gm.news.win_streaks'), true)) {
+        if ($won && self::isStreakMilestone($wrestler->win_streak)) {
             $headline = $wrestler->win_streak >= (int) config('gm.news.win_streak_headline_at');
             $this->news->record($save, NewsEventType::WinStreak, $headline ? NewsTier::Headline : NewsTier::Story, $brand, [
                 'wrestler' => $wrestler->name(),
@@ -607,5 +607,17 @@ class ShowResolver
     private function namesOf(MatchSlot $slot, array $ids): string
     {
         return $this->factions->name($slot->show->save_id, $ids, $slot->show->week_number, $slot->sides());
+    }
+
+    /**
+     * Whether a win streak makes the news (house rule, 2026-11-17): at 10
+     * wins, then 15 and every 5 after.
+     */
+    public static function isStreakMilestone(int $streak): bool
+    {
+        $from = (int) config('gm.news.win_streak_from');
+        $every = max(1, (int) config('gm.news.win_streak_every'));
+
+        return $streak >= $from && ($streak - $from) % $every === 0;
     }
 }

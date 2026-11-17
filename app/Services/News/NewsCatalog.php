@@ -39,8 +39,8 @@ class NewsCatalog
         'match_result' => ['group' => 'Matches', 'card' => 'either', 'tier' => 'Story, ranked PPV → title → main event → gimmick (DQ and count-out wins lower). The biggest match leads a brand with no headline. A DQ or count-out win, or a decisive win by someone who went in with a minor injury, has its own wording'],
         'main_event_hype_result' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline (worded by the Main Event Hype promo story)'],
         'interference_finish' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Story'],
-        'win_streak' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Story at 3 and 5 wins, Headline at 10'],
-        'streak_snapped' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline'],
+        'win_streak' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline at 10 wins, then 15, 20, 25…'],
+        'streak_snapped' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline, a streak of 10+ wins'],
         'losing_streak' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Ticker'],
         'upset_win' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Story', 'active' => false],
 
