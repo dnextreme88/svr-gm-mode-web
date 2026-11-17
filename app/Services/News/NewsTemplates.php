@@ -14,7 +14,7 @@ class NewsTemplates
      * @var array<string, string>
      */
     private const TEMPLATES = [
-        'title_change' => 'A new {title} was crowned!',
+        'title_change' => 'New owner of the {title} was crowned!',
         'title_change.legacy' => 'NEW CHAMPION! {winner} defeats {loser} for the {title} at {show}!',
         'title_retained' => 'A successful {title} defense',
         'retained_by_dq' => '{champion} keeps the gold on a technicality',
@@ -22,7 +22,7 @@ class NewsTemplates
         'last_chance_result' => 'Last chance for {contender}',
         'champion_survived_challenge' => '{champion} survives the challenge',
         'winner_takes_all' => 'WINNER TOOK ALL: {winner}!',
-        'winner_takes_all.celebrate' => 'WINNER TAKES ALL: {winner}!',
+        'winner_takes_all.celebrate' => 'Multi-belt owner spotlight: {winner}!',
         'winner_takes_all.revenge' => 'Revenge vowed after Winner Takes All',
         'number_one_contender' => 'New #1 contender: {contender}!',
         'number_one_contender.fired_up' => 'A fiery win for the new #1 contender: {contender}!',
@@ -30,7 +30,7 @@ class NewsTemplates
         'number_one_contender.fans' => '{contender} celebrates with the fans',
         'contendership_voided' => '#1 contendership called off',
         'contender_awarded_title' => '{contenders} awarded the vacant title',
-        'title_vacated' => 'The {title} is vacant',
+        'title_vacated' => 'The {title} is up for grabs',
         'title_awarded' => '{wrestler} was named new champion',
         'reign_milestone' => '{champion} hits {weeks} weeks as champion',
         'record_broken' => 'New record for the {title_short}!',
