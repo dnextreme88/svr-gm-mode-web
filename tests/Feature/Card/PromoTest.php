@@ -110,9 +110,10 @@ it('gambles Merchandise Sponsorship: a drawn payout, paid only on a success', fu
 it('draws Merchandise’s chance and payout separately, each with equal odds', function () {
     $chances = [];
     $payouts = [];
+    $save = GameBuilder::newSave();
 
     foreach (range(1, 80) as $i) {
-        $deal = app(PromoService::class)->merchandiseTier(GameBuilder::newSave()->rng("merch.{$i}"));
+        $deal = app(PromoService::class)->merchandiseTier($save->rng("merch.{$i}"));
         $chances[(string) $deal['chance']] = true;
         $payouts[$deal['amount']] = true;
     }

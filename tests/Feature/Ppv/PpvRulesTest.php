@@ -381,7 +381,7 @@ describe('re-draft', function () {
             ->and($save->refresh()->stage)->toBe(SaveStage::InSeason);
     });
 
-    it('swaps 5 non-champions each way, alternating, keeping contracts and roster sizes (house rule, 2026-11-15)', function () {
+    it('swaps non-champions each way, alternating, keeping contracts and roster sizes (5 a brand here; the game uses 10)', function () {
         $save = redraftSave(Brand::Smackdown);
         $batista = GameBuilder::wrestler($save, 'Batista');
         $sizes = [Brand::Raw->value => SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Raw)->count(), Brand::Smackdown->value => SaveWrestler::where('save_id', $save->id)->where('brand', Brand::Smackdown)->count()];

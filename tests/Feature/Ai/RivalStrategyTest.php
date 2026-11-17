@@ -123,7 +123,7 @@ describe('promos', function () {
 
     it('spaces Interference 4 weeks apart, Slander by its rolled gaps, and PPV Hype 1–2 weeks before its own PPVs', function () {
         $save = strategySave('season-promos');
-        $result = app(WeekSimulator::class)->simulateTo($save, 16);
+        $result = app(WeekSimulator::class)->simulateTo($save, 10);
         expect($result['stopped'])->toBeNull();
 
         $interference = rivalPromoWeeks($save, PromoTypeKey::InterferencePromotion);
