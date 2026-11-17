@@ -36,6 +36,7 @@ import { requestJson } from '@/lib/http';
 import { saveVisit, slotSaveKey } from '@/lib/save-status';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
+import type { Brand } from '@/types/enums';
 import type {
     CardShow,
     CardSlot,
@@ -130,6 +131,20 @@ export default function CardPage() {
     // Where "Book it now" puts an owed title match: the first empty slot of
     // the player's, else the last one.
     const ownSlots = slots.filter((s) => !s.fixed_kind && !s.locked);
+    // House rule (2026-11-17): on an interbrand card the rival's own title
+    // and stipulation show on its slots, in the rival's brand colour.
+    const slotAt = (position: number) =>
+        slots.find((s) => s.position === position);
+    const rivalOf = (brand?: Brand | null) =>
+        brand && brand !== game.player_brand ? brand : null;
+    const rivalStipulationAt = (position: number) => {
+        const slot = slotAt(position);
+        const brand = rivalOf(slot?.stipulation_brand);
+
+        return slot?.stipulation && brand
+            ? { titles: slot.stipulation_title_names ?? [], brand }
+            : null;
+    };
     const reminderSlot =
         ownSlots.find((s) => s.match_type_id === null) ?? ownSlots.at(-1);
     const briefcase = title_context.briefcase;
@@ -358,6 +373,10 @@ export default function CardPage() {
                         }
                         context={title_context}
                         roster={rosterById}
+                        bookedTitleName={slotAt(draft.position)?.title_name}
+                        rivalBrand={rivalOf(
+                            slotAt(draft.position)?.title_brand,
+                        )}
                         readOnly={!booking || draft.fixed}
                         onChange={update}
                     />
@@ -468,6 +487,7 @@ export default function CardPage() {
                 }}
                 renderActions={(draft, update, drafts) => (
                     <StipulationPicker
+                        rivalStipulation={rivalStipulationAt(draft.position)}
                         takenTitleIds={[
                             ...drafts
                                 .filter((d) => d.position !== draft.position)

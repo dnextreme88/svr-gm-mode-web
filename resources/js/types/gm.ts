@@ -153,6 +153,13 @@ export type CardSlot = {
     managers: Record<string, number>;
     referee_id?: number | null;
     title_championship_id: number | null;
+    /** The title on the line, by name (the rival's own on interbrand cards). */
+    title_name?: string | null;
+    /** The brand that title belongs to. */
+    title_brand?: import('./enums').Brand | null;
+    /** The stipulation's title(s) by name, and the brand that booked it. */
+    stipulation_title_names?: string[];
+    stipulation_brand?: import('./enums').Brand | null;
     stipulation: import('./enums').Stipulation | null;
     stipulation_championship_id: number | null;
     /** House rule: a Winner Takes All match's contested titles. */
