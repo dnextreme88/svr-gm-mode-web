@@ -11,8 +11,8 @@ use Tests\Support\FixedOutcomes;
 use Tests\Support\GameBuilder;
 
 /*
-| House rule (2026-11-17): a win streak makes the news at 10 wins, then 15
-| and every 5 after; a snapped streak only when it had reached 10.
+| House rule (2026-11-17): a win streak makes the news at 10, 15 and 20 wins
+| only; a snapped streak only when it had reached 10.
 */
 
 function streakWeek(string $winner, int $edgeStreak): Save
@@ -33,10 +33,10 @@ function streakNews(Save $save, NewsEventType $type): ?NewsEvent
     return NewsEvent::where('save_id', $save->id)->where('type', $type)->first();
 }
 
-it('marks 10, 15, 20 and 25 wins as milestones, and nothing below 10', function () {
-    $milestones = array_values(array_filter(range(1, 26), fn (int $n) => ShowResolver::isStreakMilestone($n)));
+it('marks only 10, 15 and 20 wins as milestones', function () {
+    $milestones = array_values(array_filter(range(1, 40), fn (int $n) => ShowResolver::isStreakMilestone($n)));
 
-    expect($milestones)->toBe([10, 15, 20, 25]);
+    expect($milestones)->toBe([10, 15, 20]);
 });
 
 it('makes a 10-win streak a headline', function () {

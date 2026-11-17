@@ -610,14 +610,11 @@ class ShowResolver
     }
 
     /**
-     * Whether a win streak makes the news (house rule, 2026-11-17): at 10
-     * wins, then 15 and every 5 after.
+     * Whether a win streak makes the news (house rule, 2026-11-17): at 10,
+     * 15 and 20 wins, and no more after that.
      */
     public static function isStreakMilestone(int $streak): bool
     {
-        $from = (int) config('gm.news.win_streak_from');
-        $every = max(1, (int) config('gm.news.win_streak_every'));
-
-        return $streak >= $from && ($streak - $from) % $every === 0;
+        return in_array($streak, array_map('intval', (array) config('gm.news.win_streaks')), true);
     }
 }
