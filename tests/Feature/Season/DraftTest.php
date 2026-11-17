@@ -100,7 +100,7 @@ it('caps each brand at 30 picks and sends everyone undrafted to Free Agency', fu
         ->and($save->stage)->toBe(SaveStage::AssigningTitles);
 });
 
-it('starts draftees Happy on a contract paid weekly, out of what’s left to draft with', function () {
+it('starts draftees Happy on a contract paid in full when drafted (house rule, 2026-11-17)', function () {
     $save = GameBuilder::newSave();
     $brand = Brand::from($save->draft_order[0]);
     $wrestler = SaveWrestler::with('wrestler')->where('save_id', $save->id)->orderBy('id')->first();
@@ -109,13 +109,12 @@ it('starts draftees Happy on a contract paid weekly, out of what’s left to dra
     $contract = $wrestler->refresh()->activeContract;
     $total = $wrestler->wrestler->monthly_salary * 12;
 
-    // House rule (2026-11-15): nothing up front; the contract's value is committed.
     expect($wrestler->morale)->toBe(Morale::Happy)
         ->and($contract?->weeks_remaining)->toBe(52)
-        ->and($contract?->upfront_fee)->toBe(0)
+        ->and($contract?->upfront_fee)->toBe($total)
         ->and($contract?->weekly_cost)->toBe((int) round($total / 52))
-        ->and($save->brand($brand)->budget)->toBe(15_000_000)
-        ->and(app(DraftService::class)->availableBudget($save, $brand))->toBe(15_000_000 - $contract->remainingValue());
+        ->and($save->brand($brand)->budget)->toBe(15_000_000 - $total)
+        ->and(app(DraftService::class)->availableBudget($save, $brand))->toBe(15_000_000 - $total);
 });
 
 it('signs a pick for the length chosen (house rule, 2026-11-15)', function () {
@@ -125,9 +124,9 @@ it('signs a pick for the length chosen (house rule, 2026-11-15)', function () {
 
     app(DraftService::class)->pick($save, $brand, $wrestler, length: ContractLength::NineMonths);
 
-    // A male superstar's 9 months: $180,000, paid over 36 weeks.
+    // A male superstar's 9 months: $360,000, paid over 36 weeks (salaries raised 2026-11-17).
     expect($wrestler->refresh()->activeContract?->length_weeks)->toBe(36)
-        ->and($wrestler->activeContract?->weekly_cost)->toBe(5_000);
+        ->and($wrestler->activeContract?->weekly_cost)->toBe(10_000);
 });
 
 it('refuses a pick the brand can’t cover', function () {
@@ -157,18 +156,22 @@ describe('Use WWE roster (house rule)', function () {
             ->and($this->save->refresh()->stage)->toBe(SaveStage::AssigningTitles);
     });
 
-    it('signs everyone for 6 months, paid weekly (house rule, 2026-11-15)', function () {
+    it('signs everyone for 6 months, paid in full in week 1 (house rule, 2026-11-17)', function () {
         foreach (Brand::cases() as $brand) {
-            expect(LedgerEntry::where('save_id', $this->save->id)->where('brand', $brand)->where('category', LedgerCategory::SigningFee)->count())->toBe(0)
-                ->and($this->save->brand($brand)->budget)->toBe(15_000_000);
+            $paid = (int) LedgerEntry::where('save_id', $this->save->id)->where('brand', $brand)->where('category', LedgerCategory::SigningFee)->sum('amount');
+
+            expect(LedgerEntry::where('save_id', $this->save->id)->where('brand', $brand)->where('category', LedgerCategory::SigningFee)->count())->toBe(30)
+                ->and(LedgerEntry::where('save_id', $this->save->id)->where('brand', $brand)->where('category', LedgerCategory::SigningFee)->pluck('week_number')->unique()->all())->toBe([1])
+                ->and($paid)->toBeLessThan(0)
+                ->and($this->save->brand($brand)->budget)->toBe(15_000_000 + $paid);
         }
 
         $wrestler = GameBuilder::wrestler($this->save, 'John Cena');
 
         expect($wrestler->morale)->toBe(Morale::Happy)
             ->and($wrestler->activeContract?->weeks_remaining)->toBe(24)
-            // A male superstar's 6 months: $120,000 over 24 weeks.
-            ->and($wrestler->activeContract?->weekly_cost)->toBe(5_000)
+            // A male superstar's 6 months: $240,000 over 24 weeks.
+            ->and($wrestler->activeContract?->weekly_cost)->toBe(10_000)
             ->and(GameBuilder::wrestler($this->save, 'Stacy Keibler')->brand)->toBe(Brand::Smackdown)
             ->and(GameBuilder::wrestler($this->save, 'Sylvain Grenier')->brand)->toBeNull();
     });

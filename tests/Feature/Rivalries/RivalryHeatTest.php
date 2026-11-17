@@ -162,7 +162,7 @@ it('ends a rivalry the week after it reaches 100, with a headline', function () 
 
     expect($rivalry->refresh()->active)->toBeFalse()
         ->and($rivalry->ended_week)->toBe(3)
-        ->and($news->rendered_text)->toBe('A rivalry reaches its end')
+        ->and($news->rendered_text)->toBe('A heated rivalry has its end')
         ->and(app(NewsTemplates::class)->summary($news->type, $news->payload))->toContain('Edge')
         ->and(app(NewsTemplates::class)->summary($news->type, $news->payload))->toContain('Kane')
         ->and($news->tier->value)->toBe('headline');

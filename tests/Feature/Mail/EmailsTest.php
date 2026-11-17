@@ -223,7 +223,7 @@ it('has Vince remind both brands 2 weeks before each shared PPV', function () {
     expect($raw->pluck('week_number')->all())->toBe([19, 33, 42, 50])
         ->and($raw->pluck('sender')->unique()->all())->toBe(['Vince McMahon'])
         ->and($raw[0]->body)->toContain('most fans')
-        ->and($raw[1]->body)->toContain('Traditional 3 vs 3')
+        ->and($raw[1]->body)->toContain('Traditional 5 vs 5')
         ->and($raw[2]->body)->toContain('main event of WrestleMania')
         ->and($raw[3]->body)->toContain('immunity tag')
         ->and(inbox($save, EmailTemplate::PpvReminder, Brand::Smackdown))->toHaveCount(4);

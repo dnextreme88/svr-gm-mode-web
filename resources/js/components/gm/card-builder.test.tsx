@@ -150,6 +150,14 @@ const matchTypes = [
         sides: [1, 1, 1, 1, 1, 1],
         titles_allowed: false,
     }),
+    type({
+        id: 10,
+        name: 'Gauntlet — Tornado Tag Turmoil',
+        family: 'gauntlet',
+        variant: 'Tornado Tag Turmoil',
+        sides: [2, 2, 2, 2, 2],
+        titles_allowed: false,
+    }),
 ];
 
 function wrestler(
@@ -212,6 +220,7 @@ const familyLabel: Record<number, string> = {
     7: 'Hell In A Cell',
     8: 'Ladder',
     9: 'Gauntlet',
+    10: 'Gauntlet',
 };
 
 function escapeRe(text: string): string {
@@ -541,6 +550,38 @@ describe('CardBuilder', () => {
             '6th Participant',
         ]);
         expect(screen.queryByText('Captain')).toBeNull();
+    });
+
+    it('lays a Tornado Tag Turmoil out as 5 teams in one row, both members labelled by the team’s order', async () => {
+        const { pickType } = setup();
+
+        await pickType(1, 10);
+
+        const ordinals = [
+            '1st Participant',
+            '2nd Participant',
+            '3rd Participant',
+            '4th Participant',
+            '5th Participant',
+        ];
+
+        expect(
+            [0, 1, 2, 3, 4].map(
+                (side) => screen.getByTestId(`entrant-1-${side}`).textContent,
+            ),
+        ).toEqual(ordinals);
+        expect(
+            [0, 1, 2, 3, 4].map(
+                (side) => screen.getByTestId(`entrant-1-${side}-1`).textContent,
+            ),
+        ).toEqual(ordinals);
+        // One row: the 5 teams with a "vs" between each.
+        expect(screen.queryByTestId('sides-1-row-1')).toBeNull();
+        expect(
+            screen.getByTestId('sides-1-row-0').style.gridTemplateColumns,
+        ).toContain(
+            'minmax(0,1fr) 2.5rem minmax(0,1fr) 2.5rem minmax(0,1fr) 2.5rem minmax(0,1fr) 2.5rem minmax(0,1fr)',
+        );
     });
 
     it('labels no entrants outside a Gauntlet', async () => {

@@ -90,9 +90,11 @@ class RosterController extends Controller
             ])
             ->values();
 
-        // What each early release cost (house rule, 2026-11-15).
+        // What each early release refunded (house rule, 2026-11-17; release
+        // fees before that), shown on the contract history.
         $releaseFees = LedgerEntry::where('save_id', $save->id)
-            ->where('category', LedgerCategory::ReleaseFee)
+            ->whereIn('category', [LedgerCategory::ContractRefund, LedgerCategory::ReleaseFee])
+            ->where('memo', 'like', 'Released%')
             ->where('subject_type', (new Contract)->getMorphClass())
             ->pluck('amount', 'subject_id');
 

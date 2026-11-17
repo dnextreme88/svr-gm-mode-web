@@ -39,6 +39,7 @@ class LedgerEntry extends Model
         return [
             'brand' => Brand::class,
             'category' => LedgerCategory::class,
+            'settled' => 'boolean',
             'amount' => 'integer',
         ];
     }

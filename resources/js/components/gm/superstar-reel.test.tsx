@@ -32,6 +32,10 @@ describe('SuperstarReel', () => {
             screen.getByRole('dialog', { name: 'Re-draft pick 2' }),
         ).toBeInTheDocument();
         expect(screen.getByText('Smackdown is drafting…')).toBeInTheDocument();
+        // The spinning line pulses (2026-11-17); the landed one doesn't.
+        expect(screen.getByText('Smackdown is drafting…').className).toContain(
+            'animate-gm-pulse',
+        );
 
         const seen = new Set<string | null>();
 
@@ -53,6 +57,9 @@ describe('SuperstarReel', () => {
             vi.advanceTimersByTime(800);
         });
         expect(screen.getByText('Smackdown drafts Kane!')).toBeInTheDocument();
+        expect(
+            screen.getByText('Smackdown drafts Kane!').className,
+        ).not.toContain('animate-gm-pulse');
         expect(screen.getByTestId('superstar-reel-face')).toHaveAttribute(
             'data-face',
             '2',

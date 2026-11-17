@@ -26,12 +26,17 @@ enum LedgerCategory: string
     case ReleaseFee = 'release_fee';
     case AttendanceBonus = 'attendance_bonus';
     case InterferenceResult = 'interference_result';
+    // House rule (2026-11-17): contracts are paid in full when signed;
+    // releasing early or renegotiating gives back the unused weeks.
+    case ContractRefund = 'contract_refund';
 
     public function label(): string
     {
         return match ($this) {
             self::LoserLeavesRefund => 'Loser Leaves Show refund',
             self::ContractUpkeep => 'Superstar salaries',
+            self::SigningFee => 'Contract signing',
+            self::ContractRefund => 'Contract refund',
             self::ShowIncome => 'Fan attendance gate',
             self::ShowProduction => 'Show production',
             self::AttendanceBonus => 'Fan attendance bonus',

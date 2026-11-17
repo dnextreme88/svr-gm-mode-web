@@ -51,7 +51,7 @@ class RedraftController extends Controller
             ...WrestlerPresenter::row($w, $week, $injuries, $reigns),
             'locked' => match (true) {
                 in_array($w->id, $champions, true) => 'Champion',
-                $w->id === $series->exemption_wrestler_id => 'Immune',
+                in_array($w->id, $series->exemptIds(), true) => 'Immune',
                 in_array($w->id, $drafted, true) => 'Drafted',
                 default => null,
             },
@@ -61,12 +61,20 @@ class RedraftController extends Controller
             'phase' => $this->redraft->phase($save, $series),
             'series' => [
                 'season' => $series->season,
+                // When the career was created: with its id and the season it
+                // keys what this browser has seen (the rules modal, the
+                // rival's tag reels), so a rebuilt career reusing an id
+                // starts fresh (fix, 2026-11-17).
+                'career' => $save->created_at->timestamp,
                 'raw_wins' => $series->raw_wins,
                 'smackdown_wins' => $series->smackdown_wins,
                 'winner_brand' => $series->winner_brand?->value,
                 'immunity_brand' => $series->immunity_brand?->value,
-                'exemption_wrestler_id' => $series->exemption_wrestler_id,
-                'handpick_wrestler_id' => $series->handpick_wrestler_id,
+                'exemption_wrestler_ids' => $series->exemptIds(),
+                'handpick_wrestler_ids' => $series->handpickIds(),
+                // House rule (2026-11-17): how many each tag takes this time.
+                'immunity_needed' => $this->redraft->immunityNeeded($save, $series),
+                'manual_needed' => $this->redraft->manualNeeded($save, $series),
                 'crowds' => $this->redraft->crowds($save, $series),
             ],
             'rosters' => [
@@ -82,9 +90,9 @@ class RedraftController extends Controller
     public function immunity(Request $request, Save $save): RedirectResponse
     {
         $this->assertRunning($save);
-        $data = $request->validate(['save_wrestler_id' => ['required', 'integer']]);
+        $data = $request->validate(['save_wrestler_ids' => ['required', 'array', 'min:1'], 'save_wrestler_ids.*' => ['integer']]);
 
-        DB::transaction(fn () => $this->redraft->setImmunity($save, (int) $data['save_wrestler_id']));
+        DB::transaction(fn () => $this->redraft->setImmunity($save, array_values(array_map('intval', $data['save_wrestler_ids']))));
 
         return back();
     }
@@ -92,9 +100,9 @@ class RedraftController extends Controller
     public function handpick(Request $request, Save $save): RedirectResponse
     {
         $this->assertRunning($save);
-        $data = $request->validate(['save_wrestler_id' => ['required', 'integer']]);
+        $data = $request->validate(['save_wrestler_ids' => ['required', 'array', 'min:1'], 'save_wrestler_ids.*' => ['integer']]);
 
-        DB::transaction(fn () => $this->redraft->setHandpick($save, (int) $data['save_wrestler_id']));
+        DB::transaction(fn () => $this->redraft->setHandpick($save, array_values(array_map('intval', $data['save_wrestler_ids']))));
 
         return back();
     }

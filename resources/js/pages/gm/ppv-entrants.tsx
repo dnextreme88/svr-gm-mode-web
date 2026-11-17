@@ -52,7 +52,7 @@ export default function PpvEntrants() {
                 kicker={
                     rumble
                         ? '30-man interbrand Royal Rumble'
-                        : 'Traditional 3 vs 3 Elimination'
+                        : 'Traditional 5 vs 5 Elimination'
                 }
                 title={show.name}
             >
@@ -104,7 +104,7 @@ export default function PpvEntrants() {
                         </button>
                     </>
                 )}
-                {/* The Rumble and the 3 vs 3 are Match 7 of their PPV's card
+                {/* The Rumble and the 5 vs 5 are Match 7 of their PPV's card
                     (house rule, 2026-11-15). */}
                 <Link
                     href={gm.card.show.url({ save: game.id, show: show.id })}

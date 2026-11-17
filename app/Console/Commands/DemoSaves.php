@@ -27,6 +27,7 @@ use App\Services\Attendance\SummerSlamMainEvent;
 use App\Services\Calendar\CalendarService;
 use App\Services\Contracts\ContractPricing;
 use App\Services\Contracts\ContractService;
+use App\Services\Game\CareerCheckpoint;
 use App\Services\Game\NewGameService;
 use App\Services\Ppv\PpvCardService;
 use App\Services\Ppv\ReDraftService;
@@ -96,6 +97,8 @@ class DemoSaves extends Command
         foreach ($careers as $build) {
             try {
                 $save = $build();
+                // Saved as built: loading it from Saved careers comes back here.
+                app(CareerCheckpoint::class)->capture($save);
             } catch (GameRuleException $e) {
                 $this->error($e->getMessage());
 
@@ -271,6 +274,12 @@ class DemoSaves extends Command
         $winner->refresh();
         $brand = $winner->brand ?? throw new GameRuleException("{$winner->name()} has no brand at the Royal Rumble.");
 
+        // A sit-out (a blocked defection) would keep him off the card; clear
+        // it before the entrants are drawn so he's in the pool.
+        if ($winner->unbookable_until_week !== null && $winner->unbookable_until_week > $week) {
+            $winner->update(['unbookable_until_week' => null]);
+        }
+
         foreach (Brand::cases() as $side) {
             if (! $this->ppvCards->entrantsSet($rumble, $side)) {
                 $rng = $save->rng("demo.entrants.{$side->value}", $week);
@@ -288,7 +297,10 @@ class DemoSaves extends Command
             ->all();
 
         if (! in_array($winner->id, $theirs, true)) {
-            array_pop($theirs);
+            if (count($theirs) >= $this->ppvCards->rumbleEntrantsFor($rumble, $brand)) {
+                array_pop($theirs);
+            }
+
             $this->ppvCards->setEntrants($rumble, $brand, [...$theirs, $winner->id]);
         }
 

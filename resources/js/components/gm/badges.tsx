@@ -18,7 +18,7 @@ export function MoraleBadge({ morale }: { morale: Morale }) {
         <span
             data-morale={morale}
             className={cn(
-                'inline-flex items-center px-2 py-0.5 font-condensed text-xs font-bold tracking-wider uppercase ring-1',
+                'inline-flex items-center px-2 py-0.5 font-condensed text-sm font-bold tracking-wider uppercase ring-1',
                 moraleStyles[morale],
             )}
         >

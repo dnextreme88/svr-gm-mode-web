@@ -55,7 +55,6 @@ type Props = GamePageProps & {
     balance?: number;
     statement: Statement;
     history: HistoryRow[];
-    weekly_upkeep?: number;
     deficit_choices: string[];
 };
 
@@ -251,7 +250,7 @@ function StatementRow({ row }: { row: ReturnType<typeof rowsOf>[number] }) {
 }
 
 export default function Financials() {
-    const { game, statement, history, weekly_upkeep, deficit_choices } =
+    const { game, statement, history, deficit_choices } =
         usePage<Props>().props;
     const props = usePage<Props>().props;
     const brand = props.brand ?? game.player_brand;
@@ -471,14 +470,6 @@ export default function Financials() {
                         value={formatMoney(Math.abs(statement.expenses))}
                     />
                 </Panel>
-                {weekly_upkeep !== undefined && (
-                    <Panel>
-                        <Stat
-                            label="Salaries per week"
-                            value={formatMoney(weekly_upkeep)}
-                        />
-                    </Panel>
-                )}
             </div>
 
             {(statement.starting_budget ?? 0) > 0 && (

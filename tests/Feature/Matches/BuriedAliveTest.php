@@ -84,7 +84,7 @@ it('never injures the loser, even at 100% fatigue, but the winner can still get 
         ->and(Injury::where('save_wrestler_id', GameBuilder::wrestler($save, 'Undertaker')->id)->value('severity'))->toBe(InjurySeverity::Serious);
 });
 
-it("pauses the loser's contract and upkeep while buried, then resumes", function () {
+it("pauses the loser's contract while buried, then resumes", function () {
     $save = buriedAliveCard();
     $kane = GameBuilder::wrestler($save, 'Kane');
     $taker = GameBuilder::wrestler($save, 'Undertaker');
@@ -96,20 +96,17 @@ it("pauses the loser's contract and upkeep while buried, then resumes", function
     expect(activeWeeksLeft($kane))->toBe($kaneBefore - 1);
 
     foreach (range(noMercyWeek() + 1, noMercyWeek() + 4) as $week) {
-        $expected = expectedUpkeep($save, $week, except: $kane);
         buryWeek($save);
-        expect(upkeepFor($save, $week))->toBe($expected);
     }
 
     expect(activeWeeksLeft($kane))->toBe($kaneBefore - 1)
         ->and(activeWeeksLeft($taker))->toBe($takerBefore - 5);
 
-    $back = noMercyWeek() + 5;
-    $expected = expectedUpkeep($save, $back);
     buryWeek($save);
 
-    expect(activeWeeksLeft($kane))->toBe($kaneBefore - 2)
-        ->and(upkeepFor($save, $back))->toBe($expected);
+    // House rule (2026-11-17): contracts are paid when signed, so there's no
+    // weekly salary to pause; only the contract's clock stops.
+    expect(activeWeeksLeft($kane))->toBe($kaneBefore - 2);
 });
 
 /**

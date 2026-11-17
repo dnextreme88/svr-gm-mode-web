@@ -21,6 +21,8 @@ $six = [1, 1, 1, 1, 1, 1];
 $tag = [2, 2];
 $sixTag = [3, 3];
 $ttTag = [2, 2, 2];
+$fiveTag = [5, 5];
+$turmoil = [2, 2, 2, 2, 2];
 
 $rumble = fn (int $n): array => array_fill(0, $n, 1);
 
@@ -89,6 +91,9 @@ return [
     ['gauntlet', '4-Man Gauntlet', $f4w, []],
     ['gauntlet', '5-Man Gauntlet', $f5w, []],
     ['gauntlet', '6-Man Gauntlet', $six, []],
+    // House rule (2026-11-17): 5 tag teams, fought as 4 tag bouts like the
+    // singles Gauntlets (each bout's winning team faces the next team).
+    ['gauntlet', 'Tornado Tag Turmoil', $turmoil, []],
 
     ['hardcore', 'Single', $one, []],
     ['hardcore', 'Single No Manager vs. w/ Manager', $one, $noMgrVsMgr],
@@ -187,5 +192,6 @@ return [
     ['royal_rumble', '30-Man', $rumble(30), [], ['ppv_exclusive' => 'royal_rumble', 'divas_allowed' => false, 'titles_allowed' => false, 'is_elimination' => true, 'win_condition' => 'Last one in the ring']],
 
     // House rule: Survivor Series exclusive, always its main event, no titles.
-    ['survivor_series_elimination', 'Traditional 3 vs 3', $sixTag, [], ['ppv_exclusive' => 'survivor_series', 'divas_allowed' => false, 'is_elimination' => true, 'titles_allowed' => false]],
+    // House rule (2026-11-17): 5 vs 5 (it was 3 vs 3).
+    ['survivor_series_elimination', 'Traditional 5 vs 5', $fiveTag, [], ['ppv_exclusive' => 'survivor_series', 'divas_allowed' => false, 'is_elimination' => true, 'titles_allowed' => false]],
 ];

@@ -269,7 +269,7 @@ class AiBooker
      * title match in its own slots. When nothing it has booked so far puts
      * a title on the line, it books one in its last open slot (else any
      * other). Which title is a roll: its world title at
-     * `gm.ai.titles.interbrand_world_chance` (75%), else one of its other
+     * `gm.ai.titles.interbrand_world_chance` (80%), else one of its other
      * titles at random. A title it can't book falls back to the rest, so a
      * title match still goes on. Careful first (nobody past the fatigue
      * limit), then aggressive if it must.

@@ -139,7 +139,8 @@ it('charges special match costs to Financials when the show airs', function () {
 
     app(WeekResolver::class)->resolve($save->refresh());
 
-    $ledger = LedgerEntry::where('save_id', $save->id)->where('brand', Brand::Raw)->where('week_number', 1)->where('category', '!=', LedgerCategory::StartingBudget);
+    // Signings were paid before $budget was read (house rule, 2026-11-17).
+    $ledger = LedgerEntry::where('save_id', $save->id)->where('brand', Brand::Raw)->where('week_number', 1)->whereNotIn('category', [LedgerCategory::StartingBudget, LedgerCategory::SigningFee]);
     $match = (clone $ledger)->where('category', LedgerCategory::MatchCost)->sole();
 
     // The Ladder match is charged with its show; the budget moves with the ledger.

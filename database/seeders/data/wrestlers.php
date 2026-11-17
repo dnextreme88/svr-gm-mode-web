@@ -225,7 +225,7 @@ $legends = [
 | Salaries (house rule, 2026-11-15): a month's pay by roster type. A
 | contract costs this × its months (1, 3, 6, 9 or 12), paid weekly.
 */
-$salary = ['superstar' => 20_000, 'diva' => 12_000, 'legend' => 45_000];
+$salary = ['superstar' => 40_000, 'diva' => 30_000, 'legend' => 75_000];
 
 $rows = [];
 

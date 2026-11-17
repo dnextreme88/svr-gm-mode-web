@@ -40,10 +40,10 @@ describe('roster (§9)', function () {
     });
 
     it('seeds a monthly salary by roster type (house rule, 2026-11-15)', function () {
-        expect(wrestler('Edge')->monthly_salary)->toBe(20_000)
-            ->and(wrestler('Trish Stratus')->monthly_salary)->toBe(12_000)
-            ->and(wrestler('Hulk Hogan')->monthly_salary)->toBe(45_000)
-            ->and(Wrestler::where('roster_type', RosterType::Diva)->pluck('monthly_salary')->unique()->all())->toBe([12_000]);
+        expect(wrestler('Edge')->monthly_salary)->toBe(40_000)
+            ->and(wrestler('Trish Stratus')->monthly_salary)->toBe(30_000)
+            ->and(wrestler('Hulk Hogan')->monthly_salary)->toBe(75_000)
+            ->and(Wrestler::where('roster_type', RosterType::Diva)->pluck('monthly_salary')->unique()->all())->toBe([30_000]);
     });
 
     it('fills each brand to the 30-wrestler roster cap', function () {
@@ -340,7 +340,7 @@ describe('PPVs (§13)', function () {
 
 describe('match types (§10)', function () {
     it('seeds the full taxonomy', function () {
-        expect(MatchType::count())->toBe(106)
+        expect(MatchType::count())->toBe(107)
             ->and(MatchType::where('family', MatchFamily::Hardcore)->count())->toBe(9)
             ->and(MatchType::where('family', MatchFamily::Ladder)->count())->toBe(10)
             ->and(MatchType::where('family', MatchFamily::BattleRoyal)->count())->toBe(3)
@@ -349,12 +349,13 @@ describe('match types (§10)', function () {
             ->and(MatchType::where('family', MatchFamily::RoyalRumble)->count())->toBe(5);
     });
 
-    it('keeps every GM-bookable type within 2–6 competitors except the 30-man Rumble', function () {
+    it('keeps every GM-bookable type within 2–6 competitors except the 30-man Rumble, Tornado Tag Turmoil and the Survivor Series 5 vs 5', function () {
         $outliers = MatchType::where('gm_bookable', true)
             ->where(fn ($q) => $q->where('max_competitors', '>', 6)->orWhere('min_competitors', '<', 2))
             ->pluck('name')->all();
 
-        expect($outliers)->toBe(['Royal Rumble — 30-Man']);
+        // House rule (2026-11-17): Tornado Tag Turmoil (10) and the Survivor Series 5 vs 5 (10).
+        expect($outliers)->toBe(['Gauntlet — Tornado Tag Turmoil', 'Royal Rumble — 30-Man', 'Traditional Survivor Series Elimination — Traditional 5 vs 5']);
     });
 
     it('assigns the PPV-exclusive matches to their PPVs', function () {
@@ -368,7 +369,7 @@ describe('match types (§10)', function () {
             'Elimination Chamber — Normal 6-Man Chamber' => 'new_years_revolution',
             'Elimination Chamber — Triple Threat Tornado Tag Chamber' => 'new_years_revolution',
             'Ladder — Money in the Bank' => 'wrestlemania',
-            'Traditional Survivor Series Elimination — Traditional 3 vs 3' => 'survivor_series',
+            'Traditional Survivor Series Elimination — Traditional 5 vs 5' => 'survivor_series',
         ]);
     });
 
@@ -541,7 +542,7 @@ it('is safe to run the catalog seeder twice', function () {
     $this->seed(CatalogSeeder::class);
 
     expect(Wrestler::count())->toBe(215)
-        ->and(MatchType::count())->toBe(106)
+        ->and(MatchType::count())->toBe(107)
         ->and(WrestlerSpecialty::count())->toBe(46);
 });
 

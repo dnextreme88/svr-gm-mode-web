@@ -28,6 +28,8 @@ type SaveSlot = {
     month: string;
     budget: number | null;
     updated_at: string | null;
+    /** Something changed since the career's last save (lost on loading). */
+    has_changes: boolean;
 };
 
 type Perk = { text: string; tone?: 'diva' | 'cruiser' };
@@ -209,6 +211,22 @@ export default function Saves({
     // it follows the who-picks-first reel; with the WWE rosters it shows
     // while the career is created.
     const [loading, setLoading] = useState(false);
+    // Loading a saved career puts it back to its last save (house rule,
+    // 2026-11-17). With progress since then, it asks first.
+    const [confirmLoad, setConfirmLoad] = useState<SaveSlot | null>(null);
+    const [opening, setOpening] = useState(false);
+    const loadCareer = (save: SaveSlot) => {
+        setConfirmLoad(null);
+        router.post(
+            gm.saves.load.url(save.id),
+            {},
+            {
+                onStart: () => setOpening(true),
+                onError: () => setOpening(false),
+                onCancel: () => setOpening(false),
+            },
+        );
+    };
     const overlayPause = () =>
         new Promise<void>((resolve) =>
             window.setTimeout(resolve, loadingOverlayDelay('new-game')),
@@ -286,6 +304,31 @@ export default function Saves({
                     }
                 />
             )}
+
+            {opening && (
+                <LoadingOverlay
+                    testId="loading-career"
+                    text="Loading your career. Please wait..."
+                />
+            )}
+
+            <ConfirmDialog
+                open={confirmLoad !== null}
+                title="Load your last save?"
+                message={
+                    confirmLoad && (
+                        <>
+                            <strong>{confirmLoad.name}</strong> goes back to its
+                            last save: Season {confirmLoad.season}, week{' '}
+                            {confirmLoad.season_week}. Anything you did after
+                            that save is lost.
+                        </>
+                    )
+                }
+                confirmLabel="Load save"
+                onCancel={() => setConfirmLoad(null)}
+                onConfirm={() => confirmLoad && loadCareer(confirmLoad)}
+            />
 
             {reel && !usesWweRoster && !loading && (
                 <FirstPickReel
@@ -511,9 +554,16 @@ export default function Saves({
                                     data-brand-tint={save.player_brand}
                                     className="flex items-center transition-colors hover:bg-white/[0.03]"
                                 >
-                                    <Link
-                                        href={gm.saves.show.url(save.id)}
-                                        className="flex min-w-0 flex-1 items-center gap-4 py-3 pl-4"
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            save.has_changes
+                                                ? setConfirmLoad(save)
+                                                : loadCareer(save)
+                                        }
+                                        disabled={opening}
+                                        data-testid={`load-career-${save.id}`}
+                                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-4 py-3 pl-4 text-left disabled:cursor-wait"
                                     >
                                         <BrandBug
                                             brand={save.player_brand}
@@ -529,6 +579,15 @@ export default function Saves({
                                                 {save.season_week} ·{' '}
                                                 {save.month}
                                             </div>
+                                            {save.has_changes && (
+                                                <div
+                                                    className="text-xs text-gold-hot"
+                                                    data-testid={`unsaved-progress-${save.id}`}
+                                                >
+                                                    Progress since this save
+                                                    isn’t saved
+                                                </div>
+                                            )}
                                         </div>
                                         {save.budget !== null && (
                                             <span
@@ -541,7 +600,7 @@ export default function Saves({
                                                 {formatMoney(save.budget)}
                                             </span>
                                         )}
-                                    </Link>
+                                    </button>
                                     <DeleteSaveButton
                                         save={save}
                                         className="mx-1 inline-flex min-h-11 min-w-11 items-center justify-center text-ink-faint transition-colors hover:text-zone-serious focus-visible:text-zone-serious"

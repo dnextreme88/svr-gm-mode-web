@@ -175,7 +175,7 @@ export function CardProgress({
 }
 
 /**
- * The card builder (§4): match type first, then 2–6 wrestlers, with fatigue
+ * The card builder (§4): match type first, then its wrestlers (2 or more), with fatigue
  * bars, projected fatigue and the injury zone each booking lands in.
  */
 export function CardBuilder({
@@ -745,7 +745,7 @@ function SlotEditor({
             {type ? (
                 <div className="space-y-3 p-4">
                     <SideGrid
-                        columns={sideColumns(draft.sides.length)}
+                        columns={sideColumns(draft.sides.length, type)}
                         count={draft.sides.length}
                         testId={`sides-${draft.position}`}
                         renderSide={(sideIndex) =>
@@ -827,7 +827,13 @@ function SlotEditor({
  * Sides per row. Up to 3 sides share one row; 4 sides go 2 × 2 and anything
  * bigger in rows of 3, so every side sits under the one above it.
  */
-function sideColumns(sides: number): number {
+function sideColumns(sides: number, type?: MatchTypeOption): number {
+    // Tornado Tag Turmoil (house rule, 2026-11-17): its 5 teams in one row,
+    // each labelled by its order ("1st Participant" vs "2nd Participant"…).
+    if (type?.family === 'gauntlet' && type.sides.every((s) => s === 2)) {
+        return sides;
+    }
+
     if (sides <= 3) {
         return sides;
     }
@@ -881,6 +887,9 @@ function SideGrid({
         { length: columns },
         () => 'minmax(0,1fr)',
     ).join(` ${VERSUS_WIDTH} `);
+    // More than 3 sides in a row (Tornado Tag Turmoil's 5 teams) only fit
+    // side by side on wide screens; below `xl` they stack like on phones.
+    const wide = columns > 3;
 
     return (
         <div className="space-y-3" data-testid={testId}>
@@ -888,12 +897,17 @@ function SideGrid({
                 <div
                     key={r}
                     data-testid={`${testId}-row-${r}`}
-                    className="flex flex-col gap-3 md:grid md:items-stretch"
+                    className={cn(
+                        'flex flex-col gap-3',
+                        wide
+                            ? 'xl:grid xl:items-stretch'
+                            : 'md:grid md:items-stretch',
+                    )}
                     style={{ gridTemplateColumns: template }}
                 >
                     {/* Stacked on small screens, rows need a "vs" between them too. */}
                     {r > 0 && (
-                        <div className="md:hidden">
+                        <div className={wide ? 'xl:hidden' : 'md:hidden'}>
                             <Versus />
                         </div>
                     )}
@@ -1079,10 +1093,15 @@ function competitorHeading(
         return { text: 'Captain', testId: `captain-${position}-${sideIndex}` };
     }
 
+    // Each entrant (or, in a Tornado Tag Turmoil, each team member) is
+    // labelled by its order: "1st Participant" vs "2nd Participant"…
     if (type.family === 'gauntlet') {
         return {
             text: `${ordinal(sideIndex + 1)} Participant`,
-            testId: `entrant-${position}-${sideIndex}`,
+            testId:
+                index === 0
+                    ? `entrant-${position}-${sideIndex}`
+                    : `entrant-${position}-${sideIndex}-${index}`,
         };
     }
 

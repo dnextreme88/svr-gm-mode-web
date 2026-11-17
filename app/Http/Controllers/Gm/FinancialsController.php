@@ -40,7 +40,6 @@ class FinancialsController extends Controller
             'balance' => $save->brand($brand)->budget,
             'statement' => $report->forWeek($save, $brand, $week),
             'history' => $history,
-            'weekly_upkeep' => $report->weeklyUpkeep($save, $brand),
             'deficit_choices' => TrackDeficit::choices(),
         ]);
     }

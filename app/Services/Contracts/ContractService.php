@@ -141,9 +141,17 @@ class ContractService
             throw new GameRuleException("{$wrestler->name()} has no contract to renegotiate.");
         }
 
+        // House rule (2026-11-17): the old contract's unused weeks come back,
+        // then the new one is paid in full.
+        $refund = $current->remainingValue();
+
+        if ($refund > 0) {
+            $this->ledger->post($wrestler->game, $wrestler->brand, LedgerCategory::ContractRefund, $refund, "Renegotiated {$wrestler->name()} ({$current->weeks_remaining} ".Str::plural('week', $current->weeks_remaining).' left on the old contract)', $week, $current);
+        }
+
         $current->update(['status' => ContractStatus::Superseded, 'ended_week' => $week]);
 
-        $contract = $this->createContract($wrestler->game, $wrestler, $wrestler->brand, $length, $week, $week, $current->last_ticked_week);
+        $contract = $this->createContract($wrestler->game, $wrestler, $wrestler->brand, $length, $week, $week, $current->last_ticked_week, memo: "Re-signed {$wrestler->name()} for {$length->label()}");
         $this->morale->resolve($wrestler, MoraleComplaintType::ContractExtension, $week);
         $wrestler->unsetRelation('activeContract');
 
@@ -175,10 +183,11 @@ class ContractService
 
         $contract = $wrestler->activeContract;
 
-        // House rule (2026-11-15): releasing a superstar early pays out the
-        // weeks left on the deal. Expiry, Loser Leaves and defection don't.
+        // House rule (2026-11-17): contracts are paid up front, so releasing
+        // a superstar early gives back the weeks left on the deal. Expiry
+        // has nothing left; Loser Leaves refunds through its own line.
         if ($reason === ReignEndReason::Released && $contract !== null && $contract->remainingValue() > 0) {
-            $this->ledger->post($wrestler->game, $brand, LedgerCategory::ReleaseFee, -$contract->remainingValue(), "Released {$wrestler->name()} ({$contract->weeks_remaining} ".Str::plural('week', $contract->weeks_remaining).' left)', $week, $contract);
+            $this->ledger->post($wrestler->game, $brand, LedgerCategory::ContractRefund, $contract->remainingValue(), "Released {$wrestler->name()} ({$contract->weeks_remaining} ".Str::plural('week', $contract->weeks_remaining).' left)', $week, $contract);
         }
 
         $contract?->update([
@@ -200,8 +209,10 @@ class ContractService
     }
 
     /**
-     * The weekly tick (§2): every active contract loses one week and its brand
-     * pays upkeep, except while the wrestler is buried alive (house rule).
+     * The weekly tick (§2): every active contract loses one week, except
+     * while the wrestler is buried alive (house rule). Contracts are paid in
+     * full when signed (house rule, 2026-11-17), so only a contract from
+     * before that (nothing paid up front) still charges a weekly salary.
      * Contracts that hit 0 expire. Guarded by `last_ticked_week`
      * so a retried resolution can't double-decrement.
      *
@@ -229,7 +240,7 @@ class ContractService
                 'last_ticked_week' => $week,
             ]);
 
-            if ($paused && config('gm.buried_alive.pause_upkeep')) {
+            if ($contract->upfront_fee > 0 || ($paused && config('gm.buried_alive.pause_upkeep'))) {
                 continue;
             }
 
@@ -262,10 +273,12 @@ class ContractService
     }
 
     /**
-     * House rule (2026-11-15): a signing needs the whole contract's value in
-     * the bank. Salaries are then paid weekly; nothing is charged up front.
+     * House rule (2026-11-17): a contract is paid in full the moment it's
+     * signed (the budget drops at once, a Contract signing line on the
+     * Financials report); there are no weekly salaries. A signing needs the
+     * whole value in the bank.
      */
-    private function createContract(Save $save, SaveWrestler $wrestler, Brand $brand, ContractLength $length, int $week, int $startsWeek, ?int $lastTicked = null, bool $checkBudget = true): Contract
+    private function createContract(Save $save, SaveWrestler $wrestler, Brand $brand, ContractLength $length, int $week, int $startsWeek, ?int $lastTicked = null, bool $checkBudget = true, ?string $memo = null): Contract
     {
         $wrestler->loadMissing('wrestler');
         $quote = $this->pricing->quote($wrestler->wrestler, $length);
@@ -279,7 +292,7 @@ class ContractService
             'save_wrestler_id' => $wrestler->id,
             'brand' => $brand,
             'length_weeks' => $length->value,
-            'upfront_fee' => 0,
+            'upfront_fee' => $quote['total'],
             'weekly_cost' => $quote['weekly'],
             'signed_week' => $week,
             'starts_week' => $startsWeek,
@@ -287,6 +300,8 @@ class ContractService
             'last_ticked_week' => $lastTicked,
             'status' => ContractStatus::Active,
         ]);
+
+        $this->ledger->post($save, $brand, LedgerCategory::SigningFee, -$quote['total'], $memo ?? "Signed {$wrestler->name()} for {$length->label()}", $week, $contract);
 
         return $contract;
     }

@@ -31,7 +31,7 @@ use Illuminate\Support\Str;
 
 /**
  * Fixed PPV cards (§10, §13, §23): the 30-man Royal Rumble, the Survivor
- * Series 3 vs 3 main event, and the 8-match interbrand WrestleMania card.
+ * Series 5 vs 5 main event, and the 8-match interbrand WrestleMania card.
  */
 class PpvCardService
 {
@@ -55,7 +55,7 @@ class PpvCardService
      * weekly shows drew more fans this season before the PPV
      * (`SummerSlamMainEvent::headliner`) gets the slots below, the other
      * brand the rest. SummerSlam's leader also has the main event; the
-     * Royal Rumble and the Survivor Series 3 vs 3 are always Match 7.
+     * Royal Rumble and the Survivor Series 5 vs 5 are always Match 7.
      */
     public const SHARED_PPV_MATCHES = 7;
 
@@ -106,9 +106,9 @@ class PpvCardService
                 ]);
             }
 
-            // The Royal Rumble or the 3 vs 3: always the main event, shared.
+            // The Royal Rumble or the 5 vs 5: always the main event, shared.
             MatchSlot::firstOrCreate(['show_id' => $show->id, 'position' => self::SHARED_PPV_MATCHES], [
-                'match_type_id' => ($rumble ? $this->type('royal_rumble', '30-Man') : $this->type('survivor_series_elimination', 'Traditional 3 vs 3'))->id,
+                'match_type_id' => ($rumble ? $this->type('royal_rumble', '30-Man') : $this->type('survivor_series_elimination', 'Traditional 5 vs 5'))->id,
                 'fixed_kind' => $rumble ? FixedSlotKind::RoyalRumble : FixedSlotKind::SurvivorSeriesMainEvent,
                 'cost' => 0,
             ]);
@@ -116,7 +116,7 @@ class PpvCardService
     }
 
     /**
-     * Royal Rumble entrants (15 per brand) or a Survivor Series team (3).
+     * Royal Rumble entrants (15 per brand) or a Survivor Series team (5).
      *
      * @param  list<int>  $ids
      */

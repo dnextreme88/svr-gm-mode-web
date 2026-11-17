@@ -79,6 +79,7 @@ class GameBuilder
         config([
             'gm.ai.roster.target_size' => 0,
             'gm.ai.roster.renew_at_weeks_left' => -1,
+            'gm.ai.roster.renewal.decide_at_weeks_left' => -1,
             'gm.ai.rivalries.max_per_brand' => 0,
             'gm.ai.rivalries.rivalry_match_chance' => 0.0,
             'gm.ai.promos.interference_every_weeks' => PHP_INT_MAX,

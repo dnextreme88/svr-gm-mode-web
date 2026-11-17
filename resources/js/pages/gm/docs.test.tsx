@@ -204,7 +204,7 @@ const props = {
         titles: {
             main_event_chance: { weekly: 0.6, ppv: 0.9 },
             other_slot_chance: 0.35,
-            interbrand_world_chance: 0.75,
+            interbrand_world_chance: 0.8,
             champion_vs_contender_chance: 0.1,
             number_one_contender_chance: 0.1,
             winner_takes_all_chance: { weekly: 0.08, ppv: 0.2 },
@@ -226,6 +226,20 @@ const props = {
             target_size: 28,
             cash_reserve: 500000,
             save_ahead_weeks: 30,
+            renewal: {
+                decide_at_weeks_left: 1,
+                lengths: [24, 12],
+                losing_share: 0.5,
+                title_wins: { 5: 1, 12: 2, 24: 3, 36: 3, 52: 4 },
+                title_wins_keep: 0.8,
+                complaint_share: 0.5,
+                complaint_expire: 0.8,
+                busy_share: 0.8,
+                busy_keep: 0.8,
+                idle_share: 1 / 3,
+                idle_expire: 0.8,
+                default_keep: 0.8,
+            },
         },
         trades: {
             base_value: 1,
@@ -593,7 +607,7 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
         expect(
             screen.getByText(
-                /gets\s+its biggest match as the headline instead/,
+                /only with nothing else does its biggest match lead/,
             ),
         ).toBeInTheDocument();
         expect(
@@ -763,7 +777,7 @@ describe('Docs page', () => {
             'Four, five or six entrants in one match slot',
         );
         expect(screen.getByTestId('gauntlet-rules')).toHaveTextContent(
-            'No titles and no stipulations.',
+            'No titles, and the only stipulation is a #1 Contender’s Match',
         );
         expect(screen.getByTestId('buried-weeks')).toHaveTextContent('4');
         expect(screen.getByTestId('gauntlet-rules')).toHaveTextContent(

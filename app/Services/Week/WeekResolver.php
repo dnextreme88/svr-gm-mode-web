@@ -15,6 +15,7 @@ use App\Models\WeekAiring;
 use App\Models\WeekResolution;
 use App\Services\Ai\AiGm;
 use App\Services\Calendar\CalendarService;
+use App\Services\Finance\LedgerService;
 use App\Services\Matches\ShowResolver;
 use App\Services\Titles\MitbService;
 use App\Services\Week\Steps\AirShows;
@@ -41,6 +42,8 @@ class WeekResolver
     public const STEPS = [
         Steps\PrepareShows::class,
         AirShows::class,
+        // House rule (2026-11-17): the shows' match and promo money, now that they're over.
+        Steps\SettleShowMoney::class,
         // House rule (2026-11-01): the week's biggest crowd makes the news.
         Steps\AttendanceNews::class,
         // Right after the shows: teams that just won their 3rd match together.
@@ -522,6 +525,9 @@ class WeekResolver
         // closes the week straight into the re-draft.
         if (($context->data['phase'] ?? null) === self::PHASE_PPV && $this->hasWeeklyShows($context)) {
             $context->data['phase'] = self::PHASE_PPV_DONE;
+            // House rule (2026-11-17): the PPV night's news is in, so its match
+            // and promo money reaches the budget now.
+            app(LedgerService::class)->settle($context->save, $context->week);
             $airing->update(['context' => $context->data, 'rng_states' => $context->streamStates()]);
 
             return;

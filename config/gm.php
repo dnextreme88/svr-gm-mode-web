@@ -66,7 +66,11 @@ return [
         'ppv_match_slots' => 5,
         'ppv_promo_slots' => 0,
         'min_competitors' => 2,
-        'max_competitors' => 6,
+        // House rule (2026-11-17): no upper limit on a slot's competitors
+        // (it was 6) now that Tornado Tag Turmoil books 10. These categories
+        // only ever fill their PPV's fixed main event (the 30-man Royal
+        // Rumble, the Survivor Series 5 vs 5), never an ordinary slot.
+        'fixed_only_families' => ['royal_rumble', 'survivor_series_elimination'],
         'wrestlemania_brand_slots' => 3,
         // ASSUMPTION: how often Randomize/Preset try to make a slot a title match (§24).
         'randomize_title_chance' => 0.35,
@@ -459,10 +463,17 @@ return [
         'royal_rumble_entrants_per_brand' => 15,
         // ASSUMPTION: a brand short of 15 bookable wrestlers enters what it can.
         'royal_rumble_min_entrants_per_brand' => 10,
-        'survivor_series_team_size' => 3,
-        // House rule (2026-11-15): the re-draft swaps this many superstars
-        // each way (5 from Raw to Smackdown, 5 back). No roster cap applies.
-        'redraft_picks_per_brand' => 5,
+        // House rule (2026-11-17): 5 a side (it was 3).
+        'survivor_series_team_size' => 5,
+        // House rule (2026-11-15, raised 2026-11-17): the re-draft swaps
+        // this many superstars each way (10 from Raw to Smackdown, 10 back).
+        // No roster cap applies.
+        'redraft_picks_per_brand' => 10,
+        // House rule (2026-11-17): the immunity tag protects this many of the
+        // brand's non-champions, and the manual draft pick replaces this
+        // many of the series winner's first picks with its own choices.
+        'redraft_immunity_count' => 3,
+        'redraft_manual_picks' => 2,
         // House rule (2026-11-15): how a Royal Rumble plays out for its log
         // (entry numbers and eliminations). After each arrival someone is
         // thrown out at this chance, and always while the ring holds more
@@ -752,7 +763,7 @@ return [
             // House rule (2026-11-15): the title match it always books on an
             // interbrand PPV is its world title this often, else another of
             // its titles at random.
-            'interbrand_world_chance' => 0.75,
+            'interbrand_world_chance' => 0.80,
             // ASSUMPTION
             'champion_vs_contender_chance' => 0.1,
             // ASSUMPTION (house rule, 2026-11-01): a non-title match that fits a
@@ -766,7 +777,7 @@ return [
             // House rule (2026-11-07): the rival's chance to book a Rematch
             // Clause on each of the weeks after the title changed hands, in
             // order, on its first card of the week. ASSUMPTION: one roll a week.
-            'rematch_clause_chances' => [0.25, 0.5, 0.75, 0.85],
+            'rematch_clause_chances' => [0.5, 0.75, 0.25, 0.5],
         ],
         'promos' => [
             'interference_every_weeks' => 4,
@@ -805,10 +816,42 @@ return [
             // House rule (2026-11-13): while it has fewer than max_legends,
             // each signing rolls this chance to go for a Legend it can afford.
             'legend_chance' => 0.55,
+            // House rule (2026-11-17): the rival GM never holds more than
+            // this many Divas, in the draft or Free Agency, by the brand it
+            // runs. Raw chases Divas as its focus class and could otherwise
+            // fill its roster with them, leaving too few men for the Royal
+            // Rumble.
+            'max_divas' => ['raw' => 9, 'smackdown' => 6],
             'max_legends' => 3,
             // ASSUMPTION: money promos come first while the budget can't cover
             // the renewals due within this many weeks (on top of renew_at_weeks_left).
             'save_ahead_weeks' => 30,
+            // House rule (2026-11-17): it judges each expiring contract on
+            // how the superstar did during it (`AiContractJudge`), on the
+            // contract's final week. A champion is always re-signed; a
+            // losing record (more than losing_share of decided matches
+            // lost) lets it expire; title_wins (per contract length in
+            // weeks) re-signs title_wins_keep of the time; an open morale
+            // complaint for more than complaint_share of the weeks lets
+            // complaint_expire of them go; booked in busy_share of the weeks
+            // or more re-signs busy_keep; booked in idle_share or fewer lets
+            // idle_expire go; anyone else is re-signed default_keep of the
+            // time. A re-sign is one of `lengths` (6 or 3 months), at even odds.
+            'renewal' => [
+                'decide_at_weeks_left' => 1,
+                'lengths' => [24, 12],
+                'losing_share' => 0.5,
+                'title_wins' => [5 => 1, 12 => 2, 24 => 3, 36 => 3, 52 => 4],
+                'title_wins_keep' => 0.8,
+                // ASSUMPTION: "complains a lot" is a complaint open more than half the time.
+                'complaint_share' => 0.5,
+                'complaint_expire' => 0.8,
+                'busy_share' => 0.8,
+                'busy_keep' => 0.8,
+                'idle_share' => 1 / 3,
+                'idle_expire' => 0.8,
+                'default_keep' => 0.8,
+            ],
         ],
         // House rule (2026-10-31): how the rival GM values each wrestler in a
         // trade (AiTradeJudge). There's no Popularity yet, so this is the whole

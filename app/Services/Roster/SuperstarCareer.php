@@ -168,7 +168,7 @@ class SuperstarCareer
             $moments[] = [
                 'kind' => 'survivor_series',
                 'title' => 'Survivor Series',
-                'detail' => "{$team} in the Traditional 3 vs 3 Elimination match.",
+                'detail' => "{$team} in the Traditional 5 vs 5 Elimination match.",
                 'week' => $this->label($slot->show->week_number),
                 'absolute_week' => $slot->show->week_number,
                 'outcome' => $slot->result === null ? null : ($slot->result->winner_side === $entry->side ? 'Won' : 'Lost'),
@@ -207,7 +207,7 @@ class SuperstarCareer
                 ];
             }
 
-            if ($series->exemption_wrestler_id === $wrestler->id) {
+            if (in_array($wrestler->id, $series->exemptIds(), true)) {
                 $moments[] = [
                     'kind' => 'immunity_tag',
                     'title' => 'Immunity tag',
@@ -219,7 +219,7 @@ class SuperstarCareer
                 ];
             }
 
-            if ($series->handpick_wrestler_id === $wrestler->id) {
+            if (in_array($wrestler->id, $series->handpickIds(), true)) {
                 $moments[] = [
                     'kind' => 'manual_pick_tag',
                     'title' => 'Manual draft pick tag',

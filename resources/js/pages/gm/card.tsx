@@ -370,7 +370,7 @@ export default function CardPage() {
                     // event's match type (series spots are picked on the
                     // match itself, see `series` above).
 
-                    // The Royal Rumble or the Survivor Series 3 vs 3: the
+                    // The Royal Rumble or the Survivor Series 5 vs 5: the
                     // entrants page picks the player's side.
                     if (
                         slot?.fixed_kind === 'royal_rumble' ||

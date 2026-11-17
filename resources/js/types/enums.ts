@@ -374,11 +374,12 @@ export const LedgerCategory = {
     ReleaseFee: 'release_fee',
     AttendanceBonus: 'attendance_bonus',
     InterferenceResult: 'interference_result',
+    ContractRefund: 'contract_refund',
 } as const;
 export type LedgerCategory = (typeof LedgerCategory)[keyof typeof LedgerCategory];
 export const LedgerCategoryLabels: Record<LedgerCategory, string> = {
     'starting_budget': 'Starting Budget',
-    'signing_fee': 'Signing Fee',
+    'signing_fee': 'Contract signing',
     'contract_upkeep': 'Superstar salaries',
     'promo_cost': 'Promo Cost',
     'promo_income': 'Promo Income',
@@ -390,6 +391,7 @@ export const LedgerCategoryLabels: Record<LedgerCategory, string> = {
     'release_fee': 'Release Fee',
     'attendance_bonus': 'Fan attendance bonus',
     'interference_result': 'Interference Result',
+    'contract_refund': 'Contract refund',
 };
 
 export const MatchFamily = {

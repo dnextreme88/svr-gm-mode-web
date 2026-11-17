@@ -157,7 +157,7 @@ it('documents the conditional stories and the Rematch Clause from config (house 
             ->where('news.stories.3.story', 'Dudley Boyz: get the tables!')
             ->where('news.stories.3.chances', fn (string $c) => str_contains($c, '70%'))
             ->where('rematch_clause.weeks', 3)
-            ->where('rematch_clause.rival_chances', [25, 50, 75, 85]));
+            ->where('rematch_clause.rival_chances', [50, 75, 25, 50]));
 });
 
 it('lists the 2005 specialty additions on the documentation page', function () {

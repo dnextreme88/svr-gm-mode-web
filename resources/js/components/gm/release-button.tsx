@@ -48,9 +48,9 @@ export function ReleaseButton({
                 message={
                     message ??
                     `${name} goes to Free Agency, where any brand can sign them. Any title they hold will be vacated. ${
-                        fee !== undefined && fee !== null
-                            ? `Releasing them costs ${formatMoney(fee)}, the rest of their contract.`
-                            : 'Releasing them pays out the rest of their contract.'
+                        fee !== undefined && fee !== null && fee > 0
+                            ? `You get ${formatMoney(fee)} back for the weeks left on their contract.`
+                            : 'You get back what’s left of their contract.'
                     }`
                 }
                 confirmLabel="Release"

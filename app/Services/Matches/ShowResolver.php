@@ -275,12 +275,16 @@ class ShowResolver
         }
 
         if ($resolved->bouts !== []) {
-            // A Gauntlet: each bout is its own meeting.
+            // A Gauntlet: each one-on-one bout is its own meeting (a Tornado
+            // Tag Turmoil's tag bouts aren't, like any tag match).
             $sides = $slot->sides();
 
             foreach ($resolved->bouts as $bout) {
                 $loser = $bout['winner_side'] === $bout['side_a'] ? $bout['side_b'] : $bout['side_a'];
-                $this->rivalries->recordMeeting($context->save, $sides[$bout['winner_side']][0], $sides[$loser][0], $week);
+
+                if (count($sides[$bout['winner_side']]) === 1 && count($sides[$loser]) === 1) {
+                    $this->rivalries->recordMeeting($context->save, $sides[$bout['winner_side']][0], $sides[$loser][0], $week);
+                }
             }
         } elseif ($type->sides !== [] && max($type->sides) === 1) {
             foreach ($slot->sides()[$resolved->loserSide] ?? [] as $loserId) {
@@ -319,7 +323,8 @@ class ShowResolver
         $brand = $slot->owner_brand ?? $show->brand;
 
         if ($slot->cost > 0 && $brand !== null) {
-            $this->ledger->post($context->save, $brand, LedgerCategory::MatchCost, -$slot->cost, "{$type->name} ({$show->name})", $week, $slot, $show->id);
+            // House rule (2026-11-17): settled once the night's news is in.
+            $this->ledger->post($context->save, $brand, LedgerCategory::MatchCost, -$slot->cost, "{$type->name} ({$show->name})", $week, $slot, $show->id, settled: false);
         }
     }
 

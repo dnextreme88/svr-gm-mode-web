@@ -110,7 +110,7 @@ describe('catalog', function () {
         ['special_referee', 'Iron Man', 5],
         ['special_referee', 'Single', 2],
         ['steel_cage', 'Fatal 5-Way', 4],
-        ['survivor_series_elimination', 'Traditional 3 vs 3', 3],
+        ['survivor_series_elimination', 'Traditional 5 vs 5', 3],
         ['single', 'Single', 1],
     ]);
 

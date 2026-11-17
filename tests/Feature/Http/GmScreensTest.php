@@ -36,7 +36,7 @@ it('lists a new career only after it is saved', function () {
     $this->get(route('gm.saves.index'))
         ->assertInertia(fn (Assert $page) => $page->has('saves', 0)->where('unsaved.id', $save->id));
 
-    $this->get(route('gm.draft.show', $save))->assertInertia(fn (Assert $page) => $page->where('game.saved', false));
+    $this->get(route('gm.draft.show', $save))->assertInertia(fn (Assert $page) => $page->where('game.last_saved', null));
 
     $this->post(route('gm.saves.persist', $save))->assertRedirect();
 

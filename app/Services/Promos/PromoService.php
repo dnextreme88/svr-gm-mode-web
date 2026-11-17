@@ -281,7 +281,8 @@ class PromoService
 
         // The cost is paid whether or not the promo works.
         if ($amount < 0) {
-            $this->ledger->post($save, $brand, LedgerCategory::PromoCost, $amount, "{$type->name} promo", $week, $slot, $show->id);
+            // House rule (2026-11-17): a promo's money is settled once the night's news is in.
+            $this->ledger->post($save, $brand, LedgerCategory::PromoCost, $amount, "{$type->name} promo", $week, $slot, $show->id, settled: false);
         }
 
         $note = $succeeded ? 'Success' : ($backfired ? 'Backfired (overused)' : 'Failed');
@@ -326,7 +327,7 @@ class PromoService
             $result = (int) config('gm.promos.interference_payout.'.($succeeded ? 'success' : 'failure'));
 
             if ($result !== 0) {
-                $this->ledger->post($save, $brand, LedgerCategory::InterferenceResult, $result, $succeeded ? 'Interference paid off' : 'Interference damage bill', $week, $slot, $show->id);
+                $this->ledger->post($save, $brand, LedgerCategory::InterferenceResult, $result, $succeeded ? 'Interference paid off' : 'Interference damage bill', $week, $slot, $show->id, settled: false);
             }
         }
 
@@ -445,14 +446,14 @@ class PromoService
     private function advertising(Show $show, Brand $brand, int $amount, PromoSlot $slot): string
     {
         // House rule (2026-11-15): a flat payout the week it airs.
-        $this->ledger->post($show->game, $brand, LedgerCategory::PromoIncome, $amount, 'Advertising payout', $show->week_number, $slot, $show->id);
+        $this->ledger->post($show->game, $brand, LedgerCategory::PromoIncome, $amount, 'Advertising payout', $show->week_number, $slot, $show->id, settled: false);
 
         return 'Paid '.number_format($amount);
     }
 
     private function income(Show $show, Brand $brand, int $amount, PromoSlot $slot, string $name): string
     {
-        $this->ledger->post($show->game, $brand, LedgerCategory::PromoIncome, $amount, $name, $show->week_number, $slot, $show->id);
+        $this->ledger->post($show->game, $brand, LedgerCategory::PromoIncome, $amount, $name, $show->week_number, $slot, $show->id, settled: false);
 
         return 'Paid '.number_format($amount);
     }

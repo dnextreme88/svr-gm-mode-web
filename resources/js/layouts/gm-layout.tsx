@@ -1,7 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { Menu as MenuIcon, X } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { UnreadPill } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { FactionPromptModal } from '@/components/gm/faction-prompt-modal';
@@ -65,44 +65,90 @@ function navItems(game: GameShell): NavItem[] {
     ];
 }
 
+/** How long the button says "Saved" after a save, in ms. */
+export const SAVED_FLASH_MS = 2000;
+
 /**
- * A career only shows under Saved careers once it's saved. After that,
- * progress is kept as it happens.
+ * Save career (house rule, 2026-11-17): a checkpoint of the whole career.
+ * Loading the career from Saved careers goes back to it; anything done
+ * since is lost. The button is always there: idle, "Saving…" while the
+ * checkpoint is written, then "Saved" with a check for a moment. Beside it,
+ * when the career was last saved.
  */
 function SaveCareerButton({ game }: { game: GameShell }) {
-    const [saving, setSaving] = useState(false);
+    const [status, setStatus] = useState<'saving' | 'saved' | null>(null);
+    const timer = useRef<number | null>(null);
 
-    if (game.saved) {
-        return (
-            <span
-                className="flex items-center gap-1.5 font-condensed tracking-[0.2em] text-zone-safe uppercase"
-                title="Progress is saved automatically from here on"
-                data-testid="career-saved"
-            >
-                <FloppyIcon status="saved" />
-                Saved
-            </span>
+    useEffect(
+        () => () => {
+            if (timer.current !== null) {
+                window.clearTimeout(timer.current);
+            }
+        },
+        [],
+    );
+
+    const save = () => {
+        if (timer.current !== null) {
+            window.clearTimeout(timer.current);
+        }
+
+        router.post(
+            gm.saves.persist.url(game.id),
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setStatus('saving'),
+                onSuccess: () => {
+                    setStatus('saved');
+                    timer.current = window.setTimeout(
+                        () => setStatus(null),
+                        SAVED_FLASH_MS,
+                    );
+                },
+                onError: () => setStatus(null),
+                onCancel: () => setStatus(null),
+            },
         );
-    }
+    };
+
+    const last = game.last_saved;
 
     return (
-        <button
-            type="button"
-            className="gm-btn gm-btn-sm gm-btn-ghost"
-            disabled={saving}
-            title="Keep this career under Saved careers"
-            onClick={() => {
-                setSaving(true);
-                router.post(
-                    gm.saves.persist.url(game.id),
-                    {},
-                    { preserveScroll: true, onFinish: () => setSaving(false) },
-                );
-            }}
-        >
-            <FloppyIcon status={saving ? 'saving' : null} />
-            {saving ? 'Saving…' : 'Save career'}
-        </button>
+        <div className="flex items-center gap-3">
+            <span
+                className="hidden font-condensed text-xs tracking-wider text-ink-dim uppercase @2xl:inline"
+                aria-live="polite"
+                data-testid="last-saved"
+            >
+                {last
+                    ? `Last saved: S${last.season} · wk ${last.season_week}`
+                    : 'Not saved yet'}
+            </span>
+            <button
+                type="button"
+                className={cn(
+                    'gm-btn gm-btn-sm gm-btn-ghost min-w-[9.5rem] justify-center',
+                    status === 'saved' && 'text-zone-safe',
+                )}
+                disabled={status === 'saving'}
+                aria-busy={status === 'saving' || undefined}
+                title={
+                    last
+                        ? `Save over your last save (Season ${last.season}, week ${last.season_week})`
+                        : 'Save this career so you can load it later'
+                }
+                onClick={save}
+                data-testid="save-career"
+            >
+                <FloppyIcon status={status} />
+                {status === 'saving'
+                    ? 'Saving…'
+                    : status === 'saved'
+                      ? 'Saved'
+                      : 'Save career'}
+            </button>
+        </div>
     );
 }
 

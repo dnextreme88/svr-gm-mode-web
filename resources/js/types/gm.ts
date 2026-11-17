@@ -20,7 +20,12 @@ export type FatigueConfig = {
 export type GameShell = {
     id: number;
     name: string;
-    saved: boolean;
+    /** The career's last save (its checkpoint), or null before the first one. */
+    last_saved: {
+        season: number;
+        season_week: number;
+        saved_at: string | null;
+    } | null;
     player_brand: Brand;
     rival_brand: Brand;
     stage: SaveStage;

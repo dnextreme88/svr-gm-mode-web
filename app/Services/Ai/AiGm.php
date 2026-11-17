@@ -149,6 +149,17 @@ class AiGm
         $rng = $save->rng("ai.draft.{$brand->value}.{$pickNumber}", 0);
         $roster = SaveWrestler::with('wrestler')->where('save_id', $save->id)->where('brand', $brand)->get();
 
+        // House rule (2026-11-17): never more than `max_divas` Divas (9 on Raw, 6 on Smackdown).
+        $divas = $roster->filter(fn (SaveWrestler $w): bool => $w->wrestler->roster_type === RosterType::Diva)->count();
+
+        if ($divas >= (int) config("gm.ai.roster.max_divas.{$brand->value}")) {
+            $pool = $pool->reject(fn (SaveWrestler $w): bool => $w->wrestler->roster_type === RosterType::Diva)->values();
+
+            if ($pool->isEmpty()) {
+                return null;
+            }
+        }
+
         $uncovered = Championship::where('brand', $brand)->orderBy('sort_order')->get()
             ->reject(fn (Championship $c): bool => $roster->contains(fn (SaveWrestler $w): bool => $c->allowsWrestler($w->wrestler)))
             ->values();

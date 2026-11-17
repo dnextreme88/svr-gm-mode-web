@@ -1,4 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { BookOpen } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { InjuryChip, MoraleBadge, TitleBelt } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
@@ -40,12 +41,19 @@ type Props = GamePageProps & {
     phase: Phase;
     series: {
         season: number;
+        /** When the career was created (keys what this browser has seen). */
+        career: number;
         raw_wins: number;
         smackdown_wins: number;
         winner_brand: Brand | null;
         immunity_brand: Brand | null;
-        exemption_wrestler_id: number | null;
-        handpick_wrestler_id: number | null;
+        /** Who the immunity tag protects (house rule, 2026-11-17: up to 3). */
+        exemption_wrestler_ids: number[];
+        /** Who the manual draft pick takes, in pick order (up to 2). */
+        handpick_wrestler_ids: number[];
+        /** How many each tag takes this time (fewer when fewer are eligible). */
+        immunity_needed: number;
+        manual_needed: number;
         crowds: Record<Brand, number>;
     };
     rosters: Record<Brand, Row[]>;
@@ -55,6 +63,15 @@ type Props = GamePageProps & {
 };
 
 const SKIP_ANIMATION_KEY = 'gm.redraft.skip-animation';
+
+/** "Edge, Kane and Carlito". */
+function joinNames(names: string[]): string {
+    if (names.length <= 1) {
+        return names[0] ?? '';
+    }
+
+    return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
 
 const sleep = (ms: number) =>
     new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -78,12 +95,21 @@ export default function Redraft() {
     const [rosters, setRosters] = useState(props.rosters);
     const [picks, setPicks] = useState(props.picks);
     const [phase, setPhase] = useState<Phase>(props.phase);
-    const [choice, setChoice] = useState<number | null>(null);
+    // The superstars ticked for the tag being used, in the order ticked.
+    const [choice, setChoice] = useState<number[]>([]);
     // Which tag's confirmation is open: the immunity tag or the manual pick.
     const [confirming, setConfirming] = useState<
         'immunity' | 'handpick' | null
     >(null);
     const [running, setRunning] = useState(false);
+    // The rules open on their own the first time this re-draft's page opens
+    // (remembered per browser, per career and season), and the button under
+    // the title opens them again.
+    const rulesKey = `gm.redraft-rules.${game.id}.${series.career}.${series.season}`;
+    const [rulesOpen, setRulesOpen] = useState(
+        () =>
+            readPreference(rulesKey, 'unseen', ['seen', 'unseen']) === 'unseen',
+    );
     const [highlight, setHighlight] = useState<{
         id: number;
         brand: Brand;
@@ -118,13 +144,118 @@ export default function Redraft() {
         setRosters(props.rosters);
         setPicks(props.picks);
         setPhase(props.phase);
-        setChoice(null);
+        setChoice([]);
     }, [props.rosters, props.picks, props.phase]);
+
+    // The rival GM's tags (2026-11-17): when it uses the immunity tag or the
+    // manual draft pick, a reel in its colour reveals each superstar in
+    // turn, then the list scrolls to them and highlights them. Each tag
+    // plays once per browser (Skip animation skips it), after the rules modal.
+    const rival = brands[1];
+    const [tagQueue, setTagQueue] = useState<
+        {
+            tag: 'immunity' | 'manual';
+            pool: Row[];
+            result: Row;
+            n: number;
+            of: number;
+        }[]
+    >([]);
+    const tagReel = tagQueue[0] ?? null;
+    const tagKey = (tag: 'immunity' | 'manual') =>
+        `gm.redraft-tag.${game.id}.${series.career}.${series.season}.${tag}`;
+
+    useEffect(() => {
+        if (rulesOpen || tagQueue.length > 0 || running || started.current) {
+            return;
+        }
+
+        const unseen = (tag: 'immunity' | 'manual') =>
+            readPreference(tagKey(tag), 'unseen', ['seen', 'unseen']) ===
+            'unseen';
+        const reveal = (
+            tag: 'immunity' | 'manual',
+            from: Brand,
+            ids: number[],
+        ): boolean => {
+            if (ids.length === 0 || !unseen(tag)) {
+                return false;
+            }
+
+            const pool = rosters[from].filter(
+                (w) => w.locked === null || ids.includes(w.id),
+            );
+            const results = ids
+                .map((id) => rosters[from].find((w) => w.id === id))
+                .filter((w): w is Row => w !== undefined);
+
+            if (skip.current || results.length === 0) {
+                writePreference(tagKey(tag), 'seen');
+
+                return false;
+            }
+
+            setTagQueue(
+                results.map((result, i) => ({
+                    tag,
+                    pool,
+                    result,
+                    n: i + 1,
+                    of: results.length,
+                })),
+            );
+
+            return true;
+        };
+
+        if (
+            series.immunity_brand === rival &&
+            reveal('immunity', rival, series.exemption_wrestler_ids)
+        ) {
+            return;
+        }
+
+        if (series.winner_brand === rival) {
+            reveal('manual', player, series.handpick_wrestler_ids);
+        }
+    }, [
+        rulesOpen,
+        tagQueue.length,
+        running,
+        series.exemption_wrestler_ids,
+        series.handpick_wrestler_ids,
+    ]);
+
+    const tagRevealed = async (id: number) => {
+        // The tag's last superstar: it's been shown.
+        if (tagReel && tagQueue.length === 1) {
+            writePreference(tagKey(tagReel.tag), 'seen');
+        }
+
+        setTagQueue((queue) => queue.slice(1));
+        rows.current
+            .get(id)
+            ?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+        setHighlight({ id, brand: rival });
+        await sleep(1200);
+        setHighlight(null);
+    };
 
     const all = [...rosters.raw, ...rosters.smackdown];
     const nameOf = (id: number | null) =>
         all.find((w) => w.id === id)?.name ?? 'nobody';
-    const chosen = all.find((w) => w.id === choice) ?? null;
+    const chosen = choice
+        .map((id) => all.find((w) => w.id === id))
+        .filter((w): w is Row => w !== undefined);
+    const chosenNames = joinNames(chosen.map((w) => w.name));
+    // How many the tag being used takes (house rule, 2026-11-17).
+    const needed =
+        phase === 'immunity'
+            ? series.immunity_needed
+            : phase === 'manual'
+              ? series.manual_needed
+              : 0;
+    const ready = choice.length === needed && needed > 0;
     // Which list the player chooses from right now, if any.
     const choosing: Brand | null =
         phase === 'immunity'
@@ -134,6 +265,11 @@ export default function Redraft() {
                   ? 'smackdown'
                   : 'raw'
               : null;
+
+    // Steps 1 and 2 (house rule, 2026-11-17): the side you aren't choosing
+    // from, its brand card and its roster, is greyed out: the rival's while
+    // you protect one of yours, your own while you pick from the rival.
+    const dimmed = (brand: Brand) => choosing !== null && brand !== choosing;
 
     const animatePick = useCallback(async (pick: Pick) => {
         const fast = skip.current || prefersReducedMotion();
@@ -248,20 +384,54 @@ export default function Redraft() {
                 title="WrestleMania Re-Draft"
             />
 
-            <RedraftRules
+            <div className="mb-6">
+                <button
+                    type="button"
+                    className="gm-btn gm-btn-sm gm-btn-ghost"
+                    onClick={() => setRulesOpen(true)}
+                    disabled={running}
+                    data-testid="redraft-rules-button"
+                >
+                    <BookOpen className="size-4" aria-hidden />
+                    Post-WrestleMania Season {series.season} draft
+                </button>
+            </div>
+
+            <RedraftRulesModal
+                open={rulesOpen && confirming === null && reel === null}
+                onClose={() => {
+                    setRulesOpen(false);
+                    writePreference(rulesKey, 'seen');
+                }}
                 series={series}
                 perBrand={per_brand}
-                nameOf={nameOf}
             />
 
             <div className="mb-6 grid gap-4 md:grid-cols-2" aria-live="polite">
                 {brands.map((brand) => (
                     <TagCard
                         key={brand}
+                        dimmed={dimmed(brand)}
                         brand={brand}
                         you={brand === player}
                         immunity={series.immunity_brand === brand}
                         manual={series.winner_brand === brand}
+                        protectedName={
+                            series.immunity_brand === brand &&
+                            series.exemption_wrestler_ids.length > 0
+                                ? series.exemption_wrestler_ids
+                                      .map(nameOf)
+                                      .join(', ')
+                                : null
+                        }
+                        handpickName={
+                            series.winner_brand === brand &&
+                            series.handpick_wrestler_ids.length > 0
+                                ? series.handpick_wrestler_ids
+                                      .map(nameOf)
+                                      .join(', ')
+                                : null
+                        }
                         made={madeBy(brand)}
                         perBrand={per_brand}
                         drafting={running && nextBrand === brand}
@@ -274,7 +444,11 @@ export default function Redraft() {
                     <div
                         key={brand}
                         data-brand-tint={brand}
-                        className="min-w-0"
+                        data-testid={`redraft-side-${brand}`}
+                        className={cn(
+                            'min-w-0 transition-opacity',
+                            dimmed(brand) && 'opacity-50',
+                        )}
                     >
                         <RosterColumn
                             brand={brand}
@@ -282,7 +456,16 @@ export default function Redraft() {
                             config={game.fatigue_config}
                             choosable={choosing === brand}
                             chosen={choice}
-                            onChoose={setChoice}
+                            max={needed}
+                            onChoose={(id) =>
+                                setChoice((current) =>
+                                    current.includes(id)
+                                        ? current.filter((c) => c !== id)
+                                        : current.length < needed
+                                          ? [...current, id]
+                                          : current,
+                                )
+                            }
                             highlight={highlight}
                             rowRef={(id, el) => {
                                 if (el) {
@@ -361,19 +544,18 @@ export default function Redraft() {
                     className="min-w-0 flex-1 text-sm text-ink-dim"
                 >
                     {phase === 'immunity' &&
-                        (chosen
-                            ? `Protect ${chosen.name} from the re-draft.`
-                            : 'Step 1: you hold the immunity tag. Choose one of your superstars to protect.')}
+                        (ready
+                            ? `Exempt ${chosenNames} from this draft.`
+                            : `Step 1: you hold the immunity tag. Choose ${pluralize(needed, 'superstar')} of yours to exempt from being chosen (${choice.length} of ${needed} chosen).`)}
                     {phase === 'manual' &&
-                        (chosen
-                            ? `Take ${chosen.name} from ${brandName(chosen.brand ?? 'raw')} with the first pick.`
-                            : `Step 2: you hold the manual draft pick. Choose a superstar from ${brandName(choosing ?? 'raw')}.`)}
+                        (ready
+                            ? `Choose ${chosenNames} from ${brandName(choosing ?? 'raw')} as your first ${needed === 1 ? 'pick' : pluralize(needed, 'pick')}.`
+                            : `Step 2: you hold the manual draft pick tag. Choose ${pluralize(needed, 'superstar')} from ${brandName(choosing ?? 'raw')} that will replace your random ${needed === 1 ? 'pick' : 'picks'} with manual ${needed === 1 ? 'pick' : 'picks'} (${choice.length} of ${needed} chosen).`)}
                     {phase === 'picks' &&
                         (running
                             ? `Pick ${Math.min(pickNumber + 1, order.length)} of ${order.length}: ${brandName(nextBrand ?? 'raw')} is drafting…`
-                            : `Both tags are set. ${pluralize(per_brand, 'pick')} each, ${brandName(order[0] ?? 'raw')} first.`)}
-                    {phase === 'done' &&
-                        'The re-draft is over. Continue to the WrestleMania news.'}
+                            : `Both tags are now set. ${pluralize(per_brand, 'pick')} each. ${brandName(order[0] ?? 'raw')} goes first.`)}
+                    {phase === 'done' && 'The draft is over.'}
                 </p>
 
                 {phase === 'picks' && (
@@ -399,7 +581,7 @@ export default function Redraft() {
                     <button
                         type="button"
                         className="gm-btn gm-btn-gold"
-                        disabled={chosen === null || busy !== null}
+                        disabled={!ready || busy !== null}
                         onClick={() => setConfirming('immunity')}
                     >
                         Use the immunity tag
@@ -410,7 +592,7 @@ export default function Redraft() {
                     <button
                         type="button"
                         className="gm-btn gm-btn-gold"
-                        disabled={chosen === null || busy !== null}
+                        disabled={!ready || busy !== null}
                         onClick={() => setConfirming('handpick')}
                     >
                         Use the manual pick
@@ -426,7 +608,8 @@ export default function Redraft() {
                         onClick={() => void runPicks()}
                     >
                         <BusyLabel busy={running} busyText="Drafting…">
-                            Start the re-draft
+                            Start the Post-WrestleMania Season {series.season}{' '}
+                            Draft
                         </BusyLabel>
                     </button>
                 )}
@@ -465,27 +648,57 @@ export default function Redraft() {
                 />
             )}
 
+            {tagReel && (
+                <SuperstarReel
+                    key={`${tagReel.tag}-${tagReel.result.id}`}
+                    pool={tagReel.pool}
+                    result={tagReel.result}
+                    brand={rival}
+                    heading={`${
+                        tagReel.tag === 'immunity'
+                            ? 'Immunity tag'
+                            : 'Manual draft pick tag'
+                    }${tagReel.of > 1 ? ` · ${tagReel.n} of ${tagReel.of}` : ''}`}
+                    spinningText={
+                        tagReel.tag === 'immunity'
+                            ? `${brandName(rival)} is choosing who to protect…`
+                            : `${brandName(rival)} is making its manual pick…`
+                    }
+                    landedText={
+                        tagReel.tag === 'immunity'
+                            ? `${brandName(rival)} protects ${tagReel.result.name}!`
+                            : `${brandName(rival)} takes ${tagReel.result.name} with the manual draft pick!`
+                    }
+                    onDone={() => void tagRevealed(tagReel.result.id)}
+                />
+            )}
+
             <ConfirmDialog
-                open={confirming === 'immunity' && chosen !== null}
+                open={confirming === 'immunity' && ready}
                 title="Use the immunity tag?"
                 message={
-                    chosen && (
+                    ready && (
                         <>
-                            <strong>{chosen.name}</strong> is protected and
-                            stays on {brandName(player)}: the other brand can’t
-                            draft them in this re-draft. This can’t be undone.
+                            <strong>{chosenNames}</strong> will be exempted and
+                            will stay on {brandName(player)}: the other brand
+                            can’t draft them in this re-draft. You won’t be able
+                            to change this after confirming.
                         </>
                     )
                 }
-                confirmLabel={`Protect ${chosen?.name ?? ''}`}
+                confirmLabel={
+                    chosen.length === 1
+                        ? `Exempt ${chosen[0]?.name ?? ''}`
+                        : `Exempt ${pluralize(chosen.length, 'superstar')}`
+                }
                 busy={busy === 'immunity'}
-                busyText="Protecting…"
+                busyText="Exempting…"
                 onCancel={() => setConfirming(null)}
                 onConfirm={() =>
-                    chosen &&
+                    ready &&
                     router.post(
                         gm.redraft.immunity.url(game.id),
-                        { save_wrestler_id: chosen.id },
+                        { save_wrestler_ids: choice },
                         {
                             preserveScroll: true,
                             ...track('immunity'),
@@ -496,27 +709,35 @@ export default function Redraft() {
             />
 
             <ConfirmDialog
-                open={confirming === 'handpick' && chosen !== null}
+                open={confirming === 'handpick' && ready}
                 title="Use the manual draft pick?"
                 message={
-                    chosen && (
+                    ready && (
                         <>
-                            <strong>{chosen.name}</strong> moves from{' '}
-                            {brandName(chosen.brand ?? 'raw')} to{' '}
-                            {brandName(player)} as the first pick of the
-                            re-draft. This can’t be undone.
+                            <strong>{chosenNames}</strong> will move from{' '}
+                            {brandName(choosing ?? 'raw')} to{' '}
+                            {brandName(player)} as{' '}
+                            {chosen.length === 1
+                                ? 'the first pick'
+                                : `your first ${pluralize(chosen.length, 'pick')}`}{' '}
+                            of the draft. You won’t be able to change this after
+                            confirming.
                         </>
                     )
                 }
-                confirmLabel={`Draft ${chosen?.name ?? ''}`}
+                confirmLabel={
+                    chosen.length === 1
+                        ? `Draft ${chosen[0]?.name ?? ''}`
+                        : `Draft ${pluralize(chosen.length, 'superstar')}`
+                }
                 busy={busy === 'handpick'}
                 busyText="Drafting…"
                 onCancel={() => setConfirming(null)}
                 onConfirm={() =>
-                    chosen &&
+                    ready &&
                     router.post(
                         gm.redraft.handpick.url(game.id),
-                        { save_wrestler_id: chosen.id },
+                        { save_wrestler_ids: choice },
                         {
                             preserveScroll: true,
                             ...track('handpick'),
@@ -529,81 +750,115 @@ export default function Redraft() {
     );
 }
 
-function RedraftRules({
+/**
+ * The Post-WrestleMania Season N draft modal (2026-11-17): the rules and who holds each tag, in
+ * a modal rather than a card on the page.
+ */
+function RedraftRulesModal({
+    open,
+    onClose,
     series: s,
     perBrand,
-    nameOf,
 }: {
+    open: boolean;
+    onClose: () => void;
     series: Props['series'];
     perBrand: number;
-    nameOf: (id: number | null) => string;
 }) {
     return (
-        <Panel title="How the re-draft works" className="mb-6">
-            <div className="grid gap-x-8 gap-y-4 text-sm md:grid-cols-2">
-                <ul className="list-disc space-y-1 pl-5 text-ink-dim">
-                    <li>
-                        Each brand drafts {pluralize(perBrand, 'superstar')}{' '}
-                        from the other, one pick at a time, taking turns. Every
-                        pick is a swap, so no roster cap applies.
-                    </li>
-                    <li>
-                        Picks are random from the other brand’s non-champions.
-                        Champions stay put, and contracts move with the
-                        superstar.
-                    </li>
-                    <li>
-                        The manual pick’s brand goes first, and its first pick
-                        is its own choice.
-                    </li>
-                </ul>
-                <ul className="space-y-2 text-ink-dim">
-                    <li data-testid="immunity-tag">
-                        <span className="gm-label text-gold-hot">
-                            Immunity tag
-                        </span>{' '}
-                        {s.immunity_brand ? (
-                            <>
-                                <strong className="text-ink">
-                                    {brandName(s.immunity_brand)}
-                                </strong>{' '}
-                                drew more fans to its weekly shows before
-                                WrestleMania (Raw{' '}
-                                {s.crowds.raw.toLocaleString('en-US')} ·
-                                Smackdown{' '}
-                                {s.crowds.smackdown.toLocaleString('en-US')}
-                                ).{' '}
-                                {s.exemption_wrestler_id
-                                    ? `It protects ${nameOf(s.exemption_wrestler_id)}.`
-                                    : 'It protects one of its own superstars.'}
-                            </>
-                        ) : (
-                            'Nobody holds it this year.'
-                        )}
-                    </li>
-                    <li data-testid="manual-tag">
-                        <span className="gm-label text-gold-hot">
-                            Manual draft pick
-                        </span>{' '}
-                        {s.winner_brand ? (
-                            <>
-                                <strong className="text-ink">
-                                    {brandName(s.winner_brand)}
-                                </strong>{' '}
-                                won the WrestleMania interbrand series{' '}
-                                {Math.max(s.raw_wins, s.smackdown_wins)}–
-                                {Math.min(s.raw_wins, s.smackdown_wins)}.{' '}
-                                {s.handpick_wrestler_id
-                                    ? `It takes ${nameOf(s.handpick_wrestler_id)} with the first pick.`
-                                    : 'It chooses its first pick.'}
-                            </>
-                        ) : (
-                            'The series had no winner, so every pick is random.'
-                        )}
-                    </li>
-                </ul>
-            </div>
-        </Panel>
+        <ConfirmDialog
+            open={open}
+            title={`Post-WrestleMania Season ${s.season} draft`}
+            cancelLabel="Got it"
+            onCancel={onClose}
+            wide
+            message={
+                <div
+                    className="grid gap-y-4 text-sm"
+                    data-testid="redraft-rules"
+                >
+                    <p className="text-ink" data-testid="redraft-welcome">
+                        Welcome to the Post-WrestleMania draft! As the season
+                        closes, there will be a major shake-up that happens
+                        every year when the biggest PPV of the calendar
+                        concludes. This means that both brands get their rosters
+                        shaken up and that means a draft takes place. Here are
+                        the rules:
+                    </p>
+                    <ul className="list-disc space-y-1 pl-5 text-ink-dim">
+                        <li>
+                            Each brand drafts {pluralize(perBrand, 'superstar')}{' '}
+                            from the other, one pick at a time, taking turns.
+                            Every pick is a swap, so no roster cap applies.
+                        </li>
+                        <li>
+                            Picks are random from the other brand’s
+                            non-champions. Champions stay put, and contracts
+                            move with the superstar.
+                        </li>
+                        <li>
+                            The manual pick’s brand goes first, and its first{' '}
+                            {s.manual_needed === 1
+                                ? 'pick is its own choice'
+                                : `${pluralize(s.manual_needed, 'pick')} are its own choice`}
+                            .
+                        </li>
+                    </ul>
+                    <ul className="space-y-2 text-ink-dim">
+                        <li data-testid="immunity-tag">
+                            <span className="gm-label text-gold-hot">
+                                Immunity tag
+                            </span>{' '}
+                            {s.immunity_brand ? (
+                                <>
+                                    This tag is awarded to{' '}
+                                    <strong className="text-ink">
+                                        {brandName(s.immunity_brand)}
+                                    </strong>{' '}
+                                    for drawing more fans to its weekly shows
+                                    before WrestleMania (Raw{' '}
+                                    {s.crowds.raw.toLocaleString('en-US')} vs.
+                                    Smackdown{' '}
+                                    {s.crowds.smackdown.toLocaleString('en-US')}
+                                    ). This tag enables the winning brand to
+                                    exempt{' '}
+                                    {pluralize(
+                                        s.immunity_needed,
+                                        'superstar',
+                                    )}{' '}
+                                    of its own from being chosen.
+                                </>
+                            ) : (
+                                'Nobody holds it this year.'
+                            )}
+                        </li>
+                        <li data-testid="manual-tag">
+                            <span className="gm-label text-gold-hot">
+                                Manual draft pick tag
+                            </span>{' '}
+                            {s.winner_brand ? (
+                                <>
+                                    This tag is awarded to{' '}
+                                    <strong className="text-ink">
+                                        {brandName(s.winner_brand)}
+                                    </strong>{' '}
+                                    for winning the WrestleMania interbrand
+                                    tournament with a score of{' '}
+                                    {Math.max(s.raw_wins, s.smackdown_wins)}–
+                                    {Math.min(s.raw_wins, s.smackdown_wins)}.{' '}
+                                    This tag enables the winning brand to
+                                    replace its first{' '}
+                                    {pluralize(s.manual_needed, 'random pick')}{' '}
+                                    with manual picks of its own choosing.
+                                </>
+                            ) : (
+                                'The series had no winner, so every pick is random.'
+                            )}
+                        </li>
+                    </ul>
+                </div>
+            }
+        />
     );
 }
 
@@ -612,6 +867,9 @@ function TagCard({
     you,
     immunity,
     manual,
+    dimmed,
+    protectedName,
+    handpickName,
     made,
     perBrand,
     drafting,
@@ -620,6 +878,12 @@ function TagCard({
     you: boolean;
     immunity: boolean;
     manual: boolean;
+    /** Greyed out: the side not being chosen from in Step 1 or 2. */
+    dimmed: boolean;
+    /** Who the brand protected with the immunity tag, once chosen. */
+    protectedName: string | null;
+    /** Who the brand took with the manual draft pick, once chosen. */
+    handpickName: string | null;
     made: number;
     perBrand: number;
     drafting: boolean;
@@ -629,8 +893,9 @@ function TagCard({
             data-brand-tint={brand}
             data-testid={`tag-card-${brand}`}
             className={cn(
-                'gm-panel flex items-center justify-between gap-4 p-4',
+                'gm-panel flex items-center justify-between gap-4 p-4 transition-opacity',
                 drafting && 'ring-2 ring-brand',
+                dimmed && 'opacity-50',
             )}
         >
             <div className="min-w-0">
@@ -646,13 +911,43 @@ function TagCard({
                     )}
                     {manual && (
                         <span className="bg-gold/15 px-2 py-0.5 text-gold-hot">
-                            Manual draft pick
+                            Manual draft pick tag
                         </span>
                     )}
                     {!immunity && !manual && (
                         <span className="text-ink-faint">No tags</span>
                     )}
                 </div>
+                {(protectedName || handpickName) && (
+                    <ul className="mt-2 space-y-1 text-sm text-ink-dim">
+                        {protectedName && (
+                            <li data-testid={`tag-chosen-immunity-${brand}`}>
+                                <span className="text-gold-hot">
+                                    Immunity tag:
+                                </span>{' '}
+                                {brandName(brand)} has chosen{' '}
+                                <strong className="text-ink">
+                                    {protectedName}
+                                </strong>{' '}
+                                to be exempted from the draft
+                            </li>
+                        )}
+                        {handpickName && (
+                            <li data-testid={`tag-chosen-manual-${brand}`}>
+                                <span className="text-gold-hot">
+                                    Manual draft pick tag:
+                                </span>{' '}
+                                {brandName(brand)} has chosen{' '}
+                                <strong className="text-ink">
+                                    {handpickName}
+                                </strong>{' '}
+                                {handpickName.includes(', ')
+                                    ? `as its first ${pluralize(handpickName.split(', ').length, 'pick')}, replacing the usual random picks`
+                                    : 'as its 1st pick, replacing the usual random pick'}
+                            </li>
+                        )}
+                    </ul>
+                )}
             </div>
             <div className="gm-num text-3xl">
                 {made}
@@ -669,6 +964,7 @@ function RosterColumn({
     config,
     choosable,
     chosen,
+    max,
     onChoose,
     highlight,
     rowRef,
@@ -677,7 +973,10 @@ function RosterColumn({
     rows: Row[];
     config: FatigueConfig;
     choosable: boolean;
-    chosen: number | null;
+    /** The superstars ticked so far. */
+    chosen: number[];
+    /** How many can be ticked. */
+    max: number;
     onChoose: (id: number) => void;
     highlight: { id: number; brand: Brand } | null;
     rowRef: (id: number, el: HTMLLIElement | null) => void;
@@ -711,8 +1010,11 @@ function RosterColumn({
                     </li>
                 )}
                 {visible.map((w) => {
-                    const disabled = !choosable || w.locked !== null;
-                    const checked = chosen === w.id;
+                    const checked = chosen.includes(w.id);
+                    const disabled =
+                        !choosable ||
+                        w.locked !== null ||
+                        (!checked && chosen.length >= max);
 
                     return (
                         <li
@@ -738,7 +1040,7 @@ function RosterColumn({
                             >
                                 {choosable && (
                                     <input
-                                        type="radio"
+                                        type="checkbox"
                                         name={`redraft-${brand}`}
                                         checked={checked}
                                         disabled={disabled}

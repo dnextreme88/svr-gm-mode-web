@@ -131,7 +131,6 @@ const props = {
         net: w === 4 ? 695_500 : 100_000,
         balance: 14_000_000 + w,
     })),
-    weekly_upkeep: 240000,
     deficit_choices: [],
 };
 

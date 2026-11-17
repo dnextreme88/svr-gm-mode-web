@@ -302,7 +302,7 @@ class CardPresenter
     /**
      * Which brand each side of a match represents, on the matches between
      * the brands (house rule, 2026-11-15): WrestleMania's interbrand series
-     * (by spot) and the Survivor Series 3 vs 3 (Raw first). Null elsewhere.
+     * (by spot) and the Survivor Series 5 vs 5 (Raw first). Null elsewhere.
      */
     public static function sideBrand(MatchSlot $slot, int $side): ?Brand
     {

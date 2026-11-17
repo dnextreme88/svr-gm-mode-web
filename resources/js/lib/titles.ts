@@ -328,7 +328,10 @@ export function stipulationOptions(
                 return false;
             }
 
-            const shape = t.is_tag ? teams && sides.length <= 3 : singles;
+            // A Tornado Tag Turmoil's 5 teams contend for a tag title (2026-11-17).
+            const shape = t.is_tag
+                ? teams && (sides.length <= 3 || type?.family === 'gauntlet')
+                : singles;
 
             return (
                 shape &&

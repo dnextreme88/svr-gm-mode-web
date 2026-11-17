@@ -2,6 +2,7 @@
 
 namespace App\Services\News;
 
+use App\Enums\Brand;
 use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
@@ -33,6 +34,7 @@ class NewsComposer
         private CalendarService $calendar,
         private NewsTemplates $templates,
         private AttendanceNights $nights,
+        private BrandTickers $tickers,
     ) {}
 
     /**
@@ -92,7 +94,7 @@ class NewsComposer
     /**
      * @param  Collection<int, NewsEvent>|null  $events  the week's events (queried when null)
      * @param  list<array{name: string, ppv: bool, crowd: int}>|null  $nights  the week's crowds (queried when null)
-     * @return array{week: int, season: int, season_week: int, headlines: array<string, array<string, mixed>|null>, stories: array<string, list<array<string, mixed>>>, ticker: list<array<string, mixed>>, attendance: list<array{name: string, ppv: bool, crowd: int}>}
+     * @return array{week: int, season: int, season_week: int, headlines: array<string, array<string, mixed>|null>, stories: array<string, list<array<string, mixed>>>, ticker: list<array<string, mixed>>, tickers: array<string, list<string>>, attendance: list<array{name: string, ppv: bool, crowd: int, brands: list<string>}>}
      */
     public function compose(Save $save, int $week, ?Collection $events = null, ?array $nights = null): array
     {
@@ -131,9 +133,13 @@ class NewsComposer
             // biggest match first (PPV → title → main event → gimmick, see
             // `gm.news.match_result_priority`), else a weighted draw.
             if ($headline === null) {
-                // Quiet-week filler only leads when there is nothing else.
+                // Quiet-week filler only leads when there is nothing else, and
+                // a plain match result (house rule, 2026-11-17) only when
+                // there's no other real news: the brand's ticker already
+                // lists every result.
                 $real = $pool->reject(fn (array $e): bool => NewsEventType::from($e['type'])->isFallback());
-                $promotable = $real->isEmpty() ? $pool : $real;
+                $news = $real->reject(fn (array $e): bool => $e['type'] === NewsEventType::MatchResult->value);
+                $promotable = $news->isNotEmpty() ? $news : ($real->isEmpty() ? $pool : $real);
                 $headline = $promotable->filter(fn (array $e): bool => isset($matchRanks[$e['id']]))
                     ->sortBy([fn (array $a, array $b): int => $matchRanks[$b['id']] <=> $matchRanks[$a['id']], fn (array $a, array $b): int => $b['priority'] <=> $a['priority']])
                     ->first()
@@ -153,7 +159,22 @@ class NewsComposer
 
             if ($slot !== 'neutral') {
                 $rest = $pool->reject(fn (array $e): bool => isset($picked[$e['id']]));
-                $stories[$slot] = $this->weightedTake($rest, (int) config('gm.news.stories_per_brand'), $rng);
+                $wanted = (int) config('gm.news.stories_per_brand');
+                // House rule (2026-11-17): plain match results only fill the
+                // story cards other news leaves empty, biggest match first.
+                $isResult = fn (array $e): bool => $e['type'] === NewsEventType::MatchResult->value;
+                $stories[$slot] = $this->weightedTake($rest->reject($isResult), $wanted, $rng);
+                $results = $rest->filter($isResult)
+                    ->sortBy([fn (array $a, array $b): int => ($matchRanks[$b['id']] ?? 0) <=> ($matchRanks[$a['id']] ?? 0), fn (array $a, array $b): int => $b['priority'] <=> $a['priority']])
+                    ->values();
+
+                foreach ($results as $result) {
+                    if (count($stories[$slot]) >= $wanted) {
+                        break;
+                    }
+
+                    $stories[$slot][] = $result;
+                }
 
                 foreach ($stories[$slot] as $story) {
                     $picked[$story['id']] = true;
@@ -162,8 +183,10 @@ class NewsComposer
         }
 
         // Whatever wasn't picked runs in the ticker, biggest news first. The
-        // crowds have their own line there, so attendance news doesn't repeat.
-        $ticker = array_values($rows->reject(fn (array $e): bool => isset($picked[$e['id']]) || $e['type'] === NewsEventType::Attendance->value)->all());
+        // crowds have their own line there, so attendance news doesn't repeat,
+        // and match results have the brand tickers' own lines (2026-11-17).
+        $ticker = array_values($rows->reject(fn (array $e): bool => isset($picked[$e['id']])
+            || in_array($e['type'], [NewsEventType::Attendance->value, NewsEventType::MatchResult->value], true))->all());
 
         return [
             'week' => $week,
@@ -172,8 +195,17 @@ class NewsComposer
             'headlines' => $headlines,
             'stories' => $stories,
             'ticker' => $ticker,
+            // House rule (2026-11-17): each brand's ticker, a line per match on
+            // its weekly show (the week before, in a week it's on a PPV).
+            'tickers' => $this->tickers->forWeek($save, $week),
             // The ticker's gold Fan attendance line.
-            'attendance' => array_map(fn (array $n): array => ['name' => $n['name'], 'ppv' => $n['ppv'], 'crowd' => $n['crowd']], $nights),
+            'attendance' => array_map(fn (array $n): array => [
+                'name' => $n['name'],
+                'ppv' => $n['ppv'],
+                'crowd' => $n['crowd'],
+                // Which brands' tickers lead with this night's crowd.
+                'brands' => array_map(fn (Brand $b): string => $b->value, $n['brands'] ?? []),
+            ], $nights),
         ];
     }
 
