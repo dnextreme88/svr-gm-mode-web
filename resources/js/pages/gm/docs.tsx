@@ -903,7 +903,7 @@ function Injuries({ injuries, fatigue }: Pick<Props, 'injuries' | 'fatigue'>) {
                         {pluralize(fatigue.rest_recovery_bars, 'bar')}, whether
                         they wrestled or not, and never drops below 0%. A
                         successful Inactive Superstar promo adds 2 more for its
-                        target.
+                        target; its picker shows the superstar’s fatigue.
                     </li>
                     <li>
                         Injuries are decided by the fatigue a superstar ends a
@@ -3197,8 +3197,16 @@ function ResultsDocs() {
                             Continue opens your weekly show to book. The rival’s
                             own PPV airs with the weekly shows. After the weekly
                             shows’ last match the rest of the week runs
-                            (recovery, contracts, morale, news, email) and
-                            Continue opens the News, now with the whole week.
+                            (recovery, contracts, morale, news, email).
+                        </li>
+                        <li>
+                            Then the week wraps up in order: Continue to
+                            Financials shows that week’s books, Continue to News
+                            the whole week’s news, and Continue the inbox, where
+                            the week’s new emails pop in. Return to schedule
+                            ends the week. The header and menu stay hidden from
+                            Air week until you’re back on the Schedule, so you
+                            stay on the week that just aired.
                         </li>
                         <li>
                             Signings, releases and trades wait until the week’s
