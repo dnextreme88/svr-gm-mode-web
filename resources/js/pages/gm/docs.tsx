@@ -211,6 +211,7 @@ type Props = {
                 decide_at_weeks_left: number;
                 lengths: number[];
                 losing_share: number;
+                losing_expire: number;
                 title_wins: Record<string, number>;
                 title_wins_keep: number;
                 complaint_share: number;
@@ -2108,7 +2109,8 @@ function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
                         <li>A champion is always re-signed.</li>
                         <li>
                             Lost more than {pct(roster.renewal.losing_share)} of
-                            their matches: let go.
+                            their matches: let go{' '}
+                            {pct(roster.renewal.losing_expire)} of the time.
                         </li>
                         <li>
                             Won enough titles for the contract’s length (1

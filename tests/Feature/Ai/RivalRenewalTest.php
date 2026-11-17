@@ -82,7 +82,8 @@ it('always re-signs a champion for 6 or 3 months, even with a losing record', fu
     expect(renewed($save, 'Carlito')?->length_weeks)->toBeIn([ContractLength::SixMonths->value, ContractLength::ThreeMonths->value]);
 });
 
-it('lets a superstar with a losing record go', function () {
+it('lets a superstar with a losing record go, on a roll (house rule, 2026-11-17)', function () {
+    config(['gm.ai.roster.renewal.losing_expire' => 1.0]);
     $save = renewSave();
     decided($save, 2, 'Kane', 'Eugene');
     decided($save, 3, 'Edge', 'Eugene');
@@ -93,6 +94,17 @@ it('lets a superstar with a losing record go', function () {
     app(AiRosterManager::class)->renew($save->refresh(), Brand::Raw, 12);
 
     expect(renewed($save, 'Eugene'))->toBeNull();
+});
+
+it('sometimes keeps a superstar with a losing record (house rule, 2026-11-17)', function () {
+    config(['gm.ai.roster.renewal.losing_expire' => 0.0]);
+    $save = renewSave();
+    decided($save, 2, 'Kane', 'Eugene');
+    decided($save, 3, 'Edge', 'Eugene');
+
+    app(AiRosterManager::class)->renew($save->refresh(), Brand::Raw, 12);
+
+    expect(renewed($save, 'Eugene'))->not->toBeNull();
 });
 
 it('does not count an even record as losing', function () {

@@ -860,6 +860,10 @@ return [
                 'decide_at_weeks_left' => 1,
                 'lengths' => [24, 12],
                 'losing_share' => 0.5,
+                // House rule (2026-11-17): a losing record lets the contract
+                // go this often (was always). Multi-man matches have more
+                // losers than winners, so losing records are common.
+                'losing_expire' => 0.8,
                 'title_wins' => [5 => 1, 12 => 2, 24 => 3, 36 => 3, 52 => 4],
                 'title_wins_keep' => 0.8,
                 // ASSUMPTION: "complains a lot" is a complaint open more than half the time.

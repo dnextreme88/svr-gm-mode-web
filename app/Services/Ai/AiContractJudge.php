@@ -56,7 +56,7 @@ class AiContractJudge
 
         $keep = match ($standing['rule']) {
             self::RULE_CHAMPION => true,
-            self::RULE_LOSING => false,
+            self::RULE_LOSING => ! $rng->chance((float) $config['losing_expire']),
             self::RULE_TITLES => $rng->chance((float) $config['title_wins_keep']),
             self::RULE_COMPLAINS => ! $rng->chance((float) $config['complaint_expire']),
             self::RULE_BUSY => $rng->chance((float) $config['busy_keep']),

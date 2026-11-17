@@ -47,3 +47,7 @@ The Survivor Series 5 vs 5 team and each brand's 3 Money in the Bank ladder spot
 - **WWE headline:**
     - The week before a PPV, its "{ppv} is 1 week away" headline leads, after the PPV results and re-draft headlines.
     - The week's biggest crowd is now the last resort, used only when the WWE card has no other real news.
+
+## Also: the rival's losing-record renewal rule rolls
+
+The rival GM used to let every superstar with a losing record (more than 50% of decided matches lost) go at renewal. In multi-man matches losers outnumber winners, so most of its roster ended the season with a losing record and it re-signed nobody. The new Triple Threats made that worse. Now a losing record lets the contract go **80%** of the time (`gm.ai.roster.renewal.losing_expire`, house rule, 2026-11-17), the same odds as the other let-go rules.
