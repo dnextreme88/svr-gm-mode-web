@@ -144,9 +144,14 @@ describe('Preset and rivalries', function () {
 
         $proposal = $randomizer->rivalryProposal($show, 1, $shape, [$pairs[0]], $pairs, $pool, [], [], $save->rng("shape.{$shape}", 1), Brand::Raw);
 
+        $names = array_map(fn (int $id): string => SaveWrestler::with('wrestler')->find($id)->name(), $pairs[0]);
+
         expect($proposal)->not->toBeNull()
             ->and($proposal->booking->competitorIds())->toHaveCount($competitors)
-            ->and($proposal->booking->allIds())->toContain(...$pairs[0]);
+            ->and($proposal->booking->allIds())->toContain(...$pairs[0])
+            // The note names the rivals (fix, 2026-11-18: it read "Rivalry: vs. .").
+            ->and($proposal->note)->toContain($names[0])->toContain($names[1])
+            ->and($proposal->note)->not->toContain('Rivalry:  vs.');
     })->with([
         'singles' => ['singles', 2],
         'triple threat' => ['triple_threat', 3],

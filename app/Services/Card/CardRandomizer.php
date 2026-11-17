@@ -373,7 +373,12 @@ class CardRandomizer
                 }
             }
 
-            $names = $byId->only($rivals)->map(fn (SaveWrestler $w): string => $w->name())->all();
+            // Each rival's name by id (Eloquent's only() renumbers its keys).
+            $names = [];
+
+            foreach ($rivals as $id) {
+                $names[$id] = $byId->get($id)?->name() ?? '';
+            }
             $note = 'Rivalry: '.implode(' and ', array_map(fn (array $p): string => ($names[$p[0]] ?? '').' vs. '.($names[$p[1]] ?? ''), $pairs)).'.';
 
             return new Proposal($position, new Booking($type, $sides, $managers), $sides, note: $note);
