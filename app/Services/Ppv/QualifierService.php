@@ -217,6 +217,20 @@ class QualifierService
     }
 
     /**
+     * The player's Randomize on the qualifier (house rule, 2026-11-17): three
+     * eligible men (never Divas), drawn like the rival's: fresh enough that
+     * the match leaves them at 70% or less, else the freshest.
+     *
+     * @return list<int>
+     */
+    public function randomPicks(Show $show, Brand $brand, Rng $rng): array
+    {
+        $slot = $this->slot($show);
+
+        return $slot?->matchType === null ? [] : $this->healthyPicks($show, $brand, $slot->matchType, $rng);
+    }
+
+    /**
      * A qualifier still empty when its week airs (Simulate to here, tests):
      * filled the same healthy way.
      */

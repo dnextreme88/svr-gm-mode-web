@@ -16,6 +16,7 @@ use App\Services\Card\Booking;
 use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
 use App\Services\Card\Proposal;
+use App\Services\Ppv\QualifierService;
 use App\Services\Promos\PromoService;
 use App\Services\Week\BookingOrder;
 use Illuminate\Http\JsonResponse;
@@ -36,14 +37,29 @@ class CardToolsController extends Controller
         private PromoService $promos,
         private BookingOrder $order,
         private CardService $cards,
+        private QualifierService $qualifiers,
     ) {}
 
     public function randomize(Request $request, Save $save, Show $show, int $position): JsonResponse
     {
-        $brand = $this->brandFor($save, $show, $position);
         $data = $request->validate(['match_type_id' => ['nullable', 'integer', 'exists:match_types,id'], 'roll' => ['nullable', 'integer', 'min:0']]);
-        $type = isset($data['match_type_id']) ? MatchType::whereKey($data['match_type_id'])->first() : null;
         $roll = (int) ($data['roll'] ?? 0);
+
+        // House rule (2026-11-17): a Qualifying Match (a fixed slot) draws
+        // its 3 men only, never Divas.
+        if ($this->qualifiers->slot($show)?->position === $position) {
+            $this->assertOwnShow($save, $show);
+
+            return response()->json(['qualifier' => $this->qualifiers->randomPicks(
+                $show,
+                $save->player_brand,
+                $save->rng("randomize.qualifier.{$show->streamKey()}.{$roll}", $show->week_number),
+            )]);
+        }
+
+        $brand = $this->brandFor($save, $show, $position);
+        $type = isset($data['match_type_id']) ? MatchType::whereKey($data['match_type_id'])->first() : null;
+
         $titles = array_values(MatchSlot::where('show_id', $show->id)->where('position', '!=', $position)->get()
             ->flatMap(fn (MatchSlot $slot): array => array_filter([$slot->title_championship_id, ...($slot->contested_title_ids ?? [])]))
             ->map(fn ($id): int => (int) $id)

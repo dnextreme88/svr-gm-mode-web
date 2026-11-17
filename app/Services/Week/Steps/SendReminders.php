@@ -94,7 +94,7 @@ class SendReminders implements WeekStep
         }
 
         // House rule (2026-11-17): Survivor Series and WrestleMania come with
-        // their Qualifying Matches, so Vince writes when those start.
+        // their Qualifying Matches, so Vince writes the week before they start.
         $default = (int) config('gm.emails.ppv_reminder_weeks_before');
         $overrides = (array) config('gm.emails.ppv_reminder_weeks_overrides');
 

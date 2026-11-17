@@ -72,6 +72,9 @@ export function TitleCycler({
         return null;
     }
 
+    // A locked slot (a Qualifying Match, an aired card) can't take a title.
+    const selectable = titles.length > 0 && !readOnly;
+
     return (
         <div
             className="flex w-full items-center gap-1 text-sm lg:w-auto"
@@ -93,14 +96,14 @@ export function TitleCycler({
                     'text-md mt-1 min-w-0 flex-1 px-3 py-1 text-center font-condensed font-bold tracking-[0.14em] uppercase sm:min-w-[300px] md:flex-none',
                     current
                         ? 'bg-gradient-to-b from-gold-hot to-gold text-arena'
-                        : titles.length > 0
+                        : selectable
                           ? 'bg-white/5 text-white/80'
                           : 'bg-white/5 text-white/20 hover:cursor-not-allowed',
                 )}
             >
                 {current
                     ? current.name
-                    : titles.length > 0
+                    : selectable
                       ? 'Select title'
                       : 'No title eligible'}
             </span>

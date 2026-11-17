@@ -282,3 +282,19 @@ it('keeps the rival’s qualifiers out of heavy matches until the PPV', function
         expect(in_array($slot->matchType->family->value, ['single', 'tag_team'], true))->toBeTrue();
     }
 });
+
+it('randomizes the player’s qualifier with men only, never Divas (house rule, 2026-11-17)', function () {
+    $save = qualifierSave(30);
+    $show = weeklyShow($save, Brand::Raw, 30);
+
+    foreach (range(0, 5) as $roll) {
+        $ids = $this->postJson(route('gm.card.randomize', [$save, $show, 5]), ['roll' => $roll])->assertOk()->json('qualifier');
+
+        expect($ids)->toHaveCount(3)
+            ->and(array_unique($ids))->toHaveCount(3)
+            ->and(SaveWrestler::with('wrestler')->whereIn('id', $ids)->get()->every(fn (SaveWrestler $w) => ! $w->wrestler->isDiva() && $w->brand === Brand::Raw))->toBeTrue();
+    }
+
+    // Randomize only proposes: nothing is booked until the player saves.
+    expect(qualifierSlot($show)->participants)->toHaveCount(0);
+});

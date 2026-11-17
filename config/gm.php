@@ -720,8 +720,10 @@ return [
         'free_agent_reminder_weeks' => 16,
         // ASSUMPTION: Vince's shared-PPV reminder lands 2 weeks out.
         'ppv_reminder_weeks_before' => 2,
-        // House rule (2026-11-17): when the Qualifying Matches start.
-        'ppv_reminder_weeks_overrides' => ['survivor_series' => 5, 'wrestlemania' => 3],
+        // House rule (2026-11-17): sent at the end of the week before the
+        // Qualifying Matches start (Survivor Series's qualifiers run 5 weeks,
+        // WrestleMania's 3), so it's in the inbox when the first is booked.
+        'ppv_reminder_weeks_overrides' => ['survivor_series' => 6, 'wrestlemania' => 4],
         'low_cash_threshold' => 500_000,
         'low_cash_every_weeks' => 4,
         'contract_reminder_weeks' => 2,

@@ -3103,9 +3103,14 @@ function QualifyingMatchesDocs() {
                 Two PPV matches are earned on the weekly shows before them, as
                 WWE did. In those weeks, Match 5 on both brands’ weekly shows is
                 a fixed <span className="font-semibold">Qualifying Match</span>:
-                its match type is locked, it can’t be cleared, moved or
-                randomized, and the card can’t air until its 3 superstars are
-                picked. It isn’t a stipulation, and no other week has one.
+                its match type is locked, it can’t be cleared or moved, no title
+                can be on the line, and the card can’t air until its 3
+                superstars are picked. Randomize fills them with men only (never
+                Divas) the match leaves at 70% fatigue or less. It’s a special
+                stipulation, pre-booked for these two PPVs: the slot shows
+                “Qualifying Match · Survivor Series” (or “· Money in the Bank”)
+                in place of the stipulation picker, and it can’t be put on any
+                other match. No other week has one.
             </p>
             <ul className="mt-3 list-disc space-y-2 pl-4 text-sm text-ink">
                 <li>
@@ -3144,9 +3149,9 @@ function QualifyingMatchesDocs() {
                     Superstar to rest a tired one.
                 </li>
                 <li>
-                    Vince McMahon’s reminder comes 5 weeks before Survivor
-                    Series and 3 weeks before WrestleMania, as the qualifiers
-                    begin.
+                    Vince McMahon’s reminder comes 6 weeks before Survivor
+                    Series and 4 weeks before WrestleMania, the week before the
+                    qualifiers begin.
                 </li>
             </ul>
         </Panel>

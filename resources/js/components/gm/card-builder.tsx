@@ -143,6 +143,29 @@ export function qualifierName(ppv?: string): string {
     return '';
 }
 
+/**
+ * A Qualifying Match's stipulation (house rule, 2026-11-17): pre-booked for
+ * the Survivor Series 5 vs 5 or the WrestleMania Money in the Bank ladder,
+ * shown where the stipulation picker would be, and never changed.
+ */
+function QualifierStipulation({
+    position,
+    ppv,
+}: {
+    position: number;
+    ppv: string;
+}) {
+    return (
+        <div
+            data-testid={`qualifier-${position}`}
+            aria-label={`Stipulation for match ${position}`}
+            className="w-full bg-gold/10 px-3 py-1 text-center font-condensed text-sm font-bold tracking-[0.14em] text-gold uppercase lg:w-auto lg:min-w-[300px]"
+        >
+            Qualifying Match{ppv ? ` · ${ppv}` : ''}
+        </div>
+    );
+}
+
 /** A match type's price: green, and italic when it's free. */
 export function MatchCost({ cost }: { cost: number }) {
     return (
@@ -402,13 +425,21 @@ export function CardBuilder({
                             seriesSides={
                                 !readOnly ? openSeriesSides(draft) : undefined
                             }
-                            qualifier={qualifierFor(draft)}
                             seriesEligible={seriesFor(draft)?.eligible}
                             onDiscard={() => discard(draft.position)}
                             onClear={() => clearSlot(draft.position)}
                             title={renderTitle?.(draft, update, drafts)}
                             buttons={renderButtons?.(draft, update, drafts)}
-                            actions={renderActions?.(draft, update, drafts)}
+                            actions={
+                                qualifierFor(draft) !== undefined ? (
+                                    <QualifierStipulation
+                                        position={draft.position}
+                                        ppv={qualifierFor(draft) ?? ''}
+                                    />
+                                ) : (
+                                    renderActions?.(draft, update, drafts)
+                                )
+                            }
                             names={
                                 slots.find((s) => s.position === draft.position)
                                     ?.names
@@ -467,8 +498,6 @@ type SlotEditorProps = {
     seriesSides?: number[];
     /** …and who can go in them. */
     seriesEligible?: number[];
-    /** A Qualifying Match: the PPV spot it's for ("Survivor Series"). */
-    qualifier?: string;
 };
 
 function SlotEditor({
@@ -502,7 +531,6 @@ function SlotEditor({
     ownerBrand = null,
     seriesSides,
     seriesEligible,
-    qualifier,
 }: SlotEditorProps) {
     const type = draft.matchTypeId ? types.get(draft.matchTypeId) : undefined;
     const label = `Match ${draft.position}`;
@@ -738,15 +766,6 @@ function SlotEditor({
                     >
                         {isMainEvent ? 'Main Event' : label}
                     </span>
-                    {qualifier !== undefined && (
-                        <span
-                            data-testid={`qualifier-${draft.position}`}
-                            className="ml-1 font-condensed text-sm font-bold tracking-wide text-gold uppercase"
-                        >
-                            Qualifying Match
-                            {qualifier ? ` · ${qualifier}` : ''}
-                        </span>
-                    )}
                 </div>
                 <MatchTypePicker
                     position={draft.position}

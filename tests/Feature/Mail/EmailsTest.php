@@ -214,14 +214,15 @@ it('has Vince remind both brands before each shared PPV, earlier for the two wit
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
 
     // Backlash (week 4) is Raw-only; SummerSlam 21, Survivor Series 35, Royal Rumble 44, WrestleMania 52.
-    // House rule (2026-11-17): Survivor Series 5 weeks out, WrestleMania 3, the others 2.
-    foreach ([2, 19, 30, 33, 42, 49, 50] as $week) {
+    // House rule (2026-11-17): Survivor Series 6 weeks out and WrestleMania 4,
+    // the week before their Qualifying Matches start; the others 2.
+    foreach ([2, 19, 29, 30, 33, 42, 48, 49, 50] as $week) {
         runStep(SendReminders::class, $save, $week);
     }
 
     $raw = inbox($save, EmailTemplate::PpvReminder);
 
-    expect($raw->pluck('week_number')->all())->toBe([19, 30, 42, 49])
+    expect($raw->pluck('week_number')->all())->toBe([19, 29, 42, 48])
         ->and($raw[1]->body)->toContain('Qualifying Match')
         ->and($raw[3]->body)->toContain('Qualifying Match')
         ->and($raw->pluck('sender')->unique()->all())->toBe(['Vince McMahon'])

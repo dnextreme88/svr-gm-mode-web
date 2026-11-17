@@ -31,6 +31,7 @@ import { UnsavedChangesProvider } from '@/components/gm/unsaved-changes';
 import type { PromoFatigue } from '@/lib/card';
 import { MainEventTypeButton } from '@/components/gm/wrestlemania-tools';
 import type { SeriesOption } from '@/components/gm/wrestlemania-tools';
+import { QualifierRandomize } from '@/components/gm/qualifier-randomize';
 import { requestJson } from '@/lib/http';
 import { saveVisit, slotSaveKey } from '@/lib/save-status';
 import { cn } from '@/lib/utils';
@@ -361,10 +362,30 @@ export default function CardPage() {
                         onChange={update}
                     />
                 )}
-                renderButtons={(draft) => {
+                renderButtons={(draft, update) => {
                     const slot = slots.find(
                         (s) => s.position === draft.position,
                     );
+
+                    // House rule (2026-11-17): the Qualifying Match's 3 men.
+                    if (slot?.fixed_kind === 'qualifying_match') {
+                        return (
+                            booking && (
+                                <QualifierRandomize
+                                    url={gm.card.randomize.url({
+                                        ...ids,
+                                        position: draft.position,
+                                    })}
+                                    onPick={(picks) =>
+                                        update({
+                                            ...draft,
+                                            sides: picks.map((id) => [id]),
+                                        })
+                                    }
+                                />
+                            )
+                        );
+                    }
 
                     // House rule (2026-11-15): the player picks the main
                     // event's match type (series spots are picked on the

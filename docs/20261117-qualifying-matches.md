@@ -10,7 +10,7 @@ The Survivor Series 5 vs 5 team and each brand's 3 Money in the Bank ladder spot
 
 - **Survivor Series:** the 5 weeks before it (season weeks 30–34; first Raw Oct 24 and Smackdown Oct 28, 2005). Match 5 on both brands' weekly shows is a fixed **Ladder Triple Threat** Qualifying Match. Each winner takes one of the brand's 5 team spots.
 - **Money in the Bank:** the 3 weeks before WrestleMania (weeks 49–51). Match 5 is a fixed **Normal Triple Threat**. Each winner takes one of the brand's 3 ladder spots. Champions can't enter.
-- **The slot is fixed** (`FixedSlotKind::QualifyingMatch`). Its type is locked, and it can't be cleared, moved or randomized. It isn't a stipulation. It must be booked before the card airs.
+- **The slot is fixed** (`FixedSlotKind::QualifyingMatch`). Its type is locked, and it can't be cleared or moved. Randomize fills its 3 pickers with eligible men only (never Divas) the match leaves at 70% fatigue or less. It's a special stipulation, pre-booked for these two PPVs: the slot shows "Qualifying Match · Survivor Series" (or "· Money in the Bank") where the stipulation picker would be, and it can't be picked for any other match. It must be booked before the card airs.
 - **Who can enter:** no Divas, and no one who already qualified for that PPV. Losers can try again.
 - **Any win qualifies,** a DQ or count-out included.
 - **Winners are locked onto the PPV card.** Only a serious injury, or leaving the brand by the PPV, gives the spot up. The player then picks the replacement on the PPV card, and the rival picks its own.
@@ -18,7 +18,7 @@ The Survivor Series 5 vs 5 team and each brand's 3 Money in the Bank ladder spot
     - It picks entrants who stay at the careful 70%.
     - It keeps its qualifiers healthy until the PPV: they're only booked in Normal Matches or Tag Team types at 70% or less.
     - It books Continue Rivalry for a qualifier's rivalry, or else Inactive Superstar to rest a tired qualifier.
-- **Vince's reminder emails** come 5 weeks before Survivor Series and 3 weeks before WrestleMania, and mention the qualifiers. The Royal Rumble and SummerSlam reminders stay at 2 weeks. The PPV buzz news mentions the qualifiers too.
+- **Vince's reminder emails** come 6 weeks before Survivor Series and 4 weeks before WrestleMania, at the end of the week before the qualifiers start (after Smackdown on Oct 21, 2005 and Mar 3, 2006), and mention the qualifiers. The Royal Rumble and SummerSlam reminders stay at 2 weeks. The PPV buzz news mentions the qualifiers too.
 - **Deferred (TODOS):** qualifiers for the WrestleMania interbrand 1v1 and 2v2.
 
 ## Implementation
