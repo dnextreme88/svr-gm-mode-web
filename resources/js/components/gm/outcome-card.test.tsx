@@ -61,7 +61,7 @@ describe('OutcomeCard', () => {
         expect(screen.queryByText('Winner')).toBeNull();
     });
 
-    it('puts the title on its own line, smaller than the match and bigger than the banner (2026-11-17)', () => {
+    it('puts the title on its own line under the match (2026-11-17)', () => {
         render(<OutcomeCard outcome={dqRetain} showName="Raw" isMainEvent />);
 
         expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(
@@ -69,15 +69,9 @@ describe('OutcomeCard', () => {
         );
         const title = screen.getByTestId('outcome-heading-title');
         expect(title).toHaveTextContent(dqRetain.title ?? '');
-        expect(title.className).toContain('md:text-2xl');
-        expect(screen.getByRole('heading', { level: 2 }).className).toContain(
-            'md:text-4xl',
-        );
-        expect(screen.getByText('And still…').className).toContain(
-            'md:text-xl',
-        );
-        expect(screen.getByRole('heading', { level: 3 }).className).toContain(
-            'text-lg',
+        expect(title.tagName).toBe('P');
+        expect(screen.getByRole('heading', { level: 2 })).not.toContainElement(
+            title,
         );
     });
 });
