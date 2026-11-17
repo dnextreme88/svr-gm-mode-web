@@ -156,10 +156,14 @@ function promo(
 
 const page: { props: Record<string, unknown> } = { props };
 const post = vi.fn();
+const visit = vi.fn();
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
-    router: { post: (...args: unknown[]) => post(...args) },
+    router: {
+        post: (...args: unknown[]) => post(...args),
+        visit: (...args: unknown[]) => visit(...args),
+    },
     Link: ({
         children,
         href,
@@ -183,6 +187,36 @@ afterEach(() => {
 });
 
 describe('Results page', () => {
+    it('says it is going to the News when Continue is pressed on the week just aired (2026-11-17)', async () => {
+        const user = userEvent.setup();
+        page.props = { ...props, airing: false, wrapping_up: true };
+        visit.mockImplementation(
+            (_url: string, options: { onStart?: () => void }) =>
+                options.onStart?.(),
+        );
+
+        render(<Results />);
+        await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+        expect(visit).toHaveBeenCalledWith(
+            expect.stringContaining('/news'),
+            expect.anything(),
+        );
+        const button = screen.getByRole('button', {
+            name: /Continuing to News page/,
+        });
+        expect(button).toBeDisabled();
+        expect(button).toHaveAttribute('aria-busy', 'true');
+    });
+
+    it('keeps a plain Continue link on a past week', () => {
+        page.props = { ...props, airing: false, wrapping_up: false };
+
+        render(<Results />);
+
+        expect(screen.getByRole('link', { name: 'Continue' })).toBeVisible();
+    });
+
     it('lists every result with a chevron and no Enter-to-continue prompt', () => {
         render(<Results />);
 

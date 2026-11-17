@@ -23,13 +23,13 @@ export function MatchHeading({
 }) {
     return (
         <header data-testid={testId}>
-            <h2 className="font-display text-xl leading-tight font-bold tracking-wide text-ink uppercase md:text-2xl">
+            <h2 className="font-display text-xl leading-tight font-bold tracking-wide text-ink uppercase lg:text-2xl">
                 {isMainEvent ? 'Main Event' : `Match ${position}`} - {matchType}
             </h2>
             {title && (
                 <p
                     data-testid={`${testId}-title`}
-                    className="mt-2 inline-flex items-center gap-2 font-condensed text-xl font-semibold tracking-wide text-gold-hot md:text-2xl"
+                    className="mt-2 inline-flex items-center gap-2 font-condensed text-xl font-semibold tracking-wide text-gold-hot lg:text-2xl"
                 >
                     <TitleBeltImage
                         name={title}
