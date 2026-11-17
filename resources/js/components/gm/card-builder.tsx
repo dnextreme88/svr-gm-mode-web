@@ -47,7 +47,15 @@ export type CardBuilderProps = {
     fatigueConfig: FatigueConfig;
     onSave: (position: number, payload: BookingPayload) => void;
     /** WrestleMania's interbrand series: the player's spots, by match. */
-    series?: Record<number, { sides: number[]; eligible: number[] }>;
+    series?: Record<
+        number,
+        {
+            sides: number[];
+            eligible: number[];
+            locked?: number[];
+            qualifier?: string;
+        }
+    >;
     /** Saves the player's series picks, spot by spot. */
     onSaveSeries?: (position: number, ids: number[]) => void;
     onClear: (position: number) => void;
@@ -120,6 +128,19 @@ export function seriesPicks(draft: SlotDraft, sides: number[]): number[] {
     }
 
     return picks;
+}
+
+/** The PPV spot a Qualifying Match is for, by its PPV key. */
+export function qualifierName(ppv?: string): string {
+    if (ppv === 'survivor_series') {
+        return 'Survivor Series';
+    }
+
+    if (ppv === 'wrestlemania') {
+        return 'Money in the Bank';
+    }
+
+    return '';
 }
 
 /** A match type's price: green, and italic when it's free. */
@@ -222,6 +243,20 @@ export function CardBuilder({
     // picks their own spots right on the match, like any other booking.
     const seriesFor = (d: SlotDraft) =>
         onSaveSeries ? (series?.[d.position] ?? null) : null;
+    // Spots a Money in the Bank qualifier holds stay as they are.
+    const openSeriesSides = (d: SlotDraft) => {
+        const spots = seriesFor(d);
+
+        return spots?.sides.filter(
+            (_, index) => !(spots.locked ?? []).includes(index),
+        );
+    };
+    // House rule (2026-11-17): the weekly shows' fixed Qualifying Match.
+    const qualifierFor = (d: SlotDraft) =>
+        slots.find((s) => s.position === d.position)?.fixed_kind ===
+        'qualifying_match'
+            ? qualifierName(series?.[d.position]?.qualifier)
+            : undefined;
     const complete = (d: SlotDraft) =>
         isComplete(d, d.matchTypeId ? types.get(d.matchTypeId) : undefined);
 
@@ -365,8 +400,9 @@ export function CardBuilder({
                                 markClean(draft.position);
                             }}
                             seriesSides={
-                                !readOnly ? seriesFor(draft)?.sides : undefined
+                                !readOnly ? openSeriesSides(draft) : undefined
                             }
+                            qualifier={qualifierFor(draft)}
                             seriesEligible={seriesFor(draft)?.eligible}
                             onDiscard={() => discard(draft.position)}
                             onClear={() => clearSlot(draft.position)}
@@ -431,6 +467,8 @@ type SlotEditorProps = {
     seriesSides?: number[];
     /** …and who can go in them. */
     seriesEligible?: number[];
+    /** A Qualifying Match: the PPV spot it's for ("Survivor Series"). */
+    qualifier?: string;
 };
 
 function SlotEditor({
@@ -464,6 +502,7 @@ function SlotEditor({
     ownerBrand = null,
     seriesSides,
     seriesEligible,
+    qualifier,
 }: SlotEditorProps) {
     const type = draft.matchTypeId ? types.get(draft.matchTypeId) : undefined;
     const label = `Match ${draft.position}`;
@@ -699,6 +738,15 @@ function SlotEditor({
                     >
                         {isMainEvent ? 'Main Event' : label}
                     </span>
+                    {qualifier !== undefined && (
+                        <span
+                            data-testid={`qualifier-${draft.position}`}
+                            className="ml-1 font-condensed text-sm font-bold tracking-wide text-gold uppercase"
+                        >
+                            Qualifying Match
+                            {qualifier ? ` · ${qualifier}` : ''}
+                        </span>
+                    )}
                 </div>
                 <MatchTypePicker
                     position={draft.position}

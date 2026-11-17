@@ -14,6 +14,10 @@ export type SeriesOption = {
     sides: number[];
     current: (number | null)[];
     eligible: number[];
+    /** Spots (indexes into `sides`) held by qualifiers, which can't change. */
+    locked?: number[];
+    /** House rule (2026-11-17): set on a Qualifying Match, the PPV it's for. */
+    qualifier?: string;
 };
 
 /**

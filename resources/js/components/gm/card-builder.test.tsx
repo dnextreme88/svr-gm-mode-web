@@ -1207,4 +1207,55 @@ describe('WrestleMania interbrand series (house rule, 2026-11-15)', () => {
 
         expect(onSaveSeries).toHaveBeenCalledWith(5, [10]);
     });
+
+    describe('Qualifying Matches (house rule, 2026-11-17)', () => {
+        it('labels the fixed Match 5 and keeps a qualifier’s ladder spot locked', () => {
+            const slot: CardSlot = {
+                ...emptySlot(5),
+                match_type_id: 1,
+                sides: [[11], [null]],
+                fixed_kind: 'qualifying_match',
+            };
+
+            render(
+                <UnsavedChangesProvider>
+                    <CardBuilder
+                        show={show}
+                        slots={[slot]}
+                        matchTypes={matchTypes}
+                        roster={roster}
+                        fatigueConfig={config}
+                        onSave={vi.fn()}
+                        onClear={vi.fn()}
+                        series={{
+                            5: {
+                                sides: [0, 1],
+                                eligible: [10, 11],
+                                locked: [0],
+                                qualifier: 'survivor_series',
+                            },
+                        }}
+                        onSaveSeries={vi.fn()}
+                    />
+                </UnsavedChangesProvider>,
+            );
+
+            expect(screen.getByTestId('qualifier-5')).toHaveTextContent(
+                'Qualifying Match · Survivor Series',
+            );
+            expect(
+                screen.getByRole('button', {
+                    name: 'Match 5 side 1 superstar 1',
+                }),
+            ).toBeDisabled();
+            expect(
+                screen.getByRole('button', {
+                    name: 'Match 5 side 2 superstar 1',
+                }),
+            ).toBeEnabled();
+            expect(
+                screen.queryByRole('button', { name: /Clear match 5/i }),
+            ).toBeNull();
+        });
+    });
 });

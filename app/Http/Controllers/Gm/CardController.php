@@ -25,6 +25,7 @@ use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
 use App\Services\Injuries\InjuryStatus;
 use App\Services\Ppv\PpvCardService;
+use App\Services\Ppv\QualifierService;
 use App\Services\Promos\PromoEligibility;
 use App\Services\Rivalries\RivalryService;
 use App\Services\Roster\RosterService;
@@ -58,6 +59,7 @@ class CardController extends Controller
         private RepeatMatches $repeats,
         private RivalryService $rivalries,
         private PpvCardService $ppvCards,
+        private QualifierService $qualifiers,
     ) {}
 
     public function show(Save $save, Show $show): Response|RedirectResponse
@@ -108,7 +110,8 @@ class CardController extends Controller
                 : ['main_event' => $headliner === $save->player_brand, 'headliner' => $headliner->label()],
             // House rule (2026-11-15): the player's spots in the WrestleMania
             // interbrand series matches, and who can take them.
-            'series' => (object) $this->ppvCards->seriesOptions($show, $brand),
+            // House rule (2026-11-17): a weekly Qualifying Match's pickers, the same way.
+            'series' => (object) ($this->ppvCards->seriesOptions($show, $brand) + $this->qualifiers->options($show, $brand)),
             // The main event's match type, when this brand has it (house rule, 2026-11-15).
             'main_event_types' => $show->isWrestleMania() && MatchSlot::where('show_id', $show->id)->where('position', PpvCardService::WM_MAIN_EVENT)->where('owner_brand', $brand)->whereNotNull('fixed_kind')->exists()
                 ? $this->ppvCards->mainEventTypes($show, $brand)->map(fn (MatchType $t): int => $t->id)->values()
@@ -232,7 +235,12 @@ class CardController extends Controller
         $this->order->assertEditable($save, $show);
         $data = $request->validate(['ids' => ['required', 'array', 'min:1', 'max:3'], 'ids.*' => ['integer']]);
 
-        DB::transaction(fn () => $this->ppvCards->setSeriesEntrants($show, $position, $save->player_brand, array_values(array_map('intval', $data['ids']))));
+        $ids = array_values(array_map('intval', $data['ids']));
+        $qualifier = $this->qualifiers->slot($show)?->position === $position;
+
+        DB::transaction(fn () => $qualifier
+            ? $this->qualifiers->setEntrants($show, $save->player_brand, $ids)
+            : $this->ppvCards->setSeriesEntrants($show, $position, $save->player_brand, $ids));
 
         if ($request->expectsJson() && ! $request->header('X-Inertia')) {
             return response()->noContent();

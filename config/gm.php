@@ -465,6 +465,23 @@ return [
         'royal_rumble_min_entrants_per_brand' => 10,
         // House rule (2026-11-17): 5 a side (it was 3).
         'survivor_series_team_size' => 5,
+        // House rule (2026-11-17): Qualifying Matches. Match 5 of both brands'
+        // weekly shows in the weeks before Survivor Series (its 5 vs 5 team)
+        // and WrestleMania (its Money in the Bank ladder) is a fixed
+        // Qualifying Match; the winner takes one of the brand's spots.
+        'qualifiers' => [
+            'slot' => 5,
+            // Weeks of qualifiers before each PPV (one winner a week each).
+            'windows' => ['survivor_series' => 5, 'wrestlemania' => 3],
+            // The locked match type: [family, variant].
+            'types' => [
+                'survivor_series' => ['ladder', 'Triple Threat'],
+                'wrestlemania' => ['single', 'Triple Threat'],
+            ],
+            // The rival GM keeps its qualifiers healthy until the PPV: only
+            // these categories, at its careful fatigue limit.
+            'rival_safe_families' => ['single', 'tag_team'],
+        ],
         // House rule (2026-11-15, raised 2026-11-17): the re-draft swaps
         // this many superstars each way (10 from Raw to Smackdown, 10 back).
         // No roster cap applies.
@@ -703,6 +720,8 @@ return [
         'free_agent_reminder_weeks' => 16,
         // ASSUMPTION: Vince's shared-PPV reminder lands 2 weeks out.
         'ppv_reminder_weeks_before' => 2,
+        // House rule (2026-11-17): when the Qualifying Matches start.
+        'ppv_reminder_weeks_overrides' => ['survivor_series' => 5, 'wrestlemania' => 3],
         'low_cash_threshold' => 500_000,
         'low_cash_every_weeks' => 4,
         'contract_reminder_weeks' => 2,

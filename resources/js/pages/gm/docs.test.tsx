@@ -710,9 +710,18 @@ describe('Docs page', () => {
             'Money in the Bank:',
             'Buried Alive:',
             'Rivalry:',
+            'Qualifying Matches:',
         ]) {
             expect(screen.getByText(effect)).toBeInTheDocument();
         }
+        // House rule (2026-11-17): the Qualifying Matches panel.
+        expect(
+            screen.getByRole('heading', { name: 'Qualifying Matches' }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Survivor Series:')).toBeInTheDocument();
+        expect(
+            screen.getByText('Money in the Bank ladder:'),
+        ).toBeInTheDocument();
         expect(
             screen.getByText(/nothing in it stops the card from airing/),
         ).toBeInTheDocument();

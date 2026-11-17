@@ -19,16 +19,30 @@ type Props = GamePageProps & {
     needed: number;
     pool: WrestlerRow[];
     selected: number[];
+    /** House rule (2026-11-17): the team spots won in Qualifying Matches. */
+    qualified?: { id: number; name: string }[];
     rival: string[];
     booking_order: BookingOrder;
 };
 
 /**
- * Pick your 15 Royal Rumble entrants or your Survivor Series team of 3 (§10).
+ * Pick your 15 Royal Rumble entrants or your Survivor Series team of 5 (§10).
+ * Survivor Series spots won in Qualifying Matches are locked; only the rest
+ * are picked here.
  */
 export default function PpvEntrants() {
-    const { game, show, mode, needed, pool, selected, rival, booking_order } =
-        usePage<Props>().props;
+    const {
+        game,
+        show,
+        mode,
+        needed,
+        pool,
+        selected,
+        qualified = [],
+        rival,
+        booking_order,
+    } = usePage<Props>().props;
+    const qualifiedIds = qualified.map((q) => q.id);
     const [picked, setPicked] = useState<number[]>(selected);
     const readOnly = show.status !== 'booking' || !booking_order.editable;
     const rumble = mode === 'rumble';
@@ -124,16 +138,20 @@ export default function PpvEntrants() {
                 {rumble
                     ? 'Fifteen from each brand. No titles are on the line; the winner’s brand gets the WrestleMania main event.'
                     : 'Raw vs. Smackdown as the Survivor Series main event. Eliminations by pinfall, submission, DQ or count-out. No titles can be defended.'}
+                {!rumble &&
+                    qualified.length > 0 &&
+                    ` ${qualified.length} of your team qualified on the weekly shows and can’t be changed; pick the other ${needed}.`}
             </p>
 
             <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
                 <Panel title="Your roster" bodyClassName="p-0">
                     <ul className="gm-scroll max-h-[65vh] divide-y divide-white/5 overflow-y-auto">
                         {pool.map((w) => {
-                            const checked = picked.includes(w.id);
+                            const qualifier = qualifiedIds.includes(w.id);
+                            const checked = qualifier || picked.includes(w.id);
                             // House rule: Divas can't enter either PPV.
                             const diva = w.roster_type === RosterType.Diva;
-                            const locked = readOnly || diva;
+                            const locked = readOnly || diva || qualifier;
 
                             return (
                                 <li key={w.id}>
@@ -156,6 +174,7 @@ export default function PpvEntrants() {
                                                 (!checked &&
                                                     picked.length >= needed)
                                             }
+                                            data-testid={`entrant-${w.id}`}
                                             onChange={() => toggle(w.id)}
                                             aria-label={w.name}
                                         />
@@ -164,6 +183,11 @@ export default function PpvEntrants() {
                                             {diva && (
                                                 <span className="ml-2 text-xs text-ink-faint">
                                                     No Divas
+                                                </span>
+                                            )}
+                                            {qualifier && (
+                                                <span className="ml-2 text-xs font-bold text-gold uppercase">
+                                                    Qualified
                                                 </span>
                                             )}
                                         </span>

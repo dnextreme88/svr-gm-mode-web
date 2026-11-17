@@ -30,6 +30,9 @@ class PpvBuzz implements WeekStep
                 $this->news->record($context->save, NewsEventType::PpvUpcoming, $n === 1 ? NewsTier::Headline : NewsTier::Story, NewsBrand::Both, [
                     'ppv' => $ppv->name,
                     'n' => $n,
+                    // House rule (2026-11-17): Survivor Series and WrestleMania
+                    // talk about their Qualifying Matches.
+                    'outcome' => $ppv->key->value,
                 ], ['ppv_event_id' => $ppv->id], priority: $n === 1 ? 55 : 15, week: $context->week);
             }
         }

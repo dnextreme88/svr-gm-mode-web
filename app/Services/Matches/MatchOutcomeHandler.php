@@ -25,6 +25,7 @@ use App\Services\Contracts\ContractService;
 use App\Services\Factions\FactionNamer;
 use App\Services\Finance\LedgerService;
 use App\Services\News\NewsRecorder;
+use App\Services\Ppv\QualifierService;
 use App\Services\Ppv\RoyalRumbleLog;
 use App\Services\Titles\ChampionshipAssignment;
 use App\Services\Titles\ContendershipService;
@@ -56,6 +57,7 @@ class MatchOutcomeHandler
         private ContendershipService $contenderships,
         private RematchClauseService $rematches,
         private RoyalRumbleLog $rumbleLog,
+        private QualifierService $qualifiers,
     ) {}
 
     public function apply(MatchSlot $slot, MatchResult $result, ResolvedMatch $resolved, WeekContext $context): void
@@ -114,6 +116,11 @@ class MatchOutcomeHandler
                 'ppv' => 'Royal Rumble',
                 'top_result' => "{$winner->name()}'s Royal Rumble win",
             ], ['wrestler_ids' => [$winner->id]], priority: 90, week: $context->week, dedupeKey: "slot:{$slot->id}");
+        }
+
+        // House rule (2026-11-17): a Qualifying Match's winner takes a spot.
+        if ($slot->fixed_kind === FixedSlotKind::QualifyingMatch) {
+            $stipulationOutcome = $this->qualifiers->record($slot, $resolved, $context->week);
         }
 
         if ($slot->fixed_kind === FixedSlotKind::SurvivorSeriesMainEvent) {

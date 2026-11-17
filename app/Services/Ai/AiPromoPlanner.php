@@ -13,6 +13,7 @@ use App\Models\PromoType;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Calendar\CalendarService;
+use App\Services\Ppv\QualifierService;
 use App\Services\Promos\PromoEligibility;
 use App\Services\Promos\PromoService;
 use App\Services\Rivalries\RivalryService;
@@ -48,6 +49,7 @@ class AiPromoPlanner
         private RivalryService $rivalries,
         private AiBooker $booker,
         private AiRosterManager $roster,
+        private QualifierService $qualifiers,
     ) {}
 
     public function book(Show $show, Brand $brand, int $rivalryStarts = 0): void
@@ -111,6 +113,13 @@ class AiPromoPlanner
             $list[] = [PromoTypeKey::PpvHype];
         }
 
+        // House rule (2026-11-17): keep its qualifiers healthy for their PPV.
+        $rest = $this->restQualifier($show, $brand);
+
+        if ($rest !== null) {
+            $list[] = $rest;
+        }
+
         if ($this->weeksSince($show, $brand, PromoTypeKey::InterferencePromotion) >= (int) config('gm.ai.promos.interference_every_weeks')) {
             $target = $this->tiringTarget($show, $brand, PromoTypeKey::InterferencePromotion, $rng);
 
@@ -138,6 +147,39 @@ class AiPromoPlanner
         return array_values(array_filter($list, fn (array $c): bool => ! in_array($c[0], $used, true)
             || in_array($c, $money, true)
             || $c[0] === PromoTypeKey::StartRivalry));
+    }
+
+    /**
+     * A promo that keeps one of its qualifiers fresh for the PPV (house rule,
+     * 2026-11-17): Continue Rivalry when one is in a rivalry (it holds the
+     * heat without a match), else Inactive Superstar for one carrying
+     * fatigue who isn't on the card.
+     *
+     * @return array{0: PromoTypeKey, 1?: int|null, 2?: int|null}|null
+     */
+    private function restQualifier(Show $show, Brand $brand): ?array
+    {
+        $protected = $this->qualifiers->protectedIds($show->game, $brand, $show->week_number);
+
+        if ($protected === []) {
+            return null;
+        }
+
+        $rules = $this->eligibility->forShow($show, $brand);
+        $pair = collect($rules[PromoTypeKey::ContinueRivalry->value]['pairs'] ?? [])
+            ->first(fn (array $p): bool => in_array((int) $p[0], $protected, true) || in_array((int) $p[1], $protected, true));
+
+        if ($pair !== null) {
+            return [PromoTypeKey::ContinueRivalry, (int) $pair[0], (int) $pair[1]];
+        }
+
+        $tired = collect($rules[PromoTypeKey::InactiveSuperstar->value]['wrestler_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => in_array($id, $protected, true) && ($this->fatigue[$id] ?? 0) > 0)
+            ->sortByDesc(fn (int $id): int => $this->fatigue[$id] ?? 0)
+            ->first();
+
+        return $tired === null ? null : [PromoTypeKey::InactiveSuperstar, $tired];
     }
 
     /**

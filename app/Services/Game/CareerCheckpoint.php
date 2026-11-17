@@ -69,6 +69,7 @@ class CareerCheckpoint
         'rematch_clauses' => null,
         'conditional_story_triggers' => null,
         'royal_rumble_entries' => null,
+        'ppv_qualifiers' => null,
     ];
 
     /**

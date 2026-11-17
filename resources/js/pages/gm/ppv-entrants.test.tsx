@@ -70,4 +70,19 @@ describe('PPV entrants', () => {
         expect(screen.getByLabelText('Edge')).toBeEnabled();
         expect(screen.getByLabelText('Kane')).toBeEnabled();
     });
+
+    it('locks Survivor Series qualifiers on the team (house rule, 2026-11-17)', () => {
+        Object.assign(props, {
+            mode: 'survivor_series',
+            needed: 1,
+            qualified: [{ id: 1, name: 'Edge' }],
+        });
+
+        render(<PpvEntrants />);
+
+        expect(screen.getByLabelText('Edge')).toBeChecked();
+        expect(screen.getByLabelText('Edge')).toBeDisabled();
+        expect(screen.getByText('Qualified')).toBeInTheDocument();
+        expect(screen.getByLabelText('Kane')).toBeEnabled();
+    });
 });

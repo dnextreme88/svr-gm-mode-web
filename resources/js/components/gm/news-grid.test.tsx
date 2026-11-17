@@ -102,44 +102,22 @@ describe('NewsGrid', () => {
         ).toBeInTheDocument();
     });
 
-    it('gives each brand a ticker: its crowd in gold, its match results, then its other news (house rule, 2026-11-17)', () => {
+    it('gives each brand a ticker of its match results only (house rule, 2026-11-17)', () => {
         render(<NewsGrid pages={[page(3)]} />);
-
-        const raw = within(screen.getByTestId('ticker-raw')).getAllByTestId(
-            'ticker-item',
-        );
-
-        expect(raw.map((li) => li.textContent)).toEqual([
-            '◆Fan attendance: Monday Night Raw 15,050',
-            '◆Edge def. Kane · Normal Matches — Single',
-            '◆Ticker item 3',
-        ]);
-        expect(raw[0].className).toContain('text-gold-hot');
-        expect(raw[1].className).not.toContain('text-gold-hot');
-        expect(
-            within(screen.getByTestId('ticker-smackdown'))
-                .getAllByTestId('ticker-item')
-                .map((li) => li.textContent),
-        ).toEqual(['◆Fan attendance: Friday Night Smackdown 9,800']);
-        expect(
-            screen.getByRole('marquee', { name: 'Raw ticker' }),
-        ).toBeInTheDocument();
-        // No cross-brand leftovers, so no WWE ticker.
-        expect(screen.queryByTestId('ticker-neutral')).toBeNull();
-    });
-
-    it('leaves the crowds out of a ticker for a week without them', () => {
-        render(<NewsGrid pages={[page(3, { attendance: [] })]} />);
 
         expect(
             within(screen.getByTestId('ticker-raw'))
                 .getAllByTestId('ticker-item')
                 .map((li) => li.textContent),
-        ).toEqual([
-            '◆Edge def. Kane · Normal Matches — Single',
-            '◆Ticker item 3',
-        ]);
-        // Smackdown has nothing to show.
+        ).toEqual(['◆Edge def. Kane · Normal Matches — Single']);
+        expect(
+            screen.getByRole('marquee', { name: 'Raw ticker' }),
+        ).toBeInTheDocument();
+        // No crowd line, no other news, and no WWE ticker.
+        expect(screen.queryByText(/Fan attendance/)).toBeNull();
+        expect(screen.queryByText('Ticker item 3')).toBeNull();
+        expect(screen.queryByTestId('ticker-neutral')).toBeNull();
+        // Smackdown had no matches to list, so it has no ticker this week.
         expect(screen.queryByTestId('ticker-smackdown')).toBeNull();
     });
 

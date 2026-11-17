@@ -19,6 +19,7 @@ use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
 use App\Services\Contracts\ContractPricing;
 use App\Services\Draft\DraftService;
+use App\Services\Ppv\QualifierService;
 use App\Services\Promos\PromoService;
 use App\Services\Roster\RosterService;
 use Illuminate\Support\Collection;
@@ -43,6 +44,7 @@ class AiGm
         private AiRivalryPlanner $rivalryPlanner,
         private AiPromoPlanner $promoPlanner,
         private AiRosterManager $rosterManager,
+        private QualifierService $qualifiers,
     ) {}
 
     /**
@@ -58,6 +60,9 @@ class AiGm
         }
 
         $this->cards->ensureSlots($show);
+        // House rule (2026-11-17): a Qualifying Match's entrants, picked so
+        // nobody gets hurt.
+        $this->qualifiers->aiEntrants($show, $brand, $show->game->rng("qualifier.{$show->streamKey()}", $show->week_number));
 
         if ($brand !== $show->game->rivalBrand()) {
             $this->bookPreset($show, $brand);

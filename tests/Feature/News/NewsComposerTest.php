@@ -362,3 +362,31 @@ it('fills the cards other news leaves empty with the biggest match results', fun
         ->and(collect($page['stories']['raw'])->pluck('id')->first())->toBe($main->id)
         ->and($page['stories']['raw'])->toHaveCount(2);
 });
+
+it('leads the WWE card with the PPV the week before it airs, ahead of Slander and the crowd (house rule, 2026-11-17)', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+    news($save, NewsEventType::Attendance, NewsTier::Headline, NewsBrand::Both, 70);
+    news($save, NewsEventType::SlanderResult, NewsTier::Headline, NewsBrand::Both, 80);
+    news($save, NewsEventType::PpvUpcoming, NewsTier::Headline, NewsBrand::Both, 55, payload: ['ppv' => 'Backlash', 'n' => 1]);
+
+    expect(app(NewsComposer::class)->compose($save, 1)['headlines']['neutral']['type'])->toBe('ppv_upcoming');
+});
+
+it('makes the crowd the WWE card’s last resort, after any other news (house rule, 2026-11-17)', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+    news($save, NewsEventType::Attendance, NewsTier::Headline, NewsBrand::Both, 70);
+    news($save, NewsEventType::TradeCompleted, NewsTier::Story, NewsBrand::Both, 10);
+
+    $page = app(NewsComposer::class)->compose($save, 1);
+
+    // Even a WWE story is promoted ahead of the crowd.
+    expect($page['headlines']['neutral']['type'])->toBe('trade_completed')
+        ->and($page['headlines']['neutral']['promoted'])->toBeTrue();
+});
+
+it('falls back to the crowd when the WWE card has nothing else', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+    news($save, NewsEventType::Attendance, NewsTier::Headline, NewsBrand::Both, 70);
+
+    expect(app(NewsComposer::class)->compose($save, 1)['headlines']['neutral']['type'])->toBe('attendance');
+});

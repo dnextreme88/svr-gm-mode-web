@@ -31,7 +31,9 @@ export function ActiveEffects({
     const lockouts = context.last_chance_lockouts ?? [];
     const rematches = context.rematch_clauses ?? [];
     const briefcase = context.briefcase;
+    const qualifiers = context.qualifiers ?? null;
     const count =
+        (qualifiers ? 1 : 0) +
         shots.length +
         contenderships.length +
         lockouts.length +
@@ -103,6 +105,22 @@ export function ActiveEffects({
                                 : `${pluralize(r.weeks_left, 'week')} left`}
                         </Effect>
                     ))}
+                    {qualifiers && (
+                        <Effect kind="Qualifying Matches">
+                            {qualifiers.ppv === 'Survivor Series'
+                                ? 'Survivor Series team'
+                                : 'Money in the Bank'}
+                            :{' '}
+                            <span className="gm-num">
+                                {qualifiers.count} of {qualifiers.of}
+                            </span>{' '}
+                            qualified
+                            {qualifiers.names.length > 0
+                                ? ` (${qualifiers.names.join(', ')})`
+                                : ''}
+                            . Match 5 is this week’s Qualifying Match.
+                        </Effect>
+                    )}
                     {briefcase && (
                         <Effect kind="Money in the Bank">
                             {briefcase.cashed_in_here

@@ -1580,12 +1580,13 @@ function NewsAndEmail({
                             The WWE headline, in order: in a PPV week, the PPV’s
                             main event (who won, any title on the line, and the
                             gimmick, e.g. “Backlash: John Cena wins the gold!”),
-                            or the Royal Rumble winner. Then a Slander or
-                            Interference result. Then the week’s biggest crowd
-                            (see Fan attendance). Then other cross-brand news
-                            (trades, defections, the re-draft, “Backlash is 1
-                            week away.”…). Last, tickets on sale for whatever
-                            airs next.
+                            or the Royal Rumble winner. The week before a PPV,
+                            the PPV itself (“Backlash is 1 week away”). Then a
+                            Slander or Interference result. Then other
+                            cross-brand news (trades, defections, the
+                            re-draft…). The week’s biggest crowd (see Fan
+                            attendance) is the last resort, when there’s nothing
+                            else. Last, tickets on sale for whatever airs next.
                         </li>
                         <li>
                             {news.stories_per_brand} stories per brand under the
@@ -1602,15 +1603,13 @@ function NewsAndEmail({
                             why it happened. Click a story to read all of it.
                         </li>
                         <li>
-                            Raw and Smackdown each have a ticker: the brand’s
-                            crowd in gold, a line for every match on its weekly
-                            show (in a week the brand is on a PPV, its weekly
-                            show from the week before, since the PPV fills the
-                            headlines and stories), then its news that didn’t
-                            make a card. Cross-brand news that didn’t make a
-                            card gets a WWE ticker. Older and Newer (or ← / →)
-                            step through every week played, quiet weeks
-                            included.
+                            Raw and Smackdown each have a ticker of match
+                            results only: a line for every match on the brand’s
+                            weekly show (in a week the brand is on a PPV, its
+                            weekly show from the week before, since the PPV
+                            fills the headlines and stories). Older and Newer
+                            (or ← / →) step through every week played, quiet
+                            weeks included.
                         </li>
                         <li>
                             Only weeks that have fully aired are listed. News
@@ -2574,11 +2573,10 @@ function AttendanceDocs({ attendance }: Pick<Props, 'attendance'>) {
                             factors.
                         </li>
                         <li>
-                            News: the week’s biggest crowd is a WWE headline,
-                            after a PPV main event and a Slander or Interference
-                            result. The ticker opens with every night’s crowd in
-                            gold, and a PPV main event’s summary says how many
-                            fans were in the building.
+                            News: the week’s biggest crowd is the WWE headline
+                            only when there’s no other cross-brand news, and a
+                            PPV main event’s summary says how many fans were in
+                            the building.
                         </li>
                         <li>
                             An unbooked Interview Space can quote the crowd.
@@ -3059,6 +3057,10 @@ const activeEffects: { name: string; text: string }[] = [
         text: 'Who holds the briefcase, until it’s cashed in, expires or the holder leaves the brand. See Match types.',
     },
     {
+        name: 'Qualifying Matches',
+        text: 'During a run of Qualifying Matches, how many of your Survivor Series team or Money in the Bank spots are won so far, and by whom. See Qualifying Matches below.',
+    },
+    {
         name: 'Buried Alive',
         text: 'A Buried Alive loser sitting out, with the weeks left. They can’t be booked as anything until they’re back.',
     },
@@ -3087,6 +3089,63 @@ function ActiveEffectsDocs() {
                         {effect.text}
                     </li>
                 ))}
+            </ul>
+        </Panel>
+    );
+}
+
+function QualifyingMatchesDocs() {
+    return (
+        <Panel title="Qualifying Matches">
+            <p className="text-sm text-ink">
+                Two PPV matches are earned on the weekly shows before them, as
+                WWE did. In those weeks, Match 5 on both brands’ weekly shows is
+                a fixed <span className="font-semibold">Qualifying Match</span>:
+                its match type is locked, it can’t be cleared, moved or
+                randomized, and the card can’t air until its 3 superstars are
+                picked. It isn’t a stipulation, and no other week has one.
+            </p>
+            <ul className="mt-3 list-disc space-y-2 pl-4 text-sm text-ink">
+                <li>
+                    <span className="font-semibold text-gold">
+                        Survivor Series:
+                    </span>{' '}
+                    the 5 weeks before it (the first ones are Raw on Oct 24 and
+                    Smackdown on Oct 28, 2005), each a Ladder Triple Threat.
+                    Each winner takes one of the brand’s 5 spots in the
+                    Traditional 5 vs 5.
+                </li>
+                <li>
+                    <span className="font-semibold text-gold">
+                        Money in the Bank ladder:
+                    </span>{' '}
+                    the 3 weeks before WrestleMania, each a Normal Triple
+                    Threat. Each winner takes one of the brand’s 3 spots on the
+                    ladder. Champions can’t enter.
+                </li>
+                <li>
+                    Any win qualifies, a DQ or count-out included. No Divas. A
+                    winner can’t enter another qualifier for the same PPV; the
+                    losers can try again the next week.
+                </li>
+                <li>
+                    A winner is locked onto the PPV card. Only a serious injury
+                    or leaving the brand gives the spot up; you then pick the
+                    replacement by hand on the PPV card (the rival GM picks its
+                    own). Spots nobody qualified for are picked there too.
+                </li>
+                <li>
+                    The rival GM picks entrants who won’t get hurt, and keeps
+                    its winners healthy until the PPV: only Normal Matches or
+                    Tag Team matches that leave them at 70% fatigue or less,
+                    Continue Rivalry for a winner in a rivalry, and Inactive
+                    Superstar to rest a tired one.
+                </li>
+                <li>
+                    Vince McMahon’s reminder comes 5 weeks before Survivor
+                    Series and 3 weeks before WrestleMania, as the qualifiers
+                    begin.
+                </li>
             </ul>
         </Panel>
     );
@@ -3355,6 +3414,7 @@ export default function Docs() {
                     <div className="space-y-6">
                         <ScheduleDocs calendar={props.calendar} />
                         <ActiveEffectsDocs />
+                        <QualifyingMatchesDocs />
                         <ResultsDocs />
                     </div>
                 )}

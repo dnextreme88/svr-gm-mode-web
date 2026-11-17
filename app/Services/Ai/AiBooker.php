@@ -23,6 +23,7 @@ use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
 use App\Services\Card\PlannedFatigue;
 use App\Services\Card\TitleMatchPlanner;
+use App\Services\Ppv\QualifierService;
 use App\Services\Titles\LastChanceService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\RematchClauseService;
@@ -61,6 +62,13 @@ class AiBooker
     /** @var array<int, int> save-wrestler id => fatigue going into this card's matches */
     private array $fatigue = [];
 
+    /**
+     * Its qualifiers whose PPV hasn't happened yet (house rule, 2026-11-17).
+     *
+     * @var list<int>
+     */
+    private array $protected = [];
+
     public function __construct(
         private CardRandomizer $randomizer,
         private TitleMatchPlanner $titlePlanner,
@@ -75,6 +83,7 @@ class AiBooker
         private RepeatMatches $repeatMatches,
         private AiStipulationPlanner $stipulations,
         private AiTradeJudge $judge,
+        private QualifierService $qualifiers,
     ) {}
 
     /**
@@ -91,6 +100,7 @@ class AiBooker
         $this->taken = $this->randomizer->bookedIds($show);
         $this->titlesOnCard = array_values(array_map('intval', MatchSlot::where('show_id', $show->id)->whereNotNull('title_championship_id')->pluck('title_championship_id')->all()));
         $this->fatigue = $this->plannedFatigue($show, $brand);
+        $this->protected = $this->qualifiers->protectedIds($show->game, $brand, $show->week_number);
         // House rule (2026-11-13): a #1 contendership earned in the run-up to
         // its own PPV is held for the PPV: that title stays off this card.
         $this->titlesOnCard = array_values(array_unique([...$this->titlesOnCard, ...$this->heldTitles()]));
@@ -1309,7 +1319,30 @@ class AiBooker
      */
     private function fit(Collection $people, MatchType $type, int $limit): Collection
     {
-        return $people->filter(fn (SaveWrestler $w): bool => ($this->fatigue[$w->id] ?? $w->fatigue) + $type->fatigueCost() <= $limit)->values();
+        // House rule (2026-11-17): a qualifier is kept healthy for its PPV,
+        // only in a Normal Matches or Tag Team type, at the careful limit.
+        $safe = in_array($type->family->value, (array) config('gm.ppv.qualifiers.rival_safe_families'), true);
+        $careful = (int) config('gm.ai.booking.careful_max_fatigue');
+
+        return $people->filter(function (SaveWrestler $w) use ($type, $limit, $safe, $careful): bool {
+            $after = ($this->fatigue[$w->id] ?? $w->fatigue) + $type->fatigueCost();
+
+            if (in_array((int) $w->id, $this->protected, true)) {
+                return $safe && $after <= min($limit, $careful);
+            }
+
+            return $after <= $limit;
+        })->values();
+    }
+
+    /**
+     * The superstars it's keeping healthy for a PPV (its qualifiers).
+     *
+     * @return list<int>
+     */
+    public function protectedIds(): array
+    {
+        return $this->protected;
     }
 
     /**

@@ -120,14 +120,16 @@ class NewsComposer
             // event (or the Royal Rumble), biggest first.
             $headline = $slot === 'neutral' ? $redraft : $this->leadingMatch($rows, $keys, $leadSlots[$slot] ?? null, $picked);
             $headline ??= $slot === 'neutral' ? $pool->filter(fn (array $e): bool => $e['type'] === NewsEventType::PpvResults->value)->sortByDesc('priority')->first() : null;
+            // House rule (2026-11-17): the week before a PPV, the PPV leads
+            // ("Backlash is 1 week away").
+            $headline ??= $slot === 'neutral' ? $pool->filter(fn (array $e): bool => $e['type'] === NewsEventType::PpvUpcoming->value && $e['tier'] === NewsTier::Headline->value)->sortByDesc('priority')->first() : null;
             $headline ??= $slot === 'neutral' ? $pool->first(fn (array $e): bool => in_array($e['type'], self::FORCED_NEUTRAL, true)) : null;
-            // House rule (2026-11-01): then the week's biggest crowd.
-            $headline ??= $slot === 'neutral' ? $pool->first(fn (array $e): bool => $e['type'] === NewsEventType::Attendance->value) : null;
             // House rule: a title change always takes its card's headline.
             $headline ??= $pool->filter(fn (array $e): bool => in_array($e['type'], [NewsEventType::TitleChange->value, NewsEventType::FactionTitleWon->value], true) && $e['tier'] === NewsTier::Headline->value)
                 ->sortByDesc('priority')
                 ->first();
-            $headline ??= $this->weightedTake($pool->filter(fn (array $e): bool => $e['tier'] === NewsTier::Headline->value), 1, $rng)[0] ?? null;
+            $isCrowd = fn (array $e): bool => $e['type'] === NewsEventType::Attendance->value;
+            $headline ??= $this->weightedTake($pool->filter(fn (array $e): bool => $e['tier'] === NewsTier::Headline->value && ! $isCrowd($e)), 1, $rng)[0] ?? null;
 
             // A slot with no headline gets one of its stories promoted: the
             // biggest match first (PPV → title → main event → gimmick, see
@@ -137,16 +139,20 @@ class NewsComposer
                 // a plain match result (house rule, 2026-11-17) only when
                 // there's no other real news: the brand's ticker already
                 // lists every result.
-                $real = $pool->reject(fn (array $e): bool => NewsEventType::from($e['type'])->isFallback());
+                // The week's biggest crowd (house rule, 2026-11-17) is the WWE
+                // card's last resort, after every other piece of real news.
+                $real = $pool->reject(fn (array $e): bool => NewsEventType::from($e['type'])->isFallback() || $isCrowd($e));
                 $news = $real->reject(fn (array $e): bool => $e['type'] === NewsEventType::MatchResult->value);
-                $promotable = $news->isNotEmpty() ? $news : ($real->isEmpty() ? $pool : $real);
+                $crowd = $pool->filter($isCrowd)->take(1);
+                $filler = $pool->reject($isCrowd);
+                $promotable = $news->isNotEmpty() ? $news : ($real->isNotEmpty() ? $real : ($crowd->isNotEmpty() ? $crowd : $filler));
                 $headline = $promotable->filter(fn (array $e): bool => isset($matchRanks[$e['id']]))
                     ->sortBy([fn (array $a, array $b): int => $matchRanks[$b['id']] <=> $matchRanks[$a['id']], fn (array $a, array $b): int => $b['priority'] <=> $a['priority']])
                     ->first()
                     ?? $this->weightedTake($promotable, 1, $rng)[0]
                     ?? null;
 
-                if ($headline !== null) {
+                if ($headline !== null && ! $isCrowd($headline)) {
                     $headline['promoted'] = true;
                 }
             }

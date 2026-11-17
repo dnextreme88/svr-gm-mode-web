@@ -319,6 +319,7 @@ export const FixedSlotKind = {
     InterbrandSeries: 'interbrand_series',
     TitleShot: 'title_shot',
     MitbCashIn: 'mitb_cash_in',
+    QualifyingMatch: 'qualifying_match',
 } as const;
 export type FixedSlotKind = (typeof FixedSlotKind)[keyof typeof FixedSlotKind];
 export const FixedSlotKindLabels: Record<FixedSlotKind, string> = {
@@ -328,6 +329,7 @@ export const FixedSlotKindLabels: Record<FixedSlotKind, string> = {
     'interbrand_series': 'Interbrand Series',
     'title_shot': 'Title Shot',
     'mitb_cash_in': 'Mitb Cash In',
+    'qualifying_match': 'Qualifying Match',
 };
 
 export const GmNoticeKind = {
@@ -554,6 +556,7 @@ export const NewsEventType = {
     PpvResults: 'ppv_results',
     SurvivorSeriesTeams: 'survivor_series_teams',
     MitbQualified: 'mitb_qualified',
+    SurvivorSeriesQualified: 'survivor_series_qualified',
     MitbWinner: 'mitb_winner',
     MitbCashIn: 'mitb_cash_in',
     MitbExpiring: 'mitb_expiring',
@@ -630,6 +633,7 @@ export const NewsEventTypeLabels: Record<NewsEventType, string> = {
     'ppv_results': 'Ppv Results',
     'survivor_series_teams': 'Survivor Series Teams',
     'mitb_qualified': 'Mitb Qualified',
+    'survivor_series_qualified': 'Survivor Series Qualified',
     'mitb_winner': 'Mitb Winner',
     'mitb_cash_in': 'Mitb Cash In',
     'mitb_expiring': 'Mitb Expiring',

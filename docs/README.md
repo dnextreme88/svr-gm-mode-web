@@ -37,3 +37,4 @@ Dated implementation and upgrade plans for this site. Each plan is a Markdown fi
 | **2026-11-15** | [Financials Overhaul, Call-out Promo, Rivalry Booking, Slot Reordering & Superstar Profile](20261115-financials-overhaul.md) |
 | **2026-11-16** | [PPV Night News, WrestleMania Season End & Re-Draft Polish](20261116-ppv-night-news-and-season-end.md) |
 | **2026-11-17** | [Save Career Checkpoints, Rival Renewals, Bigger Re-Draft, Survivor Series 5 vs 5 & Tornado Tag Turmoil](20261117-rival-renewals-and-checkpoints.md) |
+| **2026-11-17** | [Qualifying Matches for Survivor Series & Money in the Bank, News Headline Priorities](20261117-qualifying-matches.md) |

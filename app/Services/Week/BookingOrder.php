@@ -7,6 +7,7 @@ use App\Exceptions\GameRuleException;
 use App\Models\Save;
 use App\Models\Show;
 use App\Services\Ppv\PpvCardService;
+use App\Services\Ppv\QualifierService;
 use Illuminate\Support\Collection;
 
 /**
@@ -194,6 +195,11 @@ class BookingOrder
      */
     private function assertSeriesPicked(Save $save, Show $show): void
     {
+        // House rule (2026-11-17): the weekly Qualifying Match must be booked.
+        if ($show->brand === $save->player_brand && app(QualifierService::class)->missing($show)) {
+            throw new GameRuleException('Book this week’s Qualifying Match (Match '.config('gm.ppv.qualifiers.slot').') first.');
+        }
+
         $missing = app(PpvCardService::class)->seriesMissing($show, $save->player_brand);
 
         if ($missing !== []) {

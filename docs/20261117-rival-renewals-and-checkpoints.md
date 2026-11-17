@@ -81,7 +81,7 @@ The rival's free-agent signings fall back to shorter deals when money is tight (
 ## News: match results last, brand tickers (house rule, 2026-11-17)
 
 - Plain match results are the last fallback: a brand's headline goes to its other news first (a promoted story), and only with no other real news does its biggest match lead; results only fill the story cards other news leaves empty, biggest first, and never run in the news ticker.
-- Raw and Smackdown each get a ticker (`BrandTickers`): the brand's crowd in gold, a line per match on its weekly show in card order ("Edge def. Kane · Normal Matches — Single"), then its leftover news. In a week the brand is on a PPV, it lists the weekly show from the week before. Cross-brand leftovers get a WWE ticker when there are any.
+- Raw and Smackdown each get a ticker (`BrandTickers`) of match results only: a line per match on its weekly show in card order ("Edge def. Kane · Normal Matches — Single"); no crowd line, no other news, no WWE ticker. In a week the brand is on a PPV, it lists the weekly show from the week before.
 - Headline wording updated (the GM's edits in `NewsTemplates`), e.g. title changes read "A new {title} was crowned!". The #1 contender's longer headline is allowed past the 6-word rule.
 
 ## Tests

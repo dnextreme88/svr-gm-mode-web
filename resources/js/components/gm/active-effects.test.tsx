@@ -176,4 +176,27 @@ describe('Active Effects (house rule)', () => {
         expect(region).toHaveClass('border-gold');
         expect(region).not.toHaveTextContent('No active effects');
     });
+
+    it('counts Qualifying Match winners during a run (house rule, 2026-11-17)', () => {
+        render(
+            <ActiveEffects
+                context={{
+                    ...empty,
+                    qualifiers: {
+                        ppv: 'Survivor Series',
+                        count: 2,
+                        of: 5,
+                        names: ['Edge', 'Kane'],
+                    },
+                }}
+                buriedAlive={[]}
+            />,
+        );
+
+        expect(
+            screen.getByRole('region', { name: 'Active Effects' }),
+        ).toHaveTextContent(
+            'Survivor Series team: 2 of 5 qualified (Edge, Kane). Match 5 is this week’s Qualifying Match.',
+        );
+    });
 });

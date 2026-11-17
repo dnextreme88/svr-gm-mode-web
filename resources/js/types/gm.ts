@@ -358,6 +358,13 @@ export type TitleContext = {
     earned_shot_title_ids?: number[];
     /** Everyone holding a title, on either brand. */
     title_holder_ids?: number[];
+    /** House rule (2026-11-17): qualifiers so far, in a run of Qualifying Matches. */
+    qualifiers?: {
+        ppv: string;
+        count: number;
+        of: number;
+        names: string[];
+    } | null;
     /** Last Chance losers who can't challenge the champion they lost to. */
     last_chance_lockouts?: Array<{
         id: number;

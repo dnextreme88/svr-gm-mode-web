@@ -183,50 +183,19 @@ export function NewsGrid({ pages }: { pages: NewsPage[] }) {
                 )}
             </div>
 
+            {/* House rule (2026-11-17): a ticker per brand, match results only. */}
             <div className="mt-4 space-y-2">
-                {(['raw', 'smackdown'] as const).map((brand) => {
-                    // Its own nights' crowds lead each brand's ticker, in gold.
-                    const crowds = attendanceLine(
-                        page.attendance.filter(
-                            (n) =>
-                                n.brands === undefined ||
-                                n.brands.includes(brand),
-                        ),
-                    );
-
-                    return (
-                        <Ticker
-                            key={brand}
-                            brand={brand}
-                            label={slotLabel[brand]}
-                            entries={[
-                                ...(crowds === null
-                                    ? []
-                                    : [{ text: crowds, gold: true }]),
-                                ...(page.tickers?.[brand] ?? []).map(
-                                    (text) => ({
-                                        text,
-                                        gold: false,
-                                    }),
-                                ),
-                                ...page.ticker
-                                    .filter((i) => i.slot === brand)
-                                    .map((i) => ({
-                                        text: i.text,
-                                        gold: false,
-                                    })),
-                            ]}
-                        />
-                    );
-                })}
-                {page.ticker.some((i) => i.slot === 'neutral') && (
+                {(['raw', 'smackdown'] as const).map((brand) => (
                     <Ticker
-                        label={slotLabel.neutral}
-                        entries={page.ticker
-                            .filter((i) => i.slot === 'neutral')
-                            .map((i) => ({ text: i.text, gold: false }))}
+                        key={brand}
+                        brand={brand}
+                        label={slotLabel[brand]}
+                        entries={(page.tickers?.[brand] ?? []).map((text) => ({
+                            text,
+                            gold: false,
+                        }))}
                     />
-                )}
+                ))}
             </div>
         </section>
     );
@@ -343,8 +312,8 @@ export function attendanceLine(nights: AttendanceNight[]): string | null {
 }
 
 /**
- * One brand's ticker (house rule, 2026-11-17), or WWE's for cross-brand
- * news: a scrolling line of results and news, led by the crowds in gold.
+ * One brand's ticker (house rule, 2026-11-17): a scrolling line of its match
+ * results, nothing else.
  */
 function Ticker({
     label,

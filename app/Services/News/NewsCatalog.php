@@ -68,7 +68,8 @@ class NewsCatalog
         'ppv_main_event_set' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Headline'],
         'ppv_results' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Headline: the PPV\'s main event (who won, the title, the gimmick) or the Royal Rumble winner. Always the WWE headline in a PPV week'],
         'survivor_series_teams' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Story'],
-        'mitb_qualified' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Story'],
+        'mitb_qualified' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Story (now from a Money in the Bank Qualifying Match)'],
+        'survivor_series_qualified' => ['group' => 'Pay-per-views', 'card' => 'brand', 'tier' => 'Story (from a Survivor Series Qualifying Match)'],
         'mitb_winner' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Headline'],
         'interbrand_series_result' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Headline'],
 
