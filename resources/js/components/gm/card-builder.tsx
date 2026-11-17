@@ -810,7 +810,7 @@ function SlotEditor({
                     {handle && (
                         <div
                             className={cn(
-                                'flex shrink-0 items-center gap-1 self-start',
+                                'mt-0.5 flex shrink-0 items-center gap-1 self-start',
                                 !title && 'ml-auto',
                             )}
                             data-testid={`slot-handle-${draft.position}`}
