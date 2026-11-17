@@ -27,7 +27,7 @@ use Tests\Support\FixedOutcomes;
 use Tests\Support\GameBuilder;
 
 /*
-| House rule (2026-11-17): Qualifying Matches. Match 5 on both brands' weekly
+| House rule (2026-11-17): Qualifying Matches. One match on both brands' weekly
 | shows is a fixed Ladder Triple Threat in the 5 weeks before Survivor Series
 | (weeks 30–34) and a Normal Triple Threat in the 3 weeks before WrestleMania
 | (weeks 49–51). Each winner is locked onto the PPV card.
@@ -49,7 +49,7 @@ function weeklyShow(Save $save, Brand $brand, int $week): Show
 
 function qualifierSlot(Show $show): MatchSlot
 {
-    return MatchSlot::with(['matchType', 'participants'])->where('show_id', $show->id)->where('position', 5)->sole();
+    return MatchSlot::with(['matchType', 'participants'])->where('show_id', $show->id)->where('fixed_kind', FixedSlotKind::QualifyingMatch)->sole();
 }
 
 /**
@@ -80,6 +80,15 @@ function qualify(Save $save, PpvKey $ppv, Brand $brand, SaveWrestler $wrestler, 
     ]);
 }
 
+it('moves the qualifier through the card: Survivor Series Matches 1–4 then the main event, Money in the Bank Match 1, 3, then the main event', function () {
+    GameBuilder::newSave();
+    $service = app(QualifierService::class);
+
+    expect(array_map(fn (int $w) => $service->position($w), [30, 31, 32, 33, 34]))->toBe([1, 2, 3, 4, 6])
+        ->and(array_map(fn (int $w) => $service->position($w), [49, 50, 51]))->toBe([1, 3, 6])
+        ->and($service->position(29))->toBeNull();
+});
+
 it('runs Survivor Series qualifiers in weeks 30–34 and Money in the Bank ones in weeks 49–51', function () {
     GameBuilder::newSave();
     $service = app(QualifierService::class);
@@ -89,19 +98,20 @@ it('runs Survivor Series qualifiers in weeks 30–34 and Money in the Bank ones 
         ->and($weeks->unique()->values()->all())->toBe(['survivor_series', 'wrestlemania']);
 });
 
-it('makes Match 5 a fixed Ladder Triple Threat on both brands before Survivor Series', function () {
+it('makes Match 1 a fixed Ladder Triple Threat on both brands in the first week before Survivor Series', function () {
     $save = qualifierSave(30);
 
     foreach ([Brand::Raw, Brand::Smackdown] as $brand) {
         $slot = qualifierSlot(weeklyShow($save, $brand, 30));
 
         expect($slot->fixed_kind)->toBe(FixedSlotKind::QualifyingMatch)
+            ->and($slot->position)->toBe(1)
             ->and($slot->matchType->family->value)->toBe('ladder')
             ->and($slot->matchType->variant)->toBe('Triple Threat');
     }
 });
 
-it('makes Match 5 a Normal Triple Threat before WrestleMania, and leaves other weeks alone', function () {
+it('makes the qualifier a Normal Triple Threat before WrestleMania, and leaves other weeks alone', function () {
     $save = qualifierSave(49);
     $slot = qualifierSlot(weeklyShow($save, Brand::Raw, 49));
 
@@ -119,8 +129,8 @@ it('won’t let the qualifier be booked, cleared or moved like a normal slot', f
     $cards = app(CardService::class);
 
     expect(qualifierSlot($show)->isFixed())->toBeTrue()
-        ->and(fn () => $cards->clear($show, 5))->toThrow(GameRuleException::class, 'fixed')
-        ->and(fn () => $cards->reorder($show, [5, 1, 2, 3, 4, 6]))->toThrow(GameRuleException::class);
+        ->and(fn () => $cards->clear($show, 1))->toThrow(GameRuleException::class, 'fixed')
+        ->and(fn () => $cards->reorder($show, [2, 1, 3, 4, 5, 6]))->toThrow(GameRuleException::class);
 });
 
 it('takes 3 different eligible men, refusing Divas and those already qualified', function () {
@@ -150,7 +160,7 @@ it('books the qualifier through the series endpoint', function () {
     $show = weeklyShow($save, Brand::Raw, 30);
     $ids = menOf($save, Brand::Raw, 3);
 
-    $this->putJson(route('gm.card.series', [$save, $show, 5]), ['ids' => $ids])->assertNoContent();
+    $this->putJson(route('gm.card.series', [$save, $show, qualifierSlot($show)->position]), ['ids' => $ids])->assertNoContent();
 
     expect(qualifierSlot($show)->sides())->toBe([[$ids[0]], [$ids[1]], [$ids[2]]]);
 });
@@ -288,7 +298,7 @@ it('randomizes the player’s qualifier with men only, never Divas (house rule, 
     $show = weeklyShow($save, Brand::Raw, 30);
 
     foreach (range(0, 5) as $roll) {
-        $ids = $this->postJson(route('gm.card.randomize', [$save, $show, 5]), ['roll' => $roll])->assertOk()->json('qualifier');
+        $ids = $this->postJson(route('gm.card.randomize', [$save, $show, qualifierSlot($show)->position]), ['roll' => $roll])->assertOk()->json('qualifier');
 
         expect($ids)->toHaveCount(3)
             ->and(array_unique($ids))->toHaveCount(3)

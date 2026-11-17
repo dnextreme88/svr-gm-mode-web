@@ -36,7 +36,7 @@ class ShowScheduler
         // The season ends on WrestleMania's main event, then the re-draft.
         foreach ($this->calendar->isWrestleManiaWeek($week) ? [] : Brand::cases() as $brand) {
             $show = $this->ensureShow($save, $week, $brand, ShowType::Weekly, null, $brand === Brand::Raw ? 'Monday Night Raw' : 'Friday Night Smackdown');
-            // House rule (2026-11-17): Match 5 is a fixed Qualifying Match in
+            // House rule (2026-11-17): one match is a fixed Qualifying Match in
             // the weeks before Survivor Series and WrestleMania.
             $this->qualifiers->setUp($show);
         }

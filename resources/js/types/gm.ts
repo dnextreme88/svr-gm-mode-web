@@ -364,6 +364,8 @@ export type TitleContext = {
         count: number;
         of: number;
         names: string[];
+        /** Which match this week's qualifier is (6 is the main event). */
+        position?: number | null;
     } | null;
     /** Last Chance losers who can't challenge the champion they lost to. */
     last_chance_lockouts?: Array<{

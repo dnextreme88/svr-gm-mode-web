@@ -187,6 +187,7 @@ describe('Active Effects (house rule)', () => {
                         count: 2,
                         of: 5,
                         names: ['Edge', 'Kane'],
+                        position: 3,
                     },
                 }}
                 buriedAlive={[]}
@@ -196,7 +197,7 @@ describe('Active Effects (house rule)', () => {
         expect(
             screen.getByRole('region', { name: 'Active Effects' }),
         ).toHaveTextContent(
-            'Survivor Series team: 2 of 5 qualified (Edge, Kane). Match 5 is this week’s Qualifying Match.',
+            'Survivor Series team: 2 of 5 qualified (Edge, Kane). Match 3 is this week’s Qualifying Match.',
         );
     });
 });

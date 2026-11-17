@@ -3101,10 +3101,14 @@ function QualifyingMatchesDocs() {
         <Panel title="Qualifying Matches">
             <p className="text-sm text-ink">
                 Two PPV matches are earned on the weekly shows before them, as
-                WWE did. In those weeks, Match 5 on both brands’ weekly shows is
-                a fixed <span className="font-semibold">Qualifying Match</span>:
-                its match type is locked, it can’t be cleared or moved, no title
-                can be on the line, and the card can’t air until its 3
+                WWE did. In those weeks, one match on both brands’ weekly shows
+                is a fixed{' '}
+                <span className="font-semibold">Qualifying Match</span>, and
+                which match moves each week so fans don’t see the same match in
+                the same slot (Survivor Series: Matches 1, 2, 3 and 4, then the
+                main event; Money in the Bank: Match 1, Match 3, then the main
+                event). Its match type is locked, it can’t be cleared or moved,
+                no title can be on the line, and the card can’t air until its 3
                 superstars are picked. Randomize fills them with men only (never
                 Divas) the match leaves at 70% fatigue or less. It’s a special
                 stipulation, pre-booked for these two PPVs: the slot shows

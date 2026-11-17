@@ -32,7 +32,7 @@ use Illuminate\Support\Str;
 
 /**
  * Qualifying Matches (house rule, 2026-11-17). On both brands' weekly shows
- * in the weeks before Survivor Series (5) and WrestleMania (3), Match 5 is a
+ * in the weeks before Survivor Series (5) and WrestleMania (3), one match is a
  * fixed Qualifying Match: a Ladder Triple Threat for the Survivor Series
  * 5 vs 5 team, a Normal Triple Threat for the Money in the Bank ladder. Its
  * winner (any win, DQ and count-out included) takes one of the brand's
@@ -75,8 +75,29 @@ class QualifierService
     }
 
     /**
-     * Make a weekly show's Match 5 the fixed Qualifying Match, in a window.
-     * Safe to call repeatedly; a Match 5 already booked by hand is left be.
+     * Which match a week's Qualifying Match is (house rule, 2026-11-17):
+     * Survivor Series runs Matches 1, 2, 3, 4 then the main event; Money in
+     * the Bank Match 1, Match 3 then the main event. Null outside a run.
+     */
+    public function position(int $week): ?int
+    {
+        $ppv = $this->window($week);
+
+        if ($ppv === null) {
+            return null;
+        }
+
+        $run = (int) config("gm.ppv.qualifiers.windows.{$ppv->value}");
+        $ppvWeek = (int) PpvEvent::where('key', $ppv->value)->value('season_week');
+        $index = $run - ($ppvWeek - $this->calendar->seasonWeek($week));
+        $slots = array_map('intval', (array) config("gm.ppv.qualifiers.slots.{$ppv->value}"));
+
+        return $slots[$index] ?? $slots[array_key_last($slots)] ?? null;
+    }
+
+    /**
+     * Make the week's Qualifying Match slot fixed, in a run. Safe to call
+     * repeatedly; a slot already booked by hand is left be.
      */
     public function setUp(Show $show): void
     {
@@ -86,8 +107,13 @@ class QualifierService
             return;
         }
 
+        // A show set up before the slot moved keeps its qualifier where it is.
+        if (MatchSlot::where('show_id', $show->id)->where('fixed_kind', FixedSlotKind::QualifyingMatch)->exists()) {
+            return;
+        }
+
         $type = $this->type($ppv);
-        $position = (int) config('gm.ppv.qualifiers.slot');
+        $position = (int) $this->position($show->week_number);
         $slot = MatchSlot::where('show_id', $show->id)->where('position', $position)->first();
 
         if ($slot === null) {

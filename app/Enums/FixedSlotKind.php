@@ -17,7 +17,7 @@ enum FixedSlotKind: string
     case InterbrandSeries = 'interbrand_series';
     case TitleShot = 'title_shot';
     case MitbCashIn = 'mitb_cash_in';
-    // House rule (2026-11-17): Match 5 on the weekly shows before Survivor
+    // House rule (2026-11-17): a match on the weekly shows before Survivor
     // Series and WrestleMania, whose winner takes a team or ladder spot.
     case QualifyingMatch = 'qualifying_match';
 }

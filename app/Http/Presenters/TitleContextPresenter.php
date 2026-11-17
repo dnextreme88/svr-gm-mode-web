@@ -152,7 +152,7 @@ class TitleContextPresenter
     }
 
     /**
-     * @return array{ppv: string, count: int, of: int, names: list<string>}|null
+     * @return array{ppv: string, count: int, of: int, names: list<string>, position: int|null}|null
      */
     private function qualifierProgress(Save $save, Show $show, Brand $brand): ?array
     {
@@ -174,6 +174,7 @@ class TitleContextPresenter
             'count' => count($names),
             'of' => QualifierService::spots($ppv),
             'names' => $names,
+            'position' => $this->qualifiers->position($show->week_number),
         ];
     }
 }

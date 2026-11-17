@@ -118,7 +118,11 @@ export function ActiveEffects({
                             {qualifiers.names.length > 0
                                 ? ` (${qualifiers.names.join(', ')})`
                                 : ''}
-                            . Match 5 is this week’s Qualifying Match.
+                            .{' '}
+                            {qualifiers.position === 6
+                                ? 'The main event'
+                                : `Match ${qualifiers.position ?? ''}`}{' '}
+                            is this week’s Qualifying Match.
                         </Effect>
                     )}
                     {briefcase && (

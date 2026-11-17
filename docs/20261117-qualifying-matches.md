@@ -8,8 +8,8 @@ The Survivor Series 5 vs 5 team and each brand's 3 Money in the Bank ladder spot
 
 ## Rules (house rule, 2026-11-17)
 
-- **Survivor Series:** the 5 weeks before it (season weeks 30–34; first Raw Oct 24 and Smackdown Oct 28, 2005). Match 5 on both brands' weekly shows is a fixed **Ladder Triple Threat** Qualifying Match. Each winner takes one of the brand's 5 team spots.
-- **Money in the Bank:** the 3 weeks before WrestleMania (weeks 49–51). Match 5 is a fixed **Normal Triple Threat**. Each winner takes one of the brand's 3 ladder spots. Champions can't enter.
+- **Survivor Series:** the 5 weeks before it (season weeks 30–34; first Raw Oct 24 and Smackdown Oct 28, 2005). one match on both brands' weekly shows is a fixed **Ladder Triple Threat** Qualifying Match: Match 1, 2, 3 and 4 in turn, then the main event. Each winner takes one of the brand's 5 team spots.
+- **Money in the Bank:** the 3 weeks before WrestleMania (weeks 49–51). one match is a fixed **Normal Triple Threat**: Match 1, Match 3, then the main event. Each winner takes one of the brand's 3 ladder spots. Champions can't enter.
 - **The slot is fixed** (`FixedSlotKind::QualifyingMatch`). Its type is locked, and it can't be cleared or moved. Randomize fills its 3 pickers with eligible men only (never Divas) the match leaves at 70% fatigue or less. It's a special stipulation, pre-booked for these two PPVs: the slot shows "Qualifying Match · Survivor Series" (or "· Money in the Bank") where the stipulation picker would be, and it can't be picked for any other match. It must be booked before the card airs.
 - **Who can enter:** no Divas, and no one who already qualified for that PPV. Losers can try again.
 - **Any win qualifies,** a DQ or count-out included.

@@ -197,7 +197,9 @@ class BookingOrder
     {
         // House rule (2026-11-17): the weekly Qualifying Match must be booked.
         if ($show->brand === $save->player_brand && app(QualifierService::class)->missing($show)) {
-            throw new GameRuleException('Book this week’s Qualifying Match (Match '.config('gm.ppv.qualifiers.slot').') first.');
+            $position = app(QualifierService::class)->slot($show)?->position;
+
+            throw new GameRuleException('Book this week’s Qualifying Match (Match '.$position.') first.');
         }
 
         $missing = app(PpvCardService::class)->seriesMissing($show, $save->player_brand);

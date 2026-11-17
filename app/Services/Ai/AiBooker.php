@@ -5,6 +5,7 @@ namespace App\Services\Ai;
 use App\Enums\Brand;
 use App\Enums\ChampionshipEligibility;
 use App\Enums\ComplaintLevel;
+use App\Enums\FixedSlotKind;
 use App\Enums\MatchFamily;
 use App\Enums\MoraleComplaintType;
 use App\Enums\Stipulation;
@@ -339,6 +340,14 @@ class AiBooker
      */
     private function mainEventPosition(): ?int
     {
+        // House rule (2026-11-17): a Qualifying Match can be a weekly show's
+        // main event; then there's no other main event to book.
+        $last = MatchSlot::where('show_id', $this->show->id)->orderByDesc('position')->first();
+
+        if (! $this->show->isPpv() && $last?->fixed_kind === FixedSlotKind::QualifyingMatch) {
+            return null;
+        }
+
         $positions = MatchSlot::where('show_id', $this->show->id)
             ->whereNull('fixed_kind')
             ->where(fn ($q) => $q->whereNull('owner_brand')->orWhere('owner_brand', $this->brand))

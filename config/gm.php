@@ -465,12 +465,18 @@ return [
         'royal_rumble_min_entrants_per_brand' => 10,
         // House rule (2026-11-17): 5 a side (it was 3).
         'survivor_series_team_size' => 5,
-        // House rule (2026-11-17): Qualifying Matches. Match 5 of both brands'
-        // weekly shows in the weeks before Survivor Series (its 5 vs 5 team)
-        // and WrestleMania (its Money in the Bank ladder) is a fixed
+        // House rule (2026-11-17): Qualifying Matches. In the weeks before
+        // Survivor Series (its 5 vs 5 team) and WrestleMania (its Money in
+        // the Bank ladder) one match of both brands' weekly shows is a fixed
         // Qualifying Match; the winner takes one of the brand's spots.
         'qualifiers' => [
-            'slot' => 5,
+            // Which match it is, week by week through the run (6 is the
+            // weekly show's main event), so it doesn't sit in the same slot
+            // every week (fans dislike a repeated category in one slot).
+            'slots' => [
+                'survivor_series' => [1, 2, 3, 4, 6],
+                'wrestlemania' => [1, 3, 6],
+            ],
             // Weeks of qualifiers before each PPV (one winner a week each).
             'windows' => ['survivor_series' => 5, 'wrestlemania' => 3],
             // The locked match type: [family, variant].
