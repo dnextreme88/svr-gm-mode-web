@@ -174,7 +174,9 @@ class TitleContextPresenter
             'count' => count($names),
             'of' => QualifierService::spots($ppv),
             'names' => $names,
-            'position' => $this->qualifiers->position($show->week_number),
+            // The slot it's really in (a card set up before the slot moved
+            // keeps its own), else where this week's goes.
+            'position' => $this->qualifiers->slot($show)?->position ?? $this->qualifiers->position($show->week_number),
         ];
     }
 }

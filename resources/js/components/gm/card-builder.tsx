@@ -755,7 +755,6 @@ function SlotEditor({
             <header className="@container relative flex flex-wrap items-start gap-3 border-b border-white/6 px-4 py-2.5">
                 {/* Small screens: the label, the type picker and the cost line each get a line. */}
                 <div className="flex w-full items-center gap-1 sm:w-auto">
-                    {handle}
                     <span
                         className={cn(
                             'gm-chyron mt-0.5 inline-block py-1 pr-7 pl-3 font-condensed font-bold tracking-[0.18em] uppercase',
@@ -804,6 +803,19 @@ function SlotEditor({
                     {title && (
                         <div className="mt-0.5 w-full sm:ml-auto md:w-auto">
                             {title}
+                        </div>
+                    )}
+                    {/* The drag handle and move buttons sit at the card's right
+                        edge, right after the title (which takes the free space). */}
+                    {handle && (
+                        <div
+                            className={cn(
+                                'flex shrink-0 items-center gap-1 self-start',
+                                !title && 'ml-auto',
+                            )}
+                            data-testid={`slot-handle-${draft.position}`}
+                        >
+                            {handle}
                         </div>
                     )}
                 </div>
