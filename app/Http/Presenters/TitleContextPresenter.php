@@ -176,7 +176,7 @@ class TitleContextPresenter
             'names' => $names,
             // The slot it's really in (a card set up before the slot moved
             // keeps its own), else where this week's goes.
-            'position' => $this->qualifiers->slot($show)?->position ?? $this->qualifiers->position($show->week_number),
+            'position' => $this->qualifiers->slot($show)->position ?? $this->qualifiers->position($show->week_number),
         ];
     }
 }
