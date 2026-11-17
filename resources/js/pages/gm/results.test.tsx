@@ -189,9 +189,11 @@ describe('Results page', () => {
         expect(
             screen.getByRole('heading', { name: 'Monday Night Raw' }).className,
         ).toContain('text-2xl');
-        expect(
-            screen.getByText('World Tag Team Championship').className,
-        ).toContain('text-gold-hot');
+        // The list's title chip (the outcome card's heading names it too).
+        const chip = screen
+            .getAllByText('World Tag Team Championship')
+            .find((el) => !screen.getByTestId('result-detail').contains(el));
+        expect(chip?.className).toContain('text-gold-hot');
         expect(screen.queryByText(/press enter/i)).toBeNull();
         // The card always shows a match: the first one here.
         expect(

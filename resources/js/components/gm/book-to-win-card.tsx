@@ -1,4 +1,5 @@
-import { CashInTag, TitleBeltImage } from '@/components/gm/badges';
+import { CashInTag } from '@/components/gm/badges';
+import { MatchHeading } from '@/components/gm/match-heading';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { Fragment, useState } from 'react';
 import { BusyLabel } from '@/components/gm/busy-label';
@@ -22,7 +23,6 @@ type Side = PendingMatch['sides'][number];
  */
 export function BookToWinCard({
     match,
-    showName,
     isMainEvent,
     busy,
     action = null,
@@ -30,7 +30,6 @@ export function BookToWinCard({
     onCashIn,
 }: {
     match: PendingMatch;
-    showName: string;
     isMainEvent: boolean;
     busy: boolean;
     /**
@@ -50,28 +49,18 @@ export function BookToWinCard({
     const [cashing, setCashing] = useState(false);
 
     return (
-        <article className="gm-panel relative overflow-hidden px-6 py-8 md:px-10">
+        // Font sizes (2026-11-17): the match, then the title, then the names;
+        // a side's "w/ manager" is smaller still.
+        <article className="gm-panel relative overflow-hidden px-6 py-8 md:px-10 [&_[data-testid=side-manager]]:text-[0.8em]">
             <div className="text-center">
-                <p
-                    data-testid="book-heading"
-                    className="text-base text-ink-dim"
-                >
-                    {showName} ·{' '}
-                    {isMainEvent ? 'Main Event' : `Match ${match.position}`} ·{' '}
-                    {match.match_type}
-                    {match.title && (
-                        <span className="ml-2 text-gold-hot">
-                            ·{' '}
-                            <TitleBeltImage
-                                name={match.title}
-                                decorative
-                                className="mr-1.5 h-7"
-                            />
-                            {match.title}
-                            {!match.champions?.length && ' (vacant)'}
-                        </span>
-                    )}
-                </p>
+                <MatchHeading
+                    testId="book-heading"
+                    position={match.position}
+                    isMainEvent={isMainEvent}
+                    matchType={match.match_type}
+                    title={match.title}
+                    vacant={!match.champions?.length}
+                />
                 {match.mitb_cash_in && <CashInTag className="mt-1 block" />}
             </div>
 
@@ -181,7 +170,7 @@ export function BookToWinCard({
 
 function SideLabel({ match, side }: { match: PendingMatch; side: Side }) {
     return (
-        <span className="text-lg font-semibold">
+        <span className="text-base font-semibold">
             {groupSide(side.members, (m) => m.name, match.factions).map(
                 (item, i) => {
                     const members =

@@ -42,7 +42,7 @@ describe('OutcomeCard', () => {
         expect(screen.queryByTestId('kept-title')).toBeNull();
     });
 
-    it('says where the match was in one plain line, with no eyebrow labels (2026-11-15)', () => {
+    it('heads with the match and its type, no show name or eyebrow labels (2026-11-17)', () => {
         render(
             <OutcomeCard
                 outcome={{ ...dqRetain, title: null, title_banner: null }}
@@ -51,9 +51,33 @@ describe('OutcomeCard', () => {
             />,
         );
 
-        expect(screen.getByTestId('outcome-heading')).toHaveTextContent(
-            'Survivor Series · Match 1 · Submission — Triple Threat',
+        const heading = screen.getByRole('heading', { level: 2 });
+        expect(heading).toHaveTextContent(
+            'Match 1 - Submission — Triple Threat',
+        );
+        expect(screen.getByTestId('outcome-heading')).not.toHaveTextContent(
+            'Survivor Series',
         );
         expect(screen.queryByText('Winner')).toBeNull();
+    });
+
+    it('puts the title on its own line, smaller than the match and bigger than the banner (2026-11-17)', () => {
+        render(<OutcomeCard outcome={dqRetain} showName="Raw" isMainEvent />);
+
+        expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(
+            /^Main Event - /,
+        );
+        const title = screen.getByTestId('outcome-heading-title');
+        expect(title).toHaveTextContent(dqRetain.title ?? '');
+        expect(title.className).toContain('md:text-2xl');
+        expect(screen.getByRole('heading', { level: 2 }).className).toContain(
+            'md:text-4xl',
+        );
+        expect(screen.getByText('And still…').className).toContain(
+            'md:text-xl',
+        );
+        expect(screen.getByRole('heading', { level: 3 }).className).toContain(
+            'text-lg',
+        );
     });
 });

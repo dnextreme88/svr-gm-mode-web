@@ -48,7 +48,6 @@ describe('Money in the Bank during a match (house rule)', () => {
         render(
             <BookToWinCard
                 match={titleMatch}
-                showName="Smackdown"
                 isMainEvent={false}
                 busy={false}
                 onDecide={vi.fn()}
@@ -72,7 +71,6 @@ describe('Money in the Bank during a match (house rule)', () => {
         render(
             <BookToWinCard
                 match={{ ...titleMatch, cash_in_holder: null }}
-                showName="Smackdown"
                 isMainEvent={false}
                 busy={false}
                 onDecide={vi.fn()}
@@ -87,7 +85,6 @@ describe('Money in the Bank during a match (house rule)', () => {
         render(
             <BookToWinCard
                 match={{ ...titleMatch, mitb_cash_in: 'during' }}
-                showName="Smackdown"
                 isMainEvent={false}
                 busy={false}
                 onDecide={vi.fn()}

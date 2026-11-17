@@ -643,7 +643,6 @@ export default function Results() {
                                     {current.outcome.pending ? (
                                         <BookToWinCard
                                             match={current.outcome}
-                                            showName={current.show.name}
                                             isMainEvent={current.isMainEvent}
                                             busy={busy}
                                             action={action}
