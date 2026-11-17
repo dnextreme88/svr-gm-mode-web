@@ -187,7 +187,7 @@ afterEach(() => {
 });
 
 describe('Results page', () => {
-    it('says it is going to the News when Continue is pressed on the week just aired (2026-11-17)', async () => {
+    it('continues to the week’s Financials from the week just aired, and says so (2026-11-17)', async () => {
         const user = userEvent.setup();
         page.props = { ...props, airing: false, wrapping_up: true };
         visit.mockImplementation(
@@ -196,14 +196,16 @@ describe('Results page', () => {
         );
 
         render(<Results />);
-        await user.click(screen.getByRole('button', { name: 'Continue' }));
+        await user.click(
+            screen.getByRole('button', { name: 'Continue to Financials' }),
+        );
 
         expect(visit).toHaveBeenCalledWith(
-            expect.stringContaining('/news'),
+            expect.stringMatching(/\/financials\?wrap=1$/),
             expect.anything(),
         );
         const button = screen.getByRole('button', {
-            name: /Continuing to News page/,
+            name: /Continuing to Financials/,
         });
         expect(button).toBeDisabled();
         expect(button).toHaveAttribute('aria-busy', 'true');

@@ -533,6 +533,8 @@ export default function GmLayout({ children }: { children: ReactNode }) {
         airing?: boolean;
         continue_to?: unknown;
         wrapping_up?: boolean;
+        wrap_up?: boolean;
+        filters?: { wrap?: boolean };
     }>();
     const game = page.props.game;
     // House rule (2026-11-12): while a night airs on the live results (its
@@ -542,7 +544,17 @@ export default function GmLayout({ children }: { children: ReactNode }) {
     // Results of past weeks keep them. The re-draft (2026-11-16) hides them
     // too: it only opens while the re-draft runs, and nothing there should
     // be clicked away from mid-pick. They come back on the News.
+    // House rule (2026-11-17): after an aired week the player goes through
+    // its Financials, the News and the inbox before the Schedule, with the
+    // header still hidden (`wrap_up`; the inbox carries it in `filters`).
+    const wrappingUp =
+        ['gm/financials', 'gm/news'].includes(page.component) &&
+        page.props.wrap_up === true
+            ? true
+            : page.component === 'gm/email' &&
+              page.props.filters?.wrap === true;
     const onAir =
+        wrappingUp ||
         page.component === 'gm/redraft' ||
         (page.component === 'gm/results' &&
             (page.props.airing === true ||

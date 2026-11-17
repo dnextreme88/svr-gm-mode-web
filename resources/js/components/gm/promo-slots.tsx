@@ -2,6 +2,7 @@ import { X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { TitleMark } from '@/components/gm/badges';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
+import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { Panel } from '@/components/gm/panel';
 import { RivalryPicker, sortPair } from '@/components/gm/rivalry-picker';
 import { SlotActions } from '@/components/gm/slot-actions';
@@ -12,7 +13,7 @@ import type { PickerOption } from '@/components/gm/wrestler-picker';
 import { formatMoney } from '@/lib/gm';
 import { slotSaveKey, useSaveStatus } from '@/lib/save-status';
 import { cn } from '@/lib/utils';
-import type { RosterEntry } from '@/types/gm';
+import type { FatigueConfig, RosterEntry } from '@/types/gm';
 
 export type PromoTypeOption = {
     id: number;
@@ -79,6 +80,8 @@ type Props = {
     readOnly: boolean;
     onSave: (position: number, payload: PromoPayload) => void;
     onClear: (position: number) => void;
+    /** Draws the Inactive Superstar's fatigue beside its picker (2026-11-17). */
+    fatigueConfig?: FatigueConfig;
 };
 
 /**
@@ -208,6 +211,7 @@ function PromoEditor({
     onSave,
     onClear,
     showId,
+    fatigueConfig,
 }: {
     slot: PromoSlotView;
     taken: Map<number, number>;
@@ -583,20 +587,44 @@ function PromoEditor({
                                 <div className="gm-label mb-1">
                                     {pair ? 'First superstar' : 'Superstar'}
                                 </div>
-                                <WrestlerPicker
-                                    label={`Promo ${slot.position} ${pair ? 'first superstar' : 'superstar'}`}
-                                    value={a}
-                                    options={optionsFor(firstIds)}
-                                    required
-                                    disabled={readOnly}
-                                    onChange={(id) => {
-                                        setA(id);
+                                <div className="flex items-center gap-3">
+                                    <div className="min-w-0 flex-1">
+                                        <WrestlerPicker
+                                            label={`Promo ${slot.position} ${pair ? 'first superstar' : 'superstar'}`}
+                                            value={a}
+                                            options={optionsFor(firstIds)}
+                                            required
+                                            disabled={readOnly}
+                                            onChange={(id) => {
+                                                setA(id);
 
-                                        if (isContinue) {
-                                            setB(null);
-                                        }
-                                    }}
-                                />
+                                                if (isContinue) {
+                                                    setB(null);
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    {/* House rule (2026-11-17): how tired the
+                                        superstar the promo rests is. */}
+                                    {type?.key === 'inactive_superstar' &&
+                                        a !== null &&
+                                        fatigueConfig &&
+                                        rosterById.has(a) && (
+                                            <div
+                                                className="shrink-0"
+                                                data-testid={`promo-${slot.position}-fatigue`}
+                                            >
+                                                <FatigueMeter
+                                                    fatigue={
+                                                        rosterById.get(a)
+                                                            ?.fatigue ?? 0
+                                                    }
+                                                    config={fatigueConfig}
+                                                    showLabel
+                                                />
+                                            </div>
+                                        )}
+                                </div>
                             </div>
                             {pair && (
                                 <div>

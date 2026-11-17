@@ -528,6 +528,7 @@ export default function CardPage() {
                         types={promo_types}
                         eligibility={promo_eligibility}
                         roster={roster}
+                        fatigueConfig={game.fatigue_config}
                         matchSlotCount={show.match_slot_count}
                         titleNames={titleNames}
                         readOnly={!booking}

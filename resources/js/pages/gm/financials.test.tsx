@@ -211,3 +211,30 @@ describe('Financials', () => {
         );
     });
 });
+
+describe('Financials after an aired week (house rule, 2026-11-17)', () => {
+    it('offers Back to Schedule on any week opened from the menu', () => {
+        render(<Financials />);
+
+        expect(
+            screen.getByRole('link', { name: 'Back to Schedule' }),
+        ).toHaveAttribute('href', '/gm/saves/1/schedule');
+        expect(
+            screen.queryByRole('link', { name: 'Continue to News' }),
+        ).toBeNull();
+    });
+
+    it('continues to the News on the week just aired', () => {
+        Object.assign(props, { wrap_up: true });
+
+        try {
+            render(<Financials />);
+
+            expect(
+                screen.getByRole('link', { name: 'Continue to News' }),
+            ).toHaveAttribute('href', '/gm/saves/1/news?wrap=1');
+        } finally {
+            Object.assign(props, { wrap_up: false });
+        }
+    });
+});

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Gm;
 use App\Enums\EmailSenderKind;
 use App\Enums\EmailTemplate;
 use App\Http\Controllers\Controller;
+use App\Http\Support\WrapUp;
 use App\Models\Email;
 use App\Models\Save;
 use App\Models\SaveWrestler;
@@ -87,7 +88,11 @@ class EmailController extends Controller
             'filters' => [
                 'category' => $category?->value,
                 'view' => $unreadOnly ? self::VIEW_UNREAD : 'all',
+                // House rule (2026-11-17): the end of the week just aired.
+                'wrap' => WrapUp::active($request, $save),
             ],
+            // Its emails arrive with an animation, once per visit.
+            'new_week' => WrapUp::active($request, $save) ? $save->current_week - 1 : null,
             // Every name in the save, so the inbox can colour mentions by brand.
             'wrestlers' => SaveWrestler::with('wrestler')
                 ->where('save_id', $save->id)
@@ -192,6 +197,7 @@ class EmailController extends Controller
             ...array_filter([
                 'category' => $request->input('category'),
                 'view' => $request->input('view') === self::VIEW_UNREAD ? self::VIEW_UNREAD : null,
+                'wrap' => $request->boolean('wrap') ? 1 : null,
                 'email' => $email,
             ]),
         ]));

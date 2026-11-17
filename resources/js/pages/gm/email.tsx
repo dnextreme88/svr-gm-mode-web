@@ -45,7 +45,12 @@ type Category = { template: EmailTemplate; total: number; unread: number };
 
 type View = 'all' | 'unread';
 
-type Filters = { category: EmailTemplate | null; view: View };
+type Filters = {
+    category: EmailTemplate | null;
+    view: View;
+    /** The end of the week just aired (house rule, 2026-11-17). */
+    wrap?: boolean;
+};
 
 type Props = GamePageProps & {
     emails: EmailSummary[];
@@ -53,6 +58,8 @@ type Props = GamePageProps & {
     categories: Category[];
     filters: Filters;
     wrestlers: NamedWrestler[];
+    /** The week just aired: its emails arrive with an animation. */
+    new_week?: number | null;
 };
 
 /** The filters as query params, leaving out the defaults. */
@@ -60,6 +67,8 @@ function filterQuery(filters: Filters): Record<string, string> {
     return {
         ...(filters.category && { category: filters.category }),
         ...(filters.view === 'unread' && { view: 'unread' }),
+        // Kept through every inbox action so the header stays hidden.
+        ...(filters.wrap && { wrap: '1' }),
     };
 }
 
@@ -69,8 +78,22 @@ function filterQuery(filters: Filters): Record<string, string> {
  * `lg` it's one pane at a time: the list, or the email with a way back.
  */
 export default function Inbox() {
-    const { game, emails, selected, categories, filters, wrestlers } =
-        usePage<Props>().props;
+    const {
+        game,
+        emails,
+        selected,
+        categories,
+        filters,
+        wrestlers,
+        new_week = null,
+    } = usePage<Props>().props;
+    // House rule (2026-11-17): the week's new emails pop into the inbox the
+    // first time it opens at the end of the week, one after another.
+    const [arrived] = useState(() =>
+        new_week === null
+            ? []
+            : emails.filter((e) => e.week_number === new_week).map((e) => e.id),
+    );
     const url = usePage().url;
     const matcher = useMemo(() => buildMentionMatcher(wrestlers), [wrestlers]);
     const [confirming, setConfirming] = useState<'all' | 'one' | null>(null);
@@ -187,7 +210,24 @@ export default function Inbox() {
                         )}
                     </span>
                 }
-            />
+            >
+                {filters.wrap && (
+                    <Link href={gm.schedule.url(game.id)} className="gm-btn">
+                        Return to schedule
+                    </Link>
+                )}
+            </PageTitle>
+
+            {arrived.length > 0 && (
+                <p
+                    role="status"
+                    data-testid="new-mail"
+                    className="-mt-2 mb-4 inline-flex animate-gm-mail-in items-center gap-2 bg-brand/15 px-3 py-1 font-condensed text-sm font-bold tracking-[0.14em] text-brand-hot uppercase motion-reduce:animate-none"
+                >
+                    <Mail className="size-4" aria-hidden="true" />
+                    {pluralize(arrived.length, 'new email')} this week
+                </p>
+            )}
 
             {total === 0 ? (
                 <EmptyState>Your inbox is empty.</EmptyState>
@@ -281,7 +321,24 @@ export default function Inbox() {
                         ) : (
                             <ul className="gm-scroll max-h-[70vh] min-h-0 flex-1 divide-y divide-white/5 overflow-x-hidden overflow-y-auto lg:max-h-none">
                                 {emails.map((email) => (
-                                    <li key={email.id}>
+                                    <li
+                                        key={email.id}
+                                        data-new={
+                                            arrived.includes(email.id) ||
+                                            undefined
+                                        }
+                                        className={cn(
+                                            arrived.includes(email.id) &&
+                                                'animate-gm-mail-in motion-reduce:animate-none',
+                                        )}
+                                        style={
+                                            arrived.includes(email.id)
+                                                ? {
+                                                      animationDelay: `${300 + arrived.indexOf(email.id) * 180}ms`,
+                                                  }
+                                                : undefined
+                                        }
+                                    >
                                         <EmailRow
                                             email={email}
                                             href={inboxUrl({ email: email.id })}
