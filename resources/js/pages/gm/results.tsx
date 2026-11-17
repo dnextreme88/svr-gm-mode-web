@@ -203,8 +203,8 @@ export default function Results() {
             focus_match_id
                 ? r.outcome.id === focus_match_id
                 : focus_show_id
-                  ? r.show.id === focus_show_id
-                  : r.outcome.pending === true && r.outcome.is_next,
+                    ? r.show.id === focus_show_id
+                    : r.outcome.pending === true && r.outcome.is_next,
         );
 
         return index === -1 ? 0 : index;
@@ -478,8 +478,8 @@ export default function Results() {
                     rival
                         ? 'Rival results'
                         : airing
-                          ? 'On air'
-                          : 'That’s a wrap'
+                            ? 'On air'
+                            : 'That’s a wrap'
                 }
             >
                 {from_schedule ? (
@@ -619,7 +619,7 @@ export default function Results() {
                                             (r) =>
                                                 r.show.id === show.id &&
                                                 r.outcome.position ===
-                                                    o.position,
+                                                o.position,
                                         );
 
                                         return (
@@ -897,7 +897,7 @@ function MatchRow({
                     <span className="flex max-w-[45%] shrink-0 items-center gap-1 text-right sm:max-w-none sm:whitespace-nowrap">
                         {o.pending ? (
                             o.is_next ? (
-                                <span className="gm-btn gm-btn-gold gm-btn-sm">
+                                <span className="animate-gm-pulse gm-btn gm-btn-gold gm-btn-sm">
                                     Pending Result
                                 </span>
                             ) : (

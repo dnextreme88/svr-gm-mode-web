@@ -944,6 +944,12 @@ return [
         // each of its superstars, by morale level.
         'morale' => [
             'fix_chance' => ['content' => 0.75, 'unsatisfied' => 0.75, 'upset' => 0.95],
+            // House rule (2026-11-17): up to this many superstars waiting on a
+            // title match share one against a free champion (3: a Fatal 4-Way).
+            'title_group_max' => 3,
+            // A losing streak is fixed beside a partner on a win streak this
+            // long: a tag match, else managing them in a w/ Manager match.
+            'hot_partner_streak' => 3,
         ],
         // ASSUMPTION
         'mitb' => [
