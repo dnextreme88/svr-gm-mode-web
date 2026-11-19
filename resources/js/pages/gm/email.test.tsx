@@ -200,3 +200,51 @@ describe('Inbox', () => {
         );
     });
 });
+
+describe('Inbox at the end of an aired week (house rule, 2026-11-17)', () => {
+    it('pops the week’s new emails in and offers Return to schedule', () => {
+        props = {
+            ...baseProps,
+            filters: { category: null, view: 'all', wrap: true },
+            new_week: 3,
+        };
+
+        render(<Inbox />);
+
+        expect(
+            screen.getByRole('link', { name: 'Return to schedule' }),
+        ).toHaveAttribute('href', '/gm/saves/1/schedule');
+        expect(screen.getByTestId('new-mail')).toHaveTextContent(
+            '1 new email this week',
+        );
+        const rows = screen
+            .getByRole('region', { name: 'Inbox' })
+            .querySelectorAll('li[data-new]');
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toHaveTextContent('Trade accepted');
+    });
+
+    it('keeps the wrap-up in the inbox’s links', () => {
+        props = {
+            ...baseProps,
+            filters: { category: null, view: 'all', wrap: true },
+            new_week: 3,
+        };
+
+        render(<Inbox />);
+
+        const row = screen
+            .getByRole('region', { name: 'Inbox' })
+            .querySelector('a');
+        expect(row?.getAttribute('href')).toContain('wrap=1');
+    });
+
+    it('has no Return to schedule outside the end of a week', () => {
+        render(<Inbox />);
+
+        expect(
+            screen.queryByRole('link', { name: 'Return to schedule' }),
+        ).toBeNull();
+        expect(screen.queryByTestId('new-mail')).toBeNull();
+    });
+});

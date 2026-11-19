@@ -4,7 +4,6 @@ namespace App\Services\Draft;
 
 use App\Enums\Brand;
 use App\Enums\ContractLength;
-use App\Enums\ContractStatus;
 use App\Enums\DraftPhase;
 use App\Enums\DraftPickSource;
 use App\Enums\DraftPickType;
@@ -134,19 +133,14 @@ class DraftService
     }
 
     /**
-     * House rule (2026-11-15): salaries are paid weekly, so drafting doesn't
-     * touch the budget. What's left to draft with is the budget minus the
-     * full value of every contract the brand holds.
+     * What's left to draft with. House rule (2026-11-17): each pick's
+     * contract is paid in full when it's made, so it's the budget itself.
      */
     public function availableBudget(Save $save, Brand $brand): int
     {
-        $committed = (int) Contract::where('save_id', $save->id)
-            ->where('brand', $brand)
-            ->where('status', ContractStatus::Active)
-            ->get()
-            ->sum(fn (Contract $c): int => $c->remainingValue());
-
-        return $save->brand($brand)->budget - $committed;
+        // House rule (2026-11-17): every pick is paid when it's made, so
+        // what's left is simply the budget.
+        return $save->brand($brand)->budget;
     }
 
     /**

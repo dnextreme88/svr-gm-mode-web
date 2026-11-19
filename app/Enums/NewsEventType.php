@@ -31,6 +31,8 @@ enum NewsEventType: string
     case PpvResults = 'ppv_results';
     case SurvivorSeriesTeams = 'survivor_series_teams';
     case MitbQualified = 'mitb_qualified';
+    // House rule (2026-11-17): a Survivor Series team spot won in a Qualifying Match.
+    case SurvivorSeriesQualified = 'survivor_series_qualified';
     case MitbWinner = 'mitb_winner';
     case MitbCashIn = 'mitb_cash_in';
     case MitbExpiring = 'mitb_expiring';

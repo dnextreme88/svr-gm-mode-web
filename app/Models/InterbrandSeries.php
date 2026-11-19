@@ -7,7 +7,6 @@ use App\Models\Concerns\BelongsToGame;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * The three-match WrestleMania brand battle (§23, §11 InterbrandSeries).
@@ -20,11 +19,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $smackdown_wins
  * @property Brand|null $winner_brand
  * @property Brand|null $immunity_brand
- * @property int|null $exemption_wrestler_id
- * @property int|null $handpick_wrestler_id
+ * @property list<int>|null $exemption_wrestler_ids
+ * @property list<int>|null $handpick_wrestler_ids
  * @property bool $redraft_done
- * @property-read SaveWrestler|null $exemption
- * @property-read SaveWrestler|null $handpick
  */
 #[Unguarded]
 #[Table('interbrand_series')]
@@ -33,19 +30,25 @@ class InterbrandSeries extends Model
     use BelongsToGame;
 
     /**
-     * @return BelongsTo<SaveWrestler, $this>
+     * Who the immunity tag protects (house rule, 2026-11-17: up to
+     * `gm.ppv.redraft_immunity_count`).
+     *
+     * @return list<int>
      */
-    public function exemption(): BelongsTo
+    public function exemptIds(): array
     {
-        return $this->belongsTo(SaveWrestler::class, 'exemption_wrestler_id');
+        return array_map('intval', $this->exemption_wrestler_ids ?? []);
     }
 
     /**
-     * @return BelongsTo<SaveWrestler, $this>
+     * Who the manual draft pick takes, in pick order (up to
+     * `gm.ppv.redraft_manual_picks`).
+     *
+     * @return list<int>
      */
-    public function handpick(): BelongsTo
+    public function handpickIds(): array
     {
-        return $this->belongsTo(SaveWrestler::class, 'handpick_wrestler_id');
+        return array_map('intval', $this->handpick_wrestler_ids ?? []);
     }
 
     protected function casts(): array
@@ -55,6 +58,8 @@ class InterbrandSeries extends Model
             'winner_brand' => Brand::class,
             'immunity_brand' => Brand::class,
             'redraft_done' => 'boolean',
+            'exemption_wrestler_ids' => 'array',
+            'handpick_wrestler_ids' => 'array',
         ];
     }
 }

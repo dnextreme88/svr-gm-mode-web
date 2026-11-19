@@ -12,12 +12,14 @@ import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type {
     Brand,
+    ContractLength,
     MatchFamily,
     PpvKey,
     RosterType,
     Stipulation,
     WeightClass,
 } from '@/types/enums';
+import { ContractLengthLabels } from '@/types/enums';
 import type { FatigueConfig, GameShell } from '@/types/gm';
 
 type Variant = {
@@ -204,6 +206,22 @@ type Props = {
             target_size: number;
             cash_reserve: number;
             save_ahead_weeks: number;
+            max_divas?: Record<string, number>;
+            renewal: {
+                decide_at_weeks_left: number;
+                lengths: number[];
+                losing_share: number;
+                losing_expire: number;
+                title_wins: Record<string, number>;
+                title_wins_keep: number;
+                complaint_share: number;
+                complaint_expire: number;
+                busy_share: number;
+                busy_keep: number;
+                idle_share: number;
+                idle_expire: number;
+                default_keep: number;
+            };
         };
         trades: {
             base_value: number;
@@ -642,16 +660,29 @@ function MatchTypes({
                             bout’s winner faces the next entrant, and whoever
                             wins the last bout wins the Gauntlet.
                         </li>
+                        <li data-testid="tornado-tag-turmoil">
+                            <strong>Tornado Tag Turmoil:</strong> the same with
+                            five tag teams (10 superstars): teams 1 and 2 open,
+                            each bout’s winning team faces the next team, and
+                            the team that wins the last of the four bouts wins
+                            it. It can be a #1 Contender’s Match for a tag
+                            title.
+                        </li>
                         <li>
-                            Each bout is a normal singles match: pinfall,
-                            submission, DQ or count-out.
+                            Each bout is a normal singles match (a tag match in
+                            Tornado Tag Turmoil): pinfall, submission, DQ or
+                            count-out.
                         </li>
                         <li>
                             The record counts once: the winner gets one win, and
                             everyone else one loss each. Every entrant takes a
                             flat 3 fatigue bars.
                         </li>
-                        <li>No titles and no stipulations.</li>
+                        <li>
+                            No titles, and the only stipulation is a #1
+                            Contender’s Match: the winner (the winning team in a
+                            Tornado Tag Turmoil) becomes the contender.
+                        </li>
                         <li>
                             Book to Win goes bout by bout, in order: pick each
                             bout’s winner, and the next entrant steps in.
@@ -872,7 +903,7 @@ function Injuries({ injuries, fatigue }: Pick<Props, 'injuries' | 'fatigue'>) {
                         {pluralize(fatigue.rest_recovery_bars, 'bar')}, whether
                         they wrestled or not, and never drops below 0%. A
                         successful Inactive Superstar promo adds 2 more for its
-                        target.
+                        target; its picker shows the superstar’s fatigue.
                     </li>
                     <li>
                         Injuries are decided by the fatigue a superstar ends a
@@ -1550,30 +1581,36 @@ function NewsAndEmail({
                             The WWE headline, in order: in a PPV week, the PPV’s
                             main event (who won, any title on the line, and the
                             gimmick, e.g. “Backlash: John Cena wins the gold!”),
-                            or the Royal Rumble winner. Then a Slander or
-                            Interference result. Then the week’s biggest crowd
-                            (see Fan attendance). Then other cross-brand news
-                            (trades, defections, the re-draft, “Backlash is 1
-                            week away.”…). Last, tickets on sale for whatever
-                            airs next.
+                            or the Royal Rumble winner. The week before a PPV,
+                            the PPV itself (“Backlash is 1 week away”). Then a
+                            Slander or Interference result. Then other
+                            cross-brand news (trades, defections, the
+                            re-draft…). The week’s biggest crowd (see Fan
+                            attendance) is the last resort, when there’s nothing
+                            else. Last, tickets on sale for whatever airs next.
                         </li>
                         <li>
                             {news.stories_per_brand} stories per brand under the
                             headlines. A title change always takes its brand’s
-                            headline. A brand with no headline-sized news gets
-                            its biggest match as the headline instead (by the
-                            order above), or the bigger news that replaced that
-                            match’s result.
+                            headline. A plain match result is the last thing a
+                            card shows: a brand with no headline-sized news gets
+                            another of its stories as the headline, and only
+                            with nothing else does its biggest match lead (by
+                            the order above). Match results only fill the story
+                            cards other news leaves empty.
                         </li>
                         <li>
                             Every card shows its headline and a short summary of
                             why it happened. Click a story to read all of it.
                         </li>
                         <li>
-                            Whatever isn’t picked runs in the ticker, led by a
-                            gold Fan attendance line with every night’s crowd.
-                            Older and Newer (or ← / →) step through every week
-                            played, quiet weeks included.
+                            Raw and Smackdown each have a ticker of match
+                            results only: a line for every match on the brand’s
+                            weekly show (in a week the brand is on a PPV, its
+                            weekly show from the week before, since the PPV
+                            fills the headlines and stories). Older and Newer
+                            (or ← / →) step through every week played, quiet
+                            weeks included.
                         </li>
                         <li>
                             Only weeks that have fully aired are listed. News
@@ -1824,6 +1861,8 @@ const scopeLabel: Record<string, string> = {
 };
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
+const monthsLabel = (weeks: number) =>
+    ContractLengthLabels[weeks as ContractLength] ?? pluralize(weeks, 'week');
 
 function MoraleDocs({ morale }: Pick<Props, 'morale'>) {
     const t = morale.thresholds;
@@ -2058,13 +2097,60 @@ function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
                     {pct(r.rivalry_match_chance)} chance of a 1 vs 1 on a card.
                     Rivals are always the same gender.
                 </li>
-                <li>
-                    <strong>Contracts:</strong> it renews anyone with{' '}
-                    {roster.renew_at_weeks_left} or fewer weeks left for{' '}
-                    {pluralize(roster.renew_length, 'week')} (champions first),
-                    taking a shorter deal if money is tight, and signs free
-                    agents up to {roster.target_size} while keeping{' '}
-                    {formatMoney(roster.cash_reserve)} in the bank.
+                <li data-testid="rival-renewals">
+                    <strong>Contracts:</strong> on a contract’s last week it
+                    judges the superstar on how they did during it, like a human
+                    GM. The first rule that fits decides, and a re-sign is for{' '}
+                    {roster.renewal.lengths
+                        .map((weeks) => monthsLabel(weeks))
+                        .join(' or ')}{' '}
+                    (even odds):
+                    <ol className="mt-1 list-decimal space-y-1 pl-5">
+                        <li>A champion is always re-signed.</li>
+                        <li>
+                            Lost more than {pct(roster.renewal.losing_share)} of
+                            their matches: let go{' '}
+                            {pct(roster.renewal.losing_expire)} of the time.
+                        </li>
+                        <li>
+                            Won enough titles for the contract’s length (1
+                            month: {roster.renewal.title_wins['5']}, 3 months:{' '}
+                            {roster.renewal.title_wins['12']}, 6 or 9 months:{' '}
+                            {roster.renewal.title_wins['24']}, 12 months:{' '}
+                            {roster.renewal.title_wins['52']}): re-signed{' '}
+                            {pct(roster.renewal.title_wins_keep)} of the time.
+                        </li>
+                        <li>
+                            Unhappy (a morale complaint) more than{' '}
+                            {pct(roster.renewal.complaint_share)} of the
+                            contract: let go{' '}
+                            {pct(roster.renewal.complaint_expire)} of the time.
+                        </li>
+                        <li>
+                            Booked in a match or promo in{' '}
+                            {pct(roster.renewal.busy_share)} or more of its
+                            weeks (weeks out with a serious injury don’t count):
+                            re-signed {pct(roster.renewal.busy_keep)} of the
+                            time.
+                        </li>
+                        <li>
+                            Booked in {pct(roster.renewal.idle_share)} or fewer:
+                            let go {pct(roster.renewal.idle_expire)} of the
+                            time.
+                        </li>
+                        <li>
+                            Anyone else: re-signed{' '}
+                            {pct(roster.renewal.default_keep)} of the time.
+                        </li>
+                    </ol>
+                    Champions go first; short of money it takes a shorter deal.
+                    It signs free agents for {monthsLabel(roster.renew_length)}{' '}
+                    up to {roster.target_size} while keeping{' '}
+                    {formatMoney(roster.cash_reserve)} in the bank. It never
+                    holds more than{' '}
+                    {pluralize(roster.max_divas?.raw ?? 9, 'Diva')} running Raw
+                    or {pluralize(roster.max_divas?.smackdown ?? 6, 'Diva')}{' '}
+                    running Smackdown, in the draft or Free Agency.
                 </li>
                 <li>
                     <strong>Trades:</strong> every superstar is worth{' '}
@@ -2130,11 +2216,18 @@ function FinancesDocs({
                 title="Finances: contracts"
                 bodyClassName="p-0 overflow-x-auto"
             >
-                <p className="px-4 pt-3 text-sm text-ink-dim">
+                <p
+                    className="px-4 pt-3 text-sm text-ink-dim"
+                    data-testid="contracts-paid-up-front"
+                >
                     A contract costs the superstar’s monthly salary times its
-                    months, paid in equal weekly cuts. Nothing is paid up front,
-                    but signing needs the whole contract’s value in the bank.
-                    Releasing someone early pays out the weeks left.
+                    months, and it’s paid in full the moment it’s signed:
+                    drafting, Free Agency, renewing or re-signing. Your budget
+                    drops right away, and the Financials report lists it as a
+                    Contract signing. There are no weekly salaries. Releasing
+                    someone early gives back the weeks left on their contract,
+                    and so does re-signing them (the new contract is then paid
+                    in full).
                 </p>
                 <table className="gm-table mt-2" data-testid="salary-table">
                     <thead>
@@ -2190,11 +2283,11 @@ function FinancesDocs({
                         night each brand is on.
                     </li>
                     <li>
-                        Every match’s price when it airs, and every promo’s cost
-                        (Advertising and Merchandise Sponsorship pay you
-                        instead).
+                        Every match’s price and every promo’s cost (Advertising
+                        and Merchandise Sponsorship pay you instead). They reach
+                        your budget once the night is over and its news is in,
+                        not while the results are being decided.
                     </li>
-                    <li>Salaries for every contract, every week.</li>
                     <li>
                         Medical rehab: {formatMoney(finances.medical.minor)} a
                         week for each superstar with a minor injury,{' '}
@@ -2240,10 +2333,9 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
                         </li>
                         <li>
                             Pick each superstar’s contract length (1, 3, 6, 9 or
-                            12 months) on their row. Salaries are paid weekly,
-                            but a pick needs the whole contract’s value within
-                            what’s left of the budget after the contracts you
-                            already hold.
+                            12 months) on their row. Each pick’s contract is
+                            paid in full from your budget as you make it, so a
+                            pick needs its whole value in what’s left.
                         </li>
                         <li>
                             The rival GM rolls 1–{rosters.ai_roll_max} on every
@@ -2285,7 +2377,7 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
                                 rosters.wwe_contract_weeks ?? 24,
                                 'week',
                             )}
-                            ), paid weekly.
+                            ), paid in full from the budget in week 1.
                         </li>
                         <li>
                             Everyone else, Legends included, starts in Free
@@ -2483,11 +2575,10 @@ function AttendanceDocs({ attendance }: Pick<Props, 'attendance'>) {
                             factors.
                         </li>
                         <li>
-                            News: the week’s biggest crowd is a WWE headline,
-                            after a PPV main event and a Slander or Interference
-                            result. The ticker opens with every night’s crowd in
-                            gold, and a PPV main event’s summary says how many
-                            fans were in the building.
+                            News: the week’s biggest crowd is the WWE headline
+                            only when there’s no other cross-brand news, and a
+                            PPV main event’s summary says how many fans were in
+                            the building.
                         </li>
                         <li>
                             An unbooked Interview Space can quote the crowd.
@@ -2523,8 +2614,8 @@ function AttendanceDocs({ attendance }: Pick<Props, 'attendance'>) {
                         </li>
                         <li>
                             Survivor Series: that brand books Matches 4, 5 and
-                            6, the other brand 1, 2 and 3. The Traditional 3 vs
-                            3 Elimination is always the main event.
+                            6, the other brand 1, 2 and 3. The Traditional 5 vs
+                            5 Elimination is always the main event.
                         </li>
                         <li>
                             A tie goes to the higher total draw score, then a
@@ -2565,6 +2656,14 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                             The Schedule shows both brands on a month calendar.
                             Click any show that has aired, yours or the rival’s,
                             to see its results.
+                        </li>
+                        <li data-testid="save-checkpoints">
+                            <strong>Saving:</strong> Save career (top right)
+                            works like a save slot. It keeps the career exactly
+                            as it is now. Loading the career from Saved careers
+                            takes you back to that save, and anything you did
+                            after it is lost, so save before you stop playing.
+                            Each save replaces the last one.
                         </li>
                     </ul>
                 </Panel>
@@ -2669,7 +2768,7 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                     </li>
                     <li>
                         On the results, the series matches and Survivor Series’
-                        3 vs 3 show each superstar’s brand after their name,
+                        5 vs 5 show each superstar’s brand after their name,
                         like “Val Venis (Raw) vs Road Warrior Animal
                         (Smackdown)”.
                     </li>
@@ -2695,7 +2794,7 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                         moves them across. Skip animation skips it. A
                         superstar’s profile lists every re-draft that moved
                         them: from, to, the season and that brand’s pick
-                        (“3/5”).
+                        (“3/10”).
                     </li>
                     <li>
                         Picks are random from the other brand’s non-champions.
@@ -2708,21 +2807,29 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                         <strong>Immunity tag:</strong> the brand whose weekly
                         shows drew more fans this season before WrestleMania (a
                         tie goes to the higher draw score, then a coin flip).
-                        First, it protects one of its own non-champions (you
-                        confirm it), who can’t be picked.
+                        First, it protects three of its own non-champions (you
+                        confirm them), who can’t be picked.
                     </li>
                     <li>
                         <strong>Manual draft pick:</strong> the brand that won
                         the WrestleMania interbrand series (2 of its 3 matches).
-                        Second, it chooses one of the other brand’s
-                        non-champions (you confirm it). That brand picks first,
-                        and the superstar it chose is its first pick; every
-                        other pick is random.
+                        Second, it chooses two of the other brand’s
+                        non-champions (you confirm them). That brand picks
+                        first, and its first two picks are the superstars it
+                        chose; every other pick is random.
+                    </li>
+                    <li>
+                        The page opens with these rules in a Post-WrestleMania
+                        Season draft window; the button under the title opens it
+                        again.
                     </li>
                     <li>
                         The rival GM uses its tags on its most valuable
-                        superstars. Continue opens WrestleMania week’s news: the
-                        re-draft is the WWE headline, and each brand’s card
+                        superstars: a reel in its colour shows who it protected
+                        or took, then the list highlights them. Each brand’s
+                        card at the top of the page names who it protected and
+                        who it took. Continue opens WrestleMania week’s news:
+                        the re-draft is the WWE headline, and each brand’s card
                         leads with its last WrestleMania match. The News’s
                         Continue opens the Schedule and the new season.
                     </li>
@@ -2952,6 +3059,10 @@ const activeEffects: { name: string; text: string }[] = [
         text: 'Who holds the briefcase, until it’s cashed in, expires or the holder leaves the brand. See Match types.',
     },
     {
+        name: 'Qualifying Matches',
+        text: 'During a run of Qualifying Matches, how many of your Survivor Series team or Money in the Bank spots are won so far, and by whom. See Qualifying Matches below.',
+    },
+    {
         name: 'Buried Alive',
         text: 'A Buried Alive loser sitting out, with the weeks left. They can’t be booked as anything until they’re back.',
     },
@@ -2980,6 +3091,72 @@ function ActiveEffectsDocs() {
                         {effect.text}
                     </li>
                 ))}
+            </ul>
+        </Panel>
+    );
+}
+
+function QualifyingMatchesDocs() {
+    return (
+        <Panel title="Qualifying Matches">
+            <p className="text-sm text-ink">
+                Two PPV matches are earned on the weekly shows before them, as
+                WWE did. In those weeks, one match on both brands’ weekly shows
+                is a fixed{' '}
+                <span className="font-semibold">Qualifying Match</span>, and
+                which match moves each week so fans don’t see the same match in
+                the same slot (Survivor Series: Matches 1, 2, 3 and 4, then the
+                main event; Money in the Bank: Match 1, Match 3, then the main
+                event). Its match type is locked, it can’t be cleared or moved,
+                no title can be on the line, and the card can’t air until its 3
+                superstars are picked. Randomize fills them with men only (never
+                Divas) the match leaves at 70% fatigue or less. It’s a special
+                stipulation, pre-booked for these two PPVs: the slot shows
+                “Qualifying Match · Survivor Series” (or “· Money in the Bank”)
+                in place of the stipulation picker, and it can’t be put on any
+                other match. No other week has one.
+            </p>
+            <ul className="mt-3 list-disc space-y-2 pl-4 text-sm text-ink">
+                <li>
+                    <span className="font-semibold text-gold">
+                        Survivor Series:
+                    </span>{' '}
+                    the 5 weeks before it (the first ones are Raw on Oct 24 and
+                    Smackdown on Oct 28, 2005), each a Ladder Triple Threat.
+                    Each winner takes one of the brand’s 5 spots in the
+                    Traditional 5 vs 5.
+                </li>
+                <li>
+                    <span className="font-semibold text-gold">
+                        Money in the Bank ladder:
+                    </span>{' '}
+                    the 3 weeks before WrestleMania, each a Normal Triple
+                    Threat. Each winner takes one of the brand’s 3 spots on the
+                    ladder. Champions can’t enter.
+                </li>
+                <li>
+                    Any win qualifies, a DQ or count-out included. No Divas. A
+                    winner can’t enter another qualifier for the same PPV; the
+                    losers can try again the next week.
+                </li>
+                <li>
+                    A winner is locked onto the PPV card. Only a serious injury
+                    or leaving the brand gives the spot up; you then pick the
+                    replacement by hand on the PPV card (the rival GM picks its
+                    own). Spots nobody qualified for are picked there too.
+                </li>
+                <li>
+                    The rival GM picks entrants who won’t get hurt, and keeps
+                    its winners healthy until the PPV: only Normal Matches or
+                    Tag Team matches that leave them at 70% fatigue or less,
+                    Continue Rivalry for a winner in a rivalry, and Inactive
+                    Superstar to rest a tired one.
+                </li>
+                <li>
+                    Vince McMahon’s reminder comes 6 weeks before Survivor
+                    Series and 4 weeks before WrestleMania, the week before the
+                    qualifiers begin.
+                </li>
             </ul>
         </Panel>
     );
@@ -3020,8 +3197,16 @@ function ResultsDocs() {
                             Continue opens your weekly show to book. The rival’s
                             own PPV airs with the weekly shows. After the weekly
                             shows’ last match the rest of the week runs
-                            (recovery, contracts, morale, news, email) and
-                            Continue opens the News, now with the whole week.
+                            (recovery, contracts, morale, news, email).
+                        </li>
+                        <li>
+                            Then the week wraps up in order: Continue to
+                            Financials shows that week’s books, Continue to News
+                            the whole week’s news, and Continue the inbox, where
+                            the week’s new emails pop in. Return to schedule
+                            ends the week. The header and menu stay hidden from
+                            Air week until you’re back on the Schedule, so you
+                            stay on the week that just aired.
                         </li>
                         <li>
                             Signings, releases and trades wait until the week’s
@@ -3248,6 +3433,7 @@ export default function Docs() {
                     <div className="space-y-6">
                         <ScheduleDocs calendar={props.calendar} />
                         <ActiveEffectsDocs />
+                        <QualifyingMatchesDocs />
                         <ResultsDocs />
                     </div>
                 )}

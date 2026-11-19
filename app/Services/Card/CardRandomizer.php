@@ -71,12 +71,14 @@ class CardRandomizer
     {
         $cheapOnly = SaveBrand::where('save_id', $show->save_id)->where('brand', $brand)->value('deficit_choice') === TrackDeficit::CHOICE_CHEAP_MATCHES;
 
+        $fixedOnly = (array) config('gm.card.fixed_only_families');
+
         return MatchType::query()
             ->where('gm_bookable', true)
-            ->where('max_competitors', '<=', (int) config('gm.card.max_competitors'))
             ->orderBy('sort_order')
             ->get()
-            ->filter(fn (MatchType $t): bool => (! $t->ppv_only || $show->isPpv())
+            ->filter(fn (MatchType $t): bool => ! in_array($t->family->value, $fixedOnly, true)
+                && (! $t->ppv_only || $show->isPpv())
                 && ($t->ppv_exclusive_id === null || $t->ppv_exclusive_id === $show->ppv_event_id)
                 && ($t->brand_restriction === null || $t->brand_restriction === $brand)
                 && (! $cheapOnly || $t->cost === 0))
@@ -371,7 +373,12 @@ class CardRandomizer
                 }
             }
 
-            $names = $byId->only($rivals)->map(fn (SaveWrestler $w): string => $w->name())->all();
+            // Each rival's name by id (Eloquent's only() renumbers its keys).
+            $names = [];
+
+            foreach ($rivals as $id) {
+                $names[$id] = $byId->get($id)?->name() ?? '';
+            }
             $note = 'Rivalry: '.implode(' and ', array_map(fn (array $p): string => ($names[$p[0]] ?? '').' vs. '.($names[$p[1]] ?? ''), $pairs)).'.';
 
             return new Proposal($position, new Booking($type, $sides, $managers), $sides, note: $note);

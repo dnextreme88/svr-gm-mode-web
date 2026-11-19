@@ -31,10 +31,12 @@ import { UnsavedChangesProvider } from '@/components/gm/unsaved-changes';
 import type { PromoFatigue } from '@/lib/card';
 import { MainEventTypeButton } from '@/components/gm/wrestlemania-tools';
 import type { SeriesOption } from '@/components/gm/wrestlemania-tools';
+import { QualifierRandomize } from '@/components/gm/qualifier-randomize';
 import { requestJson } from '@/lib/http';
 import { saveVisit, slotSaveKey } from '@/lib/save-status';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
+import type { Brand } from '@/types/enums';
 import type {
     CardShow,
     CardSlot,
@@ -129,6 +131,27 @@ export default function CardPage() {
     // Where "Book it now" puts an owed title match: the first empty slot of
     // the player's, else the last one.
     const ownSlots = slots.filter((s) => !s.fixed_kind && !s.locked);
+    // The Main Event is the card's last match, never a cash-in placed after it.
+    const mainEventPosition = Math.max(
+        0,
+        ...slots
+            .filter((s) => s.fixed_kind !== 'mitb_cash_in')
+            .map((s) => s.position),
+    );
+    // House rule (2026-11-17): on an interbrand card the rival's own title
+    // and stipulation show on its slots, in the rival's brand colour.
+    const slotAt = (position: number) =>
+        slots.find((s) => s.position === position);
+    const rivalOf = (brand?: Brand | null) =>
+        brand && brand !== game.player_brand ? brand : null;
+    const rivalStipulationAt = (position: number) => {
+        const slot = slotAt(position);
+        const brand = rivalOf(slot?.stipulation_brand);
+
+        return slot?.stipulation && brand
+            ? { titles: slot.stipulation_title_names ?? [], brand }
+            : null;
+    };
     const reminderSlot =
         ownSlots.find((s) => s.match_type_id === null) ?? ownSlots.at(-1);
     const briefcase = title_context.briefcase;
@@ -178,7 +201,7 @@ export default function CardPage() {
             <Head title={`${show.name} card`} />
             {rearranging && (
                 <LoadingOverlay
-                    text="Re-arranging your matches. Please wait."
+                    text="Re-arranging your matches. Please wait..."
                     testId="reorder-overlay"
                 />
             )}
@@ -198,6 +221,7 @@ export default function CardPage() {
                         label="Preset card"
                         mode="preset"
                         titleNames={titleNames}
+                        mainEventPosition={mainEventPosition}
                         fetchProposal={(roll) =>
                             requestJson<ProposalResult>(
                                 'POST',
@@ -237,8 +261,8 @@ export default function CardPage() {
                     )}
                 >
                     {summerslam.main_event
-                        ? `SummerSlam main event: your weekly shows drew more fans this season, so you book Match 1, Match 3 and the main event. The rival books Matches 2 and 4.`
-                        : `${summerslam.headliner}'s weekly shows drew more fans this season, so it books Match 1, Match 3 and the main event. You book Matches 2 and 4.`}
+                        ? `Your weekly shows drew more fans than your rival prior to Summerslam, so you book matches 1, 3, 5, and the main event. Your rival books matches 2, 4, and 6.`
+                        : `${summerslam.headliner}'s weekly shows drew more fans than you prior to Summerslam, so they book matches 1, 3, 5, and the main event. You book matches 2, 4, and 6.`}
                 </p>
             )}
 
@@ -357,20 +381,44 @@ export default function CardPage() {
                         }
                         context={title_context}
                         roster={rosterById}
+                        bookedTitleName={slotAt(draft.position)?.title_name}
+                        rivalBrand={rivalOf(
+                            slotAt(draft.position)?.title_brand,
+                        )}
                         readOnly={!booking || draft.fixed}
                         onChange={update}
                     />
                 )}
-                renderButtons={(draft) => {
+                renderButtons={(draft, update) => {
                     const slot = slots.find(
                         (s) => s.position === draft.position,
                     );
+
+                    // House rule (2026-11-17): the Qualifying Match's 3 men.
+                    if (slot?.fixed_kind === 'qualifying_match') {
+                        return (
+                            booking && (
+                                <QualifierRandomize
+                                    url={gm.card.randomize.url({
+                                        ...ids,
+                                        position: draft.position,
+                                    })}
+                                    onPick={(picks) =>
+                                        update({
+                                            ...draft,
+                                            sides: picks.map((id) => [id]),
+                                        })
+                                    }
+                                />
+                            )
+                        );
+                    }
 
                     // House rule (2026-11-15): the player picks the main
                     // event's match type (series spots are picked on the
                     // match itself, see `series` above).
 
-                    // The Royal Rumble or the Survivor Series 3 vs 3: the
+                    // The Royal Rumble or the Survivor Series 5 vs 5: the
                     // entrants page picks the player's side.
                     if (
                         slot?.fixed_kind === 'royal_rumble' ||
@@ -418,6 +466,7 @@ export default function CardPage() {
                                 label="Randomize"
                                 mode="randomize"
                                 titleNames={titleNames}
+                                mainEventPosition={mainEventPosition}
                                 fetchProposal={async (roll) => {
                                     const { proposal } = await requestJson<{
                                         proposal: ProposalView;
@@ -447,6 +496,7 @@ export default function CardPage() {
                 }}
                 renderActions={(draft, update, drafts) => (
                     <StipulationPicker
+                        rivalStipulation={rivalStipulationAt(draft.position)}
                         takenTitleIds={[
                             ...drafts
                                 .filter((d) => d.position !== draft.position)
@@ -487,6 +537,7 @@ export default function CardPage() {
                         types={promo_types}
                         eligibility={promo_eligibility}
                         roster={roster}
+                        fatigueConfig={game.fatigue_config}
                         matchSlotCount={show.match_slot_count}
                         titleNames={titleNames}
                         readOnly={!booking}

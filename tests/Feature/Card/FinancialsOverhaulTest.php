@@ -32,16 +32,17 @@ use Tests\Support\GameBuilder;
 | superstar profile's injury history and special info.
 */
 
-it('charges a release fee of the weeks left on the deal', function () {
+it('refunds the weeks left on the deal when a superstar is released early (house rule, 2026-11-17)', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
     $edge = GameBuilder::wrestler($save, 'Edge');
     $edge->activeContract->update(['weeks_remaining' => 3]);
 
     app(ContractService::class)->release($edge->refresh(), 1);
 
-    $fee = LedgerEntry::where('save_id', $save->id)->where('category', LedgerCategory::ReleaseFee)->sole();
+    $fee = LedgerEntry::where('save_id', $save->id)->where('category', LedgerCategory::ContractRefund)->sole();
 
-    expect($fee->amount)->toBe(-3 * 4_615)
+    // A 12-month contract paid $480,000 up front: 3 of its 52 weeks come back.
+    expect($fee->amount)->toBe((int) round(480_000 * 3 / 52))
         ->and($fee->brand)->toBe(Brand::Raw)
         ->and($fee->memo)->toBe('Released Edge (3 weeks left)');
 });
@@ -143,9 +144,14 @@ describe('Preset and rivalries', function () {
 
         $proposal = $randomizer->rivalryProposal($show, 1, $shape, [$pairs[0]], $pairs, $pool, [], [], $save->rng("shape.{$shape}", 1), Brand::Raw);
 
+        $names = array_map(fn (int $id): string => SaveWrestler::with('wrestler')->find($id)->name(), $pairs[0]);
+
         expect($proposal)->not->toBeNull()
             ->and($proposal->booking->competitorIds())->toHaveCount($competitors)
-            ->and($proposal->booking->allIds())->toContain(...$pairs[0]);
+            ->and($proposal->booking->allIds())->toContain(...$pairs[0])
+            // The note names the rivals (fix, 2026-11-18: it read "Rivalry: vs. .").
+            ->and($proposal->note)->toContain($names[0])->toContain($names[1])
+            ->and($proposal->note)->not->toContain('Rivalry:  vs.');
     })->with([
         'singles' => ['singles', 2],
         'triple threat' => ['triple_threat', 3],
@@ -230,13 +236,13 @@ describe('superstar profile', function () {
 
         $this->get(route('gm.rosters.show', [$save, $edge]))
             ->assertInertia(fn ($page) => $page
-                ->where('salary.monthly', 20_000)
+                ->where('salary.monthly', 40_000)
                 ->where('salary.tier', 'superstar')
-                ->where('release_fee', 52 * 4_615)
+                ->where('release_fee', 480_000)
                 ->has('injury_history', 0)
                 ->has('special_info', 0)
                 ->has('quotes', 5)
-                ->where('quotes.4.total', 240_000));
+                ->where('quotes.4.total', 480_000));
     });
 });
 

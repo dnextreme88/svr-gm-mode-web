@@ -13,7 +13,9 @@ use App\Models\Save;
 use App\Models\Show;
 use App\Models\TitleReign;
 use App\Models\TitleShot;
+use App\Services\Calendar\CalendarService;
 use App\Services\Factions\FactionNamer;
+use App\Services\Ppv\QualifierService;
 use App\Services\Titles\LastChanceService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\RematchClauseService;
@@ -34,6 +36,8 @@ class TitleContextPresenter
         private FactionNamer $factions,
         private TitleContention $contention,
         private RematchClauseService $rematches,
+        private QualifierService $qualifiers,
+        private CalendarService $calendar,
     ) {}
 
     /**
@@ -121,6 +125,9 @@ class TitleContextPresenter
                     'champion' => $l->reign->holderName(),
                 ])
                 ->values(),
+            // House rule (2026-11-17): who has qualified so far, in a run of
+            // Qualifying Matches ("Survivor Series team: 3 of 5").
+            'qualifiers' => $this->qualifierProgress($save, $show, $brand),
             // House rule (2026-11-07): former champions owed a rematch.
             'rematch_clauses' => $this->rematches->active($save, $show->week_number, $brand)
                 ->map(fn (RematchClause $c): array => [
@@ -141,6 +148,35 @@ class TitleContextPresenter
                 'expires_week' => $briefcase->expires_week,
                 'cashed_in_here' => $slots->contains(fn (MatchSlot $s): bool => $s->id === $briefcase->cash_in_match_id),
             ],
+        ];
+    }
+
+    /**
+     * @return array{ppv: string, count: int, of: int, names: list<string>, position: int|null}|null
+     */
+    private function qualifierProgress(Save $save, Show $show, Brand $brand): ?array
+    {
+        $ppv = $this->qualifiers->window($show->week_number);
+
+        if ($ppv === null) {
+            return null;
+        }
+
+        $rows = $this->qualifiers->rows($save, $ppv, $brand, $this->calendar->seasonOf($show->week_number));
+        $names = [];
+
+        foreach ($rows as $row) {
+            $names[] = $row->saveWrestler->name();
+        }
+
+        return [
+            'ppv' => QualifierService::label($ppv),
+            'count' => count($names),
+            'of' => QualifierService::spots($ppv),
+            'names' => $names,
+            // The slot it's really in (a card set up before the slot moved
+            // keeps its own), else where this week's goes.
+            'position' => $this->qualifiers->slot($show)->position ?? $this->qualifiers->position($show->week_number),
         ];
     }
 }

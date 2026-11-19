@@ -160,6 +160,18 @@ it('shows the rival’s results from the calendar', function () {
 });
 
 describe('the calendar', function () {
+    it('opens on the month of the player’s next show, not the week’s Sunday (fix, 2026-11-17)', function () {
+        // Week 31 starts Sun Oct 30, 2005: Raw airs Oct 31, Smackdown Nov 4.
+        foreach ([[Brand::Smackdown, '2005-11'], [Brand::Raw, '2005-10']] as [$brand, $month]) {
+            $save = GameBuilder::inSeason(player: $brand);
+            $save->update(['current_week' => 31]);
+            app(ShowScheduler::class)->ensureWeek($save, 31);
+
+            $this->get(route('gm.schedule', $save))
+                ->assertInertia(fn (Assert $page) => $page->where('initial_month', $month));
+        }
+    });
+
     it('opens on the current month and says what each show night does', function () {
         $save = backlashWeek();
         $backlash = rawCard($save, ShowType::Ppv);

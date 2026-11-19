@@ -83,6 +83,19 @@ class CardPresenter
             'managers' => (object) $managers,
             'referee_id' => $referee,
             'title_championship_id' => $slot->title_championship_id,
+            // The title on the line by name, so an interbrand card shows the
+            // rival's own title on its slots (2026-11-17): the player's title
+            // context only knows the player's titles.
+            'title_name' => $slot->titleChampionship?->name,
+            // …and whose it is, for its colour (the rival's brand colour).
+            'title_brand' => $slot->titleChampionship?->brand?->value,
+            // The stipulation's title (or a Winner Takes All's titles) by name
+            // and the brand booking it, so the rival's stipulation shows on
+            // its slots too (2026-11-17).
+            'stipulation_title_names' => $slot->stipulationChampionship !== null
+                ? [$slot->stipulationChampionship->name]
+                : Championship::whereIn('id', $slot->contested_title_ids ?? [])->orderBy('sort_order')->pluck('name')->all(),
+            'stipulation_brand' => ($slot->stipulationChampionship->brand ?? $slot->owner_brand)?->value,
             'stipulation' => $slot->stipulation?->value,
             'stipulation_championship_id' => $slot->stipulation_championship_id,
             'contested_title_ids' => $slot->contested_title_ids ?? [],
@@ -302,7 +315,7 @@ class CardPresenter
     /**
      * Which brand each side of a match represents, on the matches between
      * the brands (house rule, 2026-11-15): WrestleMania's interbrand series
-     * (by spot) and the Survivor Series 3 vs 3 (Raw first). Null elsewhere.
+     * (by spot) and the Survivor Series 5 vs 5 (Raw first). Null elsewhere.
      */
     public static function sideBrand(MatchSlot $slot, int $side): ?Brand
     {

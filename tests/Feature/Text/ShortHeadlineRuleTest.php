@@ -16,6 +16,9 @@ use App\Services\News\PromoStories;
 const HEADLINE_MAX_WORDS = 6;
 const HEADLINE_MAX_TOKENS = 3;
 
+/** Headlines the GM wrote longer on purpose (2026-11-17). */
+const HEADLINE_LONG_ALLOWED = ['news:number_one_contender.fired_up'];
+
 /**
  * Words in a headline template once its {tokens} are taken out.
  */
@@ -66,6 +69,10 @@ it('keeps every headline to a short summary', function () {
     $long = [];
 
     foreach (headlineTemplates() as $key => $template) {
+        if (in_array($key, HEADLINE_LONG_ALLOWED, true)) {
+            continue;
+        }
+
         $tokens = preg_match_all('/\{\w+\}/', $template);
 
         if (headlineWords($template) > HEADLINE_MAX_WORDS || $tokens > HEADLINE_MAX_TOKENS) {

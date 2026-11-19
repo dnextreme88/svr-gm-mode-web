@@ -3,6 +3,7 @@
 namespace App\Services\Titles;
 
 use App\Enums\Brand;
+use App\Enums\MatchFamily;
 use App\Enums\RosterType;
 use App\Enums\Stipulation;
 use App\Exceptions\GameRuleException;
@@ -258,9 +259,13 @@ class TitleBookingRules
         $sides = $booking->matchType->sides;
         $size = $championship->is_tag ? 2 : 1;
 
-        if (array_unique($sides) !== [$size] || count($sides) < 2 || ($championship->is_tag && count($sides) > 3)) {
+        // A Tornado Tag Turmoil (house rule, 2026-11-17) takes a tag title's
+        // #1 contendership with its 5 teams, like a Gauntlet does a singles one.
+        $gauntlet = $booking->matchType->family === MatchFamily::Gauntlet;
+
+        if (array_unique($sides) !== [$size] || count($sides) < 2 || ($championship->is_tag && count($sides) > 3 && ! $gauntlet)) {
             throw new GameRuleException($championship->is_tag
-                ? "A #1 Contender’s Match for the {$championship->name} is 2 vs 2 or 2 vs 2 vs 2."
+                ? "A #1 Contender’s Match for the {$championship->name} is 2 vs 2, 2 vs 2 vs 2 or a Tornado Tag Turmoil."
                 : "A #1 Contender’s Match for the {$championship->name} has one superstar per side.");
         }
 

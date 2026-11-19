@@ -4,11 +4,13 @@ namespace App\Services\Week\Steps;
 
 use App\Enums\Brand;
 use App\Enums\PpvKey;
+use App\Enums\ShowType;
 use App\Exceptions\GameRuleException;
 use App\Models\Show;
 use App\Services\Ai\AiGm;
 use App\Services\Card\CardService;
 use App\Services\Ppv\PpvCardService;
+use App\Services\Ppv\QualifierService;
 use App\Services\Week\ShowScheduler;
 use App\Services\Week\WeekContext;
 use App\Services\Week\WeekResolver;
@@ -25,6 +27,7 @@ class PrepareShows implements WeekStep
         private CardService $cards,
         private PpvCardService $ppvCards,
         private AiGm $ai,
+        private QualifierService $qualifiers,
     ) {}
 
     public function handle(WeekContext $context): void
@@ -34,11 +37,15 @@ class PrepareShows implements WeekStep
         $entrantCards = [];
 
         foreach ($shows as $show) {
+            // House rule (2026-11-17): a weekly show's Qualifying Match.
+            $this->qualifiers->setUp($show);
             $this->cards->ensureSlots($show);
 
             // Entrants come last, once the rival's other cards of the night
             // are booked (its Royal Rumble picks avoid booked champions).
             if ($show->isInterbrandMainEvent()) {
+                // House rule (2026-11-17): Survivor Series qualifiers take their spots.
+                $this->ppvCards->seatSurvivorQualifiers($show);
                 // The rest of the shared card is the rival's to book too.
                 $this->ai->bookShow($show, $aiBrand);
                 $entrantCards[] = $show;
@@ -65,6 +72,13 @@ class PrepareShows implements WeekStep
             // airs (`WeekResolver::continueWeek`).
             if ($show->brand === $aiBrand && ($show->isPpv() || ($context->data['phase'] ?? null) !== WeekResolver::PHASE_PPV)) {
                 $this->ai->bookShow($show);
+            }
+
+            // A qualifier still empty as its show airs (Simulate to here,
+            // tests): filled with healthy entrants. Not before a PPV night,
+            // when the weekly show isn't booked yet.
+            if ($show->show_type === ShowType::Weekly && ($context->data['phase'] ?? null) !== WeekResolver::PHASE_PPV) {
+                $this->qualifiers->fillMissing($show, $context->rng("qualifier.fill.{$show->streamKey()}"));
             }
         }
 

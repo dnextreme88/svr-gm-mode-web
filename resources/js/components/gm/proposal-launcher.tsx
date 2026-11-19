@@ -18,6 +18,8 @@ type Props = {
     fetchProposal: (roll: number) => Promise<ProposalResult>;
     onConfirm: (proposals: ProposalView[]) => Promise<void> | void;
     titleNames?: Record<number, string>;
+    /** The card's main event, labelled "Main Event" in the proposal. */
+    mainEventPosition?: number;
     disabled?: boolean;
     className?: string;
 };
@@ -42,6 +44,7 @@ export function ProposalLauncher({
     fetchProposal,
     onConfirm,
     titleNames,
+    mainEventPosition,
     disabled,
     className,
 }: Props) {
@@ -105,6 +108,7 @@ export function ProposalLauncher({
                 totalCost={result?.total_cost ?? 0}
                 deficitWarning={result?.deficit_warning ?? false}
                 titleNames={titleNames}
+                mainEventPosition={mainEventPosition}
                 onCancel={close}
                 onReroll={() => void load(roll + 1)}
                 onConfirm={async () => {

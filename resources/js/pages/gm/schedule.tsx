@@ -280,6 +280,9 @@ export default function Schedule() {
 
             <ConfirmDialog
                 open={simulate !== null}
+                // A click outside or Escape must not close it (or stop a run):
+                // only Cancel / Stop after this week and the close button do.
+                stayOpen
                 title={
                     simulate
                         ? `Simulate to week ${simulate.air.season_week}?`

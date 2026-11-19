@@ -104,7 +104,7 @@ export function SideNames({
 
 /**
  * "(Raw)" after a name on the matches between the brands: WrestleMania's
- * interbrand series and the Survivor Series 3 vs 3 (2026-11-15).
+ * interbrand series and the Survivor Series 5 vs 5 (2026-11-15).
  */
 export function BrandLabel({ brand }: { brand: string }) {
     return (

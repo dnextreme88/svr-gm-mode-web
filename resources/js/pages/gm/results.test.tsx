@@ -156,10 +156,14 @@ function promo(
 
 const page: { props: Record<string, unknown> } = { props };
 const post = vi.fn();
+const visit = vi.fn();
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
-    router: { post: (...args: unknown[]) => post(...args) },
+    router: {
+        post: (...args: unknown[]) => post(...args),
+        visit: (...args: unknown[]) => visit(...args),
+    },
     Link: ({
         children,
         href,
@@ -183,15 +187,49 @@ afterEach(() => {
 });
 
 describe('Results page', () => {
+    it('continues to the week’s Financials from the week just aired, and says so (2026-11-17)', async () => {
+        const user = userEvent.setup();
+        page.props = { ...props, airing: false, wrapping_up: true };
+        visit.mockImplementation(
+            (_url: string, options: { onStart?: () => void }) =>
+                options.onStart?.(),
+        );
+
+        render(<Results />);
+        await user.click(
+            screen.getByRole('button', { name: 'Continue to Financials' }),
+        );
+
+        expect(visit).toHaveBeenCalledWith(
+            expect.stringMatching(/\/financials\?wrap=1$/),
+            expect.anything(),
+        );
+        const button = screen.getByRole('button', {
+            name: /Continuing to Financials/,
+        });
+        expect(button).toBeDisabled();
+        expect(button).toHaveAttribute('aria-busy', 'true');
+    });
+
+    it('keeps a plain Continue link on a past week', () => {
+        page.props = { ...props, airing: false, wrapping_up: false };
+
+        render(<Results />);
+
+        expect(screen.getByRole('link', { name: 'Continue' })).toBeVisible();
+    });
+
     it('lists every result with a chevron and no Enter-to-continue prompt', () => {
         render(<Results />);
 
         expect(
             screen.getByRole('heading', { name: 'Monday Night Raw' }).className,
         ).toContain('text-2xl');
-        expect(
-            screen.getByText('World Tag Team Championship').className,
-        ).toContain('text-gold-hot');
+        // The list's title chip (the outcome card's heading names it too).
+        const chip = screen
+            .getAllByText('World Tag Team Championship')
+            .find((el) => !screen.getByTestId('result-detail').contains(el));
+        expect(chip?.className).toContain('text-gold-hot');
         expect(screen.queryByText(/press enter/i)).toBeNull();
         // The card always shows a match: the first one here.
         expect(

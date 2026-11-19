@@ -60,7 +60,7 @@ it('writes a Tables title change as "in a Tables match"', function () {
 
     $news = NewsEvent::where('type', NewsEventType::TitleChange)->sole();
 
-    expect($news->rendered_text)->toBe('NEW CHAMPION! Snitsky & Val Venis wins the gold!')
+    expect($news->rendered_text)->toBe("New owner of the {$title->name} was crowned!")
         ->and(app(NewsTemplates::class)->summary(NewsEventType::TitleChange, $news->payload))
         ->toStartWith('Snitsky & Val Venis beat La Résistance in a Tables match and walk out with the World Tag Team Championship!');
 });

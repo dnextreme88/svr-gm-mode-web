@@ -23,12 +23,24 @@ export type NewsPage = {
     season_week: number;
     headlines: Record<'raw' | 'smackdown' | 'neutral', NewsCard | null>;
     stories: Record<'raw' | 'smackdown', NewsCard[]>;
+    /** News that didn't make a card (match results have their own lines). */
     ticker: NewsCard[];
+    /**
+     * Each brand's ticker (house rule, 2026-11-17): a line per match on its
+     * weekly show; in a week it's on a PPV, the weekly show from the week before.
+     */
+    tickers?: Record<'raw' | 'smackdown', string[]>;
     /** The week's crowds: each weekly show, and each PPV night. */
     attendance: AttendanceNight[];
 };
 
-export type AttendanceNight = { name: string; ppv: boolean; crowd: number };
+export type AttendanceNight = {
+    name: string;
+    ppv: boolean;
+    crowd: number;
+    /** The brands on that night (a shared PPV has both). */
+    brands?: ('raw' | 'smackdown')[];
+};
 
 const slotLabel = {
     raw: 'Raw',
@@ -171,7 +183,20 @@ export function NewsGrid({ pages }: { pages: NewsPage[] }) {
                 )}
             </div>
 
-            <Ticker items={page.ticker} attendance={page.attendance} />
+            {/* House rule (2026-11-17): a ticker per brand, match results only. */}
+            <div className="mt-4 space-y-2">
+                {(['raw', 'smackdown'] as const).map((brand) => (
+                    <Ticker
+                        key={brand}
+                        brand={brand}
+                        label={slotLabel[brand]}
+                        entries={(page.tickers?.[brand] ?? []).map((text) => ({
+                            text,
+                            gold: false,
+                        }))}
+                    />
+                ))}
+            </div>
         </section>
     );
 }
@@ -286,28 +311,33 @@ export function attendanceLine(nights: AttendanceNight[]): string | null {
         : `Fan attendance: ${nights.map((n) => `${n.name} ${n.crowd.toLocaleString('en-US')}`).join(' · ')}`;
 }
 
+/**
+ * One brand's ticker (house rule, 2026-11-17): a scrolling line of its match
+ * results, nothing else.
+ */
 function Ticker({
-    items,
-    attendance,
+    label,
+    brand,
+    entries,
 }: {
-    items: NewsCard[];
-    attendance: AttendanceNight[];
+    label: string;
+    brand?: 'raw' | 'smackdown';
+    entries: { text: string; gold: boolean }[];
 }) {
-    const crowds = attendanceLine(attendance);
-    // The crowds lead the ticker, in gold so they stand out.
-    const entries = [
-        ...(crowds === null ? [] : [{ text: crowds, gold: true }]),
-        ...items.map((i) => ({ text: i.text, gold: false })),
-    ];
+    if (entries.length === 0) {
+        return null;
+    }
 
     return (
         <div
             role="marquee"
-            aria-label="News ticker"
-            className="mt-4 flex items-stretch overflow-hidden border border-white/8 bg-black/50"
+            aria-label={`${label} ticker`}
+            data-brand-tint={brand}
+            data-testid={`ticker-${brand ?? 'neutral'}`}
+            className="flex items-stretch overflow-hidden border border-white/8 bg-black/50"
         >
-            <span className="z-10 flex items-center bg-brand px-3 font-condensed font-bold tracking-[0.2em] text-white uppercase">
-                Ticker
+            <span className="z-10 flex w-28 shrink-0 items-center justify-center bg-brand px-3 font-condensed font-bold tracking-[0.2em] text-white uppercase">
+                {label}
             </span>
             <div className="relative flex-1 overflow-hidden py-2">
                 <ul className="flex w-max animate-gm-ticker gap-10 pl-6 text-sm whitespace-nowrap text-ink-dim hover:[animation-play-state:paused]">

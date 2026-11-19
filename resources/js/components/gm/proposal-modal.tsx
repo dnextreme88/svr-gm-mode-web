@@ -36,6 +36,8 @@ type Props = {
     totalCost: number;
     deficitWarning: boolean;
     titleNames?: Record<number, string>;
+    /** The card's main event, labelled "Main Event" (6 on a weekly show). */
+    mainEventPosition?: number;
     onConfirm: () => void;
     onCancel: () => void;
     onReroll: () => void;
@@ -67,6 +69,7 @@ export function ProposalModal({
     error,
     proposals,
     unfilledSlots,
+    mainEventPosition = 6,
     totalCost,
     deficitWarning,
     titleNames = {},
@@ -136,19 +139,30 @@ export function ProposalModal({
                                     className="border border-white/8 bg-black/25 px-4 py-3"
                                 >
                                     <div className="flex items-center justify-between gap-3">
-                                        <span className="gm-label">
-                                            Match {p.position}
-                                        </span>
-                                        <span className="text-xs text-ink-dim">
+                                        <div className="text-lg font-semibold tracking-wide">
+                                            <span className="gm-label">
+                                                {p.position ===
+                                                mainEventPosition
+                                                    ? 'Main Event'
+                                                    : `Match ${p.position}`}
+                                            </span>{' '}
+                                            -{' '}
+                                            <span className="ml-1">
+                                                {p.match_type}
+                                            </span>
+                                        </div>
+                                        <span
+                                            className={cn(
+                                                'gm-num tracking-wider text-zone-safe uppercase',
+                                                p.cost === 0 && 'italic',
+                                            )}
+                                        >
                                             {p.cost > 0
                                                 ? formatMoney(p.cost)
                                                 : 'Free'}
                                         </span>
                                     </div>
-                                    <div className="mt-1 font-semibold">
-                                        {p.match_type}
-                                    </div>
-                                    <div className="mt-1 text-sm">
+                                    <div className="mt-1 text-base">
                                         {p.side_names
                                             .map((side, i) =>
                                                 p.manager_names?.[i]
@@ -158,12 +172,12 @@ export function ProposalModal({
                                             .join(' vs ')}
                                     </div>
                                     {p.referee_name && (
-                                        <div className="mt-1 text-xs text-ink-dim">
+                                        <div className="mt-1 text-sm text-ink-dim">
                                             Special referee: {p.referee_name}
                                         </div>
                                     )}
                                     {p.title_championship_id !== null && (
-                                        <div className="mt-1 flex items-center gap-1.5 text-xs font-bold text-gold-hot uppercase">
+                                        <div className="mt-1 flex items-center gap-1.5 text-sm font-bold text-gold-hot uppercase">
                                             <TitleMark
                                                 name={
                                                     titleNames[
@@ -178,7 +192,7 @@ export function ProposalModal({
                                     )}
                                     {p.note && (
                                         <p
-                                            className="mt-2 border-l-2 border-gold/60 pl-2 text-xs text-ink-dim"
+                                            className="mt-2 border-l-2 border-gold/60 pl-2 text-sm text-ink-dim"
                                             data-testid={`proposal-note-${p.position}`}
                                         >
                                             {p.note}
@@ -199,8 +213,8 @@ export function ProposalModal({
                                     className="size-5"
                                 />
                                 {mode === 'preset'
-                                    ? 'Rolling card'
-                                    : 'Rolling match'}
+                                    ? 'Rolling card...'
+                                    : 'Rolling match...'}
                             </div>
                         )}
                     </div>
@@ -219,11 +233,11 @@ export function ProposalModal({
                         )}
 
                         {mode === 'preset' && (
-                            <div className="mt-4 flex items-center justify-between border-t border-white/8 pt-3 text-sm">
+                            <div className="mt-4 flex items-center justify-between border-t border-white/8 pt-3 text-base">
                                 <span className="text-ink-dim">
                                     Total match costs
                                 </span>
-                                <span className="gm-num">
+                                <span className="gm-num text-zone-safe">
                                     {formatMoney(totalCost)}
                                 </span>
                             </div>

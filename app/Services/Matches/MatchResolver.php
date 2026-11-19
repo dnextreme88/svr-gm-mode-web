@@ -83,6 +83,8 @@ class MatchResolver
         $beaten = [];
         $holder = $order[0];
         $last = null;
+        // Tornado Tag Turmoil (house rule, 2026-11-17): teams, so each bout is a tag match.
+        $boutFamily = $sides !== [] && max(array_map('count', $sides)) > 1 ? MatchFamily::TagTeam : MatchFamily::Single;
 
         foreach (array_slice($order, 1) as $round => $challenger) {
             $pair = [$holder => $sides[$holder], $challenger => $sides[$challenger]];
@@ -100,7 +102,7 @@ class MatchResolver
                 $forced = null;
             }
 
-            $last = $this->decide($slot, $pair, $rng, $activeRivalries, $booked, MatchFamily::Single, $boutForced);
+            $last = $this->decide($slot, $pair, $rng, $activeRivalries, $booked, $boutFamily, $boutForced);
             $bouts[] = [
                 'round' => $round + 1,
                 'side_a' => $holder,

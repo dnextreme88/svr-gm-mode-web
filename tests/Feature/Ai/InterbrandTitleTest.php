@@ -48,7 +48,7 @@ function rivalTitles(Show $show, Brand $brand): array
         ->get()->map(fn (MatchSlot $s): string => $s->titleChampionship->key->value)->values()->all();
 }
 
-it('books its world title when the 75% roll lands', function () {
+it('books its world title when the 80% roll lands', function () {
     GameBuilder::passiveRival();
     config(['gm.ai.titles.interbrand_world_chance' => 1.0]);
     $save = GameBuilder::inSeason(size: 16);

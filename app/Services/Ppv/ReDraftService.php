@@ -29,15 +29,15 @@ use App\Support\Rng\Rng;
 use Illuminate\Support\Collection;
 
 /**
- * The post-WrestleMania re-draft (house rule, 2026-11-15): 5 superstars
- * swap brands each way, one pick at a time, alternating. No roster cap
- * applies, since every pick is one for one.
+ * The post-WrestleMania re-draft (house rule, 2026-11-15; bigger since
+ * 2026-11-17): 10 superstars swap brands each way, one pick at a time,
+ * alternating. No roster cap applies, since every pick is one for one.
  *
  * - The **immunity tag** goes to the brand whose weekly shows drew more fans
  *   this season before WrestleMania (`SummerSlamMainEvent::totals`): it
- *   protects one of its own non-champions from being picked.
+ *   protects 3 of its own non-champions from being picked.
  * - The **manual draft pick** goes to the interbrand series winner: it
- *   picks first, and its first pick is the superstar it chose.
+ *   picks first, and its first 2 picks are the superstars it chose.
  *
  * The rival GM tags its most valuable superstars (`AiTradeJudge`). The
  * page steps the picks one at a time (`step()`) so it can animate them;
@@ -63,6 +63,36 @@ class ReDraftService
     public function perBrand(): int
     {
         return (int) config('gm.ppv.redraft_picks_per_brand');
+    }
+
+    /** How many superstars the immunity tag protects. */
+    public function immunityCount(): int
+    {
+        return (int) config('gm.ppv.redraft_immunity_count');
+    }
+
+    /** How many of its first picks the manual draft pick chooses. */
+    public function manualCount(): int
+    {
+        return min((int) config('gm.ppv.redraft_manual_picks'), $this->perBrand());
+    }
+
+    /**
+     * How many the immunity tag must protect: its count, or everyone
+     * eligible when the brand has fewer.
+     */
+    public function immunityNeeded(Save $save, InterbrandSeries $series): int
+    {
+        return $series->immunity_brand === null ? 0 : min($this->immunityCount(), $this->eligibleFrom($save, $series->immunity_brand)->count());
+    }
+
+    /**
+     * How many the manual draft pick must take: its count, or everyone in
+     * its pool when there are fewer.
+     */
+    public function manualNeeded(Save $save, InterbrandSeries $series): int
+    {
+        return min($this->manualCount(), $this->handpickPool($save, $series)->count());
     }
 
     /**
@@ -115,16 +145,16 @@ class ReDraftService
         $rng = $save->rng('redraft.tags', $series->week_number);
         $immunity = $series->immunity_brand;
 
-        if ($immunity !== null && ! $save->isHuman($immunity) && $series->exemption_wrestler_id === null) {
-            $series->update(['exemption_wrestler_id' => $this->mostValuable($save, $immunity, $this->eligibleFrom($save, $immunity), $rng)?->id]);
+        if ($immunity !== null && ! $save->isHuman($immunity) && $series->exemptIds() === []) {
+            $series->update(['exemption_wrestler_ids' => $this->mostValuableMany($save, $immunity, $this->eligibleFrom($save, $immunity), $this->immunityCount(), $rng)]);
         }
 
         // The manual pick waits for the immunity tag, so it can't take the
-        // protected superstar.
+        // protected superstars.
         $winner = $series->winner_brand;
 
-        if ($winner !== null && ! $save->isHuman($winner) && $series->handpick_wrestler_id === null && $this->immunityDecided($save, $series)) {
-            $series->update(['handpick_wrestler_id' => $this->mostValuable($save, $winner, $this->handpickPool($save, $series), $rng)?->id]);
+        if ($winner !== null && ! $save->isHuman($winner) && $series->handpickIds() === [] && $this->immunityDecided($save, $series)) {
+            $series->update(['handpick_wrestler_ids' => $this->mostValuableMany($save, $winner, $this->handpickPool($save, $series), $this->manualCount(), $rng)]);
         }
 
         return $series->refresh();
@@ -140,14 +170,17 @@ class ReDraftService
             return 'immunity';
         }
 
-        if ($series->winner_brand !== null && $save->isHuman($series->winner_brand) && $series->handpick_wrestler_id === null && $this->handpickPool($save, $series)->isNotEmpty()) {
+        if ($series->winner_brand !== null && $save->isHuman($series->winner_brand) && $series->handpickIds() === [] && $this->handpickPool($save, $series)->isNotEmpty()) {
             return 'manual';
         }
 
         return $this->picks($save)->count() < count($this->order($save, $series)) ? 'picks' : 'done';
     }
 
-    public function setImmunity(Save $save, int $wrestlerId): InterbrandSeries
+    /**
+     * @param  list<int>  $wrestlerIds
+     */
+    public function setImmunity(Save $save, array $wrestlerIds): InterbrandSeries
     {
         $series = $this->openSeries($save);
         $brand = $series->immunity_brand;
@@ -156,20 +189,34 @@ class ReDraftService
             throw new GameRuleException('The other brand holds the immunity tag.');
         }
 
-        if ($series->exemption_wrestler_id !== null) {
+        if ($series->exemptIds() !== []) {
             throw new GameRuleException('The immunity tag is already used.');
         }
 
-        if (! $this->eligibleFrom($save, $brand)->contains('id', $wrestlerId)) {
-            throw new GameRuleException('The immunity tag must go to one of your own non-champions.');
+        $ids = array_values(array_unique(array_map('intval', $wrestlerIds)));
+        $needed = $this->immunityNeeded($save, $series);
+
+        if (count($ids) !== $needed) {
+            throw new GameRuleException('The immunity tag protects exactly '.$needed.' '.($needed === 1 ? 'superstar' : 'superstars').'.');
         }
 
-        $series->update(['exemption_wrestler_id' => $wrestlerId]);
+        $eligible = $this->eligibleFrom($save, $brand);
+
+        foreach ($ids as $id) {
+            if (! $eligible->contains('id', $id)) {
+                throw new GameRuleException('The immunity tag must go to your own non-champions.');
+            }
+        }
+
+        $series->update(['exemption_wrestler_ids' => $ids]);
 
         return $this->prepare($save) ?? $series;
     }
 
-    public function setHandpick(Save $save, int $wrestlerId): InterbrandSeries
+    /**
+     * @param  list<int>  $wrestlerIds  in pick order
+     */
+    public function setHandpick(Save $save, array $wrestlerIds): InterbrandSeries
     {
         $series = $this->openSeries($save);
         $brand = $series->winner_brand;
@@ -182,22 +229,31 @@ class ReDraftService
             throw new GameRuleException('The immunity tag comes first.');
         }
 
-        if ($series->handpick_wrestler_id !== null) {
+        if ($series->handpickIds() !== []) {
             throw new GameRuleException('The manual draft pick is already made.');
         }
 
-        if (! $this->handpickPool($save, $series)->contains('id', $wrestlerId)) {
+        $ids = array_values(array_unique(array_map('intval', $wrestlerIds)));
+        $needed = $this->manualNeeded($save, $series);
+
+        if (count($ids) !== $needed) {
+            throw new GameRuleException('The manual draft pick takes exactly '.$needed.' '.($needed === 1 ? 'superstar' : 'superstars').'.');
+        }
+
+        $pool = $this->handpickPool($save, $series);
+
+        if (collect($ids)->contains(fn (int $id): bool => ! $pool->contains('id', $id))) {
             throw new GameRuleException('The manual pick must be one of the other brand’s non-champions, and not the one it protected.');
         }
 
-        $series->update(['handpick_wrestler_id' => $wrestlerId]);
+        $series->update(['handpick_wrestler_ids' => $ids]);
 
         return $series->refresh();
     }
 
     /**
      * The brand making each pick, in order: the manual pick's brand first
-     * (else a seeded coin flip), then alternating, 5 picks each.
+     * (else a seeded coin flip), then alternating, `perBrand()` picks each.
      *
      * @return list<Brand>
      */
@@ -232,9 +288,10 @@ class ReDraftService
     }
 
     /**
-     * Make the next pick: the manual one if it's the tag holder's first,
-     * else a random non-champion from the other brand who isn't protected
-     * and hasn't moved already. A brand with nobody left skips the pick.
+     * Make the next pick: a manual one for each of the tag holder's first
+     * picks it chose, else a random non-champion from the other brand who
+     * isn't protected and hasn't moved already. A brand with nobody left
+     * skips the pick.
      */
     public function step(Save $save): ?DraftPick
     {
@@ -249,11 +306,15 @@ class ReDraftService
         $brand = $this->order($save, $series)[$number - 1];
         $from = $brand->rival();
         $moved = array_values(array_filter(array_map(fn (DraftPick $p): ?int => $p->save_wrestler_id, $done->all())));
-        $pool = $this->eligibleFrom($save, $from, [...$moved, ...array_filter([$series->exemption_wrestler_id])]);
-        $manual = $number === 1 && $brand === $series->winner_brand && $series->handpick_wrestler_id !== null;
+        $pool = $this->eligibleFrom($save, $from, [...$moved, ...$series->exemptIds()]);
+        // The tag holder's nth pick takes its nth manual choice, while it has one.
+        $nth = $done->where('brand', $brand)->count();
+        $choice = $brand === $series->winner_brand ? ($series->handpickIds()[$nth] ?? null) : null;
+        $chosen = $choice === null ? null : $pool->firstWhere('id', $choice);
+        $manual = $chosen !== null;
 
         $wrestler = $manual
-            ? $pool->firstWhere('id', $series->handpick_wrestler_id)
+            ? $chosen
             : ($pool->isEmpty() ? null : $save->rng("redraft.pick.{$number}", $series->week_number)->pick($pool->all()));
 
         $pick = DraftPick::create([
@@ -312,16 +373,16 @@ class ReDraftService
         $rng = $save->rng('redraft.player-tags', $series->week_number);
 
         if ($this->phase($save, $series) === 'immunity' && $series->immunity_brand !== null) {
-            $id = $this->mostValuable($save, $series->immunity_brand, $this->eligibleFrom($save, $series->immunity_brand), $rng)?->id;
-            $id === null ? $series->update(['immunity_brand' => null]) : $this->setImmunity($save, $id);
+            $ids = $this->mostValuableMany($save, $series->immunity_brand, $this->eligibleFrom($save, $series->immunity_brand), $this->immunityCount(), $rng);
+            $ids === [] ? $series->update(['immunity_brand' => null]) : $this->setImmunity($save, $ids);
             $series->refresh();
         }
 
         if ($this->phase($save, $series) === 'manual' && $series->winner_brand !== null) {
-            $id = $this->mostValuable($save, $series->winner_brand, $this->handpickPool($save, $series), $rng)?->id;
+            $ids = $this->mostValuableMany($save, $series->winner_brand, $this->handpickPool($save, $series), $this->manualCount(), $rng);
 
-            if ($id !== null) {
-                $this->setHandpick($save, $id);
+            if ($ids !== []) {
+                $this->setHandpick($save, $ids);
             }
         }
 
@@ -348,8 +409,32 @@ class ReDraftService
     }
 
     /**
+     * The `$count` most valuable in `$pool`, best first, one at a time
+     * (ties to the RNG).
+     *
+     * @param  Collection<int, SaveWrestler>  $pool
+     * @return list<int>
+     */
+    public function mostValuableMany(Save $save, Brand $judge, Collection $pool, int $count, Rng $rng): array
+    {
+        $ids = [];
+
+        while (count($ids) < $count) {
+            $best = $this->mostValuable($save, $judge, $pool->reject(fn (SaveWrestler $w): bool => in_array($w->id, $ids, true))->values(), $rng);
+
+            if ($best === null) {
+                break;
+            }
+
+            $ids[] = (int) $best->id;
+        }
+
+        return $ids;
+    }
+
+    /**
      * Who the manual pick can take: the other brand's non-champions, less
-     * the superstar its immunity tag protects.
+     * the superstars its immunity tag protects.
      *
      * @return Collection<int, SaveWrestler>
      */
@@ -357,13 +442,13 @@ class ReDraftService
     {
         $winner = $series->winner_brand;
 
-        return $winner === null ? collect() : $this->eligibleFrom($save, $winner->rival(), $series->exemption_wrestler_id === null ? [] : [$series->exemption_wrestler_id]);
+        return $winner === null ? collect() : $this->eligibleFrom($save, $winner->rival(), $series->exemptIds());
     }
 
     private function immunityDecided(Save $save, InterbrandSeries $series): bool
     {
         return $series->immunity_brand === null
-            || $series->exemption_wrestler_id !== null
+            || $series->exemptIds() !== []
             || $this->eligibleFrom($save, $series->immunity_brand)->isEmpty();
     }
 
@@ -429,13 +514,13 @@ class ReDraftService
             'immunity_brand' => $immunity?->label() ?? 'Neither brand',
             // "433,500 fans to Raw's 416,550": the tag holder's crowd first.
             'immunity_crowd' => number_format($crowds[($immunity ?? Brand::Raw)->value] ?? 0).' fans to '.($immunity ?? Brand::Raw)->rival()->label()."'s ".number_format($crowds[($immunity ?? Brand::Raw)->rival()->value] ?? 0),
-            'immune' => SaveWrestler::find($series->exemption_wrestler_id)?->name() ?? 'nobody',
+            'immune' => $this->names($series->exemptIds()),
             'series_singles' => $this->seriesLine($series, $slots->get(0)),
             'series_tag' => $this->seriesLine($series, $slots->get(1)),
             'series_mitb' => $this->seriesLine($series, $slots->get(2)),
             'manual_brand' => $series->winner_brand?->label() ?? 'Neither brand',
             'series_score' => max($wins).'–'.min($wins),
-            'handpick' => SaveWrestler::find($series->handpick_wrestler_id)?->name() ?? 'nobody',
+            'handpick' => $this->names($series->handpickIds()),
             'headline_slots' => $this->headlineSlots($series),
         ];
     }
@@ -487,6 +572,18 @@ class ReDraftService
             Brand::Raw->value => $slots->firstWhere('owner_brand', Brand::Raw)?->id,
             Brand::Smackdown->value => $slots->firstWhere('owner_brand', Brand::Smackdown)?->id,
         ];
+    }
+
+    /**
+     * "Edge, Kane and Carlito", in the order given.
+     *
+     * @param  list<int>  $ids
+     */
+    private function names(array $ids): string
+    {
+        $wrestlers = SaveWrestler::with('wrestler')->whereIn('id', $ids)->get()->keyBy('id');
+
+        return $this->join(array_values(array_filter(array_map(fn (int $id): ?string => $wrestlers->get($id)?->name(), $ids))));
     }
 
     /**

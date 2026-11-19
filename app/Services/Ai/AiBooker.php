@@ -5,6 +5,7 @@ namespace App\Services\Ai;
 use App\Enums\Brand;
 use App\Enums\ChampionshipEligibility;
 use App\Enums\ComplaintLevel;
+use App\Enums\FixedSlotKind;
 use App\Enums\MatchFamily;
 use App\Enums\MoraleComplaintType;
 use App\Enums\Stipulation;
@@ -14,6 +15,7 @@ use App\Models\MatchSlot;
 use App\Models\MatchType;
 use App\Models\MoneyInTheBank;
 use App\Models\MoraleComplaint;
+use App\Models\Rivalry;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Models\TitleShot;
@@ -23,6 +25,7 @@ use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
 use App\Services\Card\PlannedFatigue;
 use App\Services\Card\TitleMatchPlanner;
+use App\Services\Ppv\QualifierService;
 use App\Services\Titles\LastChanceService;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\RematchClauseService;
@@ -61,6 +64,13 @@ class AiBooker
     /** @var array<int, int> save-wrestler id => fatigue going into this card's matches */
     private array $fatigue = [];
 
+    /**
+     * Its qualifiers whose PPV hasn't happened yet (house rule, 2026-11-17).
+     *
+     * @var list<int>
+     */
+    private array $protected = [];
+
     public function __construct(
         private CardRandomizer $randomizer,
         private TitleMatchPlanner $titlePlanner,
@@ -75,6 +85,7 @@ class AiBooker
         private RepeatMatches $repeatMatches,
         private AiStipulationPlanner $stipulations,
         private AiTradeJudge $judge,
+        private QualifierService $qualifiers,
     ) {}
 
     /**
@@ -91,6 +102,7 @@ class AiBooker
         $this->taken = $this->randomizer->bookedIds($show);
         $this->titlesOnCard = array_values(array_map('intval', MatchSlot::where('show_id', $show->id)->whereNotNull('title_championship_id')->pluck('title_championship_id')->all()));
         $this->fatigue = $this->plannedFatigue($show, $brand);
+        $this->protected = $this->qualifiers->protectedIds($show->game, $brand, $show->week_number);
         // House rule (2026-11-13): a #1 contendership earned in the run-up to
         // its own PPV is held for the PPV: that title stays off this card.
         $this->titlesOnCard = array_values(array_unique([...$this->titlesOnCard, ...$this->heldTitles()]));
@@ -269,7 +281,7 @@ class AiBooker
      * title match in its own slots. When nothing it has booked so far puts
      * a title on the line, it books one in its last open slot (else any
      * other). Which title is a roll: its world title at
-     * `gm.ai.titles.interbrand_world_chance` (75%), else one of its other
+     * `gm.ai.titles.interbrand_world_chance` (80%), else one of its other
      * titles at random. A title it can't book falls back to the rest, so a
      * title match still goes on. Careful first (nobody past the fatigue
      * limit), then aggressive if it must.
@@ -329,6 +341,14 @@ class AiBooker
      */
     private function mainEventPosition(): ?int
     {
+        // House rule (2026-11-17): a Qualifying Match can be a weekly show's
+        // main event; then there's no other main event to book.
+        $last = MatchSlot::where('show_id', $this->show->id)->orderByDesc('position')->first();
+
+        if (! $this->show->isPpv() && $last?->fixed_kind === FixedSlotKind::QualifyingMatch) {
+            return null;
+        }
+
         $positions = MatchSlot::where('show_id', $this->show->id)
             ->whereNull('fixed_kind')
             ->where(fn ($q) => $q->whereNull('owner_brand')->orWhere('owner_brand', $this->brand))
@@ -896,11 +916,15 @@ class AiBooker
     }
 
     /**
-     * Morale (house rule, 2026-11-13): for each of its superstars with a
-     * complaint, most upset first, it rolls to fix one (Content and
-     * Unsatisfied 75%, Upset 95%). Unused: a match. A losing streak: a
-     * singles match booked to win. No title match: a title match, when the
-     * champion fits. Contract demands are renewed in roster upkeep.
+     * Morale (house rule, 2026-11-13; varied 2026-11-17): for each of its
+     * superstars with a complaint, most upset first, it rolls to fix one
+     * (Content and Unsatisfied 75%, Upset 95%). No title match: the ones
+     * waiting are grouped against a free champion, up to 3 in one title
+     * match (a Triple Threat or Fatal 4-Way when there are 2 or 3), in any
+     * type the title can be defended in. Unused: a match of any one-on-one
+     * type. A losing streak: a tag match beside a partner on a win streak,
+     * else managing that partner in a w/ Manager match, else a one-on-one,
+     * always booked to win. Contract demands are renewed in roster upkeep.
      *
      * @param  list<int>  $open
      * @return list<int>
@@ -919,20 +943,31 @@ class AiBooker
             ->sortByDesc(fn (SaveWrestler $w): int => self::levelRank($fixable($w)->first()->level) * 100000 - $w->id)
             ->values();
 
-        foreach ($complaining as $wrestler) {
-            if ($open === [] || in_array($wrestler->id, $this->taken, true)) {
-                continue;
-            }
+        // Who it fixes this card: each rolls on its worst complaint.
+        $fixes = [];
 
+        foreach ($complaining as $wrestler) {
             $worst = $fixable($wrestler)->first();
 
-            if (! $rng->chance((float) config('gm.ai.morale.fix_chance.'.$worst->level->value))) {
+            if ($rng->chance((float) config('gm.ai.morale.fix_chance.'.$worst->level->value))) {
+                $fixes[] = [$wrestler, $worst->type];
+            }
+        }
+
+        $waiting = new Collection(array_values(array_map(
+            fn (array $fix): SaveWrestler => $fix[0],
+            array_filter($fixes, fn (array $fix): bool => $fix[1] === MoraleComplaintType::TitleMatch),
+        )));
+        $open = $this->bookTitleContenders($open, $waiting);
+
+        foreach ($fixes as [$wrestler, $type]) {
+            if ($open === [] || $type === MoraleComplaintType::TitleMatch || in_array($wrestler->id, $this->taken, true)) {
                 continue;
             }
 
             $position = $this->pickPosition($open);
 
-            if ($this->fixComplaint($position, $wrestler, $worst->type, $rng)) {
+            if ($this->fixComplaint($position, $wrestler, $type, $rng)) {
                 $open = array_values(array_diff($open, [$position]));
             }
         }
@@ -942,10 +977,9 @@ class AiBooker
 
     private function fixComplaint(int $position, SaveWrestler $wrestler, MoraleComplaintType $type, Rng $rng): bool
     {
-        if ($type === MoraleComplaintType::TitleMatch) {
-            $booking = $this->titleShotFor($wrestler);
-
-            return $booking !== null && $this->tryBook($position, $booking);
+        // House rule (2026-11-17): a losing streak ends beside a hot partner.
+        if ($type === MoraleComplaintType::LosingStreak && $this->hotPartnerFix($position, $wrestler)) {
+            return true;
         }
 
         $limit = (int) config('gm.ai.booking.careful_max_fatigue');
@@ -967,47 +1001,251 @@ class AiBooker
 
         // A losing streak: the rival's Book to Win, so it ends tonight.
         if ($type === MoraleComplaintType::LosingStreak) {
-            foreach ($booking->sides as $index => $side) {
-                if (in_array((int) $wrestler->id, $side, true)) {
-                    MatchSlot::where('show_id', $this->show->id)->where('position', $position)->update(['booked_side' => $index]);
-                }
-            }
+            $this->bookToWin($position, $booking, (int) $wrestler->id);
         }
 
         return true;
     }
 
     /**
-     * A 1v1 title match for a superstar waiting on one: the first singles
-     * title of the brand they're eligible for whose champion is free, fresh
-     * enough, and not owed to a #1 contender.
+     * Title matches for superstars waiting on one (house rule, 2026-11-17):
+     * for each of its singles titles whose champion is free, fresh enough,
+     * not owed to a #1 contender or an earned shot, and not in a rivalry,
+     * up to `gm.ai.morale.title_group_max` (3) of those waiting who can
+     * challenge for it go in one match against the champion: a one-on-one
+     * for one, a Triple Threat for two, a Fatal 4-Way for three, in any type
+     * the title can be defended in (fewer when no type fits them all).
+     *
+     * @param  list<int>  $open
+     * @param  Collection<int, SaveWrestler>  $waiting
+     * @return list<int>
      */
-    private function titleShotFor(SaveWrestler $wrestler): ?Booking
+    private function bookTitleContenders(array $open, Collection $waiting): array
     {
         $save = $this->show->game;
         $limit = (int) config('gm.ai.booking.careful_max_fatigue');
-        $type = $this->plainType(false);
-        $id = (int) $wrestler->id;
+        $max = max(1, (int) config('gm.ai.morale.title_group_max'));
+        $inRivalries = array_values(array_map('intval', Rivalry::where('save_id', $save->id)->where('active', true)->get()
+            ->flatMap(fn (Rivalry $r): array => [$r->wrestler_a_id, $r->wrestler_b_id])->all()));
 
         foreach (Championship::where('brand', $this->brand)->where('is_tag', false)->orderBy('sort_order')->get() as $championship) {
+            if ($open === [] || $waiting->isEmpty()) {
+                break;
+            }
+
             $reign = $this->titles->currentReign($save, $championship);
             $holders = $reign?->holderIds() ?? [];
 
-            if ($reign === null || count($holders) !== 1 || in_array($id, $holders, true)
-                || ! $championship->allowsWrestler($wrestler->wrestler)
+            if ($reign === null || count($holders) !== 1
                 || in_array($championship->id, $this->titlesOnCard, true)
                 || in_array($holders[0], $this->taken, true)
-                || ($this->fatigue[$holders[0]] ?? 0) + $type->fatigueCost() > $limit
-                || ($this->fatigue[$id] ?? 0) + $type->fatigueCost() > $limit
+                || in_array($holders[0], $inRivalries, true)
                 || $this->contention->contendership($save, $championship->id) !== null
-                || $this->lastChance->isLockedOut($reign, [$id])) {
+                || $this->contention->earnedShot($save, $championship->id) !== null) {
                 continue;
             }
 
-            return new Booking($type, [$holders, [$id]], [], $championship->id);
+            $champion = $this->pool()->firstWhere('id', $holders[0]);
+            $challengers = $waiting
+                ->filter(fn (SaveWrestler $w): bool => ! in_array($w->id, $this->taken, true)
+                    && $w->id !== $holders[0]
+                    && $championship->allowsWrestler($w->wrestler)
+                    && ! $this->lastChance->isLockedOut($reign, [(int) $w->id]))
+                ->values();
+
+            if ($champion === null || $challengers->isEmpty()) {
+                continue;
+            }
+
+            $challengers = new Collection(array_slice($this->rng->shuffle($challengers->all()), 0, $max));
+            $booking = null;
+
+            // As many of them as one type of match can take, down to one.
+            for ($n = $challengers->count(); $n >= 1 && $booking === null; $n--) {
+                $booking = $this->titleGroupBooking($championship, $champion, $challengers->take($n)->values(), $limit);
+            }
+
+            if ($booking === null) {
+                continue;
+            }
+
+            $position = $this->pickPosition($open);
+
+            if ($this->tryBook($position, $booking)) {
+                $open = array_values(array_diff($open, [$position]));
+                $booked = $booking->competitorIds();
+                $waiting = $waiting->reject(fn (SaveWrestler $w): bool => in_array((int) $w->id, $booked, true))->values();
+            }
+        }
+
+        return $open;
+    }
+
+    /**
+     * The champion against the challengers, one a side, in a type drawn at
+     * random among those the title can be on the line in that fit them all.
+     *
+     * @param  Collection<int, SaveWrestler>  $challengers
+     */
+    private function titleGroupBooking(Championship $championship, SaveWrestler $champion, Collection $challengers, int $limit): ?Booking
+    {
+        $everyone = new Collection([$champion, ...$challengers->all()]);
+        $people = $champion->wrestler->isDiva() ? $this->divas($this->pool()) : $this->men($this->pool());
+        $count = $everyone->count();
+
+        $types = $this->randomizer->eligibleTypes($this->show, $this->brand)
+            ->filter(fn (MatchType $t): bool => $t->titles_allowed
+                && ! $t->isMoneyInTheBank()
+                && count($t->sides) === $count
+                && $t->sides !== [] && max($t->sides) === 1
+                && $this->randomizer->poolFor($t, $everyone)->count() === $count
+                && $this->fit($everyone, $t, $limit)->count() === $count
+                && $people->count() >= $count + count($t->manager_sides) + ($t->hasSpecialReferee() ? 1 : 0))
+            ->values();
+
+        foreach ($this->typeOrder($types, false) as $type) {
+            $sides = [[(int) $champion->id], ...array_map(fn (SaveWrestler $w): array => [(int) $w->id], $challengers->all())];
+            $managers = $this->pickManagers($type, $people, $sides);
+
+            try {
+                $referee = $this->randomizer->pickReferee($type, $people->reject(fn (SaveWrestler $w): bool => in_array($w->id, $managers, true))->values(), $sides, $this->rng);
+            } catch (GameRuleException) {
+                continue;
+            }
+
+            return new Booking($type, $sides, $managers, $championship->id, refereeId: $referee);
         }
 
         return null;
+    }
+
+    /**
+     * A losing streak (house rule, 2026-11-17): team the superstar with a
+     * partner on a win streak of `gm.ai.morale.hot_partner_streak` (3) or
+     * more in a two-on-two of any type, else have them manage that partner
+     * in a one-on-one w/ Manager match. Either way it's booked to win.
+     */
+    private function hotPartnerFix(int $position, SaveWrestler $wrestler): bool
+    {
+        $limit = (int) config('gm.ai.booking.careful_max_fatigue');
+        $min = (int) config('gm.ai.morale.hot_partner_streak');
+        $people = ($wrestler->wrestler->isDiva() ? $this->divas($this->pool()) : $this->men($this->pool()))
+            ->reject(fn (SaveWrestler $w): bool => $w->id === $wrestler->id)
+            ->values();
+        $partners = $people->filter(fn (SaveWrestler $w): bool => $w->win_streak >= $min)
+            ->sortByDesc('win_streak')
+            ->values();
+        $id = (int) $wrestler->id;
+
+        foreach ($partners as $partner) {
+            $booking = $this->hotTagBooking($wrestler, $partner, $people, $limit)
+                ?? $this->hotManagerBooking($wrestler, $partner, $people, $limit);
+
+            if ($booking !== null && $this->tryBook($position, $booking)) {
+                $this->bookToWin($position, $booking, $id);
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  Collection<int, SaveWrestler>  $people  same gender, the superstar left out
+     */
+    private function hotTagBooking(SaveWrestler $wrestler, SaveWrestler $partner, Collection $people, int $limit): ?Booking
+    {
+        $team = new Collection([$wrestler, $partner]);
+        $types = $this->randomizer->eligibleTypes($this->show, $this->brand)
+            ->filter(fn (MatchType $t): bool => $t->sides === [2, 2]
+                && ! $t->isMoneyInTheBank()
+                && $this->randomizer->poolFor($t, $team)->count() === 2
+                && $this->fit($team, $t, $limit)->count() === 2)
+            ->values();
+
+        foreach ($this->typeOrder($types, false) as $type) {
+            $opponents = $this->fit($this->randomizer->poolFor($type, $people), $type, $limit)
+                ->reject(fn (SaveWrestler $w): bool => $w->id === $partner->id)
+                ->values();
+
+            if ($opponents->count() < 2) {
+                continue;
+            }
+
+            $them = array_map('intval', $this->rng->sample($this->ids($opponents), 2));
+            $sides = [[(int) $wrestler->id, (int) $partner->id], $them];
+            $helpers = $people->reject(fn (SaveWrestler $w): bool => in_array((int) $w->id, [...$sides[0], ...$them], true))->values();
+            $managers = $this->pickManagers($type, $helpers, $sides);
+
+            try {
+                $referee = $this->randomizer->pickReferee($type, $helpers->reject(fn (SaveWrestler $w): bool => in_array($w->id, $managers, true))->values(), $sides, $this->rng);
+            } catch (GameRuleException) {
+                continue;
+            }
+
+            return new Booking($type, $sides, $managers, refereeId: $referee);
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  Collection<int, SaveWrestler>  $people  same gender, the superstar left out
+     */
+    private function hotManagerBooking(SaveWrestler $wrestler, SaveWrestler $partner, Collection $people, int $limit): ?Booking
+    {
+        $types = $this->randomizer->eligibleTypes($this->show, $this->brand)
+            ->filter(fn (MatchType $t): bool => $t->isOneOnOne()
+                && in_array(0, $t->manager_sides, true)
+                && $this->randomizer->poolFor($t, new Collection([$partner]))->count() === 1
+                && $this->fit(new Collection([$partner]), $t, $limit)->count() === 1)
+            ->values();
+
+        foreach ($this->typeOrder($types, false) as $type) {
+            $opponents = $this->fit($this->randomizer->poolFor($type, $people), $type, $limit)
+                ->reject(fn (SaveWrestler $w): bool => $w->id === $partner->id)
+                ->values();
+
+            if ($opponents->isEmpty()) {
+                continue;
+            }
+
+            $opponent = (int) $this->rng->pick($this->ids($opponents));
+            $sides = [[(int) $partner->id], [$opponent]];
+            $helpers = $people->reject(fn (SaveWrestler $w): bool => in_array((int) $w->id, [(int) $partner->id, $opponent], true))->values();
+            // The superstar manages their partner's side; any other managed
+            // side gets a manager of its own.
+            $managers = [0 => (int) $wrestler->id] + $this->pickManagers($type, $helpers, $sides);
+
+            if (count(array_unique($managers)) !== count($managers)) {
+                continue;
+            }
+
+            try {
+                $referee = $this->randomizer->pickReferee($type, $helpers->reject(fn (SaveWrestler $w): bool => in_array($w->id, $managers, true))->values(), $sides, $this->rng);
+            } catch (GameRuleException) {
+                continue;
+            }
+
+            return new Booking($type, $sides, $managers, refereeId: $referee);
+        }
+
+        return null;
+    }
+
+    /**
+     * The rival's Book to Win: the side the superstar is on, or manages.
+     */
+    private function bookToWin(int $position, Booking $booking, int $id): void
+    {
+        foreach ($booking->sides as $index => $side) {
+            if (in_array($id, $side, true) || ($booking->managers[$index] ?? null) === $id) {
+                MatchSlot::where('show_id', $this->show->id)->where('position', $position)->update(['booked_side' => $index]);
+
+                return;
+            }
+        }
     }
 
     /**
@@ -1309,7 +1547,30 @@ class AiBooker
      */
     private function fit(Collection $people, MatchType $type, int $limit): Collection
     {
-        return $people->filter(fn (SaveWrestler $w): bool => ($this->fatigue[$w->id] ?? $w->fatigue) + $type->fatigueCost() <= $limit)->values();
+        // House rule (2026-11-17): a qualifier is kept healthy for its PPV,
+        // only in a Normal Matches or Tag Team type, at the careful limit.
+        $safe = in_array($type->family->value, (array) config('gm.ppv.qualifiers.rival_safe_families'), true);
+        $careful = (int) config('gm.ai.booking.careful_max_fatigue');
+
+        return $people->filter(function (SaveWrestler $w) use ($type, $limit, $safe, $careful): bool {
+            $after = ($this->fatigue[$w->id] ?? $w->fatigue) + $type->fatigueCost();
+
+            if (in_array((int) $w->id, $this->protected, true)) {
+                return $safe && $after <= min($limit, $careful);
+            }
+
+            return $after <= $limit;
+        })->values();
+    }
+
+    /**
+     * The superstars it's keeping healthy for a PPV (its qualifiers).
+     *
+     * @return list<int>
+     */
+    public function protectedIds(): array
+    {
+        return $this->protected;
     }
 
     /**

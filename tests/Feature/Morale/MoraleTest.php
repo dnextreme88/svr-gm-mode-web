@@ -40,26 +40,28 @@ function complaint(SaveWrestler $w, MoraleComplaintType $type): ?MoraleComplaint
 it('maps each complaint value to its level using the config thresholds', function (MoraleComplaintType $type, int $value, ?ComplaintLevel $level) {
     expect(app(MoraleService::class)->levelFor($type, $value))->toBe($level);
 })->with([
-    [MoraleComplaintType::LosingStreak, 2, null],
-    [MoraleComplaintType::LosingStreak, 3, ComplaintLevel::Content],
-    [MoraleComplaintType::LosingStreak, 5, ComplaintLevel::Unsatisfied],
-    [MoraleComplaintType::LosingStreak, 7, ComplaintLevel::Upset],
+    // Losing streak 4 / 7 / 9 (since 2026-11-19; was 3 / 5 / 7).
+    [MoraleComplaintType::LosingStreak, 3, null],
+    [MoraleComplaintType::LosingStreak, 4, ComplaintLevel::Content],
+    [MoraleComplaintType::LosingStreak, 7, ComplaintLevel::Unsatisfied],
+    [MoraleComplaintType::LosingStreak, 9, ComplaintLevel::Upset],
     [MoraleComplaintType::ContractExtension, 10, ComplaintLevel::Content],
     [MoraleComplaintType::ContractExtension, 15, ComplaintLevel::Unsatisfied],
     [MoraleComplaintType::ContractExtension, 18, ComplaintLevel::Upset],
-    [MoraleComplaintType::TitleMatch, 4, ComplaintLevel::Content],
+    // No title match 5 / 8 / 12 (since 2026-11-19; was 4 / 8 / 12).
+    [MoraleComplaintType::TitleMatch, 5, ComplaintLevel::Content],
     [MoraleComplaintType::TitleMatch, 8, ComplaintLevel::Unsatisfied],
     [MoraleComplaintType::TitleMatch, 12, ComplaintLevel::Upset],
-    // House rule (2026-10-31): unused for 3 / 6 / 9 weeks.
-    [MoraleComplaintType::Inactivity, 3, ComplaintLevel::Content],
-    [MoraleComplaintType::Inactivity, 6, ComplaintLevel::Unsatisfied],
+    // Unused for 4 / 7 / 9 weeks (since 2026-11-19; was 3 / 6 / 9).
+    [MoraleComplaintType::Inactivity, 4, ComplaintLevel::Content],
+    [MoraleComplaintType::Inactivity, 7, ComplaintLevel::Unsatisfied],
     [MoraleComplaintType::Inactivity, 9, ComplaintLevel::Upset],
 ]);
 
 it('is Happy with no complaints and otherwise takes the worst complaint level', function () {
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
     $edge = GameBuilder::wrestler($save, 'Edge');
-    $edge->update(['loss_streak' => 5, 'weeks_unused' => 8]);
+    $edge->update(['loss_streak' => 7, 'weeks_unused' => 8]);
 
     runWeek($save);
 
@@ -72,13 +74,13 @@ it('is Happy with no complaints and otherwise takes the worst complaint level', 
 
 it('has the superstar email the GM only once they are Unsatisfied or Upset', function () {
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
-    GameBuilder::wrestler($save, 'Edge')->update(['weeks_unused' => 2]);
+    GameBuilder::wrestler($save, 'Edge')->update(['weeks_unused' => 3]);
 
-    // Week 3 unused: Content, no email.
+    // Week 4 unused: Content, no email.
     runWeek($save);
     expect(Email::where('template', EmailTemplate::MoraleComplaint)->count())->toBe(0);
 
-    // Week 6 unused: Unsatisfied, Edge writes in.
+    // Week 7 unused: Unsatisfied, Edge writes in.
     runWeek($save);
     runWeek($save);
     runWeek($save);
@@ -88,7 +90,7 @@ it('has the superstar email the GM only once they are Unsatisfied or Upset', fun
     expect($emails)->toHaveCount(1)
         ->and($emails[0]->sender)->toBe('Edge')
         ->and($emails[0]->subject)->toBe('Put me on the card')
-        ->and($emails[0]->body)->toContain('6 weeks')
+        ->and($emails[0]->body)->toContain('7 weeks')
         ->and($emails[0]->body)->toContain("I'm not happy about it")
         ->and(MoraleComplaint::where('type', MoraleComplaintType::Inactivity)->where('save_wrestler_id', GameBuilder::wrestler($save, 'Edge')->id)->sole()->level)->toBe(ComplaintLevel::Unsatisfied);
 });
@@ -96,7 +98,7 @@ it('has the superstar email the GM only once they are Unsatisfied or Upset', fun
 it('clears the losing streak complaint on a win', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
     $edge = GameBuilder::wrestler($save, 'Edge');
-    $edge->update(['loss_streak' => 3]);
+    $edge->update(['loss_streak' => 4]);
     runWeek($save);
     expect(complaint($edge, MoraleComplaintType::LosingStreak))->not->toBeNull();
 

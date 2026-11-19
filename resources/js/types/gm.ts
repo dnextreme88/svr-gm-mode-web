@@ -20,7 +20,12 @@ export type FatigueConfig = {
 export type GameShell = {
     id: number;
     name: string;
-    saved: boolean;
+    /** The career's last save (its checkpoint), or null before the first one. */
+    last_saved: {
+        season: number;
+        season_week: number;
+        saved_at: string | null;
+    } | null;
     player_brand: Brand;
     rival_brand: Brand;
     stage: SaveStage;
@@ -148,6 +153,13 @@ export type CardSlot = {
     managers: Record<string, number>;
     referee_id?: number | null;
     title_championship_id: number | null;
+    /** The title on the line, by name (the rival's own on interbrand cards). */
+    title_name?: string | null;
+    /** The brand that title belongs to. */
+    title_brand?: import('./enums').Brand | null;
+    /** The stipulation's title(s) by name, and the brand that booked it. */
+    stipulation_title_names?: string[];
+    stipulation_brand?: import('./enums').Brand | null;
     stipulation: import('./enums').Stipulation | null;
     stipulation_championship_id: number | null;
     /** House rule: a Winner Takes All match's contested titles. */
@@ -353,6 +365,15 @@ export type TitleContext = {
     earned_shot_title_ids?: number[];
     /** Everyone holding a title, on either brand. */
     title_holder_ids?: number[];
+    /** House rule (2026-11-17): qualifiers so far, in a run of Qualifying Matches. */
+    qualifiers?: {
+        ppv: string;
+        count: number;
+        of: number;
+        names: string[];
+        /** Which match this week's qualifier is (6 is the main event). */
+        position?: number | null;
+    } | null;
     /** Last Chance losers who can't challenge the champion they lost to. */
     last_chance_lockouts?: Array<{
         id: number;

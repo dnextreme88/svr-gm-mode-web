@@ -117,7 +117,7 @@ it('marks each series side with its brand and colours interbrand slots by owner'
         ->has('main_event_types'));
 });
 
-it('labels each superstar’s brand in the results of the series and the Survivor Series 3 vs 3', function () {
+it('labels each superstar’s brand in the results of the series and the Survivor Series 5 vs 5', function () {
     [$save, $show] = wmCard();
     app(PpvCardService::class)->fillSeries($show, Brand::Raw, $save->rng('test.series'));
     $slot = MatchSlot::with(['participants.saveWrestler.wrestler', 'matchType'])->where('show_id', $show->id)->where('position', 5)->sole();

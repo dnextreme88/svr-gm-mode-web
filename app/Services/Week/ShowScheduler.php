@@ -11,6 +11,7 @@ use App\Models\Save;
 use App\Models\Show;
 use App\Services\Calendar\CalendarService;
 use App\Services\Ppv\PpvCardService;
+use App\Services\Ppv\QualifierService;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -23,6 +24,7 @@ class ShowScheduler
     public function __construct(
         private CalendarService $calendar,
         private PpvCardService $ppvCards,
+        private QualifierService $qualifiers,
     ) {}
 
     /**
@@ -33,7 +35,10 @@ class ShowScheduler
         // House rule (2026-11-16): WrestleMania week has no weekly shows.
         // The season ends on WrestleMania's main event, then the re-draft.
         foreach ($this->calendar->isWrestleManiaWeek($week) ? [] : Brand::cases() as $brand) {
-            $this->ensureShow($save, $week, $brand, ShowType::Weekly, null, $brand === Brand::Raw ? 'Monday Night Raw' : 'Friday Night Smackdown');
+            $show = $this->ensureShow($save, $week, $brand, ShowType::Weekly, null, $brand === Brand::Raw ? 'Monday Night Raw' : 'Friday Night Smackdown');
+            // House rule (2026-11-17): one match is a fixed Qualifying Match in
+            // the weeks before Survivor Series and WrestleMania.
+            $this->qualifiers->setUp($show);
         }
 
         foreach ($this->calendar->ppvsForWeek($week) as $ppv) {

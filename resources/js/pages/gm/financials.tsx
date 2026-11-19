@@ -55,8 +55,9 @@ type Props = GamePageProps & {
     balance?: number;
     statement: Statement;
     history: HistoryRow[];
-    weekly_upkeep?: number;
     deficit_choices: string[];
+    /** The week just aired, reached from its results (2026-11-17). */
+    wrap_up?: boolean;
 };
 
 const choiceCopy: Record<string, { title: string; body: string }> = {
@@ -251,7 +252,7 @@ function StatementRow({ row }: { row: ReturnType<typeof rowsOf>[number] }) {
 }
 
 export default function Financials() {
-    const { game, statement, history, weekly_upkeep, deficit_choices } =
+    const { game, statement, history, deficit_choices } =
         usePage<Props>().props;
     const props = usePage<Props>().props;
     const brand = props.brand ?? game.player_brand;
@@ -292,7 +293,20 @@ export default function Financials() {
     return (
         <>
             <Head title="Financials" />
-            <PageTitle kicker="Income statement" title="Financials" />
+            <PageTitle kicker="Income statement" title="Financials">
+                {props.wrap_up ? (
+                    <Link
+                        href={gm.news.url(game.id, { query: { wrap: 1 } })}
+                        className="gm-btn"
+                    >
+                        Continue to News
+                    </Link>
+                ) : (
+                    <Link href={gm.schedule.url(game.id)} className="gm-btn">
+                        Back to Schedule
+                    </Link>
+                )}
+            </PageTitle>
 
             {/* Either brand's books, any week; the rival's are read-only. */}
             <div className="-mt-2 mb-6 flex flex-wrap items-center gap-x-4 gap-y-3">
@@ -471,14 +485,6 @@ export default function Financials() {
                         value={formatMoney(Math.abs(statement.expenses))}
                     />
                 </Panel>
-                {weekly_upkeep !== undefined && (
-                    <Panel>
-                        <Stat
-                            label="Salaries per week"
-                            value={formatMoney(weekly_upkeep)}
-                        />
-                    </Panel>
-                )}
             </div>
 
             {(statement.starting_budget ?? 0) > 0 && (

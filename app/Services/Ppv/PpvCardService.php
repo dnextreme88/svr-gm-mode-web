@@ -17,6 +17,7 @@ use App\Models\MatchParticipant;
 use App\Models\MatchSlot;
 use App\Models\MatchType;
 use App\Models\NewsEvent;
+use App\Models\PpvQualifier;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Services\Ai\AiTradeJudge;
@@ -31,7 +32,7 @@ use Illuminate\Support\Str;
 
 /**
  * Fixed PPV cards (§10, §13, §23): the 30-man Royal Rumble, the Survivor
- * Series 3 vs 3 main event, and the 8-match interbrand WrestleMania card.
+ * Series 5 vs 5 main event, and the 8-match interbrand WrestleMania card.
  */
 class PpvCardService
 {
@@ -55,7 +56,7 @@ class PpvCardService
      * weekly shows drew more fans this season before the PPV
      * (`SummerSlamMainEvent::headliner`) gets the slots below, the other
      * brand the rest. SummerSlam's leader also has the main event; the
-     * Royal Rumble and the Survivor Series 3 vs 3 are always Match 7.
+     * Royal Rumble and the Survivor Series 5 vs 5 are always Match 7.
      */
     public const SHARED_PPV_MATCHES = 7;
 
@@ -74,6 +75,7 @@ class PpvCardService
         private NewsRecorder $news,
         private SummerSlamMainEvent $summerSlam,
         private AiTradeJudge $judge,
+        private QualifierService $qualifiers,
     ) {}
 
     /**
@@ -106,17 +108,111 @@ class PpvCardService
                 ]);
             }
 
-            // The Royal Rumble or the 3 vs 3: always the main event, shared.
+            // The Royal Rumble or the 5 vs 5: always the main event, shared.
             MatchSlot::firstOrCreate(['show_id' => $show->id, 'position' => self::SHARED_PPV_MATCHES], [
-                'match_type_id' => ($rumble ? $this->type('royal_rumble', '30-Man') : $this->type('survivor_series_elimination', 'Traditional 3 vs 3'))->id,
+                'match_type_id' => ($rumble ? $this->type('royal_rumble', '30-Man') : $this->type('survivor_series_elimination', 'Traditional 5 vs 5'))->id,
                 'fixed_kind' => $rumble ? FixedSlotKind::RoyalRumble : FixedSlotKind::SurvivorSeriesMainEvent,
                 'cost' => 0,
             ]);
+
+            if (! $rumble) {
+                $this->seatSurvivorQualifiers($show);
+            }
         }
     }
 
     /**
-     * Royal Rumble entrants (15 per brand) or a Survivor Series team (3).
+     * House rule (2026-11-17): each brand's Survivor Series qualifiers take
+     * their spots on its side of the 5 vs 5, locked. One seriously injured or
+     * gone from the brand by the PPV loses the spot, which opens for a pick.
+     * Safe to call repeatedly.
+     */
+    public function seatSurvivorQualifiers(Show $show): void
+    {
+        // Not mainEventSlot(): setUp() calls this, and that would set up again.
+        $slot = MatchSlot::where('show_id', $show->id)->where('fixed_kind', FixedSlotKind::SurvivorSeriesMainEvent)->first();
+
+        if ($slot === null) {
+            return;
+        }
+
+        $size = (int) config('gm.ppv.survivor_series_team_size');
+
+        foreach (Brand::cases() as $brand) {
+            $qualified = $this->qualifiers->seatable($show, PpvKey::SurvivorSeries, $brand);
+            $vacated = $this->vacatedQualifiers($show, PpvKey::SurvivorSeries, $brand);
+            $side = $brand === Brand::Raw ? 0 : 1;
+            $present = MatchParticipant::where('match_slot_id', $slot->id)->where('side', $side)->orderBy('id')->get();
+
+            // A qualifier who lost the spot comes off.
+            $present->filter(fn (MatchParticipant $p): bool => in_array((int) $p->save_wrestler_id, $vacated, true))->each->delete();
+            $present = $present->reject(fn (MatchParticipant $p): bool => in_array((int) $p->save_wrestler_id, $vacated, true))->values();
+
+            foreach ($qualified as $id) {
+                if ($present->contains(fn (MatchParticipant $p): bool => (int) $p->save_wrestler_id === $id)) {
+                    continue;
+                }
+
+                // Make room: a hand-picked member gives way to a qualifier.
+                if ($present->count() >= $size) {
+                    $out = $present->first(fn (MatchParticipant $p): bool => ! in_array((int) $p->save_wrestler_id, $qualified, true));
+                    $out?->delete();
+                    $present = $present->reject(fn (MatchParticipant $p): bool => $p->is($out))->values();
+                }
+
+                $present->push(MatchParticipant::create(['match_slot_id' => $slot->id, 'save_wrestler_id' => $id, 'side' => $side, 'role' => ParticipantRole::Competitor]));
+            }
+        }
+    }
+
+    /**
+     * A brand's locked Survivor Series team members: its qualifiers on it.
+     *
+     * @return list<int>
+     */
+    public function lockedEntrants(Show $show, Brand $brand): array
+    {
+        $slot = $this->mainEventSlot($show);
+
+        if ($slot->fixed_kind !== FixedSlotKind::SurvivorSeriesMainEvent) {
+            return [];
+        }
+
+        $qualified = $this->qualifiers->qualifiedIds($show->game, PpvKey::SurvivorSeries, $brand, $show->season);
+        $on = array_map('intval', MatchParticipant::where('match_slot_id', $slot->id)->pluck('save_wrestler_id')->all());
+
+        return array_values(array_intersect($qualified, $on));
+    }
+
+    /**
+     * How many team members a brand still picks (the Survivor Series team
+     * size less its seated qualifiers), or the Royal Rumble's entrants.
+     */
+    public function entrantsNeeded(Show $show, Brand $brand): int
+    {
+        $slot = $this->mainEventSlot($show);
+
+        return $slot->fixed_kind === FixedSlotKind::RoyalRumble
+            ? $this->rumbleEntrantsFor($show, $brand)
+            : max(0, (int) config('gm.ppv.survivor_series_team_size') - count($this->lockedEntrants($show, $brand)));
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function vacatedQualifiers(Show $show, PpvKey $ppv, Brand $brand): array
+    {
+        return array_values(array_map('intval', PpvQualifier::where('save_id', $show->save_id)
+            ->where('season', $show->season)
+            ->where('ppv', $ppv)
+            ->where('brand', $brand)
+            ->whereNotNull('vacated_week')
+            ->pluck('save_wrestler_id')
+            ->all()));
+    }
+
+    /**
+     * Royal Rumble entrants (15 per brand) or a Survivor Series team (5).
      *
      * @param  list<int>  $ids
      */
@@ -124,11 +220,14 @@ class PpvCardService
     {
         $slot = $this->mainEventSlot($show);
         $rumble = $slot->fixed_kind === FixedSlotKind::RoyalRumble;
-        $needed = $rumble ? $this->rumbleEntrantsFor($show, $brand) : (int) config('gm.ppv.survivor_series_team_size');
-        $ids = array_values(array_unique($ids));
+        // House rule (2026-11-17): qualifiers keep their Survivor Series spots;
+        // only the open ones are picked.
+        $locked = $this->lockedEntrants($show, $brand);
+        $needed = $this->entrantsNeeded($show, $brand);
+        $ids = array_values(array_diff(array_unique($ids), $locked));
 
         if (count($ids) !== $needed) {
-            throw new GameRuleException($rumble ? "Pick {$needed} Royal Rumble entrants." : "Pick a team of {$needed}.");
+            throw new GameRuleException($rumble ? "Pick {$needed} Royal Rumble entrants." : ($locked === [] ? "Pick a team of {$needed}." : "Pick {$needed} more for the team: your qualifiers are already on it."));
         }
 
         $pool = $this->randomizer->pool($show, $brand)->pluck('id')->map(fn ($id): int => (int) $id)->all();
@@ -147,7 +246,7 @@ class PpvCardService
         }
 
         $existing = $slot->participants()->with('saveWrestler')->get();
-        $existing->filter(fn (MatchParticipant $p): bool => $p->saveWrestler->brand === $brand)->each->delete();
+        $existing->filter(fn (MatchParticipant $p): bool => $p->saveWrestler->brand === $brand && ! in_array((int) $p->save_wrestler_id, $locked, true))->each->delete();
 
         $side = $rumble ? ((int) MatchParticipant::where('match_slot_id', $slot->id)->max('side')) + 1 : ($brand === Brand::Raw ? 0 : 1);
 
@@ -179,10 +278,13 @@ class PpvCardService
      */
     public function randomEntrants(Show $show, Brand $brand, Rng $rng): void
     {
-        $slot = $this->mainEventSlot($show);
-        $rumble = $slot->fixed_kind === FixedSlotKind::RoyalRumble;
-        $pool = $this->entrantPool($show, $brand);
-        $needed = $rumble ? $this->rumbleEntrantsFor($show, $brand) : (int) config('gm.ppv.survivor_series_team_size');
+        $locked = $this->lockedEntrants($show, $brand);
+        $pool = $this->entrantPool($show, $brand)->reject(fn (SaveWrestler $w): bool => in_array((int) $w->id, $locked, true))->values();
+        $needed = $this->entrantsNeeded($show, $brand);
+
+        if ($needed === 0) {
+            return;
+        }
 
         if ($pool->count() < $needed) {
             throw new GameRuleException("Not enough bookable superstars (need {$needed}, have {$pool->count()}).");
@@ -238,8 +340,17 @@ class PpvCardService
     public function entrantsSet(Show $show, Brand $brand): bool
     {
         $slot = $this->mainEventSlot($show);
+        $present = $slot->participants()->whereHas('saveWrestler', fn ($q) => $q->where('brand', $brand))->count();
 
-        return $slot->participants()->whereHas('saveWrestler', fn ($q) => $q->where('brand', $brand))->exists();
+        if ($slot->fixed_kind === FixedSlotKind::SurvivorSeriesMainEvent) {
+            // House rule (2026-11-17): qualifiers may fill part of the team, so
+            // it's set once it's full (or the brand has nobody left to send).
+            $open = $this->entrantPool($show, $brand)->reject(fn (SaveWrestler $w): bool => in_array((int) $w->id, $this->lockedEntrants($show, $brand), true))->count();
+
+            return $present >= min((int) config('gm.ppv.survivor_series_team_size'), count($this->lockedEntrants($show, $brand)) + $open);
+        }
+
+        return $present > 0;
     }
 
     /**
@@ -284,11 +395,14 @@ class PpvCardService
     public function drawSeries(Show $show, Rng $rng): void
     {
         $rival = $show->game->rivalBrand();
+        $this->seatMitbQualifiers($show);
 
         foreach ($this->seriesSlots($show) as $slot) {
-            $sides = self::seriesSides($slot->position, $rival);
+            // House rule (2026-11-17): only its open spots (a qualifier holds
+            // the rest of the ladder).
+            $sides = $this->freeSides($slot, $rival);
 
-            if ($sides === [] || $this->spotIds($slot, $rival) !== []) {
+            if ($sides === []) {
                 continue;
             }
 
@@ -318,9 +432,9 @@ class PpvCardService
     public function fillSeries(Show $show, Brand $brand, Rng $rng): void
     {
         foreach ($this->seriesSlots($show) as $slot) {
-            $sides = self::seriesSides($slot->position, $brand);
+            $sides = $this->freeSides($slot, $brand);
 
-            if ($sides === [] || $this->spotIds($slot, $brand) !== []) {
+            if ($sides === []) {
                 continue;
             }
 
@@ -378,7 +492,7 @@ class PpvCardService
      * their spots (side indexes, in order), who's in them (null while
      * empty), and who could take them. The rival's spots aren't theirs.
      *
-     * @return array<int, array{sides: list<int>, current: list<int|null>, eligible: list<int>}>
+     * @return array<int, array{sides: list<int>, current: list<int|null>, locked: list<int>, eligible: list<int>}>
      */
     public function seriesOptions(Show $show, Brand $brand): array
     {
@@ -396,10 +510,13 @@ class PpvCardService
             }
 
             $current = $this->spotIds($slot, $brand);
+            // House rule (2026-11-17): Money in the Bank qualifiers are locked.
+            $qualified = $slot->matchType->isMoneyInTheBank() ? $this->qualifiers->qualifiedIds($show->game, PpvKey::Wrestlemania, $brand, $show->season) : [];
 
             $options[$slot->position] = [
                 'sides' => $sides,
                 'current' => array_map(fn (int $i): ?int => $current[$i] ?? null, array_keys($sides)),
+                'locked' => array_keys(array_filter(array_map(fn (int $i): bool => isset($current[$i]) && in_array($current[$i], $qualified, true), array_keys($sides)))),
                 // Everyone they could pick, those already in it included.
                 'eligible' => array_values(array_unique([...$current, ...$this->seriesPool($show, $slot, $brand, $current)->pluck('id')->map(fn ($id): int => (int) $id)->all()])),
             ];
@@ -429,6 +546,17 @@ class PpvCardService
                 $name = SaveWrestler::with('wrestler')->find($id)?->name() ?? 'That superstar';
 
                 throw new GameRuleException("{$name} can’t be in this match: pick your bookable non-champions who aren’t in another series match.");
+            }
+        }
+
+        // House rule (2026-11-17): a qualifier can't be taken off the ladder.
+        foreach ($options['locked'] as $index) {
+            $kept = $options['current'][$index] ?? null;
+
+            if ($kept !== null && ! in_array($kept, $ids, true)) {
+                $name = SaveWrestler::with('wrestler')->find($kept)?->name() ?? 'A qualifier';
+
+                throw new GameRuleException("{$name} qualified for Money in the Bank and keeps the spot.");
             }
         }
 
@@ -649,14 +777,34 @@ class PpvCardService
     public function refreshSeries(Show $show, Rng $rng): void
     {
         $champions = $this->titles->currentReigns($show->game)->flatMap(fn ($r) => $r->holderIds())->all();
+        // House rule (2026-11-17): Money in the Bank qualifiers keep their
+        // spots (only a serious injury or leaving the brand opens one).
+        $this->seatMitbQualifiers($show);
+        $qualified = [
+            ...$this->qualifiers->qualifiedIds($show->game, PpvKey::Wrestlemania, Brand::Raw, $show->season),
+            ...$this->qualifiers->qualifiedIds($show->game, PpvKey::Wrestlemania, Brand::Smackdown, $show->season),
+        ];
 
-        foreach (MatchSlot::with('participants.saveWrestler')->where('show_id', $show->id)->whereIn('position', self::WM_SERIES_SLOTS)->get() as $slot) {
+        foreach (MatchSlot::with(['participants.saveWrestler', 'matchType'])->where('show_id', $show->id)->whereIn('position', self::WM_SERIES_SLOTS)->get() as $slot) {
+            $ladder = (bool) $slot->matchType?->isMoneyInTheBank();
+
             foreach ($slot->participants as $p) {
+                if ($ladder && in_array((int) $p->save_wrestler_id, $qualified, true)) {
+                    continue;
+                }
+
                 $gone = $p->saveWrestler->brand === null
                     || in_array($p->save_wrestler_id, $champions, true)
                     || $this->injuries->isSeriouslyInjured($p->saveWrestler, $show->week_number)
                     || $p->saveWrestler->isSittingOut($show->week_number)
                     || ! in_array($p->side, self::seriesSides($slot->position, $p->saveWrestler->brand), true);
+
+                if ($gone && $ladder) {
+                    // The ladder's spots are filled one by one.
+                    $p->delete();
+
+                    continue;
+                }
 
                 if ($gone) {
                     // A brand's spots go together, so its side is picked again whole.
@@ -668,6 +816,81 @@ class PpvCardService
 
         $this->drawSeries($show, $rng);
         $this->fillSeries($show, $show->game->player_brand, $rng);
+    }
+
+    /**
+     * House rule (2026-11-17): each brand's Money in the Bank qualifiers take
+     * its ladder spots, locked; a vacated one comes off. Safe to call
+     * repeatedly.
+     */
+    public function seatMitbQualifiers(Show $show): void
+    {
+        if (! $show->isWrestleMania()) {
+            return;
+        }
+
+        $slot = MatchSlot::with('matchType')->where('show_id', $show->id)->where('position', self::WM_SERIES_SLOTS[2])->first();
+
+        if ($slot === null || ! $slot->matchType?->isMoneyInTheBank()) {
+            return;
+        }
+
+        foreach (Brand::cases() as $brand) {
+            $qualified = $this->qualifiers->seatable($show, PpvKey::Wrestlemania, $brand);
+            $vacated = $this->vacatedQualifiers($show, PpvKey::Wrestlemania, $brand);
+            $sides = self::seriesSides($slot->position, $brand);
+
+            MatchParticipant::where('match_slot_id', $slot->id)->whereIn('side', $sides)->whereIn('save_wrestler_id', $vacated)->delete();
+
+            foreach ($qualified as $id) {
+                if (MatchParticipant::where('match_slot_id', $slot->id)->where('save_wrestler_id', $id)->exists()) {
+                    continue;
+                }
+
+                $free = $this->freeSides($slot, $brand);
+
+                // Make room: a hand-picked entrant gives way to a qualifier.
+                if ($free === []) {
+                    $out = MatchParticipant::where('match_slot_id', $slot->id)->whereIn('side', $sides)->whereNotIn('save_wrestler_id', $qualified)->orderByDesc('id')->first();
+
+                    if ($out === null) {
+                        continue;
+                    }
+
+                    $free = [(int) $out->side];
+                    $out->delete();
+                }
+
+                $this->placeSeries($show, $slot, [$free[0]], [$id], announce: false);
+            }
+        }
+    }
+
+    /**
+     * A brand's empty spots in a series match (side indexes), in order.
+     *
+     * @return list<int>
+     */
+    private function freeSides(MatchSlot $slot, Brand $brand): array
+    {
+        $taken = array_map('intval', MatchParticipant::where('match_slot_id', $slot->id)
+            ->where('role', ParticipantRole::Competitor)
+            ->whereIn('side', array_unique(self::seriesSides($slot->position, $brand)))
+            ->pluck('side')
+            ->all());
+        $free = [];
+
+        foreach (self::seriesSides($slot->position, $brand) as $side) {
+            $at = array_search($side, $taken, true);
+
+            if ($at === false) {
+                $free[] = $side;
+            } else {
+                unset($taken[$at]);
+            }
+        }
+
+        return $free;
     }
 
     /**

@@ -93,12 +93,17 @@ class SendReminders implements WeekStep
             }
         }
 
-        $weeksOut = (int) config('gm.emails.ppv_reminder_weeks_before');
+        // House rule (2026-11-17): Survivor Series and WrestleMania come with
+        // their Qualifying Matches, so Vince writes the week before they start.
+        $default = (int) config('gm.emails.ppv_reminder_weeks_before');
+        $overrides = (array) config('gm.emails.ppv_reminder_weeks_overrides');
 
-        foreach ($this->calendar->ppvsForWeek($week + $weeksOut) as $ppv) {
-            if ($ppv->isShared()) {
-                foreach (Brand::cases() as $brand) {
-                    $this->emails->ppvReminder($save, $brand, $ppv, $weeksOut, $week);
+        foreach (array_unique([$default, ...array_map('intval', array_values($overrides))]) as $weeksOut) {
+            foreach ($this->calendar->ppvsForWeek($week + $weeksOut) as $ppv) {
+                if ($ppv->isShared() && (int) ($overrides[$ppv->key->value] ?? $default) === $weeksOut) {
+                    foreach (Brand::cases() as $brand) {
+                        $this->emails->ppvReminder($save, $brand, $ppv, $weeksOut, $week);
+                    }
                 }
             }
         }

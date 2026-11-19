@@ -31,7 +31,9 @@ export function ActiveEffects({
     const lockouts = context.last_chance_lockouts ?? [];
     const rematches = context.rematch_clauses ?? [];
     const briefcase = context.briefcase;
+    const qualifiers = context.qualifiers ?? null;
     const count =
+        (qualifiers ? 1 : 0) +
         shots.length +
         contenderships.length +
         lockouts.length +
@@ -46,7 +48,7 @@ export function ActiveEffects({
             data-testid="active-effects"
             // Gold only while something is in play; quiet otherwise.
             className={cn(
-                'mb-4 border-l-4 px-4 py-3 text-sm',
+                'mb-4 border-l-4 px-4 py-3',
                 count === 0
                     ? 'border-white/15 bg-white/[0.03]'
                     : 'border-gold bg-gold/10',
@@ -61,19 +63,20 @@ export function ActiveEffects({
                 Active Effects
             </h2>
             {count === 0 ? (
-                <p className="mt-1 text-ink-dim">
+                <p className="mt-3 text-ink-dim">
                     No active effects at the moment
                 </p>
             ) : (
-                <ul className="mt-1 space-y-1">
+                <ul className="mt-3 space-y-1">
                     {shots.map((shot) => (
                         <Effect
                             key={`shot-${shot.id}`}
-                            kind="Required title match"
+                            kind="Champion vs. Contender"
                         >
                             {shot.contenders} earned a{' '}
-                            <strong>{shot.championship}</strong> match. Book it
-                            before this card can air.
+                            <strong>{shot.championship}</strong> match last
+                            week. You are required to book this title match this
+                            week.
                         </Effect>
                     ))}
                     {contenderships.map((c) => (
@@ -81,10 +84,10 @@ export function ActiveEffects({
                             key={`no1-${c.championship_id}`}
                             kind="#1 contender"
                         >
-                            {c.contenders}{' '}
-                            {c.contender_ids.length > 1 ? 'await' : 'awaits'} a{' '}
-                            <strong>{c.championship}</strong> match as #1
-                            contender. Nobody else can challenge for it.
+                            The next <strong>{c.championship}</strong> match can
+                            only be booked with {c.contenders} as the only
+                            challenger since he rightfully earned the title
+                            opportunity
                         </Effect>
                     ))}
                     {lockouts.map((l) => (
@@ -96,13 +99,36 @@ export function ActiveEffects({
                     ))}
                     {rematches.map((r) => (
                         <Effect key={`rematch-${r.id}`} kind="Rematch Clause">
-                            {r.former} vs. {r.champions} ·{' '}
-                            <strong>{r.championship}</strong> ·{' '}
-                            {r.booked
-                                ? 'booked on this card'
-                                : `${pluralize(r.weeks_left, 'week')} left`}
+                            Former champion {r.former} has{' '}
+                            <strong>
+                                {r.booked
+                                    ? 'booked on this card'
+                                    : `${pluralize(r.weeks_left, 'week')} left`}
+                            </strong>{' '}
+                            to be booked on a <strong>{r.championship}</strong>{' '}
+                            match against {r.champions}
                         </Effect>
                     ))}
+                    {qualifiers && (
+                        <Effect kind="Qualifying Matches">
+                            {qualifiers.ppv === 'Survivor Series'
+                                ? 'Survivor Series team'
+                                : 'Money in the Bank'}
+                            :{' '}
+                            <span className="gm-num">
+                                {qualifiers.count} of {qualifiers.of}
+                            </span>{' '}
+                            qualified
+                            {qualifiers.names.length > 0
+                                ? ` (${qualifiers.names.join(', ')})`
+                                : ''}
+                            .{' '}
+                            {qualifiers.position === 6
+                                ? 'The main event'
+                                : `Match ${qualifiers.position ?? ''}`}{' '}
+                            is this week’s Qualifying Match.
+                        </Effect>
+                    )}
                     {briefcase && (
                         <Effect kind="Money in the Bank">
                             {briefcase.cashed_in_here

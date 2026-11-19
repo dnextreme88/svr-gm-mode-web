@@ -19,6 +19,8 @@ type Named = Pick<WrestlerRow, 'id' | 'name'> & Partial<WrestlerRow>;
 
 /**
  * Slot-machine reveal of a random re-draft pick (house rule, 2026-11-16),
+ * and of the rival GM's re-draft tags (2026-11-17: who it protects, who it
+ * takes with the manual pick; `heading` and the texts say which),
  * like the first-pick reel on a new career. The pick is already made on
  * the server; the reel runs through everyone it could have been (`pool`)
  * and stops on `result`, then calls `onDone` so the page can play the move.
@@ -29,13 +31,23 @@ export function SuperstarReel({
     brand,
     pickNumber,
     onDone,
+    heading,
+    spinningText,
+    landedText,
 }: {
     pool: Named[];
     result: Named;
     brand: Brand;
-    pickNumber: number;
+    pickNumber?: number;
     onDone: () => void;
+    /** What the reel is for, above it (default "Pick N"). */
+    heading?: string;
+    /** The line while it spins (default "{Brand} is drafting…"). */
+    spinningText?: string;
+    /** The line once it stops (default "{Brand} drafts {name}!"). */
+    landedText?: string;
 }) {
+    const title = heading ?? `Pick ${pickNumber ?? ''}`.trim();
     // The faces it cycles through: the pool, with the result always in it.
     const faces = pool.some((w) => w.id === result.id)
         ? pool
@@ -93,7 +105,7 @@ export function SuperstarReel({
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
             role="dialog"
             aria-modal="true"
-            aria-label={`Re-draft pick ${pickNumber}`}
+            aria-label={heading ?? `Re-draft pick ${pickNumber}`}
         >
             <div
                 className="gm-panel w-full max-w-md p-8 text-center"
@@ -102,7 +114,7 @@ export function SuperstarReel({
                 <div className="flex items-center justify-center gap-3">
                     <BrandBug brand={brand} size="sm" />
                     <span className="font-condensed text-base tracking-wider text-ink-dim uppercase">
-                        Pick {pickNumber}
+                        {title}
                     </span>
                 </div>
                 <div
@@ -129,15 +141,18 @@ export function SuperstarReel({
                 <p
                     className={cn(
                         'mt-6 font-condensed text-lg tracking-wider uppercase',
+                        // The spinning line pulses while it draws; the
+                        // landed line holds still in the brand colour.
                         landed
-                            ? 'animate-gm-pulse text-brand-hot'
-                            : 'text-ink-dim',
+                            ? 'text-brand-hot'
+                            : 'animate-gm-pulse text-ink-dim motion-reduce:animate-none',
                     )}
                     aria-live="polite"
                 >
                     {landed
-                        ? `${brandName(brand)} drafts ${result.name}!`
-                        : `${brandName(brand)} is drafting…`}
+                        ? (landedText ??
+                          `${brandName(brand)} drafts ${result.name}!`)
+                        : (spinningText ?? `${brandName(brand)} is drafting…`)}
                 </p>
             </div>
         </div>

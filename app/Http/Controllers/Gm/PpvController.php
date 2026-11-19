@@ -42,13 +42,15 @@ class PpvController extends Controller
             'show' => ['id' => $show->id, 'name' => $show->name, 'status' => $show->status->value],
             'booking_order' => BookingOrderPresenter::for($save, $show, $this->order),
             'mode' => $rumble ? 'rumble' : 'survivor_series',
-            'needed' => $rumble ? $this->ppvCards->rumbleEntrantsFor($show, $brand) : (int) config('gm.ppv.survivor_series_team_size'),
+            'needed' => $this->ppvCards->entrantsNeeded($show, $brand),
+            // House rule (2026-11-17): Survivor Series qualifiers are already on the team.
+            'qualified' => $rumble ? [] : array_map(fn (int $id): array => ['id' => $id, 'name' => SaveWrestler::with('wrestler')->find($id)?->name() ?? ''], $this->ppvCards->lockedEntrants($show, $brand)),
             // Divas are listed but greyed out: neither PPV takes them (house rule).
             'pool' => $this->randomizer->pool($show, $brand)
                 ->sortBy(fn (SaveWrestler $w): int => $w->wrestler->isDiva() ? 1 : 0)
                 ->map(fn (SaveWrestler $w): array => WrestlerPresenter::row($w->load('wrestler.specialties'), $week))
                 ->values(),
-            'selected' => $chosen->filter(fn ($p): bool => $p->saveWrestler->brand === $brand)->pluck('save_wrestler_id')->values(),
+            'selected' => $chosen->filter(fn ($p): bool => $p->saveWrestler->brand === $brand && ! in_array((int) $p->save_wrestler_id, $this->ppvCards->lockedEntrants($show, $brand), true))->pluck('save_wrestler_id')->values(),
             'rival' => $chosen->filter(fn ($p): bool => $p->saveWrestler->brand !== $brand)->map(fn ($p): string => $p->saveWrestler->name())->values(),
         ]);
     }

@@ -168,6 +168,41 @@ describe('morale', function () {
         expect(MatchResult::where('match_slot_id', $slot->id)->sole()->winner_side)->toBe($slot->booked_side);
     });
 
+    it('puts up to 3 superstars waiting on a title in one title match against a free champion, in any type (2026-11-17)', function () {
+        $save = planSave();
+        config(['gm.ai.morale.fix_chance' => ['content' => 1.0, 'unsatisfied' => 1.0, 'upset' => 1.0]]);
+        GameBuilder::giveTitle($save, 'intercontinental', ['Carlito']);
+        $waiting = array_map(fn (string $n) => GameBuilder::wrestler($save, $n), ['Edge', 'Eugene', 'Kane']);
+
+        foreach ($waiting as $w) {
+            complain($w, MoraleComplaintType::TitleMatch, ComplaintLevel::Unsatisfied);
+        }
+
+        $ic = Championship::where('key', 'intercontinental')->value('id');
+        $slot = planCard($save)->first(fn (MatchSlot $s): bool => $s->title_championship_id === $ic);
+
+        expect($slot)->not->toBeNull()
+            ->and($slot->sides())->toHaveCount(4)
+            ->and($slot->sides()[0])->toBe([GameBuilder::wrestler($save, 'Carlito')->id])
+            ->and(collect($slot->competitorIds())->sort()->values()->all())
+            ->toBe(collect([GameBuilder::wrestler($save, 'Carlito')->id, ...array_map(fn ($w) => $w->id, $waiting)])->sort()->values()->all());
+    });
+
+    it('teams a slumping superstar with a partner on a win streak, booked to win (2026-11-17)', function () {
+        $save = planSave();
+        config(['gm.ai.morale.fix_chance' => ['content' => 1.0, 'unsatisfied' => 1.0, 'upset' => 1.0]]);
+        $eugene = GameBuilder::wrestler($save, 'Eugene');
+        $hot = GameBuilder::wrestler($save, 'Kurt Angle');
+        $hot->update(['win_streak' => 4]);
+        complain($eugene, MoraleComplaintType::LosingStreak, ComplaintLevel::Unsatisfied);
+
+        $slot = planCard($save)->first(fn (MatchSlot $s): bool => $s->booked_side !== null);
+
+        expect($slot)->not->toBeNull()
+            ->and($slot->sides()[$slot->booked_side])->toContain($eugene->id)
+            ->and($slot->sides()[$slot->booked_side])->toContain($hot->id);
+    });
+
     it('renews a contract a superstar is demanding', function () {
         $save = planSave();
         config(['gm.ai.morale.fix_chance' => ['content' => 1.0, 'unsatisfied' => 1.0, 'upset' => 1.0]]);

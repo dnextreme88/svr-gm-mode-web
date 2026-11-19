@@ -404,7 +404,7 @@ describe('title news', function () {
         factionWeek($save);
 
         expect(NewsEvent::where('type', NewsEventType::FactionTitleLost)->sole()->rendered_text)->toBe('Team Xtreme lose the gold')
-            ->and(NewsEvent::where('type', NewsEventType::TitleChange)->sole()->rendered_text)->toBe('NEW CHAMPION! Carlito & Snitsky wins the gold!');
+            ->and(NewsEvent::where('type', NewsEventType::TitleChange)->sole()->rendered_text)->toBe("New owner of the {$title->name} was crowned!");
     });
 });
 

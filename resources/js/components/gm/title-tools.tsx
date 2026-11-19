@@ -18,7 +18,8 @@ import {
 } from '@/lib/titles';
 import type { StipulationOption } from '@/lib/titles';
 import { cn } from '@/lib/utils';
-import type { Stipulation } from '@/types/enums';
+import { StipulationLabels } from '@/types/enums';
+import type { Brand, Stipulation } from '@/types/enums';
 import type { MatchTypeOption, RosterEntry, TitleContext } from '@/types/gm';
 
 type Props = {
@@ -30,6 +31,16 @@ type Props = {
     onChange: (next: SlotDraft) => void;
     /** Titles already picked in the card's other matches. */
     takenTitleIds?: number[];
+    /**
+     * The saved title's name, for a title this brand doesn't own: the
+     * rival's title on its slots of an interbrand card (2026-11-17).
+     */
+    bookedTitleName?: string | null;
+    /**
+     * The rival's brand when that title is the rival's: it shows in the
+     * rival's colour, not the player's gold (2026-11-17).
+     */
+    rivalBrand?: Brand | null;
 };
 
 /**
@@ -43,6 +54,8 @@ export function TitleCycler({
     readOnly,
     onChange,
     takenTitleIds = [],
+    bookedTitleName = null,
+    rivalBrand = null,
 }: Props) {
     const titles = useMemo(
         () => titleCandidates(draft, type, context, roster, takenTitleIds),
@@ -50,7 +63,14 @@ export function TitleCycler({
     );
     const cycle = [null, ...titles.map((t) => t.id)];
     const index = Math.max(0, cycle.indexOf(draft.titleChampionshipId));
-    const current = titles.find((t) => t.id === draft.titleChampionshipId);
+    const own = titles.find((t) => t.id === draft.titleChampionshipId);
+    const current =
+        own ??
+        (draft.titleChampionshipId !== null && bookedTitleName
+            ? { id: draft.titleChampionshipId, name: bookedTitleName }
+            : undefined);
+    // The rival's title on its slot of an interbrand card.
+    const rivals = !own && current !== undefined && rivalBrand !== null;
 
     const setTitle = (id: number | null) =>
         onChange({
@@ -72,6 +92,9 @@ export function TitleCycler({
         return null;
     }
 
+    // A locked slot (a Qualifying Match, an aired card) can't take a title.
+    const selectable = titles.length > 0 && !readOnly;
+
     return (
         <div
             className="flex w-full items-center gap-1 text-sm lg:w-auto"
@@ -89,18 +112,21 @@ export function TitleCycler({
             </button>
             <span
                 data-testid={`title-${draft.position}`}
+                data-brand-tint={rivals ? (rivalBrand ?? undefined) : undefined}
                 className={cn(
                     'text-md mt-1 min-w-0 flex-1 px-3 py-1 text-center font-condensed font-bold tracking-[0.14em] uppercase sm:min-w-[300px] md:flex-none',
-                    current
-                        ? 'bg-gradient-to-b from-gold-hot to-gold text-arena'
-                        : titles.length > 0
-                          ? 'bg-white/5 text-white/80'
-                          : 'bg-white/5 text-white/20 hover:cursor-not-allowed',
+                    rivals
+                        ? 'bg-[var(--gm-brand)] text-white'
+                        : current
+                          ? 'bg-gradient-to-b from-gold-hot to-gold text-arena'
+                          : selectable
+                            ? 'bg-white/5 text-white/80'
+                            : 'bg-white/5 text-white/20 hover:cursor-not-allowed',
                 )}
             >
                 {current
                     ? current.name
-                    : titles.length > 0
+                    : selectable
                       ? 'Select title'
                       : 'No title eligible'}
             </span>
@@ -137,9 +163,15 @@ export function StipulationPicker({
     onChange,
     takenTitleIds = [],
     numberOneTitleIds = [],
+    rivalStipulation = null,
 }: Props & {
     /** Titles another match on the card holds a #1 Contender's Match for. */
     numberOneTitleIds?: number[];
+    /**
+     * The rival's stipulation on its slot of an interbrand card (2026-11-17):
+     * its title names and brand, shown read-only in the rival's colour.
+     */
+    rivalStipulation?: { titles: string[]; brand: Brand } | null;
 }) {
     const { open, mounted, ref, toggle, close } = usePopover();
     const [asking, setAsking] = useState<StipulationOption | null>(null);
@@ -181,6 +213,23 @@ export function StipulationPicker({
 
         set(option?.value ?? null, null);
     };
+
+    // The rival booked it: the player's options don't know its titles.
+    if (draft.stipulation !== null && !current && rivalStipulation) {
+        const titles = rivalStipulation.titles.map(shortTitle).join(', ');
+
+        return (
+            <div
+                data-testid={`stipulation-${draft.position}`}
+                data-brand-tint={rivalStipulation.brand}
+                aria-label={label}
+                className="w-full truncate bg-[var(--gm-brand)] px-3 py-1 text-center font-condensed text-sm font-bold tracking-[0.14em] text-white uppercase lg:w-auto lg:min-w-[300px]"
+            >
+                {StipulationLabels[draft.stipulation]}
+                {titles ? `: ${titles}` : ''}
+            </div>
+        );
+    }
 
     if (options.length === 0) {
         return (

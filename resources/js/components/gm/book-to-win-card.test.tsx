@@ -48,7 +48,6 @@ function renderCard(m: PendingMatch, onDecide = vi.fn()) {
     render(
         <BookToWinCard
             match={m}
-            showName="Monday Night Raw"
             isMainEvent={false}
             busy={false}
             onDecide={onDecide}

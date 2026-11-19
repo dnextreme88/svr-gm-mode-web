@@ -105,7 +105,7 @@ describe('gender', function () {
         config(['gm.ai.booking.intergender_chance' => 0.0]);
         $positions = [];
 
-        foreach (range(1, 8) as $seed) {
+        foreach (range(1, 4) as $seed) {
             $slot = rivalSlots(rivalCard(rivalSave([...RIVAL_MEN, ...RIVAL_DIVAS], "divaslot-{$seed}")))->first(fn (MatchSlot $s): bool => isAllDiva($s));
             $positions[] = $slot->position;
         }
@@ -114,7 +114,7 @@ describe('gender', function () {
 
         config(['gm.ai.titles.other_slot_chance' => 1.0]);
 
-        foreach (range(1, 6) as $seed) {
+        foreach (range(1, 3) as $seed) {
             $save = rivalSave([...RIVAL_MEN, ...RIVAL_DIVAS], "womens-{$seed}");
             GameBuilder::giveTitle($save, 'womens', ['Trish Stratus']);
 

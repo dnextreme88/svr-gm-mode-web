@@ -10,6 +10,7 @@ use App\Models\Email;
 use App\Models\FactionPrompt;
 use App\Models\GmNotice;
 use App\Models\Save;
+use App\Models\SaveCheckpoint;
 use App\Models\SaveWrestler;
 use App\Models\Show;
 use App\Models\WeekAiring;
@@ -49,7 +50,9 @@ class GamePresenter
         return [
             'id' => $save->id,
             'name' => $save->name,
-            'saved' => $save->saved_at !== null,
+            // House rule (2026-11-17): the week of the career's last save
+            // (its checkpoint), or null before the first save.
+            'last_saved' => $this->lastSaved($save),
             'player_brand' => $save->player_brand->value,
             'rival_brand' => $save->rivalBrand()->value,
             'stage' => $save->stage->value,
@@ -192,6 +195,20 @@ class GamePresenter
             'crowd' => (int) $show->attendance,
             'show' => $show->name,
             'week' => $this->calendar->seasonWeek($show->week_number),
+        ];
+    }
+
+    /**
+     * @return array{season: int, season_week: int, saved_at: string|null}|null
+     */
+    private function lastSaved(Save $save): ?array
+    {
+        $checkpoint = SaveCheckpoint::where('save_id', $save->id)->first(['current_week', 'updated_at']);
+
+        return $checkpoint === null ? null : [
+            'season' => $this->calendar->seasonOf($checkpoint->current_week),
+            'season_week' => $this->calendar->seasonWeek($checkpoint->current_week),
+            'saved_at' => $checkpoint->updated_at?->toIso8601String(),
         ];
     }
 }

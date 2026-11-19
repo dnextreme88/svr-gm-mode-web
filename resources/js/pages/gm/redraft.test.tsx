@@ -46,12 +46,15 @@ const baseProps = {
     phase: 'immunity',
     series: {
         season: 1,
+        career: 1_763_000_000,
         raw_wins: 2,
         smackdown_wins: 1,
         winner_brand: 'raw',
         immunity_brand: 'raw',
-        exemption_wrestler_id: null,
-        handpick_wrestler_id: null,
+        exemption_wrestler_ids: [] as number[],
+        immunity_needed: 1,
+        manual_needed: 1,
+        handpick_wrestler_ids: [] as number[],
         crowds: { raw: 410_000, smackdown: 380_000 },
     },
     rosters: {
@@ -93,12 +96,18 @@ vi.mock('@inertiajs/react', () => ({
     usePage: () => ({ props }),
 }));
 
+const rulesKey = () =>
+    `gm.redraft-rules.${baseProps.game.id}.${baseProps.series.career}.${baseProps.series.season}`;
+
 describe('WrestleMania Re-Draft', () => {
     beforeEach(() => {
         props = baseProps;
         post.mockReset();
         requestJson.mockReset();
+        window.localStorage.clear();
         window.localStorage.setItem('gm.redraft.skip-animation', 'on');
+        // The rules modal only opens by itself on a first visit.
+        window.localStorage.setItem(rulesKey(), 'seen');
     });
 
     it('puts your brand on the left and the rival’s on the right', () => {
@@ -128,14 +137,18 @@ describe('WrestleMania Re-Draft', () => {
         );
     });
 
-    it('explains who holds each tag and why', () => {
+    it('explains who holds each tag and why, in a modal', async () => {
+        const user = userEvent.setup();
         render(<Redraft />);
 
+        expect(screen.queryByTestId('redraft-rules')).toBeNull();
+        await user.click(screen.getByTestId('redraft-rules-button'));
+
         expect(screen.getByTestId('immunity-tag')).toHaveTextContent(
-            'Raw drew more fans to its weekly shows before WrestleMania',
+            'This tag is awarded to Raw for drawing more fans to its weekly shows before WrestleMania',
         );
         expect(screen.getByTestId('manual-tag')).toHaveTextContent(
-            'Raw won the WrestleMania interbrand series 2–1',
+            'This tag is awarded to Raw for winning the WrestleMania interbrand tournament with a score of 2–1',
         );
     });
 
@@ -148,16 +161,16 @@ describe('WrestleMania Re-Draft', () => {
         });
         expect(use).toBeDisabled();
         expect(
-            within(screen.getByTestId('redraft-row-2')).getByRole('radio'),
+            within(screen.getByTestId('redraft-row-2')).getByRole('checkbox'),
         ).toBeDisabled();
         expect(
             within(screen.getByTestId('redraft-roster-smackdown')).queryByRole(
-                'radio',
+                'checkbox',
             ),
         ).toBeNull();
 
         await user.click(
-            within(screen.getByTestId('redraft-row-1')).getByRole('radio'),
+            within(screen.getByTestId('redraft-row-1')).getByRole('checkbox'),
         );
         await user.click(use);
 
@@ -165,14 +178,16 @@ describe('WrestleMania Re-Draft', () => {
         expect(post).not.toHaveBeenCalled();
         const dialog = screen.getByRole('dialog');
         expect(dialog).toHaveTextContent('Use the immunity tag?');
-        expect(dialog).toHaveTextContent('Edge is protected and stays on Raw');
+        expect(dialog).toHaveTextContent(
+            'Edge will be exempted and will stay on Raw',
+        );
 
         await user.click(
-            within(dialog).getByRole('button', { name: 'Protect Edge' }),
+            within(dialog).getByRole('button', { name: 'Exempt Edge' }),
         );
         expect(post).toHaveBeenCalledWith(
             expect.stringContaining('/redraft/immunity'),
-            { save_wrestler_id: 1 },
+            { save_wrestler_ids: [1] },
             expect.anything(),
         );
     });
@@ -183,7 +198,7 @@ describe('WrestleMania Re-Draft', () => {
         render(<Redraft />);
 
         await user.click(
-            within(screen.getByTestId('redraft-row-3')).getByRole('radio'),
+            within(screen.getByTestId('redraft-row-3')).getByRole('checkbox'),
         );
         await user.click(
             screen.getByRole('button', { name: 'Use the manual pick' }),
@@ -191,7 +206,7 @@ describe('WrestleMania Re-Draft', () => {
 
         const dialog = screen.getByRole('dialog');
         expect(dialog).toHaveTextContent(
-            'Rey Mysterio moves from Smackdown to Raw as the first pick',
+            'Rey Mysterio will move from Smackdown to Raw as the first pick',
         );
 
         await user.click(
@@ -199,7 +214,7 @@ describe('WrestleMania Re-Draft', () => {
         );
         expect(post).toHaveBeenCalledWith(
             expect.stringContaining('/redraft/handpick'),
-            { save_wrestler_id: 3 },
+            { save_wrestler_ids: [3] },
             expect.anything(),
         );
     });
@@ -233,7 +248,9 @@ describe('WrestleMania Re-Draft', () => {
         render(<Redraft />);
 
         await user.click(
-            screen.getByRole('button', { name: 'Start the re-draft' }),
+            screen.getByRole('button', {
+                name: 'Start the Post-WrestleMania Season 1 Draft',
+            }),
         );
 
         await waitFor(() =>
@@ -305,7 +322,9 @@ describe('WrestleMania Re-Draft', () => {
         render(<Redraft />);
 
         await user.click(
-            screen.getByRole('button', { name: 'Start the re-draft' }),
+            screen.getByRole('button', {
+                name: 'Start the Post-WrestleMania Season 1 Draft',
+            }),
         );
 
         // The manual pick moves with no reel.
@@ -336,5 +355,207 @@ describe('WrestleMania Re-Draft', () => {
         );
         expect(screen.queryByRole('dialog')).toBeNull();
         vi.unstubAllGlobals();
+    });
+
+    it('opens the rules by itself on a first visit, and Got it closes them for good', async () => {
+        window.localStorage.removeItem(rulesKey());
+        const user = userEvent.setup();
+        const { unmount } = render(<Redraft />);
+
+        expect(screen.getByRole('dialog')).toHaveTextContent(
+            'Post-WrestleMania Season 1 draft',
+        );
+        expect(screen.getByTestId('redraft-welcome')).toHaveTextContent(
+            'Welcome to the Post-WrestleMania draft!',
+        );
+        await user.click(screen.getByRole('button', { name: 'Got it' }));
+        expect(screen.queryByRole('dialog')).toBeNull();
+
+        unmount();
+        render(<Redraft />);
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('reveals the rival’s immunity tag with a reel, once', async () => {
+        window.localStorage.setItem('gm.redraft.skip-animation', 'off');
+        vi.stubGlobal('matchMedia', () => ({ matches: true }));
+        props = {
+            ...baseProps,
+            phase: 'manual',
+            series: {
+                ...baseProps.series,
+                immunity_brand: 'smackdown',
+                exemption_wrestler_ids: [4],
+            },
+            rosters: {
+                ...baseProps.rosters,
+                smackdown: [
+                    row(3, 'Rey Mysterio', 'smackdown'),
+                    row(4, 'JBL', 'smackdown', { locked: 'Immune' }),
+                ],
+            },
+        } as unknown as typeof baseProps;
+        const { unmount } = render(<Redraft />);
+
+        expect(
+            screen.getByRole('dialog', { name: 'Immunity tag' }),
+        ).toBeInTheDocument();
+        await waitFor(() =>
+            expect(
+                screen.getByText('Smackdown protects JBL!'),
+            ).toBeInTheDocument(),
+        );
+        await waitFor(() =>
+            expect(
+                screen.queryByRole('dialog', { name: 'Immunity tag' }),
+            ).toBeNull(),
+        );
+
+        unmount();
+        render(<Redraft />);
+        expect(
+            screen.queryByRole('dialog', { name: 'Immunity tag' }),
+        ).toBeNull();
+        vi.unstubAllGlobals();
+    });
+
+    it('reveals the rival’s manual draft pick with a reel', async () => {
+        window.localStorage.setItem('gm.redraft.skip-animation', 'off');
+        vi.stubGlobal('matchMedia', () => ({ matches: true }));
+        props = {
+            ...baseProps,
+            phase: 'picks',
+            series: {
+                ...baseProps.series,
+                winner_brand: 'smackdown',
+                handpick_wrestler_ids: [1],
+            },
+        } as unknown as typeof baseProps;
+        render(<Redraft />);
+
+        await waitFor(() =>
+            expect(
+                screen.getByText(
+                    'Smackdown takes Edge with the manual draft pick!',
+                ),
+            ).toBeInTheDocument(),
+        );
+        vi.unstubAllGlobals();
+    });
+
+    it('skips the rival’s tag reels when animation is skipped', () => {
+        props = {
+            ...baseProps,
+            phase: 'manual',
+            series: {
+                ...baseProps.series,
+                immunity_brand: 'smackdown',
+                exemption_wrestler_ids: [4],
+            },
+        } as unknown as typeof baseProps;
+        render(<Redraft />);
+
+        expect(
+            screen.queryByRole('dialog', { name: 'Immunity tag' }),
+        ).toBeNull();
+    });
+
+    it('names the chosen superstars under each brand’s tags', () => {
+        props = {
+            ...baseProps,
+            phase: 'picks',
+            series: {
+                ...baseProps.series,
+                exemption_wrestler_ids: [1],
+                handpick_wrestler_ids: [4],
+            },
+        } as unknown as typeof baseProps;
+        render(<Redraft />);
+
+        expect(screen.getByTestId('tag-chosen-immunity-raw')).toHaveTextContent(
+            'Immunity tag: Raw has chosen Edge to be exempted from the draft',
+        );
+        expect(screen.getByTestId('tag-chosen-manual-raw')).toHaveTextContent(
+            'Manual draft pick tag: Raw has chosen JBL as its 1st pick, replacing the usual random pick',
+        );
+        expect(
+            screen.queryByTestId('tag-chosen-immunity-smackdown'),
+        ).toBeNull();
+    });
+
+    it('greys out the side you aren’t choosing from in steps 1 and 2', () => {
+        const { unmount } = render(<Redraft />);
+
+        // Step 1: you protect one of yours, so the rival's side is greyed.
+        expect(screen.getByTestId('tag-card-smackdown').className).toContain(
+            'opacity-50',
+        );
+        expect(
+            screen.getByTestId('redraft-side-smackdown').className,
+        ).toContain('opacity-50');
+        expect(screen.getByTestId('tag-card-raw').className).not.toContain(
+            'opacity-50',
+        );
+        unmount();
+
+        // Step 2: you pick from the rival, so your own side is greyed.
+        props = { ...baseProps, phase: 'manual' };
+        const step2 = render(<Redraft />);
+        expect(screen.getByTestId('redraft-side-raw').className).toContain(
+            'opacity-50',
+        );
+        expect(
+            screen.getByTestId('redraft-side-smackdown').className,
+        ).not.toContain('opacity-50');
+        step2.unmount();
+
+        // Picks: nothing is greyed.
+        props = { ...baseProps, phase: 'picks' };
+        render(<Redraft />);
+        expect(screen.getByTestId('redraft-side-raw').className).not.toContain(
+            'opacity-50',
+        );
+    });
+
+    it('separates several chosen superstars with commas, and asks for exactly as many as the tag takes', async () => {
+        props = {
+            ...baseProps,
+            phase: 'manual',
+            series: { ...baseProps.series, manual_needed: 2 },
+        } as unknown as typeof baseProps;
+        const user = userEvent.setup();
+        const { unmount } = render(<Redraft />);
+        const use = screen.getByRole('button', { name: 'Use the manual pick' });
+
+        await user.click(
+            within(screen.getByTestId('redraft-row-3')).getByRole('checkbox'),
+        );
+        expect(use).toBeDisabled();
+        await user.click(
+            within(screen.getByTestId('redraft-row-4')).getByRole('checkbox'),
+        );
+        expect(use).toBeEnabled();
+        await user.click(use);
+        await user.click(
+            within(screen.getByRole('dialog')).getByRole('button', {
+                name: 'Draft 2 superstars',
+            }),
+        );
+        expect(post).toHaveBeenCalledWith(
+            expect.stringContaining('/redraft/handpick'),
+            { save_wrestler_ids: [3, 4] },
+            expect.anything(),
+        );
+        unmount();
+
+        props = {
+            ...baseProps,
+            phase: 'picks',
+            series: { ...baseProps.series, handpick_wrestler_ids: [3, 4] },
+        } as unknown as typeof baseProps;
+        render(<Redraft />);
+        expect(screen.getByTestId('tag-chosen-manual-raw')).toHaveTextContent(
+            'Raw has chosen Rey Mysterio, JBL as its first 2 picks, replacing the usual random picks',
+        );
     });
 });

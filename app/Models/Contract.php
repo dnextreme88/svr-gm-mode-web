@@ -40,10 +40,17 @@ class Contract extends Model
     }
 
     /**
-     * Remaining contract value, used by the Loser Leaves Show refund (§22).
+     * The unused part of the contract (house rule, 2026-11-17): what was
+     * paid for it, pro rata for the weeks left. Refunded on an early release,
+     * a renegotiation and Loser Leaves Show. A contract from before the
+     * up-front payments (none paid) falls back to its weekly salary.
      */
     public function remainingValue(): int
     {
+        if ($this->upfront_fee > 0 && $this->length_weeks > 0) {
+            return (int) round($this->upfront_fee * $this->weeks_remaining / $this->length_weeks);
+        }
+
         return $this->weeks_remaining * $this->weekly_cost;
     }
 

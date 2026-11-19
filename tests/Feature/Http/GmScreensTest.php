@@ -36,7 +36,7 @@ it('lists a new career only after it is saved', function () {
     $this->get(route('gm.saves.index'))
         ->assertInertia(fn (Assert $page) => $page->has('saves', 0)->where('unsaved.id', $save->id));
 
-    $this->get(route('gm.draft.show', $save))->assertInertia(fn (Assert $page) => $page->where('game.saved', false));
+    $this->get(route('gm.draft.show', $save))->assertInertia(fn (Assert $page) => $page->where('game.last_saved', null));
 
     $this->post(route('gm.saves.persist', $save))->assertRedirect();
 
@@ -213,8 +213,8 @@ it('sends each show’s fatigue progression with the results', function () {
             ->where('shows.0.fatigue.0.name', 'Edge')
             ->where('shows.0.fatigue.0.start', 20)
             ->where('shows.0.fatigue.0.after_shows', 30)
-            ->where('shows.0.fatigue.0.end', 10)
-            ->where('shows.0.fatigue.0.recovered_bars', 2)
+            ->where('shows.0.fatigue.0.end', 0)
+            ->where('shows.0.fatigue.0.recovered_bars', 3)
             ->where('shows.0.fatigue.0.rested', false));
 });
 

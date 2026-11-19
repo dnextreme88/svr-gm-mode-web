@@ -40,7 +40,9 @@ class FinancialReport
      */
     public function forWeek(Save $save, Brand $brand, int $week): array
     {
-        $entries = LedgerEntry::where('save_id', $save->id)
+        // Only settled lines: a show's match and promo money counts once its
+        // news is in, as it does on the budget (house rule, 2026-11-17).
+        $entries = LedgerEntry::where('save_id', $save->id)->where('settled', true)
             ->where('brand', $brand)
             ->where('week_number', $week)
             ->orderBy('id')
@@ -115,7 +117,7 @@ class FinancialReport
      */
     public function history(Save $save, Brand $brand): array
     {
-        $rows = LedgerEntry::where('save_id', $save->id)
+        $rows = LedgerEntry::where('save_id', $save->id)->where('settled', true)
             ->where('brand', $brand)
             ->selectRaw('week_number, season, SUM(CASE WHEN category = ? THEN amount ELSE 0 END) as opening_balance, SUM(CASE WHEN category != ? AND amount > 0 THEN amount ELSE 0 END) as income, SUM(CASE WHEN category != ? AND amount < 0 THEN amount ELSE 0 END) as expenses', array_fill(0, 3, LedgerCategory::StartingBudget->value))
             ->groupBy('week_number', 'season')

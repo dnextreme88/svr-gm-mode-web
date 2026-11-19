@@ -8,7 +8,7 @@ import type {
     PromoTypeOption,
 } from '@/components/gm/promo-slots';
 import { saveVisit } from '@/lib/save-status';
-import type { RosterEntry } from '@/types/gm';
+import type { FatigueConfig, RosterEntry } from '@/types/gm';
 
 // The Clear confirmation reads the player's brand from the Inertia page.
 vi.mock('@inertiajs/react', () => ({
@@ -161,6 +161,7 @@ function setup(slots: PromoSlotView[] = [emptySlot(1)]) {
             readOnly={false}
             onSave={onSave}
             onClear={onClear}
+            fatigueConfig={{ max: 100, bar_size: 10 } as FatigueConfig}
         />,
     );
 
@@ -565,5 +566,19 @@ describe('PromoSlots', () => {
         );
 
         expect(onClear).toHaveBeenCalledWith(1);
+    });
+});
+
+describe('Inactive Superstar fatigue (house rule, 2026-11-17)', () => {
+    it('shows the picked superstar’s fatigue beside the picker', () => {
+        setup([
+            {
+                ...emptySlot(1),
+                promo_type_id: 2,
+                target_wrestler_id: 10,
+            },
+        ]);
+
+        expect(screen.getByTestId('promo-1-fatigue')).toBeInTheDocument();
     });
 });

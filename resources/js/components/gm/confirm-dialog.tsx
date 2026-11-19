@@ -30,6 +30,7 @@ export function ConfirmDialog({
     busy = false,
     busyText = 'Working…',
     wide = false,
+    stayOpen = false,
 }: {
     open: boolean;
     title: string;
@@ -52,6 +53,11 @@ export function ConfirmDialog({
     busyText?: string;
     /** A wider dialog, for a report with rows (the fatigue modal). */
     wide?: boolean;
+    /**
+     * Ignore clicks outside the dialog and Escape, so it only closes from its
+     * own buttons (Simulate to here: a stray click mustn't stop the run).
+     */
+    stayOpen?: boolean;
 }) {
     const brand = usePage<{ game?: GameShell }>().props.game?.player_brand;
 
@@ -61,10 +67,16 @@ export function ConfirmDialog({
             onOpenChange={(next) => !next && !busy && onCancel()}
         >
             <DialogContent
+                onInteractOutside={
+                    stayOpen ? (event) => event.preventDefault() : undefined
+                }
+                onEscapeKeyDown={
+                    stayOpen ? (event) => event.preventDefault() : undefined
+                }
                 data-brand-tint={brand ?? 'raw'}
                 className={cn(
                     'gm-panel rounded-none border-white/10 bg-arena-2 font-gm text-ink',
-                    wide && 'sm:max-w-2xl',
+                    wide && 'sm:max-w-3xl',
                 )}
             >
                 <DialogTitle className="gm-heading text-2xl">

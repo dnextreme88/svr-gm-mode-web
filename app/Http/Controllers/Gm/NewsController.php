@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Gm;
 use App\Enums\SaveStage;
 use App\Enums\ShowType;
 use App\Http\Controllers\Controller;
+use App\Http\Support\WrapUp;
 use App\Models\Save;
 use App\Models\Show;
 use App\Services\Calendar\CalendarService;
 use App\Services\News\NewsComposer;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,7 +20,7 @@ use Inertia\Response;
  */
 class NewsController extends Controller
 {
-    public function __invoke(Save $save, NewsComposer $composer, CalendarService $calendar): Response|RedirectResponse
+    public function __invoke(Request $request, Save $save, NewsComposer $composer, CalendarService $calendar): Response|RedirectResponse
     {
         // House rule (2026-11-15): WrestleMania week's news is written when the
         // re-draft ends, so the re-draft comes first (the results' Continue
@@ -27,9 +29,15 @@ class NewsController extends Controller
             return to_route('gm.redraft.show', $save);
         }
 
+        $next = $this->continueTo($save, $composer, $calendar);
+        // House rule (2026-11-17): the week just aired, reached from its
+        // Financials: the header stays hidden and Continue opens the inbox.
+        $wrapUp = WrapUp::active($request, $save) && $next['url'] === route('gm.email', $save);
+
         return Inertia::render('gm/news', [
             'pages' => $composer->pages($save),
-            'continue_to' => $this->continueTo($save, $composer, $calendar),
+            'continue_to' => $wrapUp ? [...$next, 'url' => route('gm.email', ['save' => $save, 'wrap' => 1])] : $next,
+            'wrap_up' => $wrapUp,
         ]);
     }
 

@@ -208,8 +208,8 @@ export function FatigueProgress({
                                             className={cn(
                                                 'ml-2',
                                                 w.rested
-                                                    ? 'text-zone-safe'
-                                                    : 'text-ink-dim',
+                                                    ? 'text-[#74B4FF]'
+                                                    : 'text-zone-safe',
                                             )}
                                         >
                                             Recovered: −

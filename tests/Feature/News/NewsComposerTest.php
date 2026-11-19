@@ -329,3 +329,64 @@ it('announces the next PPV two weeks out as a story and one week out as a headli
     expect($upcoming->pluck('tier')->map->value->all())->toBe(['story', 'headline'])
         ->and($upcoming->pluck('week_number')->all())->toBe([2, 3]);
 });
+
+it('keeps match results as the last fallback for headlines and stories (house rule, 2026-11-17)', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+    news($save, NewsEventType::MatchResult, NewsTier::Story, NewsBrand::Raw, rank(main: true, title: true), 'slot:6', ['main_event' => true]);
+    news($save, NewsEventType::MatchResult, NewsTier::Story, NewsBrand::Raw, rank(gimmick: true), 'slot:2', ['main_event' => false]);
+
+    foreach ([30, 20, 10] as $p) {
+        news($save, NewsEventType::Released, NewsTier::Story, NewsBrand::Raw, $p);
+    }
+
+    $page = app(NewsComposer::class)->compose($save, 1);
+    $types = fn (array $cards): array => collect($cards)->pluck('type')->unique()->values()->all();
+
+    // Other news takes the headline and both stories; the results stay off
+    // the cards and out of the news ticker (the brand ticker lists them).
+    expect($page['headlines']['raw']['type'])->toBe('released')
+        ->and($types($page['stories']['raw']))->toBe(['released'])
+        ->and(collect($page['ticker'])->pluck('type')->all())->not->toContain('match_result');
+});
+
+it('fills the cards other news leaves empty with the biggest match results', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+    news($save, NewsEventType::MatchResult, NewsTier::Story, NewsBrand::Raw, rank(), 'slot:1', ['main_event' => false]);
+    news($save, NewsEventType::MatchResult, NewsTier::Story, NewsBrand::Raw, rank(main: true, title: true), 'slot:6', ['main_event' => true]);
+    $main = NewsEvent::latest('id')->first();
+    news($save, NewsEventType::Released, NewsTier::Story, NewsBrand::Raw, 10);
+
+    $page = app(NewsComposer::class)->compose($save, 1);
+
+    expect($page['headlines']['raw']['type'])->toBe('released')
+        ->and(collect($page['stories']['raw'])->pluck('id')->first())->toBe($main->id)
+        ->and($page['stories']['raw'])->toHaveCount(2);
+});
+
+it('leads the WWE card with the PPV the week before it airs, ahead of Slander and the crowd (house rule, 2026-11-17)', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+    news($save, NewsEventType::Attendance, NewsTier::Headline, NewsBrand::Both, 70);
+    news($save, NewsEventType::SlanderResult, NewsTier::Headline, NewsBrand::Both, 80);
+    news($save, NewsEventType::PpvUpcoming, NewsTier::Headline, NewsBrand::Both, 55, payload: ['ppv' => 'Backlash', 'n' => 1]);
+
+    expect(app(NewsComposer::class)->compose($save, 1)['headlines']['neutral']['type'])->toBe('ppv_upcoming');
+});
+
+it('makes the crowd the WWE card’s last resort, after any other news (house rule, 2026-11-17)', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+    news($save, NewsEventType::Attendance, NewsTier::Headline, NewsBrand::Both, 70);
+    news($save, NewsEventType::TradeCompleted, NewsTier::Story, NewsBrand::Both, 10);
+
+    $page = app(NewsComposer::class)->compose($save, 1);
+
+    // Even a WWE story is promoted ahead of the crowd.
+    expect($page['headlines']['neutral']['type'])->toBe('trade_completed')
+        ->and($page['headlines']['neutral']['promoted'])->toBeTrue();
+});
+
+it('falls back to the crowd when the WWE card has nothing else', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
+    news($save, NewsEventType::Attendance, NewsTier::Headline, NewsBrand::Both, 70);
+
+    expect(app(NewsComposer::class)->compose($save, 1)['headlines']['neutral']['type'])->toBe('attendance');
+});

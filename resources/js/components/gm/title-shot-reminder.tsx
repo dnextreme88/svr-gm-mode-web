@@ -43,7 +43,7 @@ export function TitleShotReminder({
                     </p>
                 )
             }
-            title="Title match to book"
+            title="Champion vs. Contender Title Match"
             message={
                 <ul className="space-y-2">
                     {shots.map((shot) => (
@@ -52,8 +52,10 @@ export function TitleShotReminder({
                             <strong className="text-gold-hot">
                                 {shot.championship}
                             </strong>{' '}
-                            match by winning a Champion vs. Contender match. It
-                            has to be on this card before the week airs.
+                            match by winning a Champion vs. Contender match last
+                            week and you are required to book it this week.
+                            Booking it now will add this match to the first open
+                            match slot.
                         </li>
                     ))}
                 </ul>

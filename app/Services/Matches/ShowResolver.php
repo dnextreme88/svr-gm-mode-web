@@ -275,12 +275,16 @@ class ShowResolver
         }
 
         if ($resolved->bouts !== []) {
-            // A Gauntlet: each bout is its own meeting.
+            // A Gauntlet: each one-on-one bout is its own meeting (a Tornado
+            // Tag Turmoil's tag bouts aren't, like any tag match).
             $sides = $slot->sides();
 
             foreach ($resolved->bouts as $bout) {
                 $loser = $bout['winner_side'] === $bout['side_a'] ? $bout['side_b'] : $bout['side_a'];
-                $this->rivalries->recordMeeting($context->save, $sides[$bout['winner_side']][0], $sides[$loser][0], $week);
+
+                if (count($sides[$bout['winner_side']]) === 1 && count($sides[$loser]) === 1) {
+                    $this->rivalries->recordMeeting($context->save, $sides[$bout['winner_side']][0], $sides[$loser][0], $week);
+                }
             }
         } elseif ($type->sides !== [] && max($type->sides) === 1) {
             foreach ($slot->sides()[$resolved->loserSide] ?? [] as $loserId) {
@@ -319,7 +323,8 @@ class ShowResolver
         $brand = $slot->owner_brand ?? $show->brand;
 
         if ($slot->cost > 0 && $brand !== null) {
-            $this->ledger->post($context->save, $brand, LedgerCategory::MatchCost, -$slot->cost, "{$type->name} ({$show->name})", $week, $slot, $show->id);
+            // House rule (2026-11-17): settled once the night's news is in.
+            $this->ledger->post($context->save, $brand, LedgerCategory::MatchCost, -$slot->cost, "{$type->name} ({$show->name})", $week, $slot, $show->id, settled: false);
         }
     }
 
@@ -568,7 +573,7 @@ class ShowResolver
 
         $brand = $wrestler->brand ?? NewsBrand::Both;
 
-        if ($won && in_array($wrestler->win_streak, (array) config('gm.news.win_streaks'), true)) {
+        if ($won && self::isStreakMilestone($wrestler->win_streak)) {
             $headline = $wrestler->win_streak >= (int) config('gm.news.win_streak_headline_at');
             $this->news->record($save, NewsEventType::WinStreak, $headline ? NewsTier::Headline : NewsTier::Story, $brand, [
                 'wrestler' => $wrestler->name(),
@@ -602,5 +607,14 @@ class ShowResolver
     private function namesOf(MatchSlot $slot, array $ids): string
     {
         return $this->factions->name($slot->show->save_id, $ids, $slot->show->week_number, $slot->sides());
+    }
+
+    /**
+     * Whether a win streak makes the news (house rule, 2026-11-17): at 10,
+     * 15 and 20 wins, and no more after that.
+     */
+    public static function isStreakMilestone(int $streak): bool
+    {
+        return in_array($streak, array_map('intval', (array) config('gm.news.win_streaks')), true);
     }
 }

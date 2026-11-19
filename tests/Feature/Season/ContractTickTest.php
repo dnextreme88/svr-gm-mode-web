@@ -16,13 +16,16 @@ use App\Models\Email;
 use App\Models\Injury;
 use App\Models\InjuryType;
 use App\Models\LedgerEntry;
+use App\Models\MatchSlot;
 use App\Models\MoneyInTheBank;
 use App\Models\MoraleComplaint;
 use App\Models\Save;
 use App\Models\SaveWrestler;
 use App\Models\TitleReign;
 use App\Services\Contracts\ContractService;
+use App\Services\Finance\FinancialReport;
 use App\Services\Week\WeekResolver;
+use Tests\Support\Card;
 use Tests\Support\GameBuilder;
 
 /*
@@ -70,7 +73,8 @@ it('does not decrement twice when resolution is re-run for the same week', funct
 
     expect($again->id)->toBe($first->id)
         ->and(weeksLeft(GameBuilder::wrestler($save, 'Edge')))->toBe(51)
-        ->and(LedgerEntry::where('save_id', $save->id)->where('category', LedgerCategory::ContractUpkeep)->where('week_number', 1)->count())->toBe(2);
+        // House rule (2026-11-17): contracts are paid when signed, so no salary lines.
+        ->and(LedgerEntry::where('save_id', $save->id)->where('category', LedgerCategory::ContractUpkeep)->where('week_number', 1)->count())->toBe(0);
 });
 
 it('cannot double-decrement even if the tick itself runs twice in a week', function () {
@@ -156,7 +160,7 @@ it('sends the digest only when someone has 4 or fewer weeks left, listing all of
 
 it('uses Tazz as the SmackDown sender', function () {
     // The rival GM would renew Batista before the digest goes out.
-    config(['gm.ai.roster.renew_at_weeks_left' => 0]);
+    config(['gm.ai.roster.renewal.decide_at_weeks_left' => 0]);
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
     Contract::where('save_wrestler_id', GameBuilder::wrestler($save, 'Batista')->id)->update(['weeks_remaining' => 3]);
 
@@ -201,15 +205,40 @@ it('lets GMs release and sign at any time, with Free Agency signings joining the
     expect(weeksLeft($foley))->toBe(23);
 });
 
-it('charges weekly upkeep to Financials in the same step', function () {
+it('charges each contract in full when signed, with no weekly salaries (house rule, 2026-11-17)', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+    $signings = LedgerEntry::where('save_id', $save->id)->where('brand', Brand::Raw)->where('category', LedgerCategory::SigningFee)->get();
+
+    // Two male superstars on 12 months: $480,000 each, paid at signing.
+    expect($signings->pluck('amount')->all())->toBe([-480_000, -480_000])
+        ->and($signings->pluck('memo')->all())->toBe(['Signed Edge for 12 months', 'Signed Kane for 12 months'])
+        ->and($save->brand(Brand::Raw)->budget)->toBe(15_000_000 - 960_000);
 
     app(WeekResolver::class)->resolve($save->refresh());
 
-    $line = LedgerEntry::where('save_id', $save->id)->where('brand', Brand::Raw)->where('category', LedgerCategory::ContractUpkeep)->first();
+    expect(LedgerEntry::where('save_id', $save->id)->where('category', LedgerCategory::ContractUpkeep)->count())->toBe(0);
+});
 
-    // House rule (2026-11-15): two male superstars on 12 months, $240,000 / 52 each.
-    expect($line->amount)->toBe(-2 * 4_615)
-        ->and($line->memo)->toBe('Salaries (2 superstars)')
-        ->and($line->week_number)->toBe(1);
+it('settles the match and promo money once the shows are over (house rule, 2026-11-17)', function () {
+    GameBuilder::passiveRival();
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito'], smackdown: ['Batista']);
+    $show = Card::show($save);
+    Card::book($save, $show, 1, Card::type('ladder', 'Single'), [['Edge'], ['Kane']]);
+    Card::book($save, $show, 2, Card::singles(), [['Carlito'], ['Kane']]);
+    $before = $save->brand(Brand::Raw)->budget;
+
+    // Live results: the Ladder match airs, but its price waits.
+    app(WeekResolver::class)->begin($save->refresh());
+    app(WeekResolver::class)->decide($save, MatchSlot::where('show_id', $show->id)->where('position', 1)->value('id'), 0);
+
+    $line = LedgerEntry::where('save_id', $save->id)->where('category', LedgerCategory::MatchCost)->sole();
+    expect($line->settled)->toBeFalse()
+        ->and($save->brand(Brand::Raw)->budget)->toBe($before)
+        // The Financials report waits for it too.
+        ->and(collect(app(FinancialReport::class)->forWeek($save, Brand::Raw, 1)['groups'])->flatMap(fn (array $g): array => $g['lines'])->pluck('category')->all())->not->toContain('match_cost');
+
+    app(WeekResolver::class)->simulateAll($save->refresh());
+
+    expect($line->refresh()->settled)->toBeTrue()
+        ->and(LedgerEntry::where('save_id', $save->id)->where('settled', false)->count())->toBe(0);
 });

@@ -60,7 +60,8 @@ it('groups a week by night, then week-wide, and folds promos into one line (hous
     expect($week['title'])->toBe($show->name)
         ->and(collect($night['lines'])->pluck('group')->all())->toContain('match_cost', 'promos', 'show_production', 'show_income')
         ->and(collect($night['lines'])->firstWhere('group', 'promos')['label'])->toBe('Promos')
-        ->and(collect($weekWide['lines'])->pluck('category')->all())->toContain('contract_upkeep')
+        // House rule (2026-11-17): no weekly salaries; contracts were paid when signed.
+        ->and(collect($weekWide['lines'] ?? [])->pluck('category')->all())->not->toContain('contract_upkeep')
         ->and(collect($week['totals'])->firstWhere('group', 'promos')['amount'])->toBe(200_000)
         ->and($week['net'])->toBe(collect($week['groups'])->sum('total'));
 });

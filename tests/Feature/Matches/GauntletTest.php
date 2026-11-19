@@ -4,10 +4,13 @@ use App\Enums\FinishEvent;
 use App\Enums\MatchMethod;
 use App\Enums\Stipulation;
 use App\Exceptions\GameRuleException;
+use App\Models\Championship;
 use App\Models\GauntletBout;
 use App\Models\MatchResult;
 use App\Models\MatchSlot;
 use App\Models\Save;
+use App\Services\Card\Booking;
+use App\Services\Card\CardService;
 use App\Services\Matches\MatchResolver;
 use App\Services\Week\WeekResolver;
 use App\Support\Rng\SeededRng;
@@ -129,3 +132,72 @@ it('runs a 4-Man and a 5-Man Gauntlet in 3 and 4 bouts (house rule, 2026-11-08)'
     ['4-Man Gauntlet', 4],
     ['5-Man Gauntlet', 5],
 ]);
+
+/*
+| Tornado Tag Turmoil (house rule, 2026-11-17): 5 tag teams, 4 tag bouts,
+| the singles Gauntlets' rules otherwise; its #1 Contender's Match is for a
+| tag title.
+*/
+
+const TURMOIL = [['Jeff Hardy', 'Matt Hardy'], ['Rob Van Dam', 'Edge'], ['Triple H', 'Undertaker'], ['Kane', 'Carlito'], ['Chris Masters', 'Shelton Benjamin']];
+
+function turmoilSave(): Save
+{
+    GameBuilder::passiveRival();
+
+    return GameBuilder::inSeason(raw: [...array_merge(...TURMOIL), 'Lance Cade', 'Trevor Murdoch', 'Eugene'], smackdown: ['Batista', 'JBL']);
+}
+
+it('runs a Tornado Tag Turmoil as 4 tag bouts between 5 teams', function () {
+    $save = turmoilSave();
+    $slot = Card::book($save, Card::show($save), 1, Card::type('gauntlet', 'Tornado Tag Turmoil'), TURMOIL);
+
+    app(WeekResolver::class)->resolve($save->refresh());
+
+    $bouts = GauntletBout::where('match_slot_id', $slot->id)->orderBy('round')->get();
+    $result = MatchResult::where('match_slot_id', $slot->id)->sole();
+    $winners = TURMOIL[$result->winner_side];
+
+    expect($slot->refresh()->matchType->sides)->toBe([2, 2, 2, 2, 2])
+        ->and($slot->matchType->fatigue_cost_bars)->toBe(3)
+        ->and($bouts)->toHaveCount(4)
+        ->and($bouts->last()->winner_side)->toBe($result->winner_side);
+
+    // The record counts once: the winning team a win each, every other entrant a loss.
+    foreach (array_merge(...TURMOIL) as $name) {
+        $w = GameBuilder::wrestler($save, $name);
+
+        expect([$w->wins, $w->losses])->toBe(in_array($name, $winners, true) ? [1, 0] : [0, 1]);
+    }
+});
+
+it('books a Tornado Tag Turmoil bout by bout with Book to Win', function () {
+    $save = turmoilSave();
+    $show = Card::show($save);
+    $slot = Card::book($save, $show, 1, Card::type('gauntlet', 'Tornado Tag Turmoil'), TURMOIL);
+    Card::book($save, $show, 2, Card::singles(), [['Lance Cade'], ['Trevor Murdoch']]);
+
+    app(WeekResolver::class)->begin($save);
+    app(WeekResolver::class)->decide($save, $slot->id, null, [1, 2, 2, 4]);
+
+    expect(GauntletBout::where('match_slot_id', $slot->id)->orderBy('round')->get()->map(fn (GauntletBout $b) => [$b->side_a, $b->side_b, $b->winner_side])->all())
+        ->toBe([[0, 1, 1], [1, 2, 2], [2, 3, 2], [2, 4, 4]])
+        ->and(MatchResult::where('match_slot_id', $slot->id)->value('winner_side'))->toBe(4);
+});
+
+it('makes a Tornado Tag Turmoil a #1 Contender’s Match for a tag title, not a singles one', function () {
+    $save = turmoilSave();
+    GameBuilder::giveTitle($save, 'world_tag_team', ['Lance Cade', 'Trevor Murdoch']);
+    GameBuilder::giveTitle($save, 'intercontinental', ['Eugene']);
+    $type = Card::type('gauntlet', 'Tornado Tag Turmoil');
+    $ids = array_map(fn (array $side): array => array_map(fn (string $n): int => GameBuilder::wrestler($save, $n)->id, $side), TURMOIL);
+    $tag = Championship::where('key', 'world_tag_team')->firstOrFail();
+    $ic = Championship::where('key', 'intercontinental')->firstOrFail();
+    $cards = app(CardService::class);
+
+    $slot = $cards->book(Card::show($save), 1, new Booking($type, $ids, [], null, Stipulation::NumberOneContender, $tag->id));
+
+    expect($slot->stipulation)->toBe(Stipulation::NumberOneContender)
+        ->and(fn () => $cards->book(Card::show($save), 2, new Booking($type, $ids, [], null, Stipulation::NumberOneContender, $ic->id)))
+        ->toThrow(GameRuleException::class, 'one superstar per side');
+});

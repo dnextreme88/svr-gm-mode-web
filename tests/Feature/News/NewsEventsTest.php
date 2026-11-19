@@ -109,7 +109,7 @@ it('words a title change by how it was won, with she for the Women’s title and
     $event = newsOf(NewsEventType::TitleChange)->sole();
     $title = Championship::where('key', $key)->value('name');
 
-    expect($event->rendered_text)->toBe("NEW CHAMPION! {$challenger} wins the gold!")
+    expect($event->rendered_text)->toBe("New owner of the {$title} was crowned!")
         ->and(app(NewsTemplates::class)->summary(NewsEventType::TitleChange, $event->payload))
         ->toStartWith("{$challenger} beat {$champion} via submission and walks out with the {$title}! ")
         ->toContain("The champion looks forward to meeting new challengers that {$pronoun} will dethrone!");

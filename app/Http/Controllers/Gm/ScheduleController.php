@@ -10,6 +10,7 @@ use App\Models\Save;
 use App\Models\Show;
 use App\Services\Calendar\CalendarService;
 use App\Services\Week\BookingOrder;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -43,7 +44,7 @@ class ScheduleController extends Controller
             ], $row), $month['rows']),
         ], $calendar->seasonMonths($season));
 
-        $currentDate = $calendar->date($save->current_week)->format('Y-m');
+        $currentDate = $this->nextNight($save, $shows, $calendar)->format('Y-m');
 
         return Inertia::render('gm/schedule', [
             'season' => $season,
@@ -132,5 +133,28 @@ class ScheduleController extends Controller
         }
 
         return 'open';
+    }
+
+    /**
+     * The night the calendar opens on (fix, 2026-11-17): the player's next
+     * show this week, so a week that starts in one month and airs its
+     * weekly show in the next (Sun Oct 30, Smackdown Nov 4) opens on the
+     * month the player is about to book. A PPV night still to air comes
+     * first; WrestleMania week has no weekly show.
+     *
+     * @param  Collection<int, Show>  $shows
+     */
+    private function nextNight(Save $save, Collection $shows, CalendarService $calendar): CarbonImmutable
+    {
+        $week = $save->current_week;
+        $ppvToAir = $shows->contains(fn (Show $show): bool => $show->week_number === $week
+            && $show->show_type === ShowType::Ppv
+            && ($show->brand === null || $show->brand === $save->player_brand)
+            && $show->status !== ShowStatus::Aired);
+        $weekly = $shows->contains(fn (Show $show): bool => $show->week_number === $week
+            && $show->show_type === ShowType::Weekly
+            && $show->brand === $save->player_brand);
+
+        return $ppvToAir || ! $weekly ? $calendar->date($week) : $calendar->showDate($week, $save->player_brand);
     }
 }

@@ -7,7 +7,7 @@ import { REEL_FLASH_MS, REEL_SPIN_MS } from '@/components/gm/first-pick-reel';
 import { LOADING_OVERLAY_DELAY_MS } from '@/components/gm/loading-overlay';
 import Saves from '@/pages/gm/saves/index';
 
-const router = vi.hoisted(() => ({ visit: vi.fn() }));
+const router = vi.hoisted(() => ({ visit: vi.fn(), post: vi.fn() }));
 const requestJson = vi.hoisted(() => vi.fn());
 
 vi.mock('@inertiajs/react', () => ({
@@ -130,5 +130,77 @@ describe('new game rosters', () => {
         });
 
         expect(router.visit).toHaveBeenCalledWith('/gm/saves/1/draft');
+    });
+});
+
+describe('loading a saved career (house rule, 2026-11-17)', () => {
+    const slot = {
+        id: 7,
+        name: 'My Career',
+        player_brand: 'raw' as const,
+        stage: 'in_season' as const,
+        season: 1,
+        season_week: 12,
+        month: 'June',
+        budget: 9_000_000,
+        updated_at: null,
+        has_changes: false,
+    };
+
+    beforeEach(() => router.post.mockReset());
+
+    it('loads straight away when nothing changed since the save', async () => {
+        const user = userEvent.setup();
+        render(<Saves saves={[slot]} unsaved={null} starting_budget={1} />);
+
+        expect(screen.getByText(/Season 1, week 12/)).toBeInTheDocument();
+        await user.click(screen.getByTestId('load-career-7'));
+
+        expect(router.post).toHaveBeenCalledWith(
+            '/gm/saves/7/load',
+            {},
+            expect.any(Object),
+        );
+    });
+
+    it('asks first when progress since the save would be lost', async () => {
+        const user = userEvent.setup();
+        render(
+            <Saves
+                saves={[{ ...slot, has_changes: true }]}
+                unsaved={null}
+                starting_budget={1}
+            />,
+        );
+
+        expect(screen.getByTestId('unsaved-progress-7')).toBeInTheDocument();
+        await user.click(screen.getByTestId('load-career-7'));
+
+        expect(router.post).not.toHaveBeenCalled();
+        expect(screen.getByRole('dialog')).toHaveTextContent(
+            'Season 1, week 12',
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Load save' }));
+        expect(router.post).toHaveBeenCalledWith(
+            '/gm/saves/7/load',
+            {},
+            expect.any(Object),
+        );
+    });
+
+    it('covers the page while the save loads', async () => {
+        const user = userEvent.setup();
+        router.post.mockImplementation(
+            (_u: string, _d: unknown, o?: { onStart?: () => void }) =>
+                o?.onStart?.(),
+        );
+        render(<Saves saves={[slot]} unsaved={null} starting_budget={1} />);
+
+        await user.click(screen.getByTestId('load-career-7'));
+
+        expect(screen.getByTestId('loading-career')).toHaveTextContent(
+            'Loading your career. Please wait...',
+        );
     });
 });

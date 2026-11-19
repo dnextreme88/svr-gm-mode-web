@@ -64,6 +64,8 @@ type Props = GamePageProps & {
     from_schedule?: boolean;
     /** The week is airing live: the player's matches are still being decided. */
     airing?: boolean;
+    /** The week just finished airing, News still to open (2026-11-13). */
+    wrapping_up?: boolean;
     /** After a PPV night (house rule, 2026-11-01): the weekly show to book next. Continue opens the News first (2026-11-16); the layout hides the header while it is set. */
     continue_to?: { name: string; url: string } | null;
     /** House rule: the briefcase holder may cash in after the world title match that just aired. */
@@ -159,6 +161,7 @@ export default function Results() {
         focus_match_id,
         from_schedule,
         airing = false,
+        wrapping_up = false,
         cash_in_offer = null,
         conditional_stories = [],
         shows,
@@ -167,6 +170,9 @@ export default function Results() {
     const rival = brand !== undefined && brand !== game.player_brand;
     const [busy, setBusy] = useState(false);
     const [action, setAction] = useState<string | null>(null);
+    // Continue to the News, for the week just aired: says where it's going
+    // while the page loads (2026-11-17).
+    const [continuing, setContinuing] = useState(false);
     const reel = useMemo<ReelItem[]>(
         () =>
             shows.flatMap((show) => {
@@ -498,6 +504,31 @@ export default function Results() {
                             Continue
                         </button>
                     </>
+                ) : wrapping_up ? (
+                    <button
+                        type="button"
+                        className="gm-btn"
+                        disabled={continuing}
+                        aria-busy={continuing || undefined}
+                        onClick={() =>
+                            router.visit(
+                                gm.financials.url(game.id, {
+                                    query: { wrap: 1 },
+                                }),
+                                {
+                                    onStart: () => setContinuing(true),
+                                    onFinish: () => setContinuing(false),
+                                },
+                            )
+                        }
+                    >
+                        <BusyLabel
+                            busy={continuing}
+                            busyText="Continuing to Financials..."
+                        >
+                            Continue to Financials
+                        </BusyLabel>
+                    </button>
                 ) : (
                     <Link href={gm.news.url(game.id)} className="gm-btn">
                         Continue
@@ -643,7 +674,6 @@ export default function Results() {
                                     {current.outcome.pending ? (
                                         <BookToWinCard
                                             match={current.outcome}
-                                            showName={current.show.name}
                                             isMainEvent={current.isMainEvent}
                                             busy={busy}
                                             action={action}
@@ -872,7 +902,7 @@ function MatchRow({
                     <span className="flex max-w-[45%] shrink-0 items-center gap-1 text-right sm:max-w-none sm:whitespace-nowrap">
                         {o.pending ? (
                             o.is_next ? (
-                                <span className="gm-btn gm-btn-gold gm-btn-sm">
+                                <span className="gm-btn gm-btn-gold gm-btn-sm animate-gm-pulse">
                                     Pending Result
                                 </span>
                             ) : (

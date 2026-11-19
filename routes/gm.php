@@ -43,6 +43,7 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::get('/', [SaveController::class, 'show'])->name('saves.show');
             Route::delete('/', [SaveController::class, 'destroy'])->name('saves.destroy');
             Route::post('persist', [SaveController::class, 'persist'])->name('saves.persist');
+            Route::post('load', [SaveController::class, 'load'])->name('saves.load');
 
             Route::get('draft', [DraftController::class, 'show'])->name('draft.show');
             Route::post('draft/pick', [DraftController::class, 'pick'])->name('draft.pick');

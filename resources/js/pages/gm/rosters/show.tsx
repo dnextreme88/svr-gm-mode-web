@@ -616,7 +616,7 @@ export default function WrestlerDetail() {
                             />
                             {is_own && props.release_fee != null && (
                                 <div className="col-span-2 text-sm text-ink-dim">
-                                    Releasing now costs{' '}
+                                    Releasing now refunds{' '}
                                     <span className="gm-num text-ink">
                                         {formatMoney(props.release_fee)}
                                     </span>{' '}
@@ -823,7 +823,7 @@ export default function WrestlerDetail() {
                                     )}
                                     {c.release_fee != null && (
                                         <span className="block text-xs text-zone-serious">
-                                            Release fee{' '}
+                                            Refunded{' '}
                                             {formatMoney(c.release_fee)}
                                         </span>
                                     )}

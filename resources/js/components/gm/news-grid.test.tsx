@@ -58,9 +58,23 @@ function page(week: number, overrides: Partial<NewsPage> = {}): NewsPage {
             ],
         },
         ticker: [card(week * 100 + 7, 'raw', `Ticker item ${week}`, 'ticker')],
+        tickers: {
+            raw: ['Edge def. Kane · Normal Matches — Single'],
+            smackdown: [],
+        },
         attendance: [
-            { name: 'Monday Night Raw', ppv: false, crowd: 15050 },
-            { name: 'Friday Night Smackdown', ppv: false, crowd: 9800 },
+            {
+                name: 'Monday Night Raw',
+                ppv: false,
+                crowd: 15050,
+                brands: ['raw'],
+            },
+            {
+                name: 'Friday Night Smackdown',
+                ppv: false,
+                crowd: 9800,
+                brands: ['smackdown'],
+            },
         ],
         ...overrides,
     };
@@ -88,25 +102,23 @@ describe('NewsGrid', () => {
         ).toBeInTheDocument();
     });
 
-    it('leads the ticker with the week’s crowds in gold, then ticker-tier events', () => {
+    it('gives each brand a ticker of its match results only (house rule, 2026-11-17)', () => {
         render(<NewsGrid pages={[page(3)]} />);
 
-        const items = screen.getAllByTestId('ticker-item');
-
-        expect(items.map((li) => li.textContent)).toEqual([
-            '◆Fan attendance: Monday Night Raw 15,050 · Friday Night Smackdown 9,800',
-            '◆Ticker item 3',
-        ]);
-        expect(items[0].className).toContain('text-gold-hot');
-        expect(items[1].className).not.toContain('text-gold-hot');
-    });
-
-    it('leaves the crowds out of the ticker for a week without them', () => {
-        render(<NewsGrid pages={[page(3, { attendance: [] })]} />);
-
         expect(
-            screen.getAllByTestId('ticker-item').map((li) => li.textContent),
-        ).toEqual(['◆Ticker item 3']);
+            within(screen.getByTestId('ticker-raw'))
+                .getAllByTestId('ticker-item')
+                .map((li) => li.textContent),
+        ).toEqual(['◆Edge def. Kane · Normal Matches — Single']);
+        expect(
+            screen.getByRole('marquee', { name: 'Raw ticker' }),
+        ).toBeInTheDocument();
+        // No crowd line, no other news, and no WWE ticker.
+        expect(screen.queryByText(/Fan attendance/)).toBeNull();
+        expect(screen.queryByText('Ticker item 3')).toBeNull();
+        expect(screen.queryByTestId('ticker-neutral')).toBeNull();
+        // Smackdown had no matches to list, so it has no ticker this week.
+        expect(screen.queryByTestId('ticker-smackdown')).toBeNull();
     });
 
     it('moves between weeks, newest first, with buttons and arrow keys', async () => {

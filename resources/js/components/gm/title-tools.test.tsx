@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { StipulationPicker } from '@/components/gm/title-tools';
+import { StipulationPicker, TitleCycler } from '@/components/gm/title-tools';
 import type { SlotDraft } from '@/lib/card';
 import type {
     MatchTypeOption,
@@ -228,5 +228,62 @@ describe('StipulationPicker', () => {
         );
 
         expect(screen.getByText('No stipulation eligible')).toBeInTheDocument();
+    });
+});
+
+// House rule (2026-11-17): on an interbrand card the rival's own title and
+// stipulation show on its slots, in the rival's brand colour.
+describe('the rival’s title and stipulation on an interbrand card', () => {
+    // Batista (3) is the rival's champion: the player's context knows
+    // nothing about his title.
+    const rivalSlot: SlotDraft = {
+        ...start,
+        sides: [[3], [4]],
+        titleChampionshipId: 99,
+        stipulation: 'number_one_contender',
+        stipulationChampionshipId: 98,
+    };
+
+    it('names the rival’s title in its brand colour', () => {
+        render(
+            <TitleCycler
+                draft={rivalSlot}
+                type={singles}
+                context={context()}
+                roster={roster}
+                readOnly
+                onChange={() => {}}
+                bookedTitleName="WWE Championship"
+                rivalBrand="smackdown"
+            />,
+        );
+
+        const box = screen.getByTestId('title-1');
+        expect(box).toHaveTextContent('WWE Championship');
+        expect(box).toHaveAttribute('data-brand-tint', 'smackdown');
+        expect(box.className).not.toContain('from-gold-hot');
+    });
+
+    it('names the rival’s stipulation and its title in its brand colour', () => {
+        render(
+            <StipulationPicker
+                draft={rivalSlot}
+                type={singles}
+                context={context()}
+                roster={roster}
+                readOnly
+                onChange={() => {}}
+                rivalStipulation={{
+                    titles: ['United States Championship'],
+                    brand: 'smackdown',
+                }}
+            />,
+        );
+
+        const box = screen.getByTestId('stipulation-1');
+        expect(box).toHaveTextContent(/#1 Contender/i);
+        expect(box).toHaveTextContent(/United States/);
+        expect(box).toHaveAttribute('data-brand-tint', 'smackdown');
+        expect(screen.queryByText('No stipulation eligible')).toBeNull();
     });
 });

@@ -11,8 +11,9 @@ use Tests\Support\GameBuilder;
 /*
 | Weekly fatigue (house rule, 2026-10-20): only wrestlers in matches and
 | fatiguing promos gain fatigue; at the end of the week everyone recovers
-| 2 bars (20%), booked or not. A successful Inactive Superstar promo adds
-| 2 more for its target. Fatigue never goes below 0.
+| 3 bars (30%, since 2026-11-19; was 2), booked or not. A successful
+| Inactive Superstar promo adds 2 more for its target. Fatigue never goes
+| below 0.
 */
 
 function airRecoveryWeek($save): void
@@ -25,9 +26,9 @@ function logFor($save, string $name, int $week = 1): FatigueLog
     return FatigueLog::where('save_wrestler_id', GameBuilder::wrestler($save, $name)->id)->where('week_number', $week)->sole();
 }
 
-it('adds match fatigue only to the booked wrestler, then recovers 20% for everyone', function () {
-    // Superstar A (Edge): 30% + a 50% match = 80%, then 80% - 20% = 60%.
-    // Superstar B (Carlito): 40%, not booked: 40% + 0% = 40%, then 20%.
+it('adds match fatigue only to the booked wrestler, then recovers 30% for everyone', function () {
+    // Superstar A (Edge): 30% + a 50% match = 80%, then 80% - 30% = 50%.
+    // Superstar B (Carlito): 40%, not booked: 40% + 0% = 40%, then 10%.
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito'], smackdown: ['Batista']);
     GameBuilder::wrestler($save, 'Edge')->update(['fatigue' => 30]);
     GameBuilder::wrestler($save, 'Carlito')->update(['fatigue' => 40]);
@@ -39,14 +40,14 @@ it('adds match fatigue only to the booked wrestler, then recovers 20% for everyo
     expect(logFor($save, 'Edge'))
         ->start->toBe(30)
         ->after_shows->toBe(80)
-        ->end->toBe(60)
-        ->recovered_bars->toBe(2)
-        ->and(GameBuilder::wrestler($save, 'Edge')->fatigue)->toBe(60)
+        ->end->toBe(50)
+        ->recovered_bars->toBe(3)
+        ->and(GameBuilder::wrestler($save, 'Edge')->fatigue)->toBe(50)
         ->and(logFor($save, 'Carlito'))
         ->start->toBe(40)
         ->after_shows->toBe(40)
-        ->end->toBe(20)
-        ->and(GameBuilder::wrestler($save, 'Carlito')->fatigue)->toBe(20);
+        ->end->toBe(10)
+        ->and(GameBuilder::wrestler($save, 'Carlito')->fatigue)->toBe(10);
 });
 
 it('starts the next week from the recovered fatigue', function () {
@@ -57,11 +58,11 @@ it('starts the next week from the recovered fatigue', function () {
     airRecoveryWeek($save);
     airRecoveryWeek($save);
 
-    // Week 1 ends at 60%; unbooked in week 2, it goes 60% -> 40%.
+    // Week 1 ends at 50%; unbooked in week 2, it goes 50% -> 20%.
     expect(logFor($save, 'Edge', 2))
-        ->start->toBe(60)
-        ->after_shows->toBe(60)
-        ->end->toBe(40);
+        ->start->toBe(50)
+        ->after_shows->toBe(50)
+        ->end->toBe(20);
 });
 
 it('recovers wrestlers on both brands, booked or not', function () {
@@ -72,11 +73,11 @@ it('recovers wrestlers on both brands, booked or not', function () {
 
     airRecoveryWeek($save);
 
-    expect(GameBuilder::wrestler($save, 'Edge')->fatigue)->toBe(40)
-        ->and(GameBuilder::wrestler($save, 'Batista')->fatigue)->toBe(40);
+    expect(GameBuilder::wrestler($save, 'Edge')->fatigue)->toBe(30)
+        ->and(GameBuilder::wrestler($save, 'Batista')->fatigue)->toBe(30);
 });
 
-it('gives an Inactive Superstar target 2 extra bars, never below 0: 3 bars - 2 - 2 = 0', function () {
+it('gives an Inactive Superstar target 2 extra bars, never below 0: 3 bars - 3 - 2 = 0', function () {
     config(['gm.promos.success_rates.inactive_superstar' => 1.0]);
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Carlito'], smackdown: ['Batista']);
     GameBuilder::wrestler($save, 'Carlito')->update(['fatigue' => 30]);
@@ -87,7 +88,7 @@ it('gives an Inactive Superstar target 2 extra bars, never below 0: 3 bars - 2 -
     airRecoveryWeek($save);
 
     expect(GameBuilder::wrestler($save, 'Carlito')->fatigue)->toBe(0)
-        ->and(FatigueLog::where('save_wrestler_id', GameBuilder::wrestler($save, 'Carlito')->id)->sole()->recovered_bars)->toBe(4);
+        ->and(FatigueLog::where('save_wrestler_id', GameBuilder::wrestler($save, 'Carlito')->id)->sole()->recovered_bars)->toBe(5);
 });
 
 it('gives no extra recovery when Inactive Superstar fails', function () {
@@ -99,7 +100,7 @@ it('gives no extra recovery when Inactive Superstar fails', function () {
 
     airRecoveryWeek($save);
 
-    expect(GameBuilder::wrestler($save, 'Carlito')->fatigue)->toBe(40);
+    expect(GameBuilder::wrestler($save, 'Carlito')->fatigue)->toBe(30);
 });
 
 it('fizzles Inactive Superstar if its target gets booked on the card afterwards', function () {

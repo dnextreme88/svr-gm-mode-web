@@ -7,7 +7,9 @@ use App\Enums\DraftMode;
 use App\Enums\SaveStage;
 use App\Http\Controllers\Controller;
 use App\Models\Save;
+use App\Models\SaveCheckpoint;
 use App\Services\Calendar\CalendarService;
+use App\Services\Game\CareerCheckpoint;
 use App\Services\Game\NewGameService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -25,7 +27,7 @@ class SaveController extends Controller
      * Only careers the player has saved are listed. The latest unsaved one
      * (if any) is offered separately so it can be resumed or discarded.
      */
-    public function index(CalendarService $calendar): Response
+    public function index(CalendarService $calendar, CareerCheckpoint $checkpoints): Response
     {
         $present = fn (Save $save): array => [
             'id' => $save->id,
@@ -37,9 +39,31 @@ class SaveController extends Controller
             'month' => $calendar->monthLabel($save->current_week),
             'budget' => $save->brands->firstWhere('brand', $save->player_brand)?->budget,
             'updated_at' => $save->updated_at?->toIso8601String(),
+            'has_changes' => false,
         ];
 
-        $saves = Save::with('brands')->whereNotNull('saved_at')->latest('updated_at')->get()->map($present);
+        // A saved career is listed as its checkpoint: what loading it gives
+        // back (house rule, 2026-11-17), not the progress made since.
+        $fromCheckpoint = function (Save $save) use ($present, $calendar, $checkpoints): array {
+            $checkpoint = SaveCheckpoint::where('save_id', $save->id)->first(['current_week', 'stage', 'budget', 'updated_at']);
+
+            if ($checkpoint === null) {
+                return $present($save);
+            }
+
+            return [
+                ...$present($save),
+                'stage' => $checkpoint->stage->value,
+                'season' => $calendar->seasonOf($checkpoint->current_week),
+                'season_week' => $calendar->seasonWeek($checkpoint->current_week),
+                'month' => $calendar->monthLabel($checkpoint->current_week),
+                'budget' => $checkpoint->budget,
+                'updated_at' => $checkpoint->updated_at?->toIso8601String(),
+                'has_changes' => $checkpoints->hasChanges($save) === true,
+            ];
+        };
+
+        $saves = Save::with('brands')->whereNotNull('saved_at')->latest('saved_at')->get()->map($fromCheckpoint);
         $unsaved = Save::with('brands')->whereNull('saved_at')->latest('id')->first();
 
         return Inertia::render('gm/saves/index', [
@@ -80,16 +104,29 @@ class SaveController extends Controller
     }
 
     /**
-     * Save the career so it's listed under Saved careers. Progress is kept
-     * as it happens from then on; saving again just refreshes the timestamp.
+     * Save the career (house rule, 2026-11-17): it's listed under Saved
+     * careers, and its checkpoint is replaced with the career as it stands.
      */
-    public function persist(Save $save): RedirectResponse
+    public function persist(Save $save, CareerCheckpoint $checkpoints, CalendarService $calendar): RedirectResponse
     {
         $save->update(['saved_at' => now()]);
+        $checkpoints->capture($save);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "Saved \"{$save->name}\"."]);
+        $when = 'Season '.$calendar->seasonOf($save->current_week).', week '.$calendar->seasonWeek($save->current_week);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Saved \"{$save->name}\" ({$when})."]);
 
         return back();
+    }
+
+    /**
+     * Load a saved career from Saved careers: back to its last save, losing
+     * anything done since. A career with no checkpoint opens as it is.
+     */
+    public function load(Save $save, CareerCheckpoint $checkpoints): RedirectResponse
+    {
+        $checkpoints->restore($save);
+
+        return to_route('gm.saves.show', $save);
     }
 
     public function show(Save $save): RedirectResponse

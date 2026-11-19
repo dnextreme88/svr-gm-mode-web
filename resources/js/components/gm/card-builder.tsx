@@ -47,7 +47,15 @@ export type CardBuilderProps = {
     fatigueConfig: FatigueConfig;
     onSave: (position: number, payload: BookingPayload) => void;
     /** WrestleMania's interbrand series: the player's spots, by match. */
-    series?: Record<number, { sides: number[]; eligible: number[] }>;
+    series?: Record<
+        number,
+        {
+            sides: number[];
+            eligible: number[];
+            locked?: number[];
+            qualifier?: string;
+        }
+    >;
     /** Saves the player's series picks, spot by spot. */
     onSaveSeries?: (position: number, ids: number[]) => void;
     onClear: (position: number) => void;
@@ -122,6 +130,42 @@ export function seriesPicks(draft: SlotDraft, sides: number[]): number[] {
     return picks;
 }
 
+/** The PPV spot a Qualifying Match is for, by its PPV key. */
+export function qualifierName(ppv?: string): string {
+    if (ppv === 'survivor_series') {
+        return 'Survivor Series';
+    }
+
+    if (ppv === 'wrestlemania') {
+        return 'Money in the Bank';
+    }
+
+    return '';
+}
+
+/**
+ * A Qualifying Match's stipulation (house rule, 2026-11-17): pre-booked for
+ * the Survivor Series 5 vs 5 or the WrestleMania Money in the Bank ladder,
+ * shown where the stipulation picker would be, and never changed.
+ */
+function QualifierStipulation({
+    position,
+    ppv,
+}: {
+    position: number;
+    ppv: string;
+}) {
+    return (
+        <div
+            data-testid={`qualifier-${position}`}
+            aria-label={`Stipulation for match ${position}`}
+            className="w-full bg-gold/10 px-3 py-1 text-center font-condensed text-sm font-bold tracking-[0.14em] text-gold uppercase lg:w-auto lg:min-w-[300px]"
+        >
+            Qualifying Match{ppv ? ` · ${ppv}` : ''}
+        </div>
+    );
+}
+
 /** A match type's price: green, and italic when it's free. */
 export function MatchCost({ cost }: { cost: number }) {
     return (
@@ -175,7 +219,7 @@ export function CardProgress({
 }
 
 /**
- * The card builder (§4): match type first, then 2–6 wrestlers, with fatigue
+ * The card builder (§4): match type first, then its wrestlers (2 or more), with fatigue
  * bars, projected fatigue and the injury zone each booking lands in.
  */
 export function CardBuilder({
@@ -222,6 +266,20 @@ export function CardBuilder({
     // picks their own spots right on the match, like any other booking.
     const seriesFor = (d: SlotDraft) =>
         onSaveSeries ? (series?.[d.position] ?? null) : null;
+    // Spots a Money in the Bank qualifier holds stay as they are.
+    const openSeriesSides = (d: SlotDraft) => {
+        const spots = seriesFor(d);
+
+        return spots?.sides.filter(
+            (_, index) => !(spots.locked ?? []).includes(index),
+        );
+    };
+    // House rule (2026-11-17): the weekly shows' fixed Qualifying Match.
+    const qualifierFor = (d: SlotDraft) =>
+        slots.find((s) => s.position === d.position)?.fixed_kind ===
+        'qualifying_match'
+            ? qualifierName(series?.[d.position]?.qualifier)
+            : undefined;
     const complete = (d: SlotDraft) =>
         isComplete(d, d.matchTypeId ? types.get(d.matchTypeId) : undefined);
 
@@ -365,14 +423,23 @@ export function CardBuilder({
                                 markClean(draft.position);
                             }}
                             seriesSides={
-                                !readOnly ? seriesFor(draft)?.sides : undefined
+                                !readOnly ? openSeriesSides(draft) : undefined
                             }
                             seriesEligible={seriesFor(draft)?.eligible}
                             onDiscard={() => discard(draft.position)}
                             onClear={() => clearSlot(draft.position)}
                             title={renderTitle?.(draft, update, drafts)}
                             buttons={renderButtons?.(draft, update, drafts)}
-                            actions={renderActions?.(draft, update, drafts)}
+                            actions={
+                                qualifierFor(draft) !== undefined ? (
+                                    <QualifierStipulation
+                                        position={draft.position}
+                                        ppv={qualifierFor(draft) ?? ''}
+                                    />
+                                ) : (
+                                    renderActions?.(draft, update, drafts)
+                                )
+                            }
                             names={
                                 slots.find((s) => s.position === draft.position)
                                     ?.names
@@ -688,7 +755,6 @@ function SlotEditor({
             <header className="@container relative flex flex-wrap items-start gap-3 border-b border-white/6 px-4 py-2.5">
                 {/* Small screens: the label, the type picker and the cost line each get a line. */}
                 <div className="flex w-full items-center gap-1 sm:w-auto">
-                    {handle}
                     <span
                         className={cn(
                             'gm-chyron mt-0.5 inline-block py-1 pr-7 pl-3 font-condensed font-bold tracking-[0.18em] uppercase',
@@ -739,13 +805,26 @@ function SlotEditor({
                             {title}
                         </div>
                     )}
+                    {/* The drag handle and move buttons sit at the card's right
+                        edge, right after the title (which takes the free space). */}
+                    {handle && (
+                        <div
+                            className={cn(
+                                'mt-0.5 flex shrink-0 items-center gap-1 self-start',
+                                !title && 'ml-auto',
+                            )}
+                            data-testid={`slot-handle-${draft.position}`}
+                        >
+                            {handle}
+                        </div>
+                    )}
                 </div>
             </header>
 
             {type ? (
                 <div className="space-y-3 p-4">
                     <SideGrid
-                        columns={sideColumns(draft.sides.length)}
+                        columns={sideColumns(draft.sides.length, type)}
                         count={draft.sides.length}
                         testId={`sides-${draft.position}`}
                         renderSide={(sideIndex) =>
@@ -827,7 +906,13 @@ function SlotEditor({
  * Sides per row. Up to 3 sides share one row; 4 sides go 2 × 2 and anything
  * bigger in rows of 3, so every side sits under the one above it.
  */
-function sideColumns(sides: number): number {
+function sideColumns(sides: number, type?: MatchTypeOption): number {
+    // Tornado Tag Turmoil (house rule, 2026-11-17): its 5 teams in one row,
+    // each labelled by its order ("1st Participant" vs "2nd Participant"…).
+    if (type?.family === 'gauntlet' && type.sides.every((s) => s === 2)) {
+        return sides;
+    }
+
     if (sides <= 3) {
         return sides;
     }
@@ -881,6 +966,9 @@ function SideGrid({
         { length: columns },
         () => 'minmax(0,1fr)',
     ).join(` ${VERSUS_WIDTH} `);
+    // More than 3 sides in a row (Tornado Tag Turmoil's 5 teams) only fit
+    // side by side on wide screens; below `xl` they stack like on phones.
+    const wide = columns > 3;
 
     return (
         <div className="space-y-3" data-testid={testId}>
@@ -888,12 +976,17 @@ function SideGrid({
                 <div
                     key={r}
                     data-testid={`${testId}-row-${r}`}
-                    className="flex flex-col gap-3 md:grid md:items-stretch"
+                    className={cn(
+                        'flex flex-col gap-3',
+                        wide
+                            ? 'xl:grid xl:items-stretch'
+                            : 'md:grid md:items-stretch',
+                    )}
                     style={{ gridTemplateColumns: template }}
                 >
                     {/* Stacked on small screens, rows need a "vs" between them too. */}
                     {r > 0 && (
-                        <div className="md:hidden">
+                        <div className={wide ? 'xl:hidden' : 'md:hidden'}>
                             <Versus />
                         </div>
                     )}
@@ -1079,10 +1172,15 @@ function competitorHeading(
         return { text: 'Captain', testId: `captain-${position}-${sideIndex}` };
     }
 
+    // Each entrant (or, in a Tornado Tag Turmoil, each team member) is
+    // labelled by its order: "1st Participant" vs "2nd Participant"…
     if (type.family === 'gauntlet') {
         return {
             text: `${ordinal(sideIndex + 1)} Participant`,
-            testId: `entrant-${position}-${sideIndex}`,
+            testId:
+                index === 0
+                    ? `entrant-${position}-${sideIndex}`
+                    : `entrant-${position}-${sideIndex}-${index}`,
         };
     }
 

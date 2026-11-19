@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Gm;
 
 use App\Enums\Brand;
 use App\Http\Controllers\Controller;
+use App\Http\Support\WrapUp;
 use App\Models\Save;
 use App\Services\Finance\FinancialReport;
 use App\Services\Week\Steps\TrackDeficit;
@@ -33,14 +34,20 @@ class FinancialsController extends Controller
             $latest = $inSeason === [] ? $latest : end($inSeason)['week_number'];
         }
 
-        $week = $request->integer('week') ?: $latest;
+        // House rule (2026-11-17): from the results' Continue, the week that
+        // just aired (a signing can already put a line on the next week).
+        $wrapUp = WrapUp::active($request, $save) && $brand === $save->player_brand;
+        $week = $request->integer('week') ?: ($wrapUp ? $save->current_week - 1 : $latest);
 
         return Inertia::render('gm/financials', [
+            // House rule (2026-11-17): the week just aired, opened from the
+            // results' Continue: the header stays hidden and Continue opens
+            // the News. Any other week offers Back to Schedule.
+            'wrap_up' => $wrapUp && $week === $save->current_week - 1,
             'brand' => $brand->value,
             'balance' => $save->brand($brand)->budget,
             'statement' => $report->forWeek($save, $brand, $week),
             'history' => $history,
-            'weekly_upkeep' => $report->weeklyUpkeep($save, $brand),
             'deficit_choices' => TrackDeficit::choices(),
         ]);
     }

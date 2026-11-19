@@ -7,7 +7,7 @@ import GmLayout from '@/layouts/gm-layout';
 const game = {
     id: 1,
     name: 'Test',
-    saved: true,
+    last_saved: { season: 1, season_week: 3, saved_at: null },
     player_brand: 'raw',
     rival_brand: 'smackdown',
     stage: 'in_season',
@@ -31,13 +31,15 @@ const game = {
     faction_prompt: null,
 };
 
+const post = vi.hoisted(() => vi.fn());
+
 const pageState = vi.hoisted(() => ({
     component: 'gm/factions',
     extra: {} as Record<string, unknown>,
 }));
 
 vi.mock('@inertiajs/react', () => ({
-    router: { on: () => () => {}, post: vi.fn() },
+    router: { on: () => () => {}, post: (...args: unknown[]) => post(...args) },
     usePage: () => ({
         props: { game, ...pageState.extra },
         url: '/gm/saves/1/factions',
@@ -289,5 +291,74 @@ describe('GM footer', () => {
             'Smackdown vs Raw 2006 - a fan-made GM mode web version',
         );
         expect(within(footer).queryByRole('link')).toBeNull();
+    });
+});
+
+describe('Save career (house rule, 2026-11-17)', () => {
+    type Visit = {
+        onStart: () => void;
+        onSuccess: () => void;
+        onError: () => void;
+    };
+
+    beforeEach(() => {
+        pageState.component = 'gm/factions';
+        pageState.extra = {};
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('says when the career was last saved', () => {
+        renderAt(500, 800);
+
+        expect(screen.getByTestId('last-saved')).toHaveTextContent(
+            'Last saved: S1 · wk 3',
+        );
+    });
+
+    it('shows Saving…, then Saved, then goes back to Save career', async () => {
+        vi.useFakeTimers();
+        let visit: Visit | undefined;
+        post.mockImplementation((_url, _data, options) => {
+            visit = options as unknown as Visit;
+        });
+        renderAt(500, 800);
+
+        const button = screen.getByTestId('save-career');
+        expect(button).toHaveTextContent('Save career');
+
+        act(() => button.click());
+        act(() => visit?.onStart());
+        expect(button).toHaveTextContent('Saving…');
+        expect(button).toBeDisabled();
+        expect(button).toHaveAttribute('aria-busy', 'true');
+
+        act(() => visit?.onSuccess());
+        expect(button).toHaveTextContent('Saved');
+        expect(button).toBeEnabled();
+        expect(screen.getByTestId('floppy-check')).toBeInTheDocument();
+
+        act(() => {
+            vi.advanceTimersByTime(2000);
+        });
+        expect(button).toHaveTextContent('Save career');
+    });
+
+    it('goes back to Save career when saving fails', async () => {
+        let visit: Visit | undefined;
+        post.mockImplementation((_url, _data, options) => {
+            visit = options as unknown as Visit;
+        });
+        renderAt(500, 800);
+
+        const button = screen.getByTestId('save-career');
+        act(() => button.click());
+        act(() => visit?.onStart());
+        act(() => visit?.onError());
+
+        expect(button).toHaveTextContent('Save career');
+        expect(button).toBeEnabled();
     });
 });

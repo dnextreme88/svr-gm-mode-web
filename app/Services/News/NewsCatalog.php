@@ -39,8 +39,8 @@ class NewsCatalog
         'match_result' => ['group' => 'Matches', 'card' => 'either', 'tier' => 'Story, ranked PPV → title → main event → gimmick (DQ and count-out wins lower). The biggest match leads a brand with no headline. A DQ or count-out win, or a decisive win by someone who went in with a minor injury, has its own wording'],
         'main_event_hype_result' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline (worded by the Main Event Hype promo story)'],
         'interference_finish' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Story'],
-        'win_streak' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Story at 3 and 5 wins, Headline at 10'],
-        'streak_snapped' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline'],
+        'win_streak' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline at 10, 15 and 20 wins'],
+        'streak_snapped' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline, a streak of 10+ wins'],
         'losing_streak' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Ticker'],
         'upset_win' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Story', 'active' => false],
 
@@ -68,7 +68,8 @@ class NewsCatalog
         'ppv_main_event_set' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Headline'],
         'ppv_results' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Headline: the PPV\'s main event (who won, the title, the gimmick) or the Royal Rumble winner. Always the WWE headline in a PPV week'],
         'survivor_series_teams' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Story'],
-        'mitb_qualified' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Story'],
+        'mitb_qualified' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Story (now from a Money in the Bank Qualifying Match)'],
+        'survivor_series_qualified' => ['group' => 'Pay-per-views', 'card' => 'brand', 'tier' => 'Story (from a Survivor Series Qualifying Match)'],
         'mitb_winner' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Headline'],
         'interbrand_series_result' => ['group' => 'Pay-per-views', 'card' => 'wwe', 'tier' => 'Headline'],
 
