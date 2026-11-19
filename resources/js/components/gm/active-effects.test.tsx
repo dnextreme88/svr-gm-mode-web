@@ -43,7 +43,7 @@ describe('Active Effects (house rule)', () => {
         const box = screen.getByRole('region', { name: 'Active Effects' });
         expect(box).toHaveTextContent('Rematch Clause');
         expect(box).toHaveTextContent(
-            'John Cena vs. Edge · WWE Championship · 3 weeks left',
+            'Former champion John Cena has 3 weeks left to be booked on a WWE Championship match against Edge',
         );
         expect(box.className).toContain('border-gold');
 
@@ -121,8 +121,8 @@ describe('Active Effects (house rule)', () => {
             .map((li) => li.textContent);
 
         expect(items).toEqual([
-            'Required title matchKane earned a World Heavyweight Championship match. Book it before this card can air.',
-            '#1 contenderVito awaits a United States Championship match as #1 contender. Nobody else can challenge for it.',
+            'Champion vs. ContenderKane earned a World Heavyweight Championship match last week. You are required to book this title match this week.',
+            '#1 contenderThe next United States Championship match can only be booked with Vito as the only challenger since he rightfully earned the title opportunity',
             'Last ChanceChris Benoit lost a Last Chance match and can’t contend for the World Heavyweight Championship while Daivari is champion.',
             'Money in the BankEdge holds the Money in the Bank briefcase: a world title shot on any card until week 52.',
             'Buried AliveHeidenreich was buried alive and is out for 3 more weeks.',

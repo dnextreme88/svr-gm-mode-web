@@ -22,7 +22,7 @@ export default function News() {
             <Head title="News" />
             <PageTitle kicker="Around the WWE" title="News">
                 <Link href={next.url} className="gm-btn">
-                    {toCard ? `Continue to ${next.name}` : 'Continue'}
+                    {toCard ? `Continue to ${next.name}` : 'Continue to Emails'}
                 </Link>
             </PageTitle>
             <NewsGrid pages={pages} />

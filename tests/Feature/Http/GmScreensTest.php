@@ -213,8 +213,8 @@ it('sends each show’s fatigue progression with the results', function () {
             ->where('shows.0.fatigue.0.name', 'Edge')
             ->where('shows.0.fatigue.0.start', 20)
             ->where('shows.0.fatigue.0.after_shows', 30)
-            ->where('shows.0.fatigue.0.end', 10)
-            ->where('shows.0.fatigue.0.recovered_bars', 2)
+            ->where('shows.0.fatigue.0.end', 0)
+            ->where('shows.0.fatigue.0.recovered_bars', 3)
             ->where('shows.0.fatigue.0.rested', false));
 });
 

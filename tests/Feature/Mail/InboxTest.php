@@ -63,7 +63,7 @@ it('sends each email with who sent it and the inbox categories with counts', fun
             ->where('emails.5.sender_kind', 'superstar')
             ->where('categories', fn ($categories) => collect($categories)->firstWhere('template', 'morale_complaint') === ['template' => 'morale_complaint', 'total' => 2, 'unread' => 1])
             ->has('categories', 5)
-            ->where('filters', ['category' => null, 'view' => 'all']));
+            ->where('filters', ['category' => null, 'view' => 'all', 'wrap' => false]));
 });
 
 it('filters by category and by unread, keeping the email just opened', function () {

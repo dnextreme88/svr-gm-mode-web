@@ -76,7 +76,7 @@ export function ConfirmDialog({
                 data-brand-tint={brand ?? 'raw'}
                 className={cn(
                     'gm-panel rounded-none border-white/10 bg-arena-2 font-gm text-ink',
-                    wide && 'sm:max-w-2xl',
+                    wide && 'sm:max-w-3xl',
                 )}
             >
                 <DialogTitle className="gm-heading text-2xl">

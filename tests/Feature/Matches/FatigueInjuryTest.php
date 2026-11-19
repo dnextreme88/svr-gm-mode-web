@@ -55,8 +55,8 @@ it('adds the match fatigue cost in bars and caps at 100%', function () {
 
     expect(afterShows($save, 'Edge'))->toBe(100)
         ->and(afterShows($save, 'Kane'))->toBe(30)
-        // Then everyone recovers 2 bars at the end of the week.
-        ->and(GameBuilder::wrestler($save, 'Edge')->fatigue)->toBe(80);
+        // Then everyone recovers 3 bars at the end of the week.
+        ->and(GameBuilder::wrestler($save, 'Edge')->fatigue)->toBe(70);
 });
 
 it('adds both costs when a wrestler is double-booked on one card', function () {
@@ -181,7 +181,7 @@ it('lets wrestlers recover fatigue at the end of the week', function () {
 
     airWeek($save);
 
-    expect(GameBuilder::wrestler($save, 'Edge')->fatigue)->toBe(40);
+    expect(GameBuilder::wrestler($save, 'Edge')->fatigue)->toBe(30);
 });
 
 it('vacates a champion’s title as soon as a serious injury is assigned', function () {

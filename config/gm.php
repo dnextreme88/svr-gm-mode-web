@@ -191,9 +191,7 @@ return [
         'max' => 100,
         'safe_max' => 70,
         'serious_at' => 100,
-        // House rule (2026-10-20): every wrestler recovers this many bars at
-        // the end of each week, booked or not, like SvR 2006.
-        'rest_recovery_bars' => 2,
+        'rest_recovery_bars' => 3,
         // §4 to confirm: managing adds no fatigue.
         'manager_fatigue_bars' => 0,
     ],
@@ -315,12 +313,11 @@ return [
     | §15 Morale thresholds per complaint: [content, unsatisfied, upset].
     */
     'morale' => [
-        'losing_streak' => [3, 5, 7],
+        'losing_streak' => [4, 7, 9],
         'contract_extension' => [10, 15, 18],
         // 1 month = 4 weeks.
-        'title_match' => [4, 8, 12],
-        // House rule (2026-10-31): unused for 3 / 6 / 9 weeks (was 2 / 4 / 8).
-        'inactivity' => [3, 6, 9],
+        'title_match' => [5, 8, 12],
+        'inactivity' => [4, 7, 9],
         // ASSUMPTION: current champions don't raise title-match demands.
         'champions_exempt_from_title_demand' => true,
     ],

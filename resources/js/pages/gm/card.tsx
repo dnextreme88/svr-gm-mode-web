@@ -131,6 +131,13 @@ export default function CardPage() {
     // Where "Book it now" puts an owed title match: the first empty slot of
     // the player's, else the last one.
     const ownSlots = slots.filter((s) => !s.fixed_kind && !s.locked);
+    // The Main Event is the card's last match, never a cash-in placed after it.
+    const mainEventPosition = Math.max(
+        0,
+        ...slots
+            .filter((s) => s.fixed_kind !== 'mitb_cash_in')
+            .map((s) => s.position),
+    );
     // House rule (2026-11-17): on an interbrand card the rival's own title
     // and stipulation show on its slots, in the rival's brand colour.
     const slotAt = (position: number) =>
@@ -194,7 +201,7 @@ export default function CardPage() {
             <Head title={`${show.name} card`} />
             {rearranging && (
                 <LoadingOverlay
-                    text="Re-arranging your matches. Please wait."
+                    text="Re-arranging your matches. Please wait..."
                     testId="reorder-overlay"
                 />
             )}
@@ -214,6 +221,7 @@ export default function CardPage() {
                         label="Preset card"
                         mode="preset"
                         titleNames={titleNames}
+                        mainEventPosition={mainEventPosition}
                         fetchProposal={(roll) =>
                             requestJson<ProposalResult>(
                                 'POST',
@@ -253,8 +261,8 @@ export default function CardPage() {
                     )}
                 >
                     {summerslam.main_event
-                        ? `SummerSlam main event: your weekly shows drew more fans this season, so you book Match 1, Match 3 and the main event. The rival books Matches 2 and 4.`
-                        : `${summerslam.headliner}'s weekly shows drew more fans this season, so it books Match 1, Match 3 and the main event. You book Matches 2 and 4.`}
+                        ? `Your weekly shows drew more fans than your rival prior to Summerslam, so you book matches 1, 3, 5, and the main event. Your rival books matches 2, 4, and 6.`
+                        : `${summerslam.headliner}'s weekly shows drew more fans than you prior to Summerslam, so they book matches 1, 3, 5, and the main event. You book matches 2, 4, and 6.`}
                 </p>
             )}
 
@@ -458,6 +466,7 @@ export default function CardPage() {
                                 label="Randomize"
                                 mode="randomize"
                                 titleNames={titleNames}
+                                mainEventPosition={mainEventPosition}
                                 fetchProposal={async (roll) => {
                                     const { proposal } = await requestJson<{
                                         proposal: ProposalView;

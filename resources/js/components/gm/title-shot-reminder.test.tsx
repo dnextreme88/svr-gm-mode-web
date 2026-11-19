@@ -34,7 +34,9 @@ describe('TitleShotReminder', () => {
         expect(await screen.findByRole('alert')).toHaveTextContent(
             'No free slot.',
         );
-        expect(screen.getByText('Title match to book')).toBeInTheDocument();
+        expect(
+            screen.getByText('Champion vs. Contender Title Match'),
+        ).toBeInTheDocument();
     });
 
     it('closes once the match is booked', async () => {
@@ -49,6 +51,8 @@ describe('TitleShotReminder', () => {
 
         await user.click(screen.getByRole('button', { name: 'Book it now' }));
 
-        expect(screen.queryByText('Title match to book')).toBeNull();
+        expect(
+            screen.queryByText('Champion vs. Contender Title Match'),
+        ).toBeNull();
     });
 });

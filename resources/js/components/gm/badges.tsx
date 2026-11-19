@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { titleImageFor } from '@/lib/assets';
+import { pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import { MatchFamilyLabels, MoraleLabels } from '@/types/enums';
 import type { MatchFamily, Morale } from '@/types/enums';
@@ -37,7 +38,7 @@ export function InjuryChip({ injury }: { injury: InjuryInfo | null }) {
     return (
         <span
             className={cn(
-                'inline-flex items-center gap-1.5 px-2 py-0.5 font-condensed text-xs font-semibold tracking-wide ring-1',
+                'inline-flex items-center gap-1.5 px-2 py-0.5 font-condensed text-sm font-semibold tracking-wide ring-1',
                 serious
                     ? 'bg-zone-serious/15 text-zone-serious ring-zone-serious/40'
                     : 'bg-zone-minor/10 text-zone-minor ring-zone-minor/30',
@@ -51,7 +52,9 @@ export function InjuryChip({ injury }: { injury: InjuryInfo | null }) {
                 )}
             />
             {injury.label}
-            <span className="opacity-70">· {injury.weeks_left}w</span>
+            <span className="opacity-70">
+                · {pluralize(injury.weeks_left, 'week')}
+            </span>
         </span>
     );
 }
@@ -150,9 +153,9 @@ export function TitleBelt({ name }: { name: string }) {
 /** Red pill for unread mail: the inbox list and the nav badge. */
 export function UnreadPill({ children }: { children: ReactNode }) {
     return (
-        <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gm-red-deep px-2 py-px font-condensed text-xs font-bold tracking-wider text-white uppercase">
+        <sup className="inline-flex min-w-5 items-center justify-center rounded-full bg-gm-red-deep px-2 py-px font-condensed text-xs font-bold tracking-wider text-white uppercase">
             {children}
-        </span>
+        </sup>
     );
 }
 

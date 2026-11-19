@@ -82,7 +82,7 @@ const props = {
         max: 100,
         safe_max: 70,
         serious_at: 100,
-        rest_recovery_bars: 2,
+        rest_recovery_bars: 3,
         serious_share: 0.2,
         escalation_chance: 0.2,
     },

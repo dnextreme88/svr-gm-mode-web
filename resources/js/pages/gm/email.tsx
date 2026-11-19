@@ -195,21 +195,7 @@ export default function Inbox() {
             <Head title="Email" />
             <PageTitle
                 kicker={game.player_brand === 'raw' ? 'From JR' : 'From Tazz'}
-                title={
-                    <span className="flex items-center gap-3">
-                        Email
-                        {game.unread_emails > 0 && (
-                            <span
-                                className="text-base"
-                                data-testid="unread-count"
-                            >
-                                <UnreadPill>
-                                    {game.unread_emails} unread
-                                </UnreadPill>
-                            </span>
-                        )}
-                    </span>
-                }
+                title={<span className="flex items-center gap-3">Email</span>}
             >
                 {filters.wrap && (
                     <Link href={gm.schedule.url(game.id)} className="gm-btn">
@@ -553,7 +539,7 @@ function EmailRow({
                             <span
                                 role="img"
                                 aria-label="Unread"
-                                className="size-2 rounded-full bg-brand-hot"
+                                className="size-2 animate-gm-pulse rounded-full bg-brand-hot"
                             />
                         )}
                         <span className="gm-num text-xs text-ink-faint">
