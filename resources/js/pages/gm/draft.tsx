@@ -46,6 +46,7 @@ type Pick = {
     brand: Brand;
     save_wrestler_id: number | null;
     name: string | null;
+    slug?: string | null;
     roster_type: RosterType | null;
     weight_class: WeightClass | null;
     pick_type: 'manual' | 'random';
@@ -634,7 +635,7 @@ const PoolRowView = memo(function PoolRowView({
             className="gm-row-highlight"
         >
             <td className="font-semibold">
-                <WrestlerName wrestler={w} />
+                <WrestlerName wrestler={w} portrait="md" />
             </td>
             <td className="text-ink-dim">{RosterTypeLabels[w.roster_type]}</td>
             <td className="text-ink-dim">
@@ -787,7 +788,7 @@ function AllPicks({
                             {p.pick_number}.
                         </span>
                         <span className="min-w-0 flex-1 truncate font-medium">
-                            <WrestlerName wrestler={p} />
+                            <WrestlerName wrestler={p} portrait="sm" />
                         </span>
                         <BrandBug
                             brand={p.brand}
@@ -848,8 +849,8 @@ function DraftBoard({
                             <span className="gm-num w-7 text-ink-faint">
                                 #{p.pick_number}
                             </span>
-                            <span className="flex-1 font-medium">
-                                <WrestlerName wrestler={p} />
+                            <span className="min-w-0 flex-1 font-medium">
+                                <WrestlerName wrestler={p} portrait="sm" />
                             </span>
                             {p.roster_type && p.roster_type !== 'superstar' && (
                                 <span className="font-condensed text-xs tracking-widest text-ink-dim uppercase">

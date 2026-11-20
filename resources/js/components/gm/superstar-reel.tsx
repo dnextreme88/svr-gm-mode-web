@@ -142,7 +142,10 @@ export function SuperstarReel({
                             landed ? 'animate-gm-slam' : 'animate-gm-rise',
                         )}
                     >
-                        <WrestlerName wrestler={face as WrestlerRow} />
+                        <WrestlerName
+                            wrestler={face as WrestlerRow}
+                            portrait="lg"
+                        />
                     </div>
                 </div>
                 <p

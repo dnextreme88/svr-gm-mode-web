@@ -53,6 +53,8 @@ type Props = GamePageProps & {
     roster: RosterEntry[];
     title_context: TitleContext;
     buried_alive: BuriedAlive[];
+    /** Active Effects (2026-11-20): sitting out after a blocked defection. */
+    sitting_out?: BuriedAlive[];
     rivalries?: ActiveRivalry[];
     promo_slots: PromoSlotView[];
     promo_types: PromoTypeOption[];
@@ -77,6 +79,7 @@ export default function CardPage() {
         roster,
         title_context,
         buried_alive,
+        sitting_out = [],
         rivalries,
         promo_slots,
         promo_types,
@@ -293,6 +296,7 @@ export default function CardPage() {
             <ActiveEffects
                 context={title_context}
                 buriedAlive={buried_alive}
+                sittingOut={sitting_out}
                 rivalries={rivalries}
             />
 

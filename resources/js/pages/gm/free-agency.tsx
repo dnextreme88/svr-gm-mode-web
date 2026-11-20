@@ -253,7 +253,7 @@ const FreeAgentRow = memo(function FreeAgentRow({
                     })}
                     className="gm-row-link font-semibold hover:text-brand-hot"
                 >
-                    <WrestlerName wrestler={w} />
+                    <WrestlerName wrestler={w} portrait="md" />
                 </Link>
             </td>
             <td className="text-ink-dim">{RosterTypeLabels[w.roster_type]}</td>

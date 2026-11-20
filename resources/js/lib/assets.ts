@@ -15,6 +15,7 @@ import vengeanceLogo from '@/../images/ppvs/vengeance.webp';
 import wrestlemaniaLogo from '@/../images/ppvs/wrestlemania.webp';
 import rawLogo from '@/../images/brands/raw.webp';
 import smackdownLogo from '@/../images/brands/smackdown.webp';
+import superstarPlaceholder from '@/../images/superstars/placeholder.svg';
 import cruiserweight from '@/../images/titles/cruiserweight.webp';
 import intercontinental from '@/../images/titles/intercontinental.webp';
 import unitedStates from '@/../images/titles/united_states.webp';
@@ -109,4 +110,39 @@ export function titleImageFor(name: string): string | null {
     const key = keyByName.get(name);
 
     return key ? titleImage[key] : null;
+}
+
+/**
+ * Superstar portraits (2026-11-20), shown before their names: square WebP
+ * files named `{slug}-{size}.webp` in `resources/images/superstars`, at 64px
+ * (the 24–32px spots: rows and inline names) and 96px (the 40–48px featured
+ * spots), each twice its size on screen. Anyone without one gets the
+ * placeholder silhouette.
+ */
+const portraitFiles = import.meta.glob<string>(
+    '../../images/superstars/*.webp',
+    { eager: true, import: 'default' },
+);
+
+// "brock-lesnar-64.webp" => its URL.
+const portraitByFile = new Map(
+    Object.entries(portraitFiles).map(([path, url]) => [
+        path.slice(path.lastIndexOf('/') + 1),
+        url,
+    ]),
+);
+
+export const portraitPlaceholder = superstarPlaceholder;
+
+export type PortraitSize = 64 | 96;
+
+export function portraitFor(
+    slug: string | null | undefined,
+    size: PortraitSize,
+): string {
+    if (!slug) {
+        return portraitPlaceholder;
+    }
+
+    return portraitByFile.get(`${slug}-${size}.webp`) ?? portraitPlaceholder;
 }

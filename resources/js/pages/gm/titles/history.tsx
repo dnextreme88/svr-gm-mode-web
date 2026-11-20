@@ -115,7 +115,11 @@ const plural = (n: number, one: string, many = `${one}s`) =>
 
 /** A holder or side, colour-coded when the parts are there. */
 function Holder({ name, parts }: { name: string; parts?: NamePart[] | null }) {
-    return parts && parts.length > 0 ? <WrestlerNames names={parts} /> : name;
+    return parts && parts.length > 0 ? (
+        <WrestlerNames names={parts} portrait="sm" />
+    ) : (
+        name
+    );
 }
 
 export default function TitleHistory() {

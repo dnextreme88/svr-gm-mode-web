@@ -16,6 +16,7 @@ import { ariaSort, nextSort, SortHeader } from '@/components/gm/sort-header';
 import { StreakMeter } from '@/components/gm/streak-meter';
 import type { RosterSortKey } from '@/lib/gm';
 import { filterPool, formatMoney, pluralize, sortRoster } from '@/lib/gm';
+import { SuperstarPortrait } from '@/components/gm/superstar-portrait';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { usePoolFilterUrl, useSortUrl } from '@/lib/use-url-param';
 import { cn } from '@/lib/utils';
@@ -213,64 +214,79 @@ export default function Rosters() {
                                         }
                                     >
                                         <td className="max-w-36 sm:max-w-none">
-                                            <Link
-                                                href={url(w.id)}
-                                                className="gm-row-link font-semibold group-hover:text-brand-hot sm:whitespace-nowrap"
-                                            >
-                                                <WrestlerName wrestler={w} />
-                                            </Link>
-                                            {(w.roster_type === 'legend' ||
-                                                w.titles.length > 0 ||
-                                                w.sitting_out ||
-                                                w.mitb_winner ||
-                                                w.rumble_winner) && (
-                                                <div className="mt-0.5 flex flex-wrap gap-1 sm:flex-nowrap sm:whitespace-nowrap">
-                                                    {w.roster_type ===
-                                                        'legend' && (
-                                                        <span className="font-condensed text-sm tracking-widest text-ink-faint uppercase">
-                                                            {
-                                                                RosterTypeLabels[
-                                                                    w
-                                                                        .roster_type
-                                                                ]
-                                                            }
-                                                        </span>
-                                                    )}
-                                                    {w.titles.map((t) => (
-                                                        <TitleBelt
-                                                            key={t}
-                                                            name={t}
+                                            {/* The portrait before the name
+                                                (2026-11-20). */}
+                                            <div className="flex items-center gap-2">
+                                                <SuperstarPortrait
+                                                    slug={w.slug}
+                                                />
+                                                <div className="min-w-0">
+                                                    <Link
+                                                        href={url(w.id)}
+                                                        className="gm-row-link font-semibold group-hover:text-brand-hot sm:whitespace-nowrap"
+                                                    >
+                                                        <WrestlerName
+                                                            wrestler={w}
                                                         />
-                                                    ))}
-                                                    {w.rumble_winner && (
-                                                        <span
-                                                            data-testid="tag-rumble-winner"
-                                                            className="font-condensed text-sm font-bold tracking-widest text-gold-hot uppercase"
-                                                        >
-                                                            Royal Rumble winner
-                                                        </span>
-                                                    )}
-                                                    {w.mitb_winner && (
-                                                        <span
-                                                            data-testid="tag-mitb-winner"
-                                                            className="font-condensed text-sm font-bold tracking-widest text-gold-hot uppercase"
-                                                        >
-                                                            MITB winner
-                                                        </span>
-                                                    )}
-                                                    {w.sitting_out && (
-                                                        <span
-                                                            data-testid="tag-sitting-out"
-                                                            className="font-condensed text-sm font-bold tracking-widest text-zone-minor uppercase"
-                                                        >
-                                                            Sitting out
-                                                            {w.sitting_out_weeks
-                                                                ? ` · ${pluralize(w.sitting_out_weeks, 'week')}`
-                                                                : ''}
-                                                        </span>
+                                                    </Link>
+                                                    {(w.roster_type ===
+                                                        'legend' ||
+                                                        w.titles.length > 0 ||
+                                                        w.sitting_out ||
+                                                        w.mitb_winner ||
+                                                        w.rumble_winner) && (
+                                                        <div className="mt-0.5 flex flex-wrap gap-1 sm:flex-nowrap sm:whitespace-nowrap">
+                                                            {w.roster_type ===
+                                                                'legend' && (
+                                                                <span className="font-condensed text-sm tracking-widest text-ink-faint uppercase">
+                                                                    {
+                                                                        RosterTypeLabels[
+                                                                            w
+                                                                                .roster_type
+                                                                        ]
+                                                                    }
+                                                                </span>
+                                                            )}
+                                                            {w.titles.map(
+                                                                (t) => (
+                                                                    <TitleBelt
+                                                                        key={t}
+                                                                        name={t}
+                                                                    />
+                                                                ),
+                                                            )}
+                                                            {w.rumble_winner && (
+                                                                <span
+                                                                    data-testid="tag-rumble-winner"
+                                                                    className="font-condensed text-sm font-bold tracking-widest text-gold-hot uppercase"
+                                                                >
+                                                                    Royal Rumble
+                                                                    winner
+                                                                </span>
+                                                            )}
+                                                            {w.mitb_winner && (
+                                                                <span
+                                                                    data-testid="tag-mitb-winner"
+                                                                    className="font-condensed text-sm font-bold tracking-widest text-gold-hot uppercase"
+                                                                >
+                                                                    MITB winner
+                                                                </span>
+                                                            )}
+                                                            {w.sitting_out && (
+                                                                <span
+                                                                    data-testid="tag-sitting-out"
+                                                                    className="font-condensed text-sm font-bold tracking-widest text-zone-minor uppercase"
+                                                                >
+                                                                    Sitting out
+                                                                    {w.sitting_out_weeks
+                                                                        ? ` · ${pluralize(w.sitting_out_weeks, 'week')}`
+                                                                        : ''}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
-                                            )}
+                                            </div>
                                         </td>
                                         <td>
                                             <FatigueMeter

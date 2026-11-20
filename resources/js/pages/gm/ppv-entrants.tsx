@@ -191,7 +191,10 @@ export default function PpvEntrants() {
                                             aria-label={w.name}
                                         />
                                         <span className="flex-1 font-medium">
-                                            <WrestlerName wrestler={w} />
+                                            <WrestlerName
+                                                wrestler={w}
+                                                portrait="md"
+                                            />
                                             {diva && (
                                                 <span className="ml-2 text-xs text-ink-faint">
                                                     No Divas

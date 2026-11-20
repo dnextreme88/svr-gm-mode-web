@@ -730,7 +730,7 @@ function OfferLine({
                         key={w.id}
                         className="inline-flex items-center gap-1 bg-white/[0.06] py-0.5 pr-1 pl-2 font-medium"
                     >
-                        <WrestlerName wrestler={w} />
+                        <WrestlerName wrestler={w} portrait="sm" />
                         <button
                             type="button"
                             onClick={() => onRemove(w.id)}
@@ -820,7 +820,10 @@ function RosterPicker({
                                     )}
                                 >
                                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
-                                        <WrestlerName wrestler={w} />
+                                        <WrestlerName
+                                            wrestler={w}
+                                            portrait="md"
+                                        />
                                         {w.roster_type === 'legend' && (
                                             <span className="font-condensed text-xs tracking-widest text-ink-faint uppercase">
                                                 {

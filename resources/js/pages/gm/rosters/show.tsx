@@ -8,6 +8,7 @@ import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { EmptyState, PageTitle, Panel, Stat } from '@/components/gm/panel';
 import { ReleaseButton } from '@/components/gm/release-button';
 import { StreakMeter } from '@/components/gm/streak-meter';
+import { SuperstarPortrait } from '@/components/gm/superstar-portrait';
 import { formatMoney, pluralize } from '@/lib/gm';
 import { radioKeyDown, useRovingRadios } from '@/lib/radio-group';
 import { useBusy } from '@/lib/use-busy';
@@ -497,7 +498,13 @@ export default function WrestlerDetail() {
             <Head title={wrestler.name} />
             <PageTitle
                 kicker={RosterTypeLabels[wrestler.roster_type]}
-                title={wrestler.name}
+                title={
+                    // Their portrait before the name (2026-11-20).
+                    <span className="inline-flex items-center gap-3">
+                        <SuperstarPortrait slug={wrestler.slug} size="lg" />
+                        {wrestler.name}
+                    </span>
+                }
             >
                 <Link
                     href={gm.rosters.index.url(game.id, {

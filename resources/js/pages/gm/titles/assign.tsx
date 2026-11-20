@@ -378,7 +378,7 @@ function TitleCard({
                                         : 'bg-white/[0.03] hover:bg-white/[0.07]',
                                 )}
                             >
-                                <WrestlerName wrestler={w} />
+                                <WrestlerName wrestler={w} portrait="md" />
                             </button>
                         ))}
                     </div>

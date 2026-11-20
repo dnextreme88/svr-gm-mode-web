@@ -1,9 +1,12 @@
 import { Fragment } from 'react';
+import { SuperstarPortrait } from '@/components/gm/superstar-portrait';
 import { cn } from '@/lib/utils';
 import type { RosterType, WeightClass } from '@/types/enums';
 
 export type Named = {
     name: string | null;
+    /** The catalog slug, for their portrait (2026-11-20). */
+    slug?: string | null;
     roster_type: RosterType | null;
     weight_class: WeightClass | null;
 };
@@ -30,11 +33,29 @@ export function nameTone(w: Omit<Named, 'name'>): 'diva' | 'cruiser' | null {
 export function WrestlerName({
     wrestler,
     className,
+    portrait,
 }: {
     wrestler: Named;
     className?: string;
+    /**
+     * Their portrait before the name (2026-11-20): sm 24px inline, md 32px
+     * in rows, lg 48px for featured names. Left out in the pickers.
+     */
+    portrait?: 'sm' | 'md' | 'lg';
 }) {
     const tone = nameTone(wrestler);
+
+    if (portrait) {
+        return (
+            <span className="inline-flex max-w-full min-w-0 items-center gap-2 align-middle">
+                <SuperstarPortrait slug={wrestler.slug} size={portrait} />
+                <WrestlerName
+                    wrestler={wrestler}
+                    className={cn('min-w-0', className)}
+                />
+            </span>
+        );
+    }
 
     return (
         <span
@@ -64,16 +85,22 @@ export function WrestlerName({
 export function WrestlerNames({
     names,
     separator = ' & ',
+    portrait,
 }: {
     names: Named[];
     separator?: string;
+    /** Each superstar's portrait before their name (not a faction's). */
+    portrait?: 'sm' | 'md' | 'lg';
 }) {
     return (
         <>
             {names.map((n, i) => (
                 <Fragment key={i}>
                     {i > 0 && separator}
-                    <WrestlerName wrestler={n} />
+                    <WrestlerName
+                        wrestler={n}
+                        portrait={n.roster_type ? portrait : undefined}
+                    />
                 </Fragment>
             ))}
         </>

@@ -1067,7 +1067,10 @@ function RosterColumn({
                                     )}
                                 >
                                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
-                                        <WrestlerName wrestler={w} />
+                                        <WrestlerName
+                                            wrestler={w}
+                                            portrait="md"
+                                        />
                                         {w.titles.map((t) => (
                                             <TitleBelt key={t} name={t} />
                                         ))}

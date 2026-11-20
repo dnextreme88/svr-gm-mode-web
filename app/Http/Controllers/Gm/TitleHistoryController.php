@@ -216,7 +216,7 @@ class TitleHistoryController extends Controller
      * and weight class, or one uncoloured part when the name is a faction's.
      *
      * @param  list<int>  $ids
-     * @return list<array{name: string, roster_type: string|null, weight_class: string|null}>
+     * @return list<array{name: string, slug?: string, roster_type: string|null, weight_class: string|null}>
      */
     private function parts(array $ids, string $display): array
     {
@@ -225,6 +225,8 @@ class TitleHistoryController extends Controller
         if (count($members) === count($ids) && $display === implode(' & ', array_map(fn (SaveWrestler $w): string => $w->name(), $members))) {
             return array_map(fn (SaveWrestler $w): array => [
                 'name' => $w->name(),
+                // Their portrait (2026-11-20).
+                'slug' => $w->wrestler->slug,
                 'roster_type' => $w->wrestler->roster_type->value,
                 'weight_class' => $w->wrestler->weight_class->value,
             ], $members);

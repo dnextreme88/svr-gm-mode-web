@@ -3175,6 +3175,10 @@ const activeEffects: { name: string; text: string }[] = [
         text: 'A Buried Alive loser sitting out, with the weeks left. They can’t be booked as anything until they’re back.',
     },
     {
+        name: 'Sitting out',
+        text: 'A superstar sitting out after a blocked defection (they tried to leave for the other brand, which had a full roster), with the weeks left. They can’t be booked as anything until they’re back.',
+    },
+    {
         name: 'Rivalry',
         text: 'Every active rivalry on your brand and its heat, e.g. “Edge vs. John Cena · Heat 40”, hottest first. Heat rises when the rivals meet or run a Continue Rivalry promo and falls in a week with neither. See Promos.',
     },

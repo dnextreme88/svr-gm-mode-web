@@ -1,13 +1,34 @@
+import { usePage } from '@inertiajs/react';
 import { useCallback, useState } from 'react';
 import { emptyPoolFilter } from '@/lib/gm';
 import type { PoolFilter } from '@/lib/gm';
 
-function read(key: string): string | null {
-    if (typeof window === 'undefined') {
-        return null;
+/**
+ * Inertia's page URL, or nothing outside an Inertia page (a component
+ * rendered on its own, as in a test): `usePage` throws there.
+ */
+function usePageUrl(): string | undefined {
+    try {
+        return usePage().url as string | undefined;
+    } catch {
+        return undefined;
     }
+}
 
-    return new URLSearchParams(window.location.search).get(key);
+/**
+ * A query parameter of the page's URL. The page is server-rendered, so the
+ * server reads Inertia's page URL and the browser the same URL from
+ * `location`: both render the same thing and hydration matches.
+ */
+function read(key: string, pageUrl: string | undefined): string | null {
+    const search =
+        typeof window !== 'undefined'
+            ? window.location.search
+            : pageUrl
+              ? new URL(pageUrl, 'http://localhost').search
+              : '';
+
+    return new URLSearchParams(search).get(key);
 }
 
 /**
@@ -22,7 +43,10 @@ export function useUrlParam(
     key: string,
     fallback: string,
 ): [string, (value: string) => void] {
-    const [value, setValue] = useState<string>(() => read(key) ?? fallback);
+    const pageUrl = usePageUrl();
+    const [value, setValue] = useState<string>(
+        () => read(key, pageUrl) ?? fallback,
+    );
 
     const update = useCallback(
         (next: string) => {

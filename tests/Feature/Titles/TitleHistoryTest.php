@@ -290,7 +290,7 @@ it('sends holders and opponents split for name colour coding', function () {
             $womens = $titles->firstWhere('key', 'womens');
             $cruiser = $titles->firstWhere('key', 'cruiserweight');
 
-            expect($womens['lineage'][0]['holder_parts'])->toBe([['name' => 'Trish Stratus', 'roster_type' => 'diva', 'weight_class' => $womens['lineage'][0]['holder_parts'][0]['weight_class']]])
+            expect($womens['lineage'][0]['holder_parts'])->toBe([['name' => 'Trish Stratus', 'slug' => 'trish-stratus', 'roster_type' => 'diva', 'weight_class' => $womens['lineage'][0]['holder_parts'][0]['weight_class']]])
                 ->and($womens['lineage'][0]['matches'][0]['opponent_sides'][0][0]['name'])->toBe('Lita')
                 ->and($womens['lineage'][0]['matches'][0]['opponent_sides'][0][0]['roster_type'])->toBe('diva')
                 ->and($cruiser['lineage'][0]['holder_parts'][0]['weight_class'])->toBe('cruiserweight')
