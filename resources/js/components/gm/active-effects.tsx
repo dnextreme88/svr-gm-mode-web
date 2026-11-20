@@ -14,16 +14,20 @@ export type ActiveRivalry = {
  * Active Effects (house rule): everything in play on this card's brand that
  * shapes the booking, always shown above the match cards. Earned title
  * shots, #1 contenders, Last Chance lockouts, Rematch Clauses, the Money in
- * the Bank briefcase, Buried Alive losers sitting out, and the brand's
- * rivalries with their heat (house rule, 2026-11-11).
+ * the Bank briefcase, Buried Alive losers sitting out, superstars sitting
+ * out after a blocked defection (2026-11-20), and the brand's rivalries
+ * with their heat (house rule, 2026-11-11).
  */
 export function ActiveEffects({
     context,
     buriedAlive,
+    sittingOut = [],
     rivalries = [],
 }: {
     context: TitleContext;
     buriedAlive: BuriedAlive[];
+    /** Sitting out for another reason: a blocked defection. */
+    sittingOut?: BuriedAlive[];
     rivalries?: ActiveRivalry[];
 }) {
     const shots = context.title_shots.filter((s) => !s.booked);
@@ -39,6 +43,7 @@ export function ActiveEffects({
         lockouts.length +
         rematches.length +
         buriedAlive.length +
+        sittingOut.length +
         rivalries.length +
         (briefcase ? 1 : 0);
 
@@ -139,6 +144,14 @@ export function ActiveEffects({
                     {buriedAlive.map((w) => (
                         <Effect key={`buried-${w.id}`} kind="Buried Alive">
                             {w.name} was buried alive and is out for{' '}
+                            {pluralize(w.weeks_left, 'more week', 'more weeks')}
+                            .
+                        </Effect>
+                    ))}
+                    {sittingOut.map((w) => (
+                        <Effect key={`sitting-out-${w.id}`} kind="Sitting out">
+                            {w.name} tried to leave for the other brand, which
+                            had no room, and sits out for{' '}
                             {pluralize(w.weeks_left, 'more week', 'more weeks')}
                             .
                         </Effect>

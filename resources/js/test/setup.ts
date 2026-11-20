@@ -4,4 +4,7 @@ import { afterEach } from 'vitest';
 
 afterEach(() => {
     cleanup();
+    // Page state kept in the query string (`useUrlParam`) mustn't leak
+    // between tests.
+    window.history.replaceState(null, '', '/');
 });

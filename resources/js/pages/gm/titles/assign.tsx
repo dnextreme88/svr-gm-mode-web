@@ -1,6 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { ActionButton } from '@/components/gm/action-button';
 import { useState } from 'react';
+import { BusyLabel } from '@/components/gm/busy-label';
 import { TitleBeltImage, TitleMark } from '@/components/gm/badges';
 import { CardProgress } from '@/components/gm/card-builder';
 import {
@@ -8,6 +9,7 @@ import {
     LoadingOverlay,
 } from '@/components/gm/loading-overlay';
 import { PageTitle, Panel } from '@/components/gm/panel';
+import { SetupSteps } from '@/components/gm/setup-steps';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
@@ -63,6 +65,7 @@ export default function AssignTitles() {
     return (
         <>
             <Head title="Assign Championships" />
+            {initial && <SetupSteps current={2} />}
             <PageTitle
                 kicker={initial ? 'After the draft' : 'Vacant titles'}
                 title="Crown your champions"
@@ -72,16 +75,19 @@ export default function AssignTitles() {
                         type="button"
                         className="gm-btn gm-btn-gold"
                         disabled={starting}
+                        aria-busy={starting || undefined}
                         onClick={startSeason}
                     >
-                        Start the season
+                        <BusyLabel busy={starting} busyText="Starting…">
+                            Start the season
+                        </BusyLabel>
                     </button>
                 )}
             </PageTitle>
             {starting && (
                 <LoadingOverlay
                     testId="starting-season"
-                    text="Starting the season. Please wait..."
+                    text="Starting the season. Please wait…"
                 />
             )}
             <p className="-mt-3 mb-6 max-w-2xl text-sm text-ink-dim">
@@ -374,7 +380,7 @@ function TitleCard({
                                         : 'bg-white/[0.03] hover:bg-white/[0.07]',
                                 )}
                             >
-                                <WrestlerName wrestler={w} />
+                                <WrestlerName wrestler={w} portrait="md" />
                             </button>
                         ))}
                     </div>

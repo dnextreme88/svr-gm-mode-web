@@ -1,4 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import Rivalries from '@/pages/gm/rivalries';
 
@@ -24,6 +26,9 @@ const props: Record<string, unknown> = {
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
+    Link: ({ children, href }: { children: ReactNode; href: string }) => (
+        <a href={href}>{children}</a>
+    ),
     usePage: () => ({ props }),
 }));
 
@@ -83,6 +88,119 @@ describe('Brand column (house rule, 2026-11-15)', () => {
         expect(
             within(screen.getAllByRole('row')[1]).getByAltText('Smackdown'),
         ).toBeInTheDocument();
+        props.rivalries = [];
+    });
+});
+
+const row = (overrides: Record<string, unknown>) => ({
+    id: 1,
+    wrestler_a: 'Edge',
+    wrestler_b: 'John Cena',
+    brand: 'raw',
+    brand_a: 'raw',
+    brand_b: 'raw',
+    heat: 40,
+    weeks_active: 3,
+    started_week: 2,
+    active: true,
+    ended_week: null,
+    ...overrides,
+});
+
+describe('Heat colours (house rule, 2026-11-20)', () => {
+    it('is yellow to 40, orange from 50, red from 80', () => {
+        props.heat_colors = [50, 80];
+        props.rivalries = [
+            row({ id: 1, heat: 40 }),
+            row({ id: 2, heat: 50 }),
+            row({ id: 3, heat: 70 }),
+            row({ id: 4, heat: 80 }),
+        ];
+        render(<Rivalries />);
+
+        expect(screen.getByTestId('heat-bar-1')).toHaveClass('bg-zone-minor');
+        expect(screen.getByTestId('heat-bar-2')).toHaveClass('bg-zone-warn');
+        expect(screen.getByTestId('heat-bar-3')).toHaveClass('bg-zone-warn');
+        expect(screen.getByTestId('heat-bar-4')).toHaveClass('bg-zone-serious');
+        props.rivalries = [];
+    });
+});
+
+describe('Match history (house rule, 2026-11-20)', () => {
+    const outcome = {
+        id: 9,
+        position: 1,
+        match_type: 'Hardcore — Single',
+        winners: ['Edge'],
+        winners_label: 'Edge',
+        losers: ['John Cena'],
+        loser_sides: [['John Cena']],
+        winner_manager: 'Lita',
+        loser_side_managers: [null],
+        booked: false,
+        champions: [],
+        captains: [],
+        managers: ['Lita'],
+        referee: null,
+        method: 'pinfall',
+        method_label: 'Pinfall',
+        finish_event: null,
+        finish_label: null,
+        summary: '',
+        title: null,
+        title_banner: null,
+        stipulation: null,
+        stipulation_outcome: null,
+    };
+
+    it('has no toggle before the rivals have met', () => {
+        props.rivalries = [row({ matches: [] })];
+        render(<Rivalries />);
+
+        expect(screen.queryByRole('button', { name: /match/ })).toBeNull();
+        props.rivalries = [];
+    });
+
+    it('opens the rivals’ matches with their week, PPV and outcome', async () => {
+        const user = userEvent.setup();
+        props.rivalries = [
+            row({
+                matches: [
+                    {
+                        id: 9,
+                        season: 1,
+                        season_week: 4,
+                        ppv: 'Backlash',
+                        link: '/gm/saves/1/results/4?match=9',
+                        outcome,
+                    },
+                ],
+            }),
+        ];
+        render(<Rivalries />);
+
+        const toggle = screen.getByRole('button', {
+            name: '1 match between Edge and John Cena',
+        });
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+        await user.click(toggle);
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+        const table = screen.getByRole('table', {
+            name: 'Matches between Edge and John Cena',
+        });
+        expect(
+            within(table)
+                .getAllByRole('columnheader')
+                .map((h) => h.textContent),
+        ).toEqual(['Week/PPV', 'Match outcome']);
+        expect(table).toHaveTextContent('S1 W4Backlash');
+        expect(
+            within(table).getByRole('link', {
+                name: 'Edge w/ Lita def. John Cena · Hardcore — Single',
+            }),
+        ).toHaveAttribute('href', '/gm/saves/1/results/4?match=9');
         props.rivalries = [];
     });
 });

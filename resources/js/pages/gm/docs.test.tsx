@@ -534,6 +534,34 @@ describe('Docs page', () => {
         );
     });
 
+    it('moves between tabs with the arrow keys and keeps the tab in the URL (UI audit, 2026-11-20)', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        const first = screen.getByRole('tab', { name: 'Match types' });
+        first.focus();
+        await user.keyboard('{ArrowRight}');
+
+        const second = screen.getByRole('tab', { name: 'Fatigue & injuries' });
+        expect(second).toHaveFocus();
+        expect(second).toHaveAttribute('aria-selected', 'true');
+        expect(first).toHaveAttribute('tabindex', '-1');
+        expect(window.location.search).toBe('?tab=injuries');
+        expect(screen.getByRole('tabpanel')).toHaveAccessibleName(
+            'Fatigue & injuries',
+        );
+    });
+
+    it('opens on the tab in the URL', () => {
+        window.history.replaceState(null, '', '/?tab=morale');
+        render(<Docs />);
+
+        expect(screen.getByRole('tab', { name: 'Morale' })).toHaveAttribute(
+            'aria-selected',
+            'true',
+        );
+    });
+
     it('documents every promo with its cost, success probability, fatigue and needs', async () => {
         const user = userEvent.setup();
         render(<Docs />);
@@ -1076,6 +1104,91 @@ describe('Docs page', () => {
         // A budget line has no headline of its own, only the sentence.
         expect(screen.getByTestId('quiet-stories-spotlight')).toHaveTextContent(
             'books look healthy',
+        );
+    });
+});
+
+describe('Injury tables sorting (2026-11-20)', () => {
+    const injury = (label: string, min: number, max: number) => ({
+        label,
+        min_weeks: min,
+        max_weeks: max,
+        escalates_to: null,
+    });
+
+    it('sorts by duration by default, and by Injury or Duration on click', async () => {
+        const user = userEvent.setup();
+        const before = props.injuries;
+        props.injuries = {
+            minor: [
+                injury('Sprained Wrist', 3, 5),
+                injury('Bruised Ribs', 1, 3),
+                injury('Twisted Ankle', 2, 4),
+            ],
+            serious: [],
+        } as typeof props.injuries;
+
+        try {
+            window.history.replaceState(null, '', '/?tab=injuries');
+            render(<Docs />);
+
+            const table = () =>
+                screen
+                    .getAllByRole('table')
+                    .find((t) => within(t).queryByText('Bruised Ribs'))!;
+            const names = () =>
+                within(table())
+                    .getAllByRole('row')
+                    .slice(1)
+                    .map((r) => r.querySelector('td')?.textContent);
+            const header = (name: string) =>
+                within(table()).getByRole('button', { name });
+
+            expect(names()).toEqual([
+                'Bruised Ribs',
+                'Twisted Ankle',
+                'Sprained Wrist',
+            ]);
+            expect(header('Duration').closest('th')).toHaveAttribute(
+                'aria-sort',
+                'ascending',
+            );
+
+            await user.click(header('Duration'));
+            expect(names()).toEqual([
+                'Sprained Wrist',
+                'Twisted Ankle',
+                'Bruised Ribs',
+            ]);
+
+            await user.click(header('Injury'));
+            expect(names()).toEqual([
+                'Bruised Ribs',
+                'Sprained Wrist',
+                'Twisted Ankle',
+            ]);
+            expect(window.location.search).toContain('minor_sort=injury');
+        } finally {
+            props.injuries = before;
+        }
+    });
+});
+
+describe('Career setup and leaving (2026-11-21)', () => {
+    it('explains the two setup steps and the logo asking before leaving', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Rosters & draft' }));
+        expect(screen.getByTestId('setup-steps-docs')).toHaveTextContent(
+            '1 Draft your roster, then 2 Crown your champions',
+        );
+
+        await user.click(
+            screen.getByRole('tab', { name: 'Booking and Scheduling' }),
+        );
+        expect(screen.getByTestId('save-checkpoints')).toHaveTextContent(
+            'with progress that isn’t saved yet, it asks first',
         );
     });
 });

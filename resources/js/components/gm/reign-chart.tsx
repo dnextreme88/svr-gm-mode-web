@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { TitleBeltImage } from '@/components/gm/badges';
 import { brandName, pluralize } from '@/lib/gm';
+import { useRoving } from '@/lib/use-roving';
 import { cn } from '@/lib/utils';
 import type { Brand } from '@/types/enums';
 
@@ -203,6 +204,16 @@ export function ReignChart({
     const tooltipBelow =
         active !== null && sy(active.series, active.step.y) < HEIGHT * 0.4;
 
+    // Each line's marked points: its defenses and today's end. The chart is
+    // one Tab stop; the arrow keys move from point to point.
+    const marks = (s: Series) =>
+        s.steps.filter(
+            (p, i) => p.defense !== undefined || i === s.steps.length - 1,
+        );
+    const roving = useRoving(
+        series.flatMap((s) => marks(s).map((_, i) => `${s.title.id}:${i}`)),
+    );
+
     return (
         <div className="space-y-3">
             {/* The legend, then the brand buttons below it. */}
@@ -340,57 +351,54 @@ export function ReignChart({
                                                     .join(' ')}
                                             />
                                         )}
-                                        {s.steps
-                                            .filter(
-                                                (p, i) =>
-                                                    p.defense !== undefined ||
-                                                    i === s.steps.length - 1,
-                                            )
-                                            .map((p, i) => (
-                                                <circle
-                                                    key={i}
-                                                    cx={x(p.x)}
-                                                    cy={sy(s, p.y)}
-                                                    r={p.defense ? 4.5 : 3}
-                                                    fill={
-                                                        p.defense
-                                                            ? s.color
-                                                            : 'var(--color-arena-2)'
-                                                    }
-                                                    stroke={
-                                                        p.defense
-                                                            ? 'var(--color-arena-2)'
-                                                            : s.color
-                                                    }
-                                                    strokeWidth={2}
-                                                    tabIndex={0}
-                                                    role="img"
-                                                    aria-label={
-                                                        p.defense
-                                                            ? `${s.holder}, ${s.title.name}: defense ${p.y} against ${p.defense.opponents}, week ${p.x} of the reign`
-                                                            : `${s.holder}, ${s.title.name}: ${pluralize(s.weeks, 'week')}, ${pluralize(s.defenses.length, 'defense')}`
-                                                    }
-                                                    onMouseEnter={() =>
-                                                        setActive({
-                                                            series: s,
-                                                            step: p,
-                                                        })
-                                                    }
-                                                    onMouseLeave={() =>
-                                                        setActive(null)
-                                                    }
-                                                    onFocus={() =>
-                                                        setActive({
-                                                            series: s,
-                                                            step: p,
-                                                        })
-                                                    }
-                                                    onBlur={() =>
-                                                        setActive(null)
-                                                    }
-                                                    className="cursor-pointer outline-none focus-visible:stroke-white"
-                                                />
-                                            ))}
+                                        {marks(s).map((p, i) => (
+                                            <circle
+                                                key={i}
+                                                {...roving.props(
+                                                    `${s.title.id}:${i}`,
+                                                )}
+                                                cx={x(p.x)}
+                                                cy={sy(s, p.y)}
+                                                r={p.defense ? 4.5 : 3}
+                                                fill={
+                                                    p.defense
+                                                        ? s.color
+                                                        : 'var(--color-arena-2)'
+                                                }
+                                                stroke={
+                                                    p.defense
+                                                        ? 'var(--color-arena-2)'
+                                                        : s.color
+                                                }
+                                                strokeWidth={2}
+                                                role="img"
+                                                aria-label={
+                                                    p.defense
+                                                        ? `${s.holder}, ${s.title.name}: defense ${p.y} against ${p.defense.opponents}, week ${p.x} of the reign`
+                                                        : `${s.holder}, ${s.title.name}: ${pluralize(s.weeks, 'week')}, ${pluralize(s.defenses.length, 'defense')}`
+                                                }
+                                                onMouseEnter={() =>
+                                                    setActive({
+                                                        series: s,
+                                                        step: p,
+                                                    })
+                                                }
+                                                onMouseLeave={() =>
+                                                    setActive(null)
+                                                }
+                                                onFocus={() => {
+                                                    setActive({
+                                                        series: s,
+                                                        step: p,
+                                                    });
+                                                    roving.focused(
+                                                        `${s.title.id}:${i}`,
+                                                    );
+                                                }}
+                                                onBlur={() => setActive(null)}
+                                                className="cursor-pointer outline-none focus-visible:stroke-white"
+                                            />
+                                        ))}
                                     </g>
                                 ))}
 
@@ -417,7 +425,8 @@ export function ReignChart({
 
                             {active && (
                                 <div
-                                    role="status"
+                                    aria-hidden
+                                    data-testid="chart-tooltip"
                                     className={cn(
                                         'pointer-events-none absolute z-10 -translate-x-1/2 border border-white/10 bg-arena-3 px-3 py-2 text-sm whitespace-nowrap shadow-lg',
                                         tooltipBelow

@@ -72,7 +72,7 @@ describe('the story catalog', function () {
     });
 
     it('only uses placeholders the writer fills in', function () {
-        $known = ['brand', 'rival_brand', 'show', 'wrestler', 'wrestler_b', 'opponent', 'winner', 'loser', 'champion', 'challenger', 'title', 'how', 'where', 'streak', 'weeks', 'injury', 'weeks_left', 'amount', 'ppv', 'ppv_weeks', 'pronoun', 'rivalry', 'attendance'];
+        $known = ['brand', 'rival_brand', 'show', 'wrestler', 'wrestler_b', 'opponent', 'winner', 'loser', 'champion', 'challenger', 'title', 'how', 'where', 'streak', 'weeks', 'injury', 'weeks_left', 'amount', 'ppv', 'ppv_weeks', 'pronoun', 'rivalry', 'attendance', 'weeks_cut', 'back'];
 
         foreach (PromoStories::keys() as $key) {
             foreach (PromoStories::variants($key) as [$headline, $summary]) {

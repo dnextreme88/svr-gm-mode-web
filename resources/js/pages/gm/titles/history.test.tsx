@@ -223,3 +223,124 @@ describe('Title History lineage', () => {
         );
     });
 });
+
+describe('Title History stats (house rule, 2026-11-21)', () => {
+    const named = (name: string) => ({
+        name,
+        roster_type: 'superstar',
+        weight_class: 'heavyweight',
+    });
+    const stats = {
+        per_title: {
+            1: {
+                title_matches: 5,
+                ppv_title_matches: 2,
+                vacated: 3,
+                vacated_reasons: { injured: 2, released: 1 },
+                most_type: { types: ['Hardcore — Single'], value: 3 },
+                least_type: { types: ['Ladder — Single'], value: 1 },
+                champions: 4,
+                teams: null,
+                defenses: 7,
+                most_reigns_superstar: null,
+                most_reigns_team: null,
+            },
+        },
+        overall: {
+            most_titles: {
+                holder: 'Edge',
+                holder_parts: [named('Edge')],
+                value: 3,
+                titles: [
+                    'WWE Championship',
+                    'Intercontinental Championship',
+                    'World Tag Team Championship',
+                ],
+            },
+            grand_slams: [
+                {
+                    holder: 'Edge',
+                    holder_parts: [named('Edge')],
+                    value: 0,
+                    titles: [
+                        {
+                            group: 'world',
+                            championship: 'WWE Championship',
+                            season: 1,
+                            season_week: 6,
+                            won_ppv: 'Backlash',
+                        },
+                        {
+                            group: 'secondary',
+                            championship: 'Intercontinental Championship',
+                            season: 1,
+                            season_week: 2,
+                            won_ppv: null,
+                        },
+                        {
+                            group: 'tag',
+                            championship: 'World Tag Team Championship',
+                            season: 1,
+                            season_week: 10,
+                            won_ppv: null,
+                        },
+                    ],
+                    attained: { season: 1, season_week: 10, ppv: null },
+                },
+            ],
+        },
+    };
+
+    it('shows the title’s stats and the Grand Slam champions in a modal', async () => {
+        Object.assign(props, { stats });
+
+        try {
+            render(<TitleHistory />);
+
+            expect(screen.getByTestId('stat-ppv')).toHaveTextContent(
+                'Title matches held on PPV2of 5 title matches',
+            );
+            expect(screen.getByTestId('stat-vacated')).toHaveTextContent(
+                /3.*Injured 2 · Released 1/,
+            );
+            expect(screen.getByTestId('stat-most-type')).toHaveTextContent(
+                'Hardcore — Single3 matches',
+            );
+            expect(screen.getByTestId('stat-least-type')).toHaveTextContent(
+                'Ladder — Single1 match',
+            );
+            expect(screen.getByTestId('stat-champions')).toHaveTextContent(
+                '4 superstars',
+            );
+            expect(screen.getByTestId('stat-defenses')).toHaveTextContent('7');
+            expect(screen.getByTestId('stat-most-titles')).toHaveTextContent(
+                /Edge.*3 titles.*WWE · Intercontinental · World Tag Team/,
+            );
+            // Not a tag title: no superstar / team split.
+            expect(
+                screen.queryByTestId('stat-most-reigns-team'),
+            ).not.toBeInTheDocument();
+
+            await userEvent.click(
+                within(screen.getByTestId('stat-grand-slams')).getByRole(
+                    'button',
+                    { name: 'View' },
+                ),
+            );
+
+            const table = await screen.findByTestId('grand-slam-table');
+            const rows = within(table).getAllByRole('row');
+
+            // The header, then one row per title group.
+            expect(rows).toHaveLength(4);
+            expect(rows[1]).toHaveTextContent(
+                /Edge.*WWE Championship.*S1 W6.*Backlash.*S1 W10/,
+            );
+            expect(rows[3]).toHaveTextContent(
+                /World Tag Team Championship.*S1 W10/,
+            );
+        } finally {
+            delete (props as { stats?: unknown }).stats;
+        }
+    });
+});

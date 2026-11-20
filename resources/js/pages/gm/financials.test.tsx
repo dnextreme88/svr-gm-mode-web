@@ -199,6 +199,25 @@ describe('Financials', () => {
         ).toContain('week=5');
     });
 
+    it('hides a week button with nowhere to go (house rule, 2026-11-20)', () => {
+        const week = props.statement.week;
+        props.statement.week = 5;
+
+        try {
+            render(<Financials />);
+
+            const nav = screen.getByRole('navigation', { name: 'Week' });
+            expect(
+                within(nav).getByRole('link', { name: 'Previous week' }),
+            ).toBeInTheDocument();
+            expect(
+                within(nav).queryByRole('link', { name: 'Next week' }),
+            ).toBeNull();
+        } finally {
+            props.statement.week = week;
+        }
+    });
+
     it('opens a week from the season trend', async () => {
         const user = userEvent.setup();
         render(<Financials />);
@@ -233,6 +252,9 @@ describe('Financials after an aired week (house rule, 2026-11-17)', () => {
             expect(
                 screen.getByRole('link', { name: 'Continue to News' }),
             ).toHaveAttribute('href', '/gm/saves/1/news?wrap=1');
+            // House rule (2026-11-20): no week buttons while it wraps up.
+            const nav = screen.getByRole('navigation', { name: 'Week' });
+            expect(within(nav).queryAllByRole('link')).toHaveLength(0);
         } finally {
             Object.assign(props, { wrap_up: false });
         }

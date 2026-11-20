@@ -40,3 +40,6 @@ yarn-error.log
 /boost.json
 /opencode.json
 /opencode.jsonc
+
+# Superstar portraits waiting for the superstar-portraits skill
+/resources/images/superstars/incoming/

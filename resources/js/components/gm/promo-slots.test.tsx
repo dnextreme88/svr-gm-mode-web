@@ -268,10 +268,10 @@ describe('PromoSlots', () => {
 
         await user.click(screen.getByTestId('promo-2-interference_promotion'));
         await user.click(
-            screen.getByRole('button', { name: 'Promo 2 superstar' }),
+            screen.getByRole('button', { name: /^Promo 2 superstar(?: |$)/ }),
         );
         const edge = within(
-            screen.getByRole('listbox', { name: 'Promo 2 superstar' }),
+            screen.getByRole('listbox', { name: /^Promo 2 superstar(?: |$)/ }),
         ).getByRole('option', { name: /Edge/ });
 
         expect(edge).toHaveAttribute('aria-disabled', 'true');
@@ -361,10 +361,10 @@ describe('PromoSlots', () => {
         ).toHaveAttribute('aria-checked', 'true');
 
         await user.click(
-            screen.getByRole('button', { name: 'Promo 1 superstar' }),
+            screen.getByRole('button', { name: /^Promo 1 superstar(?: |$)/ }),
         );
         const options = within(
-            screen.getByRole('listbox', { name: 'Promo 1 superstar' }),
+            screen.getByRole('listbox', { name: /^Promo 1 superstar(?: |$)/ }),
         ).getAllByRole('option');
         // A promo's superstar is required: no row to leave it vacant.
         expect(options.map((o) => o.textContent)).toEqual(['Edge']);
@@ -393,13 +393,17 @@ describe('PromoSlots', () => {
             if (name.includes('second')) {
                 await user.click(
                     screen.getByRole('button', {
-                        name: 'Promo 1 first superstar',
+                        name: /^Promo 1 first superstar(?: |$)/,
                     }),
                 );
                 await user.click(screen.getByRole('option', { name: 'Edge' }));
             }
 
-            await user.click(screen.getByRole('button', { name }));
+            await user.click(
+                screen.getByRole('button', {
+                    name: new RegExp(`^${name}(?: |$)`),
+                }),
+            );
             const options = within(
                 screen.getByRole('listbox', { name }),
             ).getAllByRole('option');
@@ -417,14 +421,16 @@ describe('PromoSlots', () => {
 
         await user.click(screen.getByTestId('promo-1-continue_rivalry'));
         expect(
-            screen.queryByRole('button', { name: 'Promo 1 second superstar' }),
+            screen.queryByRole('button', {
+                name: /^Promo 1 second superstar(?: |$)/,
+            }),
         ).toBeNull();
 
         await user.click(
-            screen.getByRole('button', { name: 'Promo 1 rivalry' }),
+            screen.getByRole('button', { name: /^Promo 1 rivalry(?: |$)/ }),
         );
         const options = within(
-            screen.getByRole('listbox', { name: 'Promo 1 rivalry' }),
+            screen.getByRole('listbox', { name: /^Promo 1 rivalry(?: |$)/ }),
         ).getAllByRole('option');
 
         expect(options.map((o) => o.textContent)).toEqual([
@@ -434,7 +440,7 @@ describe('PromoSlots', () => {
 
         await user.click(options[1]);
         expect(
-            screen.getByRole('button', { name: 'Promo 1 rivalry' }),
+            screen.getByRole('button', { name: /^Promo 1 rivalry(?: |$)/ }),
         ).toHaveTextContent('Edge vs. Kane');
 
         await user.click(screen.getByRole('button', { name: 'Save promo 1' }));
@@ -453,11 +459,13 @@ describe('PromoSlots', () => {
 
         await user.click(screen.getByTestId('promo-1-call_out'));
         await user.click(
-            screen.getByRole('button', { name: 'Promo 1 rivalry' }),
+            screen.getByRole('button', { name: /^Promo 1 rivalry(?: |$)/ }),
         );
         await user.click(
             within(
-                screen.getByRole('listbox', { name: 'Promo 1 rivalry' }),
+                screen.getByRole('listbox', {
+                    name: /^Promo 1 rivalry(?: |$)/,
+                }),
             ).getAllByRole('option')[0],
         );
 
@@ -467,7 +475,7 @@ describe('PromoSlots', () => {
         ).toBeDisabled();
 
         const speaker = screen.getByRole('radiogroup', {
-            name: 'Promo 1 speaker',
+            name: /^Promo 1 speaker(?: |$)/,
         });
         await user.click(within(speaker).getByRole('radio', { name: 'Kane' }));
         await user.click(screen.getByRole('radio', { name: /Heel/ }));

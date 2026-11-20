@@ -19,6 +19,7 @@ use App\Services\Calendar\CalendarService;
 use App\Services\Factions\FactionNamer;
 use App\Services\Titles\MitbService;
 use App\Services\Titles\TitleRecords;
+use App\Services\Titles\TitleStats;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -38,7 +39,7 @@ class TitleHistoryController extends Controller
         private FactionNamer $factions,
     ) {}
 
-    public function __invoke(Save $save, TitleRecords $records, MitbService $mitb): Response
+    public function __invoke(Save $save, TitleRecords $records, TitleStats $stats, MitbService $mitb): Response
     {
         $week = $save->current_week;
         $this->wrestlers = SaveWrestler::with('wrestler')->where('save_id', $save->id)->get()->keyBy('id');
@@ -101,6 +102,9 @@ class TitleHistoryController extends Controller
                 'overall' => $this->recordParts($records->records($save)),
                 'per_title' => $championships->mapWithKeys(fn (Championship $c): array => [$c->id => $this->recordParts($records->records($save, $c))]),
             ],
+            // House rule (2026-11-21): each title's stats, and the most
+            // titles won and Grand Slam champions across all of them.
+            'stats' => $this->statParts($stats->perTitle($save, $championships), $stats->overall($save)),
             'briefcases' => $mitb->held($save)->map(fn (MoneyInTheBank $b): array => [
                 'holder' => $b->holder->name(),
                 'holder_parts' => $this->parts([$b->save_wrestler_id], $b->holder->name()),
@@ -216,7 +220,7 @@ class TitleHistoryController extends Controller
      * and weight class, or one uncoloured part when the name is a faction's.
      *
      * @param  list<int>  $ids
-     * @return list<array{name: string, roster_type: string|null, weight_class: string|null}>
+     * @return list<array{name: string, slug?: string, roster_type: string|null, weight_class: string|null}>
      */
     private function parts(array $ids, string $display): array
     {
@@ -225,6 +229,8 @@ class TitleHistoryController extends Controller
         if (count($members) === count($ids) && $display === implode(' & ', array_map(fn (SaveWrestler $w): string => $w->name(), $members))) {
             return array_map(fn (SaveWrestler $w): array => [
                 'name' => $w->name(),
+                // Their portrait (2026-11-20).
+                'slug' => $w->wrestler->slug,
                 'roster_type' => $w->wrestler->roster_type->value,
                 'weight_class' => $w->wrestler->weight_class->value,
             ], $members);
@@ -243,6 +249,46 @@ class TitleHistoryController extends Controller
             ...$record,
             'holder_parts' => $this->parts($record['holder_ids'], $record['holder']),
         ], $records);
+    }
+
+    /**
+     * The stats with each named superstar split for colour coding, and the
+     * Grand Slam weeks as season and week.
+     *
+     * @param  array<int, array<string, mixed>>  $perTitle
+     * @param  array{most_titles: array<string, mixed>|null, grand_slams: list<array<string, mixed>>}  $overall
+     * @return array<string, mixed>
+     */
+    private function statParts(array $perTitle, array $overall): array
+    {
+        $named = fn (?array $record): ?array => $record === null ? null : [
+            ...$record,
+            'holder_parts' => $this->parts($record['holder_ids'], $record['holder']),
+        ];
+        $when = fn (int $week): array => ['season' => $this->calendar->seasonOf($week), 'season_week' => $this->calendar->seasonWeek($week)];
+
+        return [
+            'per_title' => array_map(fn (array $s): array => [
+                ...$s,
+                // Superstars tied on it are each named, colour-coded.
+                'most_reigns_superstar' => $s['most_reigns_superstar'] === null ? null : [
+                    ...$s['most_reigns_superstar'],
+                    'holder_parts' => array_merge(...array_map(
+                        fn (int $id): array => $this->parts([$id], $this->wrestlers->get($id)?->name() ?? ''),
+                        $s['most_reigns_superstar']['holder_ids'],
+                    )),
+                ],
+                'most_reigns_team' => $named($s['most_reigns_team']),
+            ], $perTitle),
+            'overall' => [
+                'most_titles' => $named($overall['most_titles']),
+                'grand_slams' => array_map(fn (array $slam): array => [
+                    ...$named($slam),
+                    'titles' => array_map(fn (array $t): array => [...$t, ...$when($t['won_week'])], $slam['titles']),
+                    'attained' => [...$when($slam['attained_week']), 'ppv' => $slam['attained_ppv']],
+                ], $overall['grand_slams']),
+            ],
+        ];
     }
 
     private function ppvName(?Show $show): ?string

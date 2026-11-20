@@ -167,6 +167,11 @@ class PromoStoryWriter
                 $payload += $this->injuryOf($show, $slot->target);
                 break;
 
+            case PromoTypeKey::SpeedUpInjury:
+                [$situations, $extra] = $this->treatment($show, $slot, $outcome);
+                $payload += $extra;
+                break;
+
             case PromoTypeKey::Advertising:
             case PromoTypeKey::MerchandiseSponsorship:
                 $payload['amount'] = '$'.number_format(abs((int) $slot->cost_or_profit));
@@ -391,6 +396,32 @@ class PromoStoryWriter
     private function competedIn(Collection $matches, int $wrestlerId): ?MatchSlot
     {
         return $matches->first(fn (MatchSlot $m): bool => in_array($wrestlerId, $m->competitorIds(), true));
+    }
+
+    /**
+     * A Speed-up Injury Process (house rule, 2026-11-20): the injury it
+     * treated, how much it took off and when the superstar is back. Told by
+     * the injury's severity, success or not.
+     *
+     * @return array{0: list<string>, 1: array{injury: string, weeks_cut: string, back: string}}
+     */
+    private function treatment(Show $show, PromoSlot $slot, string $outcome): array
+    {
+        $injury = $slot->target === null ? null : Injury::with('type')
+            ->where('save_wrestler_id', $slot->target->id)
+            ->where('started_week', '<=', $show->week_number)
+            ->where(fn ($q) => $q->whereNull('healed_week')->orWhere('healed_week', $show->week_number))
+            ->latest('id')
+            ->first();
+        $severity = $injury?->severity === InjurySeverity::Serious ? 'serious' : 'minor';
+        $weeks = (int) config($outcome === 'success' && $severity === 'serious' ? 'gm.promos.speed_up_injury.serious_success_weeks' : 'gm.promos.speed_up_injury.fail_weeks');
+        $back = $injury === null ? 1 : max(1, $injury->ends_week - $show->week_number);
+
+        return [["{$severity}.{$outcome}"], [
+            'injury' => $injury === null ? 'injury' : mb_strtolower($injury->type->label),
+            'weeks_cut' => $weeks === 1 ? '1 week' : "{$weeks} weeks",
+            'back' => $back === 1 ? 'next week' : "in {$back} weeks",
+        ]];
     }
 
     /**

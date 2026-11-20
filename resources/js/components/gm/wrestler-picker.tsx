@@ -72,7 +72,7 @@ export function WrestlerPicker({
     return (
         <div ref={ref} className={cn('relative', className)}>
             <PickerButton
-                aria-label={label}
+                label={label}
                 open={open}
                 disabled={disabled}
                 onClick={toggle}

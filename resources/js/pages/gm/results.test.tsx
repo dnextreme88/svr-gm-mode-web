@@ -157,23 +157,41 @@ function promo(
 const page: { props: Record<string, unknown> } = { props };
 const post = vi.fn();
 const visit = vi.fn();
+const reload = vi.fn();
+const requestJson = vi.hoisted(() => vi.fn(async () => ({})));
+
+vi.mock('@/lib/http', () => ({ requestJson }));
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     router: {
         post: (...args: unknown[]) => post(...args),
         visit: (...args: unknown[]) => visit(...args),
+        reload: (...args: unknown[]) => reload(...args),
     },
     Link: ({
         children,
         href,
         className,
+        onStart,
+        onFinish: _onFinish,
+        ...rest
     }: {
         children: ReactNode;
         href: string;
         className?: string;
+        onStart?: () => void;
+        onFinish?: () => void;
     }) => (
-        <a href={href} className={className}>
+        <a
+            href={href}
+            className={className}
+            onClick={(e) => {
+                e.preventDefault();
+                visit(href, { onStart });
+            }}
+            {...rest}
+        >
             {children}
         </a>
     ),
@@ -197,18 +215,18 @@ describe('Results page', () => {
 
         render(<Results />);
         await user.click(
-            screen.getByRole('button', { name: 'Continue to Financials' }),
+            screen.getByRole('link', { name: 'Continue to Financials' }),
         );
 
         expect(visit).toHaveBeenCalledWith(
             expect.stringMatching(/\/financials\?wrap=1$/),
             expect.anything(),
         );
-        const button = screen.getByRole('button', {
-            name: /Continuing to Financials/,
+        const link = screen.getByRole('link', {
+            name: /Continuing to Financials…/,
         });
-        expect(button).toBeDisabled();
-        expect(button).toHaveAttribute('aria-busy', 'true');
+        expect(link).toHaveAttribute('aria-disabled', 'true');
+        expect(link).toHaveAttribute('aria-busy', 'true');
     });
 
     it('keeps a plain Continue link on a past week', () => {
@@ -285,7 +303,7 @@ describe('Results page', () => {
 
         await user.click(
             screen.getByRole('button', {
-                name: 'Show details for Monday Night Raw match 1',
+                name: /^Show details for Monday Night Raw match 1:/,
             }),
         );
 
@@ -320,14 +338,14 @@ describe('Results page', () => {
 
         await user.click(
             screen.getByRole('button', {
-                name: 'Show details for Monday Night Raw match 1',
+                name: /^Show details for Monday Night Raw match 1:/,
             }),
         );
         await user.keyboard('{ArrowRight}');
         expect(screen.getByText('2 / 2')).toBeInTheDocument();
 
         const row = screen.getByRole('button', {
-            name: 'Show details for Monday Night Raw match 2',
+            name: /^Show details for Monday Night Raw match 2:/,
         });
         expect(row).toHaveAttribute('aria-current', 'true');
 
@@ -553,7 +571,7 @@ describe('Results page', () => {
         render(<Results />);
 
         const row = screen.getByRole('button', {
-            name: 'Show details for Monday Night Raw match 1',
+            name: /^Show details for Monday Night Raw match 1:/,
         });
         // The row button holds the participants, the method and the chevron.
         expect(row.className).toContain('hover:bg-brand');
@@ -604,8 +622,8 @@ describe('Results page', () => {
         render(<Results />);
 
         const row = screen.getByTestId('result-7-1');
-        expect(row).toHaveTextContent('John Cenadef.Edge(C)');
-        const tag = within(row).getByText('(C)');
+        expect(row).toHaveTextContent('John Cenadef.Edge(C)(champion)');
+        const tag = within(row).getByText('(C)').parentElement!;
         expect(tag.className).toContain('text-gold');
         expect(tag.className).toContain('text-sm');
     });
@@ -631,10 +649,10 @@ describe('Results page', () => {
 
         const row = screen.getByTestId('result-7-1');
         expect(row).toHaveTextContent(
-            'Tommy Dreamer(Cpt) & Kane & Kurt Angledef.Christian(Cpt) & Rhino & Spike Dudley',
+            'Tommy Dreamer(Cpt)(captain) & Kane & Kurt Angledef.Christian(Cpt)(captain) & Rhino & Spike Dudley',
         );
         for (const tag of within(row).getAllByText('(Cpt)')) {
-            expect(tag.className).toContain('text-gold');
+            expect(tag.parentElement!.className).toContain('text-gold');
         }
     });
 
@@ -706,7 +724,7 @@ describe('Results page', () => {
                 ),
             ).toBeInTheDocument();
             expect(screen.getByTestId('result-7-2')).toHaveTextContent(
-                'Edge(C)vsJohn Cena',
+                'Edge(C)(champion)vsJohn Cena',
             );
             expect(screen.getByTestId('result-7-3')).toHaveTextContent(
                 'Waiting',
@@ -763,7 +781,7 @@ describe('Results page', () => {
 
             // Greyed out and disabled, so it can't be clicked or tabbed to.
             const row = screen.getByRole('button', {
-                name: 'Monday Night Raw match 3 is waiting for the matches before it',
+                name: /^Monday Night Raw match 3 is waiting for the matches before it/,
             });
             expect(row).toBeDisabled();
             expect(row).toHaveClass('opacity-60', 'cursor-not-allowed');
@@ -839,8 +857,8 @@ describe('Results page', () => {
 
             const button = screen.getByRole('button', { name: 'Continue' });
             expect(button).toBeDisabled();
-            expect(button).toHaveAttribute(
-                'title',
+            // On screen, not only in a tooltip (UI audit, 2026-11-20).
+            expect(button).toHaveAccessibleDescription(
                 'Decide every match to continue',
             );
             // Simulate all sits beside it, in the same row.
@@ -1011,43 +1029,58 @@ describe('Conditional story pop-up (house rule, 2026-11-07)', () => {
         expect(modal).not.toHaveTextContent('1 of 1');
     });
 
-    it('steps through every story from Simulate all, posting each as seen', async () => {
+    it('shows every story in one modal: Got it moves on, Previous and Next step back over the ones seen (2026-11-21)', async () => {
         const user = userEvent.setup();
         page.props = {
             ...props,
             conditional_stories: [
                 story(5, 'Get the tables!', 'D-Von pulled a table.'),
                 story(6, 'Hornswoggle to the rescue!', 'The shillelagh.'),
+                story(7, 'Lights out!', 'The lights went out.'),
             ],
         };
-        const { rerender } = render(<Results />);
+        render(<Results />);
 
-        expect(screen.getByTestId('story-modal')).toHaveTextContent('1 of 2');
-        expect(
-            screen.getByRole('heading', { name: 'Get the tables!' }),
-        ).toBeInTheDocument();
+        const heading = () => screen.getByRole('heading', { level: 2 });
+        const nav = (name: string) => screen.queryByRole('button', { name });
+
+        // Story 1: nothing seen before it, so no Previous or Next.
+        expect(screen.getByTestId('story-count')).toHaveTextContent('1 of 3');
+        expect(heading()).toHaveTextContent('Get the tables!');
+        expect(nav('Previous story')).toBeNull();
+        expect(nav('Next story')).toBeNull();
 
         await user.click(screen.getByRole('button', { name: 'Got it' }));
-        expect(post).toHaveBeenCalledWith(
+        expect(requestJson).toHaveBeenCalledWith(
+            'POST',
             '/gm/saves/1/results/1/stories/5/seen',
-            {},
-            expect.objectContaining({ preserveState: true }),
         );
+        // No reload between stories, so nothing flashes in between.
+        expect(reload).not.toHaveBeenCalled();
+        expect(screen.getByTestId('story-count')).toHaveTextContent('2 of 3');
+        expect(nav('Previous story')).toBeInTheDocument();
+        expect(nav('Next story')).toBeNull();
 
-        // The server answers with the stories still unseen.
-        post.mock.calls[0][2].onFinish();
-        page.props = {
-            ...props,
-            conditional_stories: [
-                story(6, 'Hornswoggle to the rescue!', 'The shillelagh.'),
-            ],
-        };
-        rerender(<Results />);
+        await user.click(screen.getByRole('button', { name: 'Got it' }));
+        expect(heading()).toHaveTextContent('Lights out!');
 
-        expect(screen.getByTestId('story-modal')).toHaveTextContent('2 of 2');
-        expect(
-            screen.getByRole('heading', { name: 'Hornswoggle to the rescue!' }),
-        ).toBeInTheDocument();
+        // Back to the 2nd: now both ways.
+        await user.click(nav('Previous story')!);
+        expect(heading()).toHaveTextContent('Hornswoggle to the rescue!');
+        expect(nav('Previous story')).toBeInTheDocument();
+        expect(nav('Next story')).toBeInTheDocument();
+
+        await user.click(nav('Next story')!);
+        expect(heading()).toHaveTextContent('Lights out!');
+
+        // Got it on the last closes the modal and reloads the stories.
+        await user.click(screen.getByRole('button', { name: 'Got it' }));
+        expect(screen.queryByTestId('story-modal')).toBeNull();
+        await vi.waitFor(() =>
+            expect(reload).toHaveBeenCalledWith({
+                only: ['conditional_stories'],
+            }),
+        );
     });
 
     it('shows nothing when no story played out', () => {

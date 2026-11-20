@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { brandName, prefersReducedMotion } from '@/lib/gm';
+import { useModalFocus } from '@/lib/use-modal-focus';
 import { cn } from '@/lib/utils';
 import type { Brand } from '@/types/enums';
 
@@ -63,9 +64,15 @@ export function FirstPickReel({
         return () => clearTimeout(timer);
     }, []);
 
+    // Focus moves in and stays in while it spins (UI audit, 2026-11-20).
+    const dialog = useRef<HTMLDivElement>(null);
+    useModalFocus(true, dialog);
+
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm outline-none"
+            ref={dialog}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-label="Deciding the first pick"

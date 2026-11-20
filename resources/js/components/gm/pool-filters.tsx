@@ -26,8 +26,10 @@ function Chip({
             onClick={onClick}
             aria-pressed={pressed}
             className={cn(
-                'inline-flex min-h-11 items-center px-2.5 py-1 font-condensed text-sm font-semibold tracking-wider uppercase sm:min-h-0',
-                active ? 'bg-brand text-white' : 'text-ink-dim hover:text-ink',
+                'inline-flex min-h-11 items-center px-2.5 py-1 font-condensed text-sm font-semibold tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-0',
+                active
+                    ? 'bg-brand text-white'
+                    : 'text-ink-dim enabled:hover:text-ink',
             )}
         >
             {children}
@@ -77,6 +79,9 @@ export function PoolFilters({
             </Chip>
             <input
                 type="search"
+                name="search_superstars"
+                autoComplete="off"
+                spellCheck={false}
                 className="gm-input min-h-11 w-40 py-1 text-sm sm:min-h-0"
                 placeholder="Search…"
                 aria-label="Search superstars"

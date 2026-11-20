@@ -138,7 +138,7 @@ it('renders the documentation page from the catalog', function () {
             ->has('injuries.minor')
             ->has('injuries.serious')
             ->has('stipulations', 5)
-            ->has('promo_stories', 15)
+            ->has('promo_stories', 16)
             ->has('quiet_stories', 5)
             ->has('rosters.wwe.raw', 30)
             ->has('rosters.wwe.smackdown', 30)

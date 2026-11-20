@@ -79,9 +79,7 @@ afterEach(() => vi.useRealTimers());
 
 /** Air week covers the page with an overlay, then airs after the pause. */
 async function waitOutAiringOverlay() {
-    expect(screen.getByTestId('airing-week')).toHaveTextContent(
-        'Please wait...',
-    );
+    expect(screen.getByTestId('airing-week')).toHaveTextContent('Please wait…');
     expect(router.post).not.toHaveBeenCalled();
     await act(async () => {
         await vi.advanceTimersByTimeAsync(LOADING_OVERLAY_DELAY_MS);
@@ -104,7 +102,7 @@ describe('Booking order', () => {
         expect(
             screen.queryByRole('list', { name: 'This week’s cards' }),
         ).toBeNull();
-        expect(screen.getByRole('alert')).toHaveTextContent(
+        expect(screen.getByRole('status')).toHaveTextContent(
             'Weeks start on Sunday, so Backlash airs first. This show is booked once its results are in.',
         );
     });
@@ -117,7 +115,7 @@ describe('Booking order', () => {
             />,
         );
 
-        expect(screen.getByRole('alert')).toHaveTextContent(
+        expect(screen.getByRole('status')).toHaveTextContent(
             'Weeks start on Sunday, so Backlash is booked first.',
         );
     });

@@ -28,6 +28,8 @@ enum PromoTypeKey: string
     case DivaBikiniContest = 'diva_bikini_contest';
     // House rule (2026-11-15).
     case CallOut = 'call_out';
+    // House rule (2026-11-20).
+    case SpeedUpInjury = 'speed_up_injury';
 
     public function label(): string
     {
@@ -35,6 +37,7 @@ enum PromoTypeKey: string
             self::StartRivalry => 'Start a Rivalry',
             self::PpvHype => 'PPV Hype',
             self::CallOut => 'Call-out',
+            self::SpeedUpInjury => 'Speed-up Injury Process',
             default => Str::of($this->name)->headline()->toString(),
         };
     }

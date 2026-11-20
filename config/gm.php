@@ -320,6 +320,9 @@ return [
         'inactivity' => [4, 7, 9],
         // ASSUMPTION: current champions don't raise title-match demands.
         'champions_exempt_from_title_demand' => true,
+        // House rule (2026-11-20): appearing in one of these promos counts as
+        // being used for the week (the Inactivity complaint), success or not.
+        'promos_count_as_used' => ['interference_promotion', 'diva_bikini_contest'],
     ],
 
     /*
@@ -379,6 +382,14 @@ return [
         // House rule (2026-11-07): the former champion(s) of a title lost in a
         // match are owed a rematch within this many weeks (Active Effect only).
         'rematch_clause_weeks' => 4,
+        // House rule (2026-11-21): a Grand Slam champion has won a title from
+        // each group, on either brand (the Cruiserweight and Women's titles
+        // don't count). Keys are ChampionshipKey values.
+        'grand_slam' => [
+            'world' => ['wwe', 'world_heavyweight'],
+            'secondary' => ['intercontinental', 'united_states'],
+            'tag' => ['world_tag_team', 'wwe_tag_team'],
+        ],
     ],
 
     /*
@@ -527,6 +538,8 @@ return [
             'interview_space' => 0.90,
             'diva_bikini_contest' => 1.00,
             'call_out' => 0.80,
+            // House rule (2026-11-20).
+            'speed_up_injury' => 0.80,
         ],
         'amounts' => [
             'new_superstar' => -50_000,
@@ -545,6 +558,7 @@ return [
             'interview_space' => -2_000,
             'diva_bikini_contest' => -10_000,
             'call_out' => -10_000,
+            'speed_up_injury' => -15_000,
         ],
         // House rule: these promos tire their wrestlers (and can injure them),
         // rolled at the point in the show where the promo airs.
@@ -554,6 +568,16 @@ return [
             // House rule (2026-10-25): both Divas and both rivals take part.
             'diva_bikini_contest' => 2,
             'continue_rivalry' => 1,
+        ],
+        // House rule (2026-11-20): these promos still tire their wrestlers
+        // but never injure them (no new injury, no minor one escalating).
+        'injury_exempt' => ['continue_rivalry'],
+        // House rule (2026-11-20): Speed-up Injury Process. A success heals
+        // a minor injury outright, or cuts a serious one by 5 weeks; a
+        // failure cuts either by 2 weeks.
+        'speed_up_injury' => [
+            'serious_success_weeks' => 5,
+            'fail_weeks' => 2,
         ],
         // Extra end-of-week recovery a successful promo gives its target.
         'recovery_bars' => [
@@ -607,6 +631,15 @@ return [
         'heating_up_threshold' => 50,
         // Reaching this ends the rivalry the following week, with a headline.
         'max_heat' => 100,
+        // House rule (2026-11-20): the roles that count as the rivals sharing
+        // a match. A rival who manages or is the Special Referee in a match
+        // the other is in keeps the rivalry going (a full meeting). Starting
+        // a rivalry from meetings still counts competitors only.
+        // ASSUMPTION: it counts as a meeting, not just a hold.
+        'meeting_roles' => ['competitor', 'manager', 'referee'],
+        // House rule (2026-11-20): the heat bar's colours on /rivalries:
+        // yellow below the first, orange below the second, red from it.
+        'heat_colors' => [50, 80],
     ],
 
     /*
@@ -825,13 +858,25 @@ return [
                 'main_event_hype' => 15,
                 'interview_space' => 10,
                 'diva_bikini_contest' => 10,
+                // House rule (2026-11-20). ASSUMPTION: like Comeback Reminder.
+                'speed_up_injury' => 10,
             ],
         ],
         'rivalries' => [
             'max_per_brand' => 7,
             'refill_wait_weeks' => 2,
-            // ASSUMPTION: each active rivalry's chance of a 1v1 on a card.
-            'rivalry_match_chance' => 0.5,
+            // House rule (2026-11-20): it tries to book every active rivalry
+            // on every card (was 0.5); one it can't pair on its weekly show
+            // gets a Continue Rivalry promo instead.
+            'rivalry_match_chance' => 1.0,
+            'continue_unpaired' => true,
+            // House rule (2026-11-20): a rivalry this hot, with this many
+            // matches together, is blown off at its next PPV: 60% a 1v1 on
+            // that PPV, else a 1v1 on its next weekly show after it. The
+            // rivalry ends once that match airs.
+            'blowoff_min_heat' => 60,
+            'blowoff_min_matches' => 4,
+            'blowoff_ppv_chance' => 0.6,
         ],
         'roster' => [
             // ASSUMPTION: the four numbers below.

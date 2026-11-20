@@ -271,6 +271,7 @@ export default function Financials() {
         index >= 0 && index < history.length - 1 ? history[index + 1] : null;
     const latest = history[history.length - 1];
     const closing = history[index]?.balance ?? balance;
+    const wrapUp = props.wrap_up === true;
 
     /** The page for a week of a brand; switching brand keeps the week. */
     const href = (query: { brand?: Brand; week?: number; season?: number }) =>
@@ -359,22 +360,18 @@ export default function Financials() {
                     aria-label="Week"
                     className="flex items-center gap-1 sm:ml-auto"
                 >
-                    <Link
-                        href={
-                            previous
-                                ? href({ week: previous.week_number })
-                                : '#'
-                        }
-                        preserveScroll
-                        aria-disabled={!previous}
-                        aria-label="Previous week"
-                        className={cn(
-                            'gm-btn gm-btn-ghost gm-btn-sm',
-                            !previous && 'pointer-events-none opacity-40',
-                        )}
-                    >
-                        <ChevronLeft aria-hidden className="size-4" />
-                    </Link>
+                    {/* House rule (2026-11-20): no week buttons while the week
+                        just aired wraps up, and none with nowhere to go. */}
+                    {!wrapUp && previous && (
+                        <Link
+                            href={href({ week: previous.week_number })}
+                            preserveScroll
+                            aria-label="Previous week"
+                            className="gm-btn gm-btn-ghost gm-btn-sm"
+                        >
+                            <ChevronLeft aria-hidden className="size-4" />
+                        </Link>
+                    )}
                     <span className="min-w-0 px-2 text-center text-sm">
                         <span className="gm-num text-ink">
                             S{season} · Week {statement.season_week}
@@ -383,27 +380,27 @@ export default function Financials() {
                             {statement.title}
                         </span>
                     </span>
-                    <Link
-                        href={next ? href({ week: next.week_number }) : '#'}
-                        preserveScroll
-                        aria-disabled={!next}
-                        aria-label="Next week"
-                        className={cn(
-                            'gm-btn gm-btn-ghost gm-btn-sm',
-                            !next && 'pointer-events-none opacity-40',
-                        )}
-                    >
-                        <ChevronRight aria-hidden className="size-4" />
-                    </Link>
-                    {latest && latest.week_number !== statement.week && (
+                    {!wrapUp && next && (
                         <Link
-                            href={href({})}
+                            href={href({ week: next.week_number })}
                             preserveScroll
+                            aria-label="Next week"
                             className="gm-btn gm-btn-ghost gm-btn-sm"
                         >
-                            Latest
+                            <ChevronRight aria-hidden className="size-4" />
                         </Link>
                     )}
+                    {!wrapUp &&
+                        latest &&
+                        latest.week_number !== statement.week && (
+                            <Link
+                                href={href({})}
+                                preserveScroll
+                                className="gm-btn gm-btn-ghost gm-btn-sm"
+                            >
+                                Latest
+                            </Link>
+                        )}
                 </nav>
             </div>
 

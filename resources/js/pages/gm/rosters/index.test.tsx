@@ -79,9 +79,12 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 const names = () =>
-    screen
-        .getAllByTestId('roster-row')
-        .map((r) => within(r).getByRole('link').textContent);
+    screen.getAllByTestId('roster-row').map((r) =>
+        // Without the screen-reader cue after a coloured name.
+        within(r)
+            .getByRole('link')
+            .textContent?.replace(/ \((Diva|Cruiserweight)\)$/, ''),
+    );
 
 describe('Rosters table', () => {
     it('drops Weight Class and Popularity and puts Specialties right after Streak', () => {

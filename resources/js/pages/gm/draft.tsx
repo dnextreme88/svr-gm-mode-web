@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SpecialtyBadge } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
@@ -9,9 +9,9 @@ import {
     LoadingOverlay,
 } from '@/components/gm/loading-overlay';
 import { PageTitle, Panel, Stat } from '@/components/gm/panel';
+import { SetupSteps } from '@/components/gm/setup-steps';
 import { PoolFilters } from '@/components/gm/pool-filters';
 import { WrestlerName } from '@/components/gm/wrestler-name';
-import type { PoolFilter } from '@/lib/gm';
 import {
     brandName,
     emptyPoolFilter,
@@ -23,6 +23,7 @@ import {
     writePreference,
 } from '@/lib/gm';
 import { requestJson } from '@/lib/http';
+import { usePoolFilterUrl } from '@/lib/use-url-param';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { Brand, RosterType, WeightClass } from '@/types/enums';
@@ -46,6 +47,7 @@ type Pick = {
     brand: Brand;
     save_wrestler_id: number | null;
     name: string | null;
+    slug?: string | null;
     roster_type: RosterType | null;
     weight_class: WeightClass | null;
     pick_type: 'manual' | 'random';
@@ -97,7 +99,10 @@ export default function Draft() {
     const [budgets, setBudgets] = useState<Record<Brand, number> | null>(
         props.budgets ?? null,
     );
-    const [poolFilter, setPoolFilter] = useState<PoolFilter>(emptyPoolFilter);
+    // The pool's filters live in the URL (UI audit, 2026-11-20).
+    const [poolFilter, setPoolFilter] = usePoolFilterUrl();
+    // Each pick, spoken as it lands (UI audit, 2026-11-20).
+    const [pickNews, setPickNews] = useState('');
     const [skipAnimation, setSkipAnimation] = useState(
         () => readPreference(SKIP_ANIMATION_KEY, 'off', ['on', 'off']) === 'on',
     );
@@ -165,14 +170,30 @@ export default function Draft() {
 
     // Each pick's contract length (house rule, 2026-11-15): the pool's
     // default, or one chosen on the superstar's row.
-    const lengths = props.contract_lengths ?? [
-        {
-            weeks: props.contract_length,
-            label: pluralize(props.contract_length, 'week'),
-        },
-    ];
+    const lengths = useMemo(
+        () =>
+            props.contract_lengths ?? [
+                {
+                    weeks: props.contract_length,
+                    label: pluralize(props.contract_length, 'week'),
+                },
+            ],
+        [props.contract_lengths, props.contract_length],
+    );
     const [defaultLength, setDefaultLength] = useState(props.contract_length);
     const [lengthById, setLengthById] = useState<Record<number, number>>({});
+    const setLength = useCallback(
+        (id: number, weeks: number) =>
+            setLengthById((current) => ({ ...current, [id]: weeks })),
+        [],
+    );
+    const setRow = useCallback((id: number, el: HTMLTableRowElement | null) => {
+        if (el) {
+            rows.current.set(id, el);
+        } else {
+            rows.current.delete(id);
+        }
+    }, []);
     const lengthFor = (id: number) => lengthById[id] ?? defaultLength;
     const quoteFor = (w: PoolRow) =>
         w.quotes.find((q) => q.length_weeks === lengthFor(w.id)) ?? w.quotes[0];
@@ -202,6 +223,9 @@ export default function Draft() {
         await sleep(fast ? 0 : 950);
         setPicks((current) => [...current, pick]);
         setFlashPick(pick.pick_number);
+        setPickNews(
+            `Pick ${pick.pick_number}: ${brandName(pick.brand)} drafts ${pick.name ?? 'a superstar'}.`,
+        );
         await sleep(fast ? 0 : 350);
         setPool((current) => current.filter((w) => w.id !== id));
         setHighlight(null);
@@ -312,16 +336,28 @@ export default function Draft() {
             { preserveScroll: true, onFinish: () => setBusy(false) },
         );
     };
+    // A stable handler, so the pool's rows only re-render when their own
+    // data changes (an AI pick no longer redraws all ~250 rows).
+    const pickRef = useRef(pick);
+    pickRef.current = pick;
+    const onPick = useCallback((id: number) => pickRef.current(id), []);
 
     return (
         <>
             <Head title="Initial Draft" />
+            <p aria-live="polite" className="sr-only">
+                {pickNews}
+                {yourTurn && !animating && !props.player_done
+                    ? ' Your pick.'
+                    : ''}
+            </p>
             {concluded && (
                 <LoadingOverlay
                     testId="draft-concluded"
-                    text="Draft picks are finished. You may now assign your brand's champions."
+                    text="Draft picks are finished. You may now assign your brand’s champions."
                 />
             )}
+            <SetupSteps current={1} />
             <PageTitle kicker="Initial draft" title="Build your roster">
                 {!props.player_done && (
                     <button
@@ -345,7 +381,11 @@ export default function Draft() {
                     )}
                     onClick={() => setSkipAnimation((on) => !on)}
                 >
-                    Skip animation: {skipAnimation ? 'On' : 'Off'}
+                    Skip animation
+                    {/* aria-pressed carries the state, so the On / Off is
+                        visual only and isn't said twice (UI audit,
+                        2026-11-20). */}
+                    <span aria-hidden>: {skipAnimation ? 'On' : 'Off'}</span>
                 </button>
                 {props.player_done ? (
                     aiTurn && (
@@ -436,7 +476,7 @@ export default function Draft() {
                             <label className="flex items-center gap-2 text-xs text-ink-dim">
                                 Sign for
                                 <select
-                                    aria-label="Default contract length"
+                                    name="default_length"
                                     className="gm-input py-1 text-sm"
                                     value={defaultLength}
                                     disabled={animating}
@@ -474,93 +514,34 @@ export default function Draft() {
                                     <th>Contract</th>
                                     <th className="text-right">Total</th>
                                     <th className="text-right">Weekly</th>
-                                    <th />
+                                    <th>
+                                        <span className="sr-only">Draft</span>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {visible.map((w) => (
-                                    <tr
+                                    <PoolRowView
                                         key={w.id}
-                                        ref={(el) => {
-                                            if (el) {
-                                                rows.current.set(w.id, el);
-                                            } else {
-                                                rows.current.delete(w.id);
-                                            }
-                                        }}
-                                        data-highlight={
+                                        wrestler={w}
+                                        highlight={
                                             highlight?.id === w.id
                                                 ? highlight.brand
                                                 : undefined
                                         }
-                                        className="gm-row-highlight"
-                                    >
-                                        <td className="font-semibold">
-                                            <WrestlerName wrestler={w} />
-                                        </td>
-                                        <td className="text-ink-dim">
-                                            {RosterTypeLabels[w.roster_type]}
-                                        </td>
-                                        <td className="text-ink-dim">
-                                            {WeightClassLabels[w.weight_class]}
-                                        </td>
-                                        <td>
-                                            <div className="flex flex-wrap gap-1">
-                                                {w.specialties.map((s) => (
-                                                    <SpecialtyBadge
-                                                        key={s}
-                                                        family={s}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <select
-                                                aria-label={`Contract length for ${w.name}`}
-                                                className="gm-input py-1 text-sm"
-                                                value={lengthFor(w.id)}
-                                                onChange={(e) =>
-                                                    setLengthById({
-                                                        ...lengthById,
-                                                        [w.id]: Number(
-                                                            e.target.value,
-                                                        ),
-                                                    })
-                                                }
-                                            >
-                                                {lengths.map((l) => (
-                                                    <option
-                                                        key={l.weeks}
-                                                        value={l.weeks}
-                                                    >
-                                                        {l.label}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </td>
-                                        <td className="gm-num text-right">
-                                            {formatMoney(quoteFor(w).total)}
-                                        </td>
-                                        <td className="gm-num text-right text-ink-dim">
-                                            {formatMoney(quoteFor(w).weekly)}
-                                        </td>
-                                        <td className="text-right">
-                                            <button
-                                                type="button"
-                                                className="gm-btn gm-btn-sm"
-                                                disabled={
-                                                    !yourTurn ||
-                                                    busy ||
-                                                    animating ||
-                                                    yourBudget <
-                                                        quoteFor(w).total
-                                                }
-                                                onClick={() => pick(w.id)}
-                                            >
-                                                Draft
-                                            </button>
-                                        </td>
-                                    </tr>
+                                        length={lengthFor(w.id)}
+                                        lengths={lengths}
+                                        quote={quoteFor(w)}
+                                        canDraft={
+                                            yourTurn &&
+                                            !busy &&
+                                            !animating &&
+                                            yourBudget >= quoteFor(w).total
+                                        }
+                                        onLength={setLength}
+                                        onPick={onPick}
+                                        setRow={setRow}
+                                    />
                                 ))}
                             </tbody>
                         </table>
@@ -627,6 +608,82 @@ export default function Draft() {
  * clock glows and shows the animated turn line ("Your pick", or the rival
  * drafting).
  */
+/** One row of the draft pool, memoised (UI audit, 2026-11-20). */
+const PoolRowView = memo(function PoolRowView({
+    wrestler: w,
+    highlight,
+    length,
+    lengths,
+    quote,
+    canDraft,
+    onLength,
+    onPick,
+    setRow,
+}: {
+    wrestler: PoolRow;
+    highlight: Brand | undefined;
+    length: number;
+    lengths: { weeks: number; label: string }[];
+    quote: Quote;
+    canDraft: boolean;
+    onLength: (id: number, weeks: number) => void;
+    onPick: (id: number) => void;
+    setRow: (id: number, el: HTMLTableRowElement | null) => void;
+}) {
+    return (
+        <tr
+            ref={(el) => setRow(w.id, el)}
+            data-highlight={highlight}
+            className="gm-row-highlight"
+        >
+            <td className="font-semibold">
+                <WrestlerName wrestler={w} portrait="md" />
+            </td>
+            <td className="text-ink-dim">{RosterTypeLabels[w.roster_type]}</td>
+            <td className="text-ink-dim">
+                {WeightClassLabels[w.weight_class]}
+            </td>
+            <td>
+                <div className="flex flex-wrap gap-1">
+                    {w.specialties.map((s) => (
+                        <SpecialtyBadge key={s} family={s} />
+                    ))}
+                </div>
+            </td>
+            <td>
+                <select
+                    name={`length_${w.id}`}
+                    aria-label={`Contract length for ${w.name}`}
+                    className="gm-input py-1 text-sm"
+                    value={length}
+                    onChange={(e) => onLength(w.id, Number(e.target.value))}
+                >
+                    {lengths.map((l) => (
+                        <option key={l.weeks} value={l.weeks}>
+                            {l.label}
+                        </option>
+                    ))}
+                </select>
+            </td>
+            <td className="gm-num text-right">{formatMoney(quote.total)}</td>
+            <td className="gm-num text-right text-ink-dim">
+                {formatMoney(quote.weekly)}
+            </td>
+            <td className="text-right">
+                <button
+                    type="button"
+                    className="gm-btn gm-btn-sm"
+                    disabled={!canDraft}
+                    aria-label={`Draft ${w.name}`}
+                    onClick={() => onPick(w.id)}
+                >
+                    Draft
+                </button>
+            </td>
+        </tr>
+    );
+});
+
 function BrandDraftCard({
     brand,
     mine,
@@ -673,7 +730,7 @@ function BrandDraftCard({
                         />
                     </div>
                     {/* Keeps its height so both cards stay level. */}
-                    <div className="min-h-5" aria-live="polite">
+                    <div className="min-h-5">
                         {drafting && (
                             <span
                                 data-testid="on-the-clock"
@@ -733,7 +790,7 @@ function AllPicks({
                             {p.pick_number}.
                         </span>
                         <span className="min-w-0 flex-1 truncate font-medium">
-                            <WrestlerName wrestler={p} />
+                            <WrestlerName wrestler={p} portrait="sm" />
                         </span>
                         <BrandBug
                             brand={p.brand}
@@ -794,8 +851,8 @@ function DraftBoard({
                             <span className="gm-num w-7 text-ink-faint">
                                 #{p.pick_number}
                             </span>
-                            <span className="flex-1 font-medium">
-                                <WrestlerName wrestler={p} />
+                            <span className="min-w-0 flex-1 font-medium">
+                                <WrestlerName wrestler={p} portrait="sm" />
                             </span>
                             {p.roster_type && p.roster_type !== 'superstar' && (
                                 <span className="font-condensed text-xs tracking-widest text-ink-dim uppercase">
@@ -863,7 +920,7 @@ function StopDraftSummary({
             </p>
             {picks.length > 0 && (
                 <ul
-                    className="gm-scroll max-h-40 space-y-0.5 overflow-y-auto text-sm"
+                    className="gm-scroll max-h-43 space-y-0.5 overflow-y-auto text-sm"
                     aria-label="Your picks"
                 >
                     {picks.map((p) => (

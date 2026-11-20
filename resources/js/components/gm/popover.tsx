@@ -13,7 +13,24 @@ export function usePopover() {
     const [mounted, setMounted] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
-    const close = useCallback(() => setOpen(false), []);
+    // Closing while focus is inside the panel (a pick, Escape) hands focus
+    // back to the button that opened it, so it never drops to <body> (UI
+    // audit, 2026-11-20).
+    const close = useCallback(() => {
+        const root = ref.current;
+        const trigger = root?.querySelector<HTMLElement>('[aria-expanded]');
+
+        if (
+            root &&
+            trigger &&
+            root.contains(document.activeElement) &&
+            document.activeElement !== trigger
+        ) {
+            trigger.focus();
+        }
+
+        setOpen(false);
+    }, []);
     const show = useCallback(() => {
         setMounted(true);
         setOpen(true);
@@ -46,18 +63,26 @@ export function usePopover() {
         };
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
+                close();
+            }
+        };
+        // Tabbing out of the picker closes it.
+        const onFocusIn = (e: FocusEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) {
                 setOpen(false);
             }
         };
 
         document.addEventListener('pointerdown', onPointerDown);
         document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('focusin', onFocusIn);
 
         return () => {
             document.removeEventListener('pointerdown', onPointerDown);
             document.removeEventListener('keydown', onKeyDown);
+            document.removeEventListener('focusin', onFocusIn);
         };
-    }, [open]);
+    }, [open, close]);
 
     return { open, mounted, ref, toggle, close };
 }
@@ -71,7 +96,7 @@ export function PopoverPanel({
     className,
     children,
     ...props
-}: React.HTMLAttributes<HTMLDivElement> & { open: boolean }) {
+}: React.ComponentPropsWithRef<'div'> & { open: boolean }) {
     return (
         <div
             data-state={open ? 'open' : 'closed'}

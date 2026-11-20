@@ -22,6 +22,9 @@ import { StoryModal } from '@/components/gm/story-modal';
 import type { ConditionalStoryPopup } from '@/components/gm/story-modal';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
+import { requestJson } from '@/lib/http';
+import { ignoresPageArrows } from '@/lib/keyboard';
+import { useUrlParam } from '@/lib/use-url-param';
 import { cn } from '@/lib/utils';
 import { brandName, pluralize, prefersReducedMotion } from '@/lib/gm';
 import gm from '@/routes/gm';
@@ -194,9 +197,21 @@ export default function Results() {
     );
     // The card on the right always shows a match: the one asked for, else
     // the next to decide while the week airs, else the first.
+    // The night on screen is kept in the URL (`?night=`, UI audit
+    // 2026-11-20), so a refresh of a past PPV week keeps it.
+    const [nightParam, setNightParam] = useUrlParam('night', '');
     const [open, setOpen] = useState<number | null>(() => {
         if (reel.length === 0) {
             return null;
+        }
+
+        const asked =
+            !airing && !focus_match_id && !focus_show_id
+                ? reel.findIndex((r) => nightOf(r.show) === nightParam)
+                : -1;
+
+        if (asked !== -1) {
+            return asked;
         }
 
         const index = reel.findIndex((r) =>
@@ -213,17 +228,38 @@ export default function Results() {
     // the next match to decide after a short look at the result.
     const [decided, setDecided] = useState<number | null>(null);
     const [direction, setDirection] = useState<'left' | 'right'>('right');
-    // Conditional stories (house rule, 2026-11-07): one pop-up at a time;
-    // `closed` counts this run's, for "1 of 2".
-    const [closed, setClosed] = useState(0);
-    const story = busy ? null : (conditional_stories[0] ?? null);
-    const storyOpen = story !== null;
+    // Conditional stories (house rule, 2026-11-07; one modal, 2026-11-21):
+    // the stories a decision brought are shown together in one modal, in air
+    // order. Got it moves to the next and closes the modal on the last one,
+    // and only then does the fatigue report open. Previous / Next step
+    // between the stories already seen.
+    const [storyBatch, setStoryBatch] = useState<ConditionalStoryPopup[]>([]);
+    const [storyAt, setStoryAt] = useState(0);
+    const [storySeen, setStorySeen] = useState(0);
+
+    // Stories already shown in a batch, so the list the server still sends
+    // until its reload doesn't open them again.
+    const shownStories = useRef(new Set<number>());
 
     useEffect(() => {
-        if (conditional_stories.length === 0) {
-            setClosed(0);
+        const fresh = conditional_stories.filter(
+            (st) => !shownStories.current.has(st.id),
+        );
+
+        if (!busy && storyBatch.length === 0 && fresh.length > 0) {
+            fresh.forEach((st) => shownStories.current.add(st.id));
+            setStoryBatch(fresh);
+            setStoryAt(0);
+            setStorySeen(0);
         }
-    }, [conditional_stories.length]);
+    }, [busy, storyBatch.length, conditional_stories]);
+    // A story is up, or about to be (the batch opens after this render), so
+    // the fatigue report and the cash-in prompt wait (no flash between).
+    const storyOpen = storyBatch.length > 0;
+    const storyPending =
+        storyOpen ||
+        conditional_stories.some((st) => !shownStories.current.has(st.id));
+    const seenRequests = useRef<Promise<unknown>[]>([]);
 
     // House rule (2026-11-12): when the last match is decided here, the
     // night's fatigue opens in a modal (after any story pop-ups), and the
@@ -275,6 +311,12 @@ export default function Results() {
     }, [current]);
 
     const split = nights.length > 1;
+
+    useEffect(() => {
+        if (split) {
+            setNightParam(night);
+        }
+    }, [split, night, setNightParam]);
     const inNight = useCallback(
         (item: ReelItem) => !split || nightOf(item.show) === night,
         [split, night],
@@ -328,6 +370,12 @@ export default function Results() {
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
+            // Not while the player types, uses a dialog or a control's own
+            // arrow keys (UI audit, 2026-11-20).
+            if (ignoresPageArrows(e)) {
+                return;
+            }
+
             if (e.key === 'ArrowRight') {
                 go(1);
             } else if (e.key === 'ArrowLeft') {
@@ -340,8 +388,22 @@ export default function Results() {
         return () => window.removeEventListener('keydown', onKey);
     }, [go]);
 
+    // Screen readers hear each result as it comes in (UI audit, 2026-11-20).
+    const [announcement, setAnnouncement] = useState('');
+
     useEffect(() => {
         const result = reel.find((r) => r.outcome.id === decided);
+
+        if (result && !result.outcome.pending) {
+            const o = result.outcome;
+            const label = result.isMainEvent
+                ? 'Main Event'
+                : `Match ${o.position}`;
+
+            setAnnouncement(
+                `${result.show.name}, ${label}. Winner: ${o.winners_label}, by ${o.method_label}.${o.title_banner === 'new_champion' && o.title ? ` New ${o.title} champion.` : ''}`,
+            );
+        }
 
         // The move to the next match waits while a story is up.
         if (
@@ -408,15 +470,40 @@ export default function Results() {
             'cash-in',
         );
 
-    const closeStory = (id: number) => {
-        setClosed((n) => n + 1);
-        post(
+    // Got it: the story is marked seen (in the background, no reload, so
+    // nothing flashes between stories). The last one closes the modal and
+    // reloads the results.
+    const storyGotIt = () => {
+        const story = storyBatch[storyAt];
+
+        if (!story) {
+            return;
+        }
+
+        const seen = requestJson(
+            'POST',
             gm.results.stories.seen.url({
                 save: game.id,
                 week: week_number,
-                trigger: id,
+                trigger: story.id,
             }),
-        );
+        ).catch(() => undefined);
+
+        if (storyAt < storyBatch.length - 1) {
+            seenRequests.current.push(seen);
+            setStoryAt(storyAt + 1);
+            setStorySeen((n) => Math.max(n, storyAt + 1));
+
+            return;
+        }
+
+        setStoryBatch([]);
+        setStoryAt(0);
+        // Once every story's "seen" is in, the server's list is empty.
+        void Promise.all([...seenRequests.current, seen]).then(() => {
+            seenRequests.current = [];
+            router.reload({ only: ['conditional_stories'] });
+        });
     };
 
     const answerCashIn = (yes: boolean) =>
@@ -495,46 +582,54 @@ export default function Results() {
                 ) : airing ? (
                     <>
                         {simulateAll}
+                        {/* The reason is on screen, not only in a tooltip
+                            (UI audit, 2026-11-20). */}
+                        <span
+                            id="continue-held"
+                            className="text-sm text-ink-dim"
+                        >
+                            Decide every match to continue
+                        </span>
                         <button
                             type="button"
                             className="gm-btn"
                             disabled
-                            title="Decide every match to continue"
+                            aria-describedby="continue-held"
                         >
                             Continue
                         </button>
                     </>
                 ) : wrapping_up ? (
-                    <button
-                        type="button"
-                        className="gm-btn"
-                        disabled={continuing}
+                    <Link
+                        href={gm.financials.url(game.id, {
+                            query: { wrap: 1 },
+                        })}
+                        className={cn(
+                            'gm-btn',
+                            continuing && 'pointer-events-none opacity-70',
+                        )}
                         aria-busy={continuing || undefined}
-                        onClick={() =>
-                            router.visit(
-                                gm.financials.url(game.id, {
-                                    query: { wrap: 1 },
-                                }),
-                                {
-                                    onStart: () => setContinuing(true),
-                                    onFinish: () => setContinuing(false),
-                                },
-                            )
-                        }
+                        aria-disabled={continuing || undefined}
+                        onStart={() => setContinuing(true)}
+                        onFinish={() => setContinuing(false)}
                     >
                         <BusyLabel
                             busy={continuing}
-                            busyText="Continuing to Financials..."
+                            busyText="Continuing to Financials…"
                         >
                             Continue to Financials
                         </BusyLabel>
-                    </button>
+                    </Link>
                 ) : (
                     <Link href={gm.news.url(game.id)} className="gm-btn">
                         Continue
                     </Link>
                 )}
             </PageTitle>
+
+            <p aria-live="polite" className="sr-only">
+                {announcement}
+            </p>
 
             {reel.length === 0 && (
                 <EmptyState>No matches were booked this week.</EmptyState>
@@ -643,13 +738,8 @@ export default function Results() {
 
                         {new_emails > 0 && !from_schedule && !airing && (
                             <p className="text-sm text-ink-dim">
+                                You received{' '}
                                 {pluralize(new_emails, 'new email')}.{' '}
-                                <Link
-                                    href={gm.email.url(game.id)}
-                                    className="text-brand-hot underline underline-offset-4"
-                                >
-                                    Open inbox
-                                </Link>
                             </p>
                         )}
                     </div>
@@ -744,8 +834,8 @@ export default function Results() {
                                     className="text-sm text-ink-faint"
                                 >
                                     {airing
-                                        ? "Your superstars' fatigue shows here once every match is decided."
-                                        : "Your superstars' fatigue shows here once you close the fatigue report."}
+                                        ? 'Your superstars’ fatigue shows here once every match is decided.'
+                                        : 'Your superstars’ fatigue shows here once you close the fatigue report.'}
                                 </p>
                             </Panel>
                         ) : (
@@ -760,7 +850,7 @@ export default function Results() {
             )}
 
             <ConfirmDialog
-                open={fatigueModal && !storyOpen}
+                open={fatigueModal && !storyPending}
                 title="Fatigue this week"
                 wide
                 cancelLabel="Got it"
@@ -775,14 +865,18 @@ export default function Results() {
             />
 
             <StoryModal
-                story={story}
-                index={closed + 1}
-                total={closed + conditional_stories.length}
-                onClose={() => story && closeStory(story.id)}
+                story={storyBatch[storyAt] ?? null}
+                index={storyAt + 1}
+                total={storyBatch.length}
+                canPrevious={storyAt > 0}
+                canNext={storyAt < storySeen}
+                onPrevious={() => setStoryAt((i) => Math.max(0, i - 1))}
+                onNext={() => setStoryAt((i) => Math.min(storySeen, i + 1))}
+                onClose={storyGotIt}
             />
 
             <ConfirmDialog
-                open={cash_in_offer !== null && !busy && !storyOpen}
+                open={cash_in_offer !== null && !busy && !storyPending}
                 title="Cash in Money in the Bank?"
                 message={
                     cash_in_offer
@@ -827,11 +921,6 @@ function MatchRow({
                 onClick={onSelect}
                 disabled={waiting}
                 aria-current={selected || undefined}
-                aria-label={
-                    waiting
-                        ? `${show.name} match ${o.position} is waiting for the matches before it`
-                        : `Show details for ${show.name} match ${o.position}`
-                }
                 className={cn(
                     'block w-full border-l-2 px-4 py-3 text-left transition-colors',
                     waiting
@@ -840,6 +929,13 @@ function MatchRow({
                     selected ? 'border-brand bg-white/5' : 'border-transparent',
                 )}
             >
+                {/* A prefix, not an aria-label: the name keeps the visible
+                    result too (UI audit, 2026-11-20). */}
+                <span className="sr-only">
+                    {waiting
+                        ? `${show.name} match ${o.position} is waiting for the matches before it. `
+                        : `Show details for ${show.name} match ${o.position}: `}
+                </span>
                 <span className="flex items-start justify-between gap-3">
                     <span className="min-w-0 text-lg font-semibold group-hover:text-white">
                         <span
@@ -960,7 +1056,7 @@ function MatchRow({
                                 data-testid="contested-title"
                                 className="inline-flex items-center gap-1 px-2 py-px font-condensed text-sm font-bold tracking-[0.14em] text-gold-hot uppercase"
                             >
-                                <TitleMark name={t} /> fasfas
+                                <TitleMark name={t} />
                                 {t}
                             </span>
                         ))}

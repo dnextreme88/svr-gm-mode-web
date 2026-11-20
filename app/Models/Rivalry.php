@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $started_week
  * @property int $last_activity_week
  * @property int|null $maxed_week the week heat reached 100; it ends the next week
+ * @property int|null $blowoff_slot_id the rival GM's blow-off match (house rule, 2026-11-20); it ends once that airs
  * @property int|null $ended_week
  * @property bool $active
  * @property-read SaveWrestler $wrestlerA

@@ -84,7 +84,7 @@ describe('new game rosters', () => {
         );
         // The loading overlay covers the page for its pause first.
         expect(screen.getByTestId('starting-game')).toHaveTextContent(
-            'Signing the WWE rosters. Please wait...',
+            'Signing the WWE rosters. Please wait…',
         );
         expect(router.visit).not.toHaveBeenCalled();
         await act(async () => {
@@ -120,7 +120,7 @@ describe('new game rosters', () => {
 
         // Once it lands, the overlay, then the draft room.
         expect(screen.getByTestId('starting-game')).toHaveTextContent(
-            'Setting up the draft. Please wait...',
+            'Setting up the draft. Please wait…',
         );
         expect(screen.queryByText(/who picks first/i)).not.toBeInTheDocument();
         expect(router.visit).not.toHaveBeenCalled();
@@ -200,7 +200,7 @@ describe('loading a saved career (house rule, 2026-11-17)', () => {
         await user.click(screen.getByTestId('load-career-7'));
 
         expect(screen.getByTestId('loading-career')).toHaveTextContent(
-            'Loading your career. Please wait...',
+            'Loading your career. Please wait…',
         );
     });
 });

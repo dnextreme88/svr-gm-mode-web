@@ -1,13 +1,16 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { useLayoutEffect, useRef, useState } from 'react';
+import type React from 'react';
 import { SpecialtyBadge } from '@/components/gm/badges';
 import { PpvBug } from '@/components/gm/brand-bug';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { PageTitle, Panel } from '@/components/gm/panel';
+import { ariaSort, nextSort, SortHeader } from '@/components/gm/sort-header';
 import { successLabel } from '@/components/gm/promo-slots';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { brandName, formatMoney, pluralize } from '@/lib/gm';
+import { useSortUrl, useUrlParam } from '@/lib/use-url-param';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type {
@@ -199,6 +202,9 @@ type Props = {
             max_per_brand: number;
             refill_wait_weeks: number;
             rivalry_match_chance: number;
+            blowoff_min_heat?: number;
+            blowoff_min_matches?: number;
+            blowoff_ppv_chance?: number;
         };
         roster: {
             renew_at_weeks_left: number;
@@ -268,6 +274,7 @@ type Props = {
             idle_decay: number;
             heating_up_threshold: number;
             max_heat: number;
+            heat_colors?: [number, number];
         };
     };
     news: {
@@ -760,6 +767,7 @@ function MatchTypes({
             {families.map((family) => (
                 <Panel
                     key={family.family}
+                    className="gm-cv-panel"
                     title={
                         <span className="text-xl tracking-[0.08em]">
                             {family.label}
@@ -839,28 +847,81 @@ function MatchTypes({
     );
 }
 
-function InjuryTable({ title, rows }: { title: string; rows: Injury[] }) {
+type InjurySortKey = 'injury' | 'duration';
+
+const INJURY_SORT_KEYS: readonly InjurySortKey[] = ['injury', 'duration'];
+
+/** By duration, shortest first, unless the player sorts otherwise. */
+const INJURY_DEFAULT_SORT = { key: 'duration', dir: 'asc' } as const;
+
+/**
+ * Sort an injury list (2026-11-20): by name, or by duration (shortest
+ * minimum first, then the shorter maximum, then the name).
+ */
+export function sortInjuries(
+    rows: Injury[],
+    sort: { key: InjurySortKey; dir: 'asc' | 'desc' } | null,
+): Injury[] {
+    const by = sort ?? INJURY_DEFAULT_SORT;
+    const flip = by.dir === 'asc' ? 1 : -1;
+
+    return [...rows].sort((a, b) => {
+        const order =
+            by.key === 'injury'
+                ? a.label.localeCompare(b.label)
+                : a.min_weeks - b.min_weeks ||
+                  a.max_weeks - b.max_weeks ||
+                  a.label.localeCompare(b.label);
+
+        return order * flip;
+    });
+}
+
+function InjuryTable({
+    title,
+    rows,
+    param,
+}: {
+    title: string;
+    rows: Injury[];
+    /** The table's sort in the URL (`?minor_sort=injury:asc`). */
+    param: string;
+}) {
     const escalates = rows.some((r) => r.escalates_to !== null);
+    const [sort, setSort] = useSortUrl<InjurySortKey>(
+        INJURY_SORT_KEYS,
+        param,
+        INJURY_DEFAULT_SORT,
+    );
+    const sorted = sortInjuries(rows, sort);
+    const header = (key: InjurySortKey, label: string) => (
+        <th aria-sort={ariaSort(sort, key)}>
+            <SortHeader
+                label={label}
+                active={sort?.key === key ? sort.dir : null}
+                onClick={() => setSort((s) => nextSort(s, key))}
+            />
+        </th>
+    );
 
     return (
         <Panel title={title} bodyClassName="p-0">
             <table className="gm-table">
                 <thead>
                     <tr>
-                        <th>Injury</th>
-                        <th>Duration</th>
+                        {header('injury', 'Injury')}
+                        {header('duration', 'Duration')}
                         {escalates && <th>Escalates to</th>}
                     </tr>
                 </thead>
                 <tbody>
-                    {rows.map((r) => (
+                    {sorted.map((r) => (
                         <tr key={r.label}>
                             <td className="font-semibold">{r.label}</td>
                             <td className="gm-num">
                                 {r.min_weeks === r.max_weeks
-                                    ? r.min_weeks
-                                    : `${r.min_weeks}–${r.max_weeks}`}{' '}
-                                weeks
+                                    ? pluralize(r.min_weeks, 'week')
+                                    : `${r.min_weeks}–${pluralize(r.max_weeks, 'week')}`}
                             </td>
                             {escalates && (
                                 <td className="text-ink-dim">
@@ -953,10 +1014,12 @@ function Injuries({ injuries, fatigue }: Pick<Props, 'injuries' | 'fatigue'>) {
                 <InjuryTable
                     title={`Minor injuries · ${injuries.minor.length}`}
                     rows={injuries.minor}
+                    param="minor_sort"
                 />
                 <InjuryTable
                     title={`Serious injuries · ${injuries.serious.length}`}
                     rows={injuries.serious}
+                    param="serious_sort"
                 />
             </div>
         </div>
@@ -1159,8 +1222,17 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                             Continue Rivalry picks one of your brand’s rivalries
                             from a single list, like “Jeff Hardy vs. Rob Van
                             Dam”. It always succeeds, and both rivals take 1
-                            fatigue bar. Rivalries are always one on one and
-                            named alphabetically, here and on the Rivalry page.
+                            fatigue bar, but it never injures them. Rivalries
+                            are always one on one and named alphabetically, here
+                            and on the Rivalry page.
+                        </li>
+                        <li>
+                            Speed-up Injury Process sends an injured superstar
+                            (minor or serious) for extra treatment. It works 80%
+                            of the time: a minor injury heals outright, a
+                            serious one is 5 weeks shorter. If it fails, the
+                            injury is still 2 weeks shorter. It never cuts past
+                            next week, and titles already vacated stay vacated.
                         </li>
                         {promos.rivalry_heat && (
                             <li data-testid="rivalry-heat">
@@ -1195,6 +1267,9 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                                         }
                                         . Opponents or partners, winning or
                                         losing: being in the same match counts.
+                                        So does a rival who manages either side
+                                        of a match the other is in, or is its
+                                        Special Referee.
                                     </li>
                                     <li>
                                         A week without one, but with a Continue
@@ -1224,6 +1299,18 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                                         {promos.rivalry_heat
                                             .heat_per_interference ?? 10}
                                         .
+                                    </li>
+                                    <li>
+                                        On the Rivalries page the heat bar is
+                                        yellow while it builds, orange from{' '}
+                                        {promos.rivalry_heat.heat_colors?.[0] ??
+                                            50}{' '}
+                                        and red from{' '}
+                                        {promos.rivalry_heat.heat_colors?.[1] ??
+                                            80}
+                                        . Each rivalry’s row opens to list every
+                                        match the rivals were in together, with
+                                        its week (and PPV) and result.
                                     </li>
                                 </ul>
                                 The Rivalry page lists all of this.
@@ -1277,7 +1364,9 @@ function Promos({ promos }: Pick<Props, 'promos'>) {
                         <li>
                             Promo fatigue rolls injuries like a match, on the
                             fatigue it leaves them on: 80–100% is always an
-                            injury, over 100% always a serious one.
+                            injury, over 100% always a serious one. Continue
+                            Rivalry is the exception: it tires the rivals but
+                            never injures them.
                         </li>
                         <li>
                             A Title Match Hype whose title match is gone by air
@@ -1635,7 +1724,12 @@ function NewsAndEmail({
                         or distracted) and stay out of the Royal Rumble,
                         Elimination Chamber, Steel Cage and Hell in a Cell. The
                         story is added to the match’s news, and a pop-up
-                        explains it on the live results screen.
+                        explains it on the live results screen. When a decision
+                        brings several (Simulate all, say), they share one
+                        pop-up, “Story 1 of 3”: Got it moves to the next one,
+                        Previous and Next step back over the stories already
+                        shown, and Got it on the last closes it before the
+                        week’s fatigue report opens.
                     </p>
                     <table
                         className="gm-table text-sm"
@@ -1888,13 +1982,13 @@ function MoraleDocs({ morale }: Pick<Props, 'morale'>) {
             key: 'title_match',
             name: 'No title match',
             counts: 'weeks without a title match',
-            clears: `A title match (or Winner Takes All). Only counts with a title on their brand they can hold${morale.champions_exempt ? '; champions never ask' : ''}.`,
+            clears: `A title match, a Winner Takes All or a #1 Contender’s Match, win or lose. Only counts with a title on their brand they can hold${morale.champions_exempt ? '; champions never ask' : ''}.`,
         },
         {
             key: 'inactivity',
             name: 'Unused',
             counts: 'weeks not booked',
-            clears: 'Being booked in a match (managing counts).',
+            clears: 'Being booked in a match (managing counts), or in an Interference or Diva Bikini Contest promo.',
         },
     ];
 
@@ -2084,19 +2178,38 @@ function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
                     title on the card, weighted world {hype.world} / second tier{' '}
                     {hype.second} / other {hype.other}, New Superstar, Comeback
                     Reminder, Inactive Superstar, Continue Rivalry, Main Event
-                    Hype, Interview Space or Diva Bikini Contest), and money
-                    promos fill the rest. When it slanders you, your announcer
-                    emails you.
+                    Hype, Interview Space, Diva Bikini Contest, or Speed-up
+                    Injury Process for its injured champions first, then its
+                    most valuable injured superstar), and money promos fill the
+                    rest. When it slanders you, your announcer emails you.
                 </li>
                 <li>
                     <strong>Rivalries:</strong> at most {r.max_per_brand} on its
                     brand, starting the season with none. It starts one a week
                     with a Start a Rivalry promo, waiting{' '}
                     {pluralize(r.refill_wait_weeks, 'week')}
-                    after one ends. Each rivalry has a{' '}
-                    {pct(r.rivalry_match_chance)} chance of a 1 vs 1 on a card.
-                    Rivals are always the same gender.
+                    after one ends. It keeps them going: each rivalry has a{' '}
+                    {pct(r.rivalry_match_chance)} chance of a 1 vs 1 on a card,
+                    and one it can’t pair on its weekly show gets a Continue
+                    Rivalry promo. Rivals are always the same gender.
                 </li>
+                {r.blowoff_min_heat !== undefined && (
+                    <li data-testid="rival-blowoffs">
+                        <strong>Blow-offs:</strong> a rivalry at{' '}
+                        {r.blowoff_min_heat}+ heat with{' '}
+                        {pluralize(
+                            r.blowoff_min_matches ?? 4,
+                            'match',
+                            'matches',
+                        )}{' '}
+                        or more together ends at its next PPV it can book (its
+                        own, or its slots on a shared PPV). A roll books the
+                        rivals 1 vs 1 on that PPV{' '}
+                        {pct(r.blowoff_ppv_chance ?? 0.6)} of the time, else on
+                        its next weekly show after it. The rivalry ends once
+                        that match airs, with a headline.
+                    </li>
+                )}
                 <li data-testid="rival-renewals">
                     <strong>Contracts:</strong> on a contract’s last week it
                     judges the superstar on how they did during it, like a human
@@ -2321,6 +2434,12 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
                         <li>
                             You and the rival GM alternate picks from the whole
                             pool. Who picks first is random.
+                        </li>
+                        <li data-testid="setup-steps-docs">
+                            Setting up a career takes two steps, shown at the
+                            top of both pages: 1 Draft your roster, then 2 Crown
+                            your champions. The menu bar is hidden on both until
+                            the season starts.
                         </li>
                         <li>
                             Up to {pluralize(rosters.cap, 'pick')} each. You can
@@ -2663,7 +2782,9 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                             as it is now. Loading the career from Saved careers
                             takes you back to that save, and anything you did
                             after it is lost, so save before you stop playing.
-                            Each save replaces the last one.
+                            Each save replaces the last one. The GM Mode logo at
+                            the top left takes you to the save list; with
+                            progress that isn’t saved yet, it asks first.
                         </li>
                     </ul>
                 </Panel>
@@ -3067,6 +3188,10 @@ const activeEffects: { name: string; text: string }[] = [
         text: 'A Buried Alive loser sitting out, with the weeks left. They can’t be booked as anything until they’re back.',
     },
     {
+        name: 'Sitting out',
+        text: 'A superstar sitting out after a blocked defection (they tried to leave for the other brand, which had a full roster), with the weeks left. They can’t be booked as anything until they’re back.',
+    },
+    {
         name: 'Rivalry',
         text: 'Every active rivalry on your brand and its heat, e.g. “Edge vs. John Cena · Heat 40”, hottest first. Heat rises when the rivals meet or run a Continue Rivalry promo and falls in a week with neither. See Promos.',
     },
@@ -3299,7 +3424,13 @@ function ResultsDocs() {
 
 export default function Docs() {
     const props = usePage<Props & { game?: GameShell }>().props;
-    const [tab, setTab] = useState<TabKey>('matches');
+    // The open tab lives in the URL (`?tab=`, UI audit 2026-11-20), so a
+    // refresh, Back or a shared link opens the same section.
+    const [tabParam, setTabParam] = useUrlParam('tab', 'matches');
+    const tab: TabKey = tabs.some((t) => t.key === tabParam)
+        ? (tabParam as TabKey)
+        : 'matches';
+    const setTab = (next: TabKey) => setTabParam(next);
     const [direction, setDirection] = useState<'left' | 'right'>('right');
     const tabRefs = useRef(new Map<TabKey, HTMLButtonElement>());
     const [indicator, setIndicator] = useState({ left: 0, top: 0, width: 0 });
@@ -3325,16 +3456,41 @@ export default function Docs() {
         return () => window.removeEventListener('resize', measure);
     }, [tab]);
 
-    const selectTab = (next: TabKey) => {
+    const selectTab = (next: TabKey, focus = false) => {
         const order = tabs.map((t) => t.key);
         setDirection(
             order.indexOf(next) < order.indexOf(tab) ? 'left' : 'right',
         );
         setTab(next);
+        const el = tabRefs.current.get(next);
+
+        if (focus) {
+            el?.focus();
+        }
+
         // On a phone the tabs scroll sideways: keep the chosen one in view.
-        tabRefs.current
-            .get(next)
-            ?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+        el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    };
+    // The ARIA tabs pattern: one Tab stop, the arrow keys (and Home / End)
+    // move between tabs.
+    const onTabKey = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+        const order = tabs.map((t) => t.key);
+        const at = order.indexOf(tab);
+        const next =
+            e.key === 'ArrowRight'
+                ? order[(at + 1) % order.length]
+                : e.key === 'ArrowLeft'
+                  ? order[(at - 1 + order.length) % order.length]
+                  : e.key === 'Home'
+                    ? order[0]
+                    : e.key === 'End'
+                      ? order[order.length - 1]
+                      : null;
+
+        if (next) {
+            e.preventDefault();
+            selectTab(next, true);
+        }
     };
     // Inside a career the GM header and nav are on screen; from the save
     // list there's no career, so offer the way back instead.
@@ -3369,9 +3525,13 @@ export default function Docs() {
                         }}
                         type="button"
                         role="tab"
+                        id={`docs-tab-${t.key}`}
+                        aria-controls="docs-panel"
                         aria-selected={tab === t.key}
+                        tabIndex={tab === t.key ? 0 : -1}
                         data-active={tab === t.key || undefined}
                         onClick={() => selectTab(t.key)}
+                        onKeyDown={onTabKey}
                         className={cn(
                             'relative shrink-0 px-3 py-2.5 font-condensed text-sm font-semibold tracking-[0.12em] whitespace-nowrap uppercase transition-colors',
                             tab === t.key
@@ -3382,16 +3542,23 @@ export default function Docs() {
                         {t.label}
                     </button>
                 ))}
+                {/* Moves with transform, not left / width (UI audit,
+                    2026-11-20): a 1px bar scaled to the tab's width. */}
                 <span
                     aria-hidden
                     data-testid="tab-indicator"
-                    className="absolute h-0.5 bg-brand shadow-[0_0_10px_var(--gm-brand)] transition-[left,top,width] duration-300 ease-out motion-reduce:transition-none"
-                    style={indicator}
+                    className="absolute top-0 left-0 h-0.5 w-px origin-left bg-brand shadow-[0_0_10px_var(--gm-brand)] transition-transform duration-300 ease-out motion-reduce:transition-none"
+                    style={{
+                        transform: `translate(${indicator.left}px, ${indicator.top}px) scaleX(${indicator.width})`,
+                    }}
                 />
             </div>
 
             <div
                 role="tabpanel"
+                id="docs-panel"
+                aria-labelledby={`docs-tab-${tab}`}
+                tabIndex={0}
                 key={tab}
                 className={
                     direction === 'right'

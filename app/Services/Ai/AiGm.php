@@ -74,7 +74,12 @@ class AiGm
         $plan = $this->rivalryPlanner->plan($show, $brand, $promos);
 
         $this->booker->book($show, $brand, $plan['matches']);
-        $this->promoPlanner->book($show, $brand, $plan['promo_starts']);
+        // House rule (2026-11-20): its blow-off matches are marked so the
+        // rivalry ends once they air, and a rivalry it couldn't pair on its
+        // weekly show gets a Continue Rivalry promo.
+        $this->rivalryPlanner->markBlowoffs($show, $plan['blowoffs']);
+        $continue = $show->isPpv() || ! config('gm.ai.rivalries.continue_unpaired') ? [] : $this->rivalryPlanner->unpaired($show, $brand);
+        $this->promoPlanner->book($show, $brand, $plan['promo_starts'], $continue);
     }
 
     private function bookPreset(Show $show, Brand $brand): void

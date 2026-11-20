@@ -7,6 +7,7 @@ use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
 use App\Enums\ParticipantRole;
 use App\Enums\ShowStatus;
+use App\Enums\ShowType;
 use App\Models\MatchSlot;
 use App\Models\Rivalry;
 use App\Models\Save;
@@ -206,6 +207,13 @@ class RivalryService
                 continue;
             }
 
+            // House rule (2026-11-20): the rival GM's blow-off match has aired.
+            if ($this->blowoffAired($rivalry, $week)) {
+                $this->conclude($save, $rivalry, $week);
+
+                continue;
+            }
+
             $key = $this->pairKey($rivalry->wrestler_a_id, $rivalry->wrestler_b_id);
             $gain = (($shared[$key]['weekly'] ?? false) ? (int) config('gm.rivalries.heat_per_meeting') : 0)
                 + (($shared[$key]['ppv'] ?? false) ? (int) config('gm.rivalries.heat_per_ppv_meeting') : 0);
@@ -238,10 +246,70 @@ class RivalryService
     }
 
     /**
-     * A rivalry that reached the maximum heat ends the week after, with a
-     * headline (house rule, 2026-11-12).
+     * Whether the rival GM's planned blow-off match (house rule, 2026-11-20)
+     * aired by this week with both rivals in it.
      */
-    private function conclude(Save $save, Rivalry $rivalry, int $week): void
+    private function blowoffAired(Rivalry $rivalry, int $week): bool
+    {
+        if ($rivalry->blowoff_slot_id === null) {
+            return false;
+        }
+
+        $slot = MatchSlot::with(['show', 'participants'])->find($rivalry->blowoff_slot_id);
+
+        if ($slot === null || $slot->show->status !== ShowStatus::Aired || $slot->show->week_number > $week) {
+            return false;
+        }
+
+        $ids = $slot->competitorIds();
+
+        return in_array($rivalry->wrestler_a_id, $ids, true) && in_array($rivalry->wrestler_b_id, $ids, true);
+    }
+
+    /**
+     * Every aired match both rivals took part in while the rivalry ran
+     * (house rule, 2026-11-20): as competitors, managers or the special
+     * referee (`gm.rivalries.meeting_roles`), newest first. It's the
+     * rivalry's match history on /rivalries and the rival GM's count of
+     * matches together.
+     *
+     * @return list<int>
+     */
+    public function matchSlotIds(Rivalry $rivalry, ?int $untilWeek = null): array
+    {
+        $roles = $this->meetingRoles();
+        $last = $rivalry->ended_week ?? $untilWeek;
+
+        return array_values(array_map('intval', MatchSlot::query()
+            ->join('shows', 'shows.id', '=', 'match_slots.show_id')
+            ->where('shows.save_id', $rivalry->save_id)
+            ->where('shows.status', ShowStatus::Aired)
+            ->where('shows.week_number', '>=', $rivalry->started_week)
+            ->when($last !== null, fn ($q) => $q->where('shows.week_number', '<=', $last))
+            ->whereHas('participants', fn ($q) => $q->where('save_wrestler_id', $rivalry->wrestler_a_id)->whereIn('role', $roles))
+            ->whereHas('participants', fn ($q) => $q->where('save_wrestler_id', $rivalry->wrestler_b_id)->whereIn('role', $roles))
+            ->orderByDesc('shows.week_number')
+            // In a PPV week the weekly show airs after the PPV night.
+            ->orderByRaw('CASE WHEN shows.show_type = ? THEN 0 ELSE 1 END', [ShowType::Weekly->value])
+            ->orderByDesc('match_slots.position')
+            ->pluck('match_slots.id')
+            ->all()));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function meetingRoles(): array
+    {
+        return array_values(array_map('strval', (array) config('gm.rivalries.meeting_roles', [ParticipantRole::Competitor->value])));
+    }
+
+    /**
+     * End a rivalry with a `rivalry_concluded` headline: one that reached
+     * the maximum heat ends the week after (house rule, 2026-11-12), and a
+     * rival GM blow-off once its match airs (house rule, 2026-11-20).
+     */
+    public function conclude(Save $save, Rivalry $rivalry, int $week): void
     {
         $rivalry->active = false;
         $rivalry->ended_week = $week;
@@ -256,21 +324,24 @@ class RivalryService
     }
 
     /**
-     * Which pairs of competitors shared a match this week, on a weekly show
-     * and at a PPV, keyed by pairKey(). Opponents and partners both count.
+     * Which pairs shared a match this week, on a weekly show and at a PPV,
+     * keyed by pairKey(). Opponents and partners both count, and (house
+     * rule, 2026-11-20) so does a rival who manages or referees a match the
+     * other is in (`gm.rivalries.meeting_roles`).
      *
      * @return array<string, array{weekly?: bool, ppv?: bool}>
      */
     private function sharedMatches(Save $save, int $week): array
     {
         $pairs = [];
+        $roles = $this->meetingRoles();
         $slots = MatchSlot::with(['show', 'participants'])
             ->whereHas('show', fn ($q) => $q->where('save_id', $save->id)->where('week_number', $week)->where('status', ShowStatus::Aired))
             ->get();
 
         foreach ($slots as $slot) {
             $ids = $slot->participants
-                ->filter(fn ($p): bool => $p->role === ParticipantRole::Competitor)
+                ->filter(fn ($p): bool => in_array($p->role->value, $roles, true))
                 ->pluck('save_wrestler_id')
                 ->map(fn ($id): int => (int) $id)
                 ->unique()

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { titleImageFor } from '@/lib/assets';
+import { titleImageFor, titleImageSize } from '@/lib/assets';
 import { pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import { MatchFamilyLabels, MoraleLabels } from '@/types/enums';
@@ -114,6 +114,7 @@ export function TitleBeltImage({
     return (
         <img
             src={src}
+            {...titleImageSize}
             alt={decorative ? '' : name}
             aria-hidden={decorative || undefined}
             title={decorative ? undefined : name}
@@ -155,6 +156,7 @@ export function UnreadPill({ children }: { children: ReactNode }) {
     return (
         <sup className="inline-flex min-w-5 items-center justify-center rounded-full bg-gm-red-deep px-2 py-px font-condensed text-xs font-bold tracking-wider text-white uppercase">
             {children}
+            <span className="sr-only"> unread</span>
         </sup>
     );
 }

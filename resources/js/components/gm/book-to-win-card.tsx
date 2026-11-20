@@ -81,10 +81,16 @@ export function BookToWinCard({
                                 data-testid={`book-side-${side.side}`}
                                 className="flex items-center justify-between gap-4 py-3"
                             >
-                                <SideLabel match={match} side={side} />
+                                <SideLabel
+                                    id={`book-side-label-${match.id}-${side.side}`}
+                                    match={match}
+                                    side={side}
+                                />
                                 <button
                                     type="button"
                                     className="gm-btn gm-btn-gold gm-btn-sm shrink-0"
+                                    // Which side it books (UI audit, 2026-11-20).
+                                    aria-describedby={`book-side-label-${match.id}-${side.side}`}
                                     disabled={disabled}
                                     aria-busy={
                                         action === `side-${side.side}` ||
@@ -168,9 +174,17 @@ export function BookToWinCard({
     );
 }
 
-function SideLabel({ match, side }: { match: PendingMatch; side: Side }) {
+function SideLabel({
+    id,
+    match,
+    side,
+}: {
+    id: string;
+    match: PendingMatch;
+    side: Side;
+}) {
     return (
-        <span className="text-base font-semibold">
+        <span id={id} className="min-w-0 text-base font-semibold break-words">
             {groupSide(side.members, (m) => m.name, match.factions).map(
                 (item, i) => {
                     const members =
@@ -292,10 +306,16 @@ function GauntletBouts({
                                 data-testid={`book-side-${side.side}`}
                                 className="flex items-center justify-between gap-4 py-3"
                             >
-                                <SideLabel match={match} side={side} />
+                                <SideLabel
+                                    id={`book-side-label-${match.id}-${side.side}`}
+                                    match={match}
+                                    side={side}
+                                />
                                 <button
                                     type="button"
                                     className="gm-btn gm-btn-gold gm-btn-sm shrink-0"
+                                    // Which side it books (UI audit, 2026-11-20).
+                                    aria-describedby={`book-side-label-${match.id}-${side.side}`}
                                     disabled={disabled}
                                     aria-busy={
                                         action === `side-${side.side}` ||
