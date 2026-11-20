@@ -186,7 +186,7 @@ describe('Factions page', () => {
             screen.getByRole('radio', { name: 'All factions (4)' }),
         );
         await user.type(
-            screen.getByRole('searchbox', { name: 'Search members' }),
+            screen.getByRole('searchbox', { name: 'Search superstars' }),
             'jeff',
         );
 

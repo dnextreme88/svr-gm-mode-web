@@ -5,6 +5,7 @@ import { Dice } from '@/components/gm/dice';
 import type { DiceFace } from '@/components/gm/dice';
 import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/gm';
+import { useModalFocus } from '@/lib/use-modal-focus';
 import { cn } from '@/lib/utils';
 
 export type ProposalView = {
@@ -78,13 +79,13 @@ export function ProposalModal({
     onReroll,
 }: Props) {
     const dialog = useRef<HTMLDivElement>(null);
+    useModalFocus(open, dialog);
 
     useEffect(() => {
         if (!open) {
             return;
         }
 
-        dialog.current?.focus();
         const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCancel();
         window.addEventListener('keydown', onKey);
 
@@ -105,7 +106,7 @@ export function ProposalModal({
                 aria-modal="true"
                 aria-label={title}
                 tabIndex={-1}
-                className="gm-panel max-h-[85vh] w-full max-w-3xl overflow-x-hidden overflow-y-auto p-6 outline-none"
+                className="gm-panel max-h-[85vh] w-full max-w-3xl overflow-x-hidden overflow-y-auto overscroll-contain p-6 outline-none"
             >
                 <h2 className="gm-heading text-3xl">{title}</h2>
                 <p className="mt-1 text-ink-dim">
@@ -213,8 +214,8 @@ export function ProposalModal({
                                     className="size-5"
                                 />
                                 {mode === 'preset'
-                                    ? 'Rolling card...'
-                                    : 'Rolling match...'}
+                                    ? 'Rolling card…'
+                                    : 'Rolling match…'}
                             </div>
                         )}
                     </div>

@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { PageTitle } from '@/components/gm/panel';
 import { pluralize, readPreference, writePreference } from '@/lib/gm';
 import { requestJson } from '@/lib/http';
+import { useUrlParam } from '@/lib/use-url-param';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { Brand, BrandScope, PpvKey } from '@/types/enums';
@@ -98,11 +99,13 @@ export default function Schedule() {
             readPreference(welcomeKey, 'unseen', ['unseen', 'seen']) ===
                 'unseen',
     );
-    const [index, setIndex] = useState(() =>
-        Math.max(
-            0,
-            months.findIndex((m) => m.key === initial_month),
-        ),
+    // The month on screen lives in the URL (`?month=`, UI audit 2026-11-20),
+    // so a refresh or Back from a card keeps it.
+    const [monthKey, setMonthKey] = useUrlParam('month', initial_month);
+    const found = months.findIndex((m) => m.key === monthKey);
+    const index = Math.max(
+        0,
+        found === -1 ? months.findIndex((m) => m.key === initial_month) : found,
     );
     const [simulate, setSimulate] = useState<{ air: Air; date: string } | null>(
         null,
@@ -131,19 +134,22 @@ export default function Schedule() {
 
     const go = (delta: -1 | 1) => {
         setDirection(delta === 1 ? 'next' : 'previous');
-        setIndex((i) => Math.min(months.length - 1, Math.max(0, i + delta)));
+        const next =
+            months[Math.min(months.length - 1, Math.max(0, index + delta))];
+
+        if (next) {
+            setMonthKey(next.key);
+        }
     };
 
     if (!month) {
         return null;
     }
 
+    // Aired shows and this week's cards are links (DayCell); a later night
+    // of yours opens Simulate to here.
     const open = (air: Air, date: string) => {
-        const href = air.results_url ?? air.card_url;
-
-        if (href) {
-            router.visit(href);
-        } else if (air.can_simulate) {
+        if (air.can_simulate) {
             setSimulate({ air, date });
         }
     };
@@ -198,7 +204,7 @@ export default function Schedule() {
                             disabled={index === 0}
                             onClick={() => go(-1)}
                         >
-                            <ChevronUp className="size-4" />
+                            <ChevronUp aria-hidden className="size-4" />
                         </button>
                         <button
                             type="button"
@@ -207,12 +213,12 @@ export default function Schedule() {
                             disabled={index === months.length - 1}
                             onClick={() => go(1)}
                         >
-                            <ChevronDown className="size-4" />
+                            <ChevronDown aria-hidden className="size-4" />
                         </button>
                     </div>
                 </header>
 
-                <div role="grid" aria-label={month.label}>
+                <div role="table" aria-label={month.label}>
                     <div role="row" className="grid grid-cols-7 gap-1">
                         {weekdays.map((d) => (
                             <div
@@ -443,8 +449,12 @@ function SimulationProgress({
                 className="h-2.5 overflow-hidden bg-white/10"
             >
                 <div
-                    className="gm-progress-fill h-full bg-brand transition-[width] duration-500 ease-out"
-                    style={{ width: `${Math.max(percent, 4)}%` }}
+                    className="gm-progress-fill h-full w-full bg-brand transition-transform duration-500 ease-out"
+                    // Slid in, not stretched: transform, and the stripes
+                    // keep their shape (UI audit, 2026-11-20).
+                    style={{
+                        transform: `translateX(${Math.max(percent, 4) - 100}%)`,
+                    }}
                 />
             </div>
         </div>
@@ -493,7 +503,7 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
 
     return (
         <div
-            role="gridcell"
+            role="cell"
             data-date={day.date}
             aria-current={
                 day.airs.some((a) => a.state === 'open') ? 'date' : undefined
@@ -531,12 +541,23 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
                 const label = stateLabel[air.state];
                 const logo = isLogo(air);
                 const ppvLogo = isPpvLogo(air);
+                // Navigation is a real link (Cmd / Ctrl / middle-click open a
+                // tab); only Simulate to here is a button (UI audit, 2026-11-20).
+                const href = clickable
+                    ? (air.results_url ?? air.card_url ?? null)
+                    : null;
+                const Tag = href ? Link : 'button';
 
                 return (
-                    <button
+                    <Tag
                         key={`${air.kind}-${air.brand ?? 'shared'}`}
-                        type="button"
-                        disabled={!clickable}
+                        {...(href
+                            ? { href }
+                            : {
+                                  type: 'button' as const,
+                                  disabled: !clickable,
+                                  onClick: () => onOpen(air),
+                              })}
                         data-testid={`air-${day.date}-${air.kind}-${air.brand ?? 'shared'}`}
                         title={
                             air.can_simulate
@@ -544,7 +565,6 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
                                 : air.name
                         }
                         aria-label={`${air.name}, week ${air.season_week}${label ? `: ${label}` : ''}${air.state === 'open' ? ': this week, to book' : ''}${air.can_simulate ? ': simulate to here' : ''}`}
-                        onClick={() => onOpen(air)}
                         className={cn(
                             'w-full font-condensed text-xs leading-tight tracking-wide uppercase',
                             logo
@@ -552,7 +572,10 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
                                 : ppvLogo
                                   ? 'flex flex-1 flex-col items-center justify-center gap-0.5 bg-gold/10 p-0.5 text-gold-hot ring-1 ring-gold/70 ring-inset'
                                   : 'truncate bg-gold/90 px-1 py-0.5 text-left font-bold text-arena sm:px-1.5',
-                            air.state === 'aired' && 'opacity-20',
+                            // Dimmed, but still legible as a way to the
+                            // results (UI audit, 2026-11-20).
+                            air.state === 'aired' && 'opacity-45',
+                            href && !logo && !ppvLogo && 'block',
                             !clickable
                                 ? 'cursor-default'
                                 : air === cellShow
@@ -595,7 +618,7 @@ function DayCell({ day, onOpen }: { day: Day; onOpen: (air: Air) => void }) {
                                 )}
                             </>
                         )}
-                    </button>
+                    </Tag>
                 );
             })}
         </div>

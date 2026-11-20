@@ -199,7 +199,7 @@ export function FatigueProgress({
                                             id={w.id}
                                         />
                                     )}
-                                <span className="font-condensed text-sm tracking-wide text-ink-faint uppercase">
+                                <span className="gm-num font-condensed text-sm tracking-wide text-ink-faint uppercase">
                                     {w.start}% → {w.after_shows}%
                                     {w.end !== null &&
                                         ` → ${serious(w) ? 'Injured' : `${w.end}%`}`}

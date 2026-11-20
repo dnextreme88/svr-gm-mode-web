@@ -1,6 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { ActionButton } from '@/components/gm/action-button';
 import { useState } from 'react';
+import { BusyLabel } from '@/components/gm/busy-label';
 import { TitleBeltImage, TitleMark } from '@/components/gm/badges';
 import { CardProgress } from '@/components/gm/card-builder';
 import {
@@ -72,16 +73,19 @@ export default function AssignTitles() {
                         type="button"
                         className="gm-btn gm-btn-gold"
                         disabled={starting}
+                        aria-busy={starting || undefined}
                         onClick={startSeason}
                     >
-                        Start the season
+                        <BusyLabel busy={starting} busyText="Starting…">
+                            Start the season
+                        </BusyLabel>
                     </button>
                 )}
             </PageTitle>
             {starting && (
                 <LoadingOverlay
                     testId="starting-season"
-                    text="Starting the season. Please wait..."
+                    text="Starting the season. Please wait…"
                 />
             )}
             <p className="-mt-3 mb-6 max-w-2xl text-sm text-ink-dim">

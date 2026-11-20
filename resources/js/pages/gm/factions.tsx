@@ -10,6 +10,7 @@ import {
     readPreference,
     writePreference,
 } from '@/lib/gm';
+import { useUrlParam } from '@/lib/use-url-param';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type {
@@ -77,25 +78,39 @@ export default function Factions() {
     const createdCount = factions.filter((f) => f.origin !== 'seeded').length;
     // Opens on this career's factions, or on all of them while there are
     // none yet; the last choice is remembered.
-    const [origin, setOriginState] = useState<OriginFilter>(() =>
+    // The URL wins (UI audit, 2026-11-20: a refresh or Back keeps the view);
+    // without one, the remembered choice.
+    const [originParam, setOriginParam] = useUrlParam(
+        'origin',
         readPreference(
             'gm.factions.origin',
             createdCount > 0 ? 'created' : 'all',
             ORIGINS,
         ),
     );
-    const [status, setStatusState] = useState<StatusFilter>(() =>
+    const [statusParam, setStatusParam] = useUrlParam(
+        'status',
         readPreference('gm.factions.status', 'all', STATUSES),
     );
+    const origin: OriginFilter = (ORIGINS as readonly string[]).includes(
+        originParam,
+    )
+        ? (originParam as OriginFilter)
+        : 'all';
+    const status: StatusFilter = (STATUSES as readonly string[]).includes(
+        statusParam,
+    )
+        ? (statusParam as StatusFilter)
+        : 'all';
     const setOrigin = (value: OriginFilter) => {
-        setOriginState(value);
+        setOriginParam(value);
         writePreference('gm.factions.origin', value);
     };
     const setStatus = (value: StatusFilter) => {
-        setStatusState(value);
+        setStatusParam(value);
         writePreference('gm.factions.status', value);
     };
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useUrlParam('q', '');
     const [disbanding, setDisbanding] = useState<FactionRow | null>(null);
     const [disbandBusy, setDisbandBusy] = useState(false);
     const byOrigin = factions.filter(
@@ -156,9 +171,12 @@ export default function Factions() {
                 </p>
                 <input
                     type="search"
+                    name="search_members"
+                    autoComplete="off"
+                    spellCheck={false}
                     className="gm-input w-full py-1 text-sm sm:ml-auto sm:w-56 sm:shrink-0"
                     placeholder="Search superstars…"
-                    aria-label="Search members"
+                    aria-label="Search superstars"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
@@ -202,7 +220,11 @@ export default function Factions() {
                                                 </th>
                                                 <th>Titles</th>
                                                 {rows.some((f) => f.active) && (
-                                                    <th />
+                                                    <th>
+                                                        <span className="sr-only">
+                                                            Actions
+                                                        </span>
+                                                    </th>
                                                 )}
                                             </tr>
                                         </thead>
@@ -231,7 +253,7 @@ export default function Factions() {
                 open={disbanding !== null}
                 danger
                 title={`Disband ${disbanding?.name ?? ''}?`}
-                message="From this week on they're billed by their own names again. Their record and titles stay on this page. This can't be undone."
+                message="From this week on they’re billed by their own names again. Their record and titles stay on this page. This can’t be undone."
                 confirmLabel="Disband"
                 busy={disbandBusy}
                 busyText="Disbanding…"

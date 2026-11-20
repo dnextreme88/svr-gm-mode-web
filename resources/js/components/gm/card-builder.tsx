@@ -1,7 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { SpecialtyBadge, TitleBeltImage } from '@/components/gm/badges';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
+import {
+    focusFirstOption,
+    moveInList,
+    useLabelledValue,
+} from '@/components/gm/picker';
 import { PopoverPanel, usePopover } from '@/components/gm/popover';
 import { SlotActions } from '@/components/gm/slot-actions';
 import { SortableSlots } from '@/components/gm/sortable-slots';
@@ -158,6 +163,7 @@ function QualifierStipulation({
     return (
         <div
             data-testid={`qualifier-${position}`}
+            role="group"
             aria-label={`Stipulation for match ${position}`}
             className="w-full bg-gold/10 px-3 py-1 text-center font-condensed text-sm font-bold tracking-[0.14em] text-gold uppercase lg:w-auto lg:min-w-[300px]"
         >
@@ -204,14 +210,18 @@ export function CardProgress({
                 aria-valuemin={0}
                 aria-valuemax={total}
                 aria-valuenow={booked}
-                className="h-2.5 max-w-md bg-white/8"
+                className="h-2.5 max-w-md overflow-hidden bg-white/8"
             >
+                {/* A full-width fill slid in from the left: it animates
+                    transform, not width, and its sheen keeps its shape (UI
+                    audit, 2026-11-20). */}
                 <div
+                    data-testid="card-progress-fill"
                     className={cn(
-                        'h-full bg-brand transition-[width] duration-700 ease-out',
+                        'h-full w-full bg-brand transition-transform duration-700 ease-out',
                         booked > 0 && 'gm-sheen',
                     )}
-                    style={{ width: `${percent}%` }}
+                    style={{ transform: `translateX(${percent - 100}%)` }}
                 />
             </div>
         </div>
@@ -605,7 +615,7 @@ function SlotEditor({
                         !w.bookable ||
                         blocked ||
                         (everyone.includes(w.id) && w.id !== current),
-                    note: blocked ? "Can't book" : note(w),
+                    note: blocked ? 'Can’t book' : note(w),
                     booked: bookedElsewhere(w.id),
                 };
             });
@@ -1022,6 +1032,15 @@ function MatchTypePicker({
     );
     const variants = groups.find(([f]) => f === family)?.[1] ?? [];
     const label = `Match type for match ${position}`;
+    const named = useLabelledValue(label);
+    const categories = useRef<HTMLDivElement>(null);
+
+    // Opened from its button: focus moves to the picked category.
+    useEffect(() => {
+        if (open && ref.current?.contains(document.activeElement)) {
+            focusFirstOption(categories.current);
+        }
+    }, [open, ref]);
 
     return (
         // Below 56rem the panel is placed against the slot header (the size
@@ -1032,7 +1051,7 @@ function MatchTypePicker({
         >
             <button
                 type="button"
-                aria-label={label}
+                {...named.button}
                 aria-haspopup="dialog"
                 aria-expanded={open}
                 disabled={disabled}
@@ -1046,7 +1065,11 @@ function MatchTypePicker({
                     disabled && 'cursor-default opacity-70',
                 )}
             >
-                <span className={cn(!type && 'text-ink-faint')}>
+                {named.labelText}
+                <span
+                    id={named.valueId}
+                    className={cn(!type && 'text-ink-faint')}
+                >
                     {type ? type.variant : 'Choose a match type…'}
                 </span>
                 {!disabled && (
@@ -1061,7 +1084,9 @@ function MatchTypePicker({
                     className="mt-1 font-condensed text-sm tracking-wide text-ink-dim"
                 >
                     {MatchFamilyLabels[type.family]}{' '}
-                    <span className="text-brand-hot">→</span>{' '}
+                    <span aria-hidden className="text-brand-hot">
+                        →
+                    </span>{' '}
                     <span className="text-ink">{type.variant}</span>
                 </p>
             )}
@@ -1073,9 +1098,22 @@ function MatchTypePicker({
                     className="inset-x-4 grid grid-cols-[minmax(0,8rem)_minmax(0,1fr)] @md:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] @4xl:right-auto @4xl:left-0 @4xl:w-[40rem]"
                 >
                     <div
+                        ref={categories}
                         role="listbox"
                         aria-label="Match categories"
-                        className="gm-scroll max-h-80 overflow-y-auto border-r border-white/8 py-1"
+                        onKeyDown={(e) => {
+                            moveInList(e);
+
+                            // Right moves into the category's matches.
+                            if (e.key === 'ArrowRight') {
+                                e.preventDefault();
+                                focusFirstOption(
+                                    e.currentTarget
+                                        .nextElementSibling as HTMLElement | null,
+                                );
+                            }
+                        }}
+                        className="gm-scroll max-h-80 overflow-y-auto overscroll-contain border-r border-white/8 py-1"
                     >
                         {groups.map(([f, options]) => (
                             <button
@@ -1083,9 +1121,12 @@ function MatchTypePicker({
                                 type="button"
                                 role="option"
                                 aria-selected={f === family}
+                                tabIndex={-1}
+                                // Moving through the categories shows each one's matches.
+                                onFocus={() => setFamily(f)}
                                 onClick={() => setFamily(f)}
                                 className={cn(
-                                    'flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left font-condensed text-sm tracking-wide uppercase',
+                                    'flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left font-condensed text-sm tracking-wide uppercase focus-visible:ring-1 focus-visible:ring-white/60 focus-visible:outline-none focus-visible:ring-inset',
                                     f === family
                                         ? 'bg-brand text-white'
                                         : 'text-ink-dim hover:bg-white/6 hover:text-ink',
@@ -1094,6 +1135,12 @@ function MatchTypePicker({
                                 <span>{MatchFamilyLabels[f]}</span>
                                 <span className="text-xs opacity-70">
                                     {options.length}
+                                    <span className="sr-only">
+                                        {' '}
+                                        {options.length === 1
+                                            ? 'match'
+                                            : 'matches'}
+                                    </span>
                                 </span>
                             </button>
                         ))}
@@ -1103,7 +1150,16 @@ function MatchTypePicker({
                             key={family}
                             role="listbox"
                             aria-label={`${MatchFamilyLabels[family]} matches`}
-                            className="gm-scroll max-h-80 animate-gm-pop-in overflow-y-auto py-1"
+                            onKeyDown={(e) => {
+                                moveInList(e);
+
+                                // Left goes back to the categories.
+                                if (e.key === 'ArrowLeft') {
+                                    e.preventDefault();
+                                    focusFirstOption(categories.current);
+                                }
+                            }}
+                            className="gm-scroll max-h-80 animate-gm-pop-in overflow-y-auto overscroll-contain py-1"
                         >
                             {variants.map((t) => (
                                 <button
@@ -1111,13 +1167,14 @@ function MatchTypePicker({
                                     type="button"
                                     role="option"
                                     aria-selected={t.id === type?.id}
+                                    tabIndex={-1}
                                     onClick={() => {
                                         onPick(t);
                                         close();
                                     }}
                                     className={cn(
                                         // Narrow cards: the cost and fatigue go under the name.
-                                        'flex w-full flex-col items-start gap-1 px-3 py-1.5 text-left text-sm hover:bg-white/6 @xl:flex-row @xl:items-center @xl:justify-between @xl:gap-3',
+                                        'flex w-full flex-col items-start gap-1 px-3 py-1.5 text-left text-sm hover:bg-white/6 focus-visible:bg-white/10 focus-visible:outline-none @xl:flex-row @xl:items-center @xl:justify-between @xl:gap-3',
                                         t.id === type?.id && 'bg-brand/20',
                                     )}
                                 >

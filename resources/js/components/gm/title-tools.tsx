@@ -108,13 +108,16 @@ export function TitleCycler({
                 disabled={readOnly || titles.length === 0}
                 aria-label="Previous title"
             >
-                ◀
+                <span aria-hidden>◀</span>
             </button>
             <span
                 data-testid={`title-${draft.position}`}
+                // Previous / Next title is announced (UI audit, 2026-11-20).
+                aria-live="polite"
+                aria-atomic
                 data-brand-tint={rivals ? (rivalBrand ?? undefined) : undefined}
                 className={cn(
-                    'text-md mt-1 min-w-0 flex-1 px-3 py-1 text-center font-condensed font-bold tracking-[0.14em] uppercase sm:min-w-[300px] md:flex-none',
+                    'mt-1 min-w-0 flex-1 px-3 py-1 text-center font-condensed text-base font-bold tracking-[0.14em] uppercase sm:min-w-[300px] md:flex-none',
                     rivals
                         ? 'bg-[var(--gm-brand)] text-white'
                         : current
@@ -137,7 +140,7 @@ export function TitleCycler({
                 disabled={readOnly || titles.length === 0}
                 aria-label="Next title"
             >
-                ▶
+                <span aria-hidden>▶</span>
             </button>
         </div>
     );
@@ -222,6 +225,7 @@ export function StipulationPicker({
             <div
                 data-testid={`stipulation-${draft.position}`}
                 data-brand-tint={rivalStipulation.brand}
+                role="group"
                 aria-label={label}
                 className="w-full truncate bg-[var(--gm-brand)] px-3 py-1 text-center font-condensed text-sm font-bold tracking-[0.14em] text-white uppercase lg:w-auto lg:min-w-[300px]"
             >
@@ -235,6 +239,7 @@ export function StipulationPicker({
         return (
             <div
                 data-testid={`stipulation-${draft.position}`}
+                role="group"
                 aria-label={label}
                 className="w-full bg-white/5 px-3 py-1 text-center font-condensed text-sm font-bold tracking-[0.14em] text-white/20 uppercase hover:cursor-not-allowed lg:w-auto lg:min-w-[300px]"
             >
@@ -250,14 +255,15 @@ export function StipulationPicker({
             data-testid={`stipulation-${draft.position}`}
         >
             <PickerButton
-                aria-label={label}
+                label={label}
                 open={open}
                 disabled={readOnly}
                 onClick={toggle}
             >
                 {current ? (
                     <span className="truncate font-semibold text-gold-hot">
-                        ◆ {stipulationLabel(current, draft, context)}
+                        <span aria-hidden>◆ </span>
+                        {stipulationLabel(current, draft, context)}
                     </span>
                 ) : (
                     <PickerEmpty>Select stipulation</PickerEmpty>

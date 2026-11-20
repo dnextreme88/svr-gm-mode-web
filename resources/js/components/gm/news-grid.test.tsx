@@ -126,18 +126,71 @@ describe('NewsGrid', () => {
         render(<NewsGrid pages={[page(5), page(4), page(3)]} />);
 
         expect(screen.getByTestId('news-week')).toHaveTextContent('Week 5');
-        expect(screen.getByRole('button', { name: 'Newer ▶' })).toBeDisabled();
+        // House rule (2026-11-20): a button with nowhere to go is hidden.
+        expect(screen.queryByRole('button', { name: /Newer/ })).toBeNull();
 
-        await user.click(screen.getByRole('button', { name: '◀ Older' }));
+        await user.click(screen.getByRole('button', { name: 'Older' }));
         expect(screen.getByTestId('news-week')).toHaveTextContent('Week 4');
         expect(screen.getByText('Raw headline 4')).toBeInTheDocument();
+        expect(window.location.search).toBe('?week=4');
 
         fireEvent.keyDown(window, { key: 'ArrowRight' });
         expect(screen.getByTestId('news-week')).toHaveTextContent('Week 3');
-        expect(screen.getByRole('button', { name: '◀ Older' })).toBeDisabled();
+        expect(screen.queryByRole('button', { name: /Older/ })).toBeNull();
+        expect(
+            screen.getByRole('button', { name: 'Newer' }),
+        ).toBeInTheDocument();
 
         fireEvent.keyDown(window, { key: 'ArrowLeft' });
         expect(screen.getByTestId('news-week')).toHaveTextContent('Week 4');
+    });
+
+    it('opens on the week in the URL', () => {
+        window.history.replaceState(null, '', '/?week=3');
+        render(<NewsGrid pages={[page(5), page(4), page(3)]} />);
+
+        expect(screen.getByTestId('news-week')).toHaveTextContent('Week 3');
+    });
+
+    it('leaves arrow keys alone while the player types', () => {
+        render(
+            <>
+                <input aria-label="Search" />
+                <NewsGrid pages={[page(5), page(4)]} />
+            </>,
+        );
+
+        fireEvent.keyDown(screen.getByLabelText('Search'), {
+            key: 'ArrowRight',
+        });
+        expect(screen.getByTestId('news-week')).toHaveTextContent('Week 5');
+    });
+
+    it('hides the week buttons and keys during the end-of-week flow', () => {
+        window.history.replaceState(null, '', '/?week=4');
+        render(<NewsGrid pages={[page(5), page(4)]} wrapUp />);
+
+        expect(screen.getByTestId('news-week')).toHaveTextContent('Week 5');
+        expect(
+            screen.queryByRole('button', { name: /Older|Newer/ }),
+        ).toBeNull();
+
+        fireEvent.keyDown(window, { key: 'ArrowRight' });
+        expect(screen.getByTestId('news-week')).toHaveTextContent('Week 5');
+    });
+
+    it('pauses a ticker from a button', async () => {
+        const user = userEvent.setup();
+        render(<NewsGrid pages={[page(5)]} />);
+
+        const pause = screen.getByRole('button', {
+            name: 'Pause the Raw ticker',
+        });
+        await user.click(pause);
+
+        expect(
+            screen.getByRole('button', { name: 'Play the Raw ticker' }),
+        ).toHaveAttribute('aria-pressed', 'true');
     });
 
     it('swipes between weeks', () => {

@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Gm;
 
 use App\Http\Controllers\Controller;
+use App\Http\Presenters\CardPresenter;
+use App\Models\MatchSlot;
 use App\Models\Rivalry;
 use App\Models\Save;
+use App\Services\Calendar\CalendarService;
+use App\Services\Rivalries\RivalryService;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -13,6 +17,11 @@ use Inertia\Response;
  */
 class RivalryController extends Controller
 {
+    public function __construct(
+        private RivalryService $rivalries,
+        private CalendarService $calendar,
+    ) {}
+
     public function __invoke(Save $save): Response
     {
         $rows = Rivalry::with(['wrestlerA.wrestler', 'wrestlerB.wrestler'])
@@ -21,7 +30,7 @@ class RivalryController extends Controller
             ->orderByDesc('active')
             ->orderByDesc('heat')
             ->get()
-            ->map(function (Rivalry $r): array {
+            ->map(function (Rivalry $r) use ($save): array {
                 // Always "A vs. B" alphabetically, older rivalries included.
                 [$a, $b] = strcasecmp($r->wrestlerA->name(), $r->wrestlerB->name()) <= 0
                     ? [$r->wrestlerA, $r->wrestlerB]
@@ -40,6 +49,9 @@ class RivalryController extends Controller
                     'started_week' => $r->started_week,
                     'active' => $r->active,
                     'ended_week' => $r->ended_week,
+                    // House rule (2026-11-20): every match they were in
+                    // together, newest first, for the row's history.
+                    'matches' => $this->matches($save, $r),
                 ];
             });
 
@@ -47,6 +59,9 @@ class RivalryController extends Controller
             'rivalries' => $rows,
             'max_heat' => (int) config('gm.rivalries.max_heat'),
             'heating_up' => (int) config('gm.rivalries.heating_up_threshold'),
+            // House rule (2026-11-20): the heat bar is yellow below the
+            // first, orange below the second, red from it.
+            'heat_colors' => array_map('intval', (array) config('gm.rivalries.heat_colors')),
             // How rivalries work (RivalryService, MatchResolver, the two
             // rivalry promos), shown as the page's rules.
             'rules' => [
@@ -67,5 +82,46 @@ class RivalryController extends Controller
                 'call_out_chance' => (int) round((float) config('gm.promos.success_rates.call_out') * 100),
             ],
         ]);
+    }
+
+    /**
+     * The rivals' matches together (RivalryService::matchSlotIds), each with
+     * its week (and PPV) and its result, in the Reports table's shape.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function matches(Save $save, Rivalry $rivalry): array
+    {
+        $ids = $this->rivalries->matchSlotIds($rivalry, $save->current_week);
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $slots = MatchSlot::with(['show.ppvEvent', 'matchType', 'participants.saveWrestler.wrestler', 'result', 'titleChampionship', 'gauntletBouts'])
+            ->whereIn('id', $ids)
+            ->whereHas('result')
+            ->get()
+            ->keyBy('id');
+
+        return array_values(array_filter(array_map(function (int $id) use ($save, $slots): ?array {
+            $slot = $slots->get($id);
+
+            if ($slot === null) {
+                return null;
+            }
+
+            $week = $slot->show->week_number;
+            $query = ['match' => $slot->id, ...($slot->show->brand !== null ? ['brand' => $slot->show->brand->value] : [])];
+
+            return [
+                'id' => $slot->id,
+                'season' => $this->calendar->seasonOf($week),
+                'season_week' => $this->calendar->seasonWeek($week),
+                'ppv' => $slot->show->isPpv() ? $slot->show->name : null,
+                'link' => route('gm.results', [$save, $week, ...$query], false),
+                'outcome' => CardPresenter::outcome($slot),
+            ];
+        }, $ids)));
     }
 }

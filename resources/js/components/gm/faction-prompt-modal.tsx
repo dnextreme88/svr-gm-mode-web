@@ -72,7 +72,7 @@ export function FactionPromptModal({
                         won {pluralize(prompt.wins, 'match', 'matches')}{' '}
                         together
                         {prompt.show ? `, the latest on ${prompt.show}` : ''}.
-                        Give them a name and they'll be billed as one from now
+                        Give them a name and they’ll be billed as one from now
                         on.
                     </DialogDescription>
 
@@ -88,45 +88,72 @@ export function FactionPromptModal({
                         ))}
                     </p>
 
-                    <label className="block">
-                        <span className="gm-label">Faction name</span>
-                        <input
-                            className="gm-input mt-1 w-full"
-                            value={name}
-                            maxLength={prompt.name_max_length}
-                            placeholder="e.g. The Dream Team"
-                            onChange={(e) => setName(e.target.value)}
-                            autoFocus
-                        />
-                    </label>
+                    {/* A form, so Enter in the name field moves on to the
+                        confirmation (UI audit, 2026-11-20). */}
+                    <form
+                        id="faction-prompt-form"
+                        className="grid gap-4"
+                        onSubmit={(e) => {
+                            e.preventDefault();
 
-                    <div>
-                        <span className="gm-label">Type</span>
-                        <div className="mt-1 flex items-center gap-2">
-                            <button
-                                type="button"
-                                className="gm-btn gm-btn-ghost gm-btn-sm"
-                                aria-label="Previous type"
-                                onClick={() => cycle(-1)}
-                            >
-                                ‹
-                            </button>
+                            if (!busy && trimmed !== '') {
+                                setConfirming(true);
+                            }
+                        }}
+                    >
+                        <label className="block">
+                            <span className="gm-label">Faction name</span>
+                            <input
+                                name="faction_name"
+                                autoComplete="off"
+                                spellCheck={false}
+                                className="gm-input mt-1 w-full"
+                                value={name}
+                                maxLength={prompt.name_max_length}
+                                placeholder="e.g. The Dream Team…"
+                                onChange={(e) => setName(e.target.value)}
+                                // The modal's one field, opened by the game.
+                                autoFocus
+                            />
+                        </label>
+
+                        <div
+                            role="group"
+                            aria-labelledby="faction-prompt-type-label"
+                        >
                             <span
-                                className="min-w-24 text-center font-condensed tracking-wider uppercase"
-                                data-testid="faction-prompt-type"
+                                id="faction-prompt-type-label"
+                                className="gm-label"
                             >
-                                {FactionTypeLabels[type]}
+                                Type
                             </span>
-                            <button
-                                type="button"
-                                className="gm-btn gm-btn-ghost gm-btn-sm"
-                                aria-label="Next type"
-                                onClick={() => cycle(1)}
-                            >
-                                ›
-                            </button>
+                            <div className="mt-1 flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    className="gm-btn gm-btn-ghost gm-btn-sm"
+                                    aria-label="Previous type"
+                                    onClick={() => cycle(-1)}
+                                >
+                                    <span aria-hidden>‹</span>
+                                </button>
+                                <span
+                                    className="min-w-24 text-center font-condensed tracking-wider uppercase"
+                                    data-testid="faction-prompt-type"
+                                    aria-live="polite"
+                                >
+                                    {FactionTypeLabels[type]}
+                                </span>
+                                <button
+                                    type="button"
+                                    className="gm-btn gm-btn-ghost gm-btn-sm"
+                                    aria-label="Next type"
+                                    onClick={() => cycle(1)}
+                                >
+                                    <span aria-hidden>›</span>
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    </form>
 
                     <DialogFooter className="gap-2">
                         <button
@@ -145,10 +172,10 @@ export function FactionPromptModal({
                             Not now
                         </button>
                         <button
-                            type="button"
+                            type="submit"
+                            form="faction-prompt-form"
                             className="gm-btn gm-btn-sm"
                             disabled={busy || trimmed === ''}
-                            onClick={() => setConfirming(true)}
                         >
                             Form faction
                         </button>

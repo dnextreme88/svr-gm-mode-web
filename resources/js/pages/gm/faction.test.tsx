@@ -90,7 +90,7 @@ describe('Faction page', () => {
             screen.getByText('Real life: Jan 17, 2000 – Dec 24, 2001'),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: '← All factions' }),
+            screen.getByRole('link', { name: 'All factions' }),
         ).toHaveAttribute('href', '/gm/saves/3/factions');
     });
 

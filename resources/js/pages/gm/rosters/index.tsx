@@ -1,6 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { TriangleAlert } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import {
     InjuryChip,
@@ -14,15 +14,10 @@ import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { PoolFilters } from '@/components/gm/pool-filters';
 import { ariaSort, nextSort, SortHeader } from '@/components/gm/sort-header';
 import { StreakMeter } from '@/components/gm/streak-meter';
-import type { PoolFilter, RosterSort, RosterSortKey } from '@/lib/gm';
-import {
-    emptyPoolFilter,
-    filterPool,
-    formatMoney,
-    pluralize,
-    sortRoster,
-} from '@/lib/gm';
+import type { RosterSortKey } from '@/lib/gm';
+import { filterPool, formatMoney, pluralize, sortRoster } from '@/lib/gm';
 import { WrestlerName } from '@/components/gm/wrestler-name';
+import { usePoolFilterUrl, useSortUrl } from '@/lib/use-url-param';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { Brand } from '@/types/enums';
@@ -39,14 +34,24 @@ type Props = GamePageProps & {
     pending: number;
 };
 
+const ROSTER_SORT_KEYS: readonly RosterSortKey[] = [
+    'name',
+    'fatigue',
+    'morale',
+    'record',
+    'contract',
+];
+
 /** Contracts with this many weeks or fewer left are flagged as expiring. */
 const EXPIRING_WEEKS = 4;
 
 export default function Rosters() {
     const { game, brand, wrestlers, pending } = usePage<Props>().props;
     const own = brand === game.player_brand;
-    const [filter, setFilter] = useState<PoolFilter>(emptyPoolFilter);
-    const [sort, setSort] = useState<RosterSort>(null);
+    // Filters and sort live in the URL (UI audit, 2026-11-20), so Back from
+    // a superstar's page lands on the same view.
+    const [filter, setFilter] = usePoolFilterUrl();
+    const [sort, setSort] = useSortUrl<RosterSortKey>(ROSTER_SORT_KEYS);
     const visible = useMemo(
         () => sortRoster(filterPool(wrestlers, filter), sort),
         [wrestlers, filter, sort],
@@ -57,6 +62,13 @@ export default function Rosters() {
     // same page.
     const openRow = (e: MouseEvent, id: number) => {
         if ((e.target as HTMLElement).closest('a')) {
+            return;
+        }
+
+        // Ctrl / Cmd / middle-click open a new tab, like the name's link.
+        if (e.ctrlKey || e.metaKey || e.button === 1) {
+            window.open(url(id), '_blank', 'noopener');
+
             return;
         }
 
@@ -196,6 +208,9 @@ export default function Rosters() {
                                         data-testid="roster-row"
                                         className="group cursor-pointer transition-colors hover:bg-white/[0.04]"
                                         onClick={(e) => openRow(e, w.id)}
+                                        onAuxClick={(e) =>
+                                            e.button === 1 && openRow(e, w.id)
+                                        }
                                     >
                                         <td className="max-w-36 sm:max-w-none">
                                             <Link

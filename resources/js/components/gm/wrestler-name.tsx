@@ -46,6 +46,13 @@ export function WrestlerName({
             )}
         >
             {wrestler.name}
+            {/* The colour says it on screen; screen readers hear it (UI
+                audit, 2026-11-20). */}
+            {tone && (
+                <span className="sr-only">
+                    {tone === 'diva' ? ' (Diva)' : ' (Cruiserweight)'}
+                </span>
+            )}
         </span>
     );
 }

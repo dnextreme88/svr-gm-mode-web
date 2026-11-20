@@ -233,9 +233,10 @@ export default function Redraft() {
         }
 
         setTagQueue((queue) => queue.slice(1));
-        rows.current
-            .get(id)
-            ?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+        rows.current.get(id)?.scrollIntoView?.({
+            block: 'center',
+            behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+        });
         setHighlight({ id, brand: rival });
         await sleep(1200);
         setHighlight(null);
@@ -407,7 +408,7 @@ export default function Redraft() {
                 perBrand={per_brand}
             />
 
-            <div className="mb-6 grid gap-4 md:grid-cols-2" aria-live="polite">
+            <div className="mb-6 grid gap-4 md:grid-cols-2">
                 {brands.map((brand) => (
                     <TagCard
                         key={brand}
@@ -539,8 +540,11 @@ export default function Redraft() {
                 aria-label="Re-draft step"
                 className="gm-panel sticky bottom-0 z-10 mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 !bg-arena-2 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_24px_rgb(0_0_0/0.6)]"
             >
+                {/* The progress line is what's announced, pick by pick (UI
+                    audit, 2026-11-20), not the whole tag cards. */}
                 <p
                     data-testid="redraft-step"
+                    aria-live="polite"
                     className="min-w-0 flex-1 text-sm text-ink-dim"
                 >
                     {phase === 'immunity' &&
@@ -992,6 +996,9 @@ function RosterColumn({
             actions={
                 <input
                     type="search"
+                    name={`search_${brand}`}
+                    autoComplete="off"
+                    spellCheck={false}
                     className="gm-input min-h-11 w-36 py-1 text-sm sm:min-h-0"
                     placeholder="Search…"
                     aria-label={`Search ${brandName(brand)}`}

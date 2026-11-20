@@ -129,14 +129,14 @@ describe('GM menu bar', () => {
 
         await user.click(button);
 
-        const menu = screen.getByRole('menu', { name: 'GM menus' });
-        const items = within(menu).getAllByRole('menuitem');
+        const menu = screen.getByRole('group', { name: 'All GM menus' });
+        const items = within(menu).getAllByRole('link');
         expect(items.map((i) => i.textContent)).toContain('Free Agency');
         expect(
-            within(menu).getByRole('menuitem', { name: 'Factions' }).className,
+            within(menu).getByRole('link', { name: 'Factions' }).className,
         ).toContain('border-brand');
         expect(
-            within(menu).getByRole('menuitem', { name: /Email/ }),
+            within(menu).getByRole('link', { name: /Email/ }),
         ).toHaveAttribute('href', expect.stringContaining('/email'));
     });
 
@@ -288,7 +288,7 @@ describe('GM footer', () => {
         // Tall enough for a long dropdown near the bottom to land on.
         expect(footer.className).toContain('min-h-56');
         expect(footer).toHaveTextContent(
-            'Smackdown vs Raw 2006 - a fan-made GM mode web version',
+            'Smackdown vs Raw 2006 – a fan-made GM mode web version',
         );
         expect(within(footer).queryByRole('link')).toBeNull();
     });

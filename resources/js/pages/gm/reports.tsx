@@ -36,6 +36,8 @@ export default function Reports() {
                         <Panel
                             key={show.id}
                             title={`Week ${show.week_number} · ${show.name}`}
+                            // Off-screen shows skip rendering (UI audit, 2026-11-20).
+                            className="gm-cv-panel"
                             bodyClassName="p-0"
                         >
                             {show.outcomes.length === 0 ? (

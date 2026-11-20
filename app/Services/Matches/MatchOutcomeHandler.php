@@ -75,10 +75,15 @@ class MatchOutcomeHandler
         $reignBefore = null;
         $titlesWon = null;
 
-        if ($slot->titleChampionship !== null) {
+        // House rule (2026-11-20): a #1 Contender's Match answers a title
+        // match complaint too, win or lose.
+        if ($slot->titleChampionship !== null || $slot->stipulation === Stipulation::NumberOneContender) {
             foreach ($slot->competitorIds() as $id) {
                 $context->data['title_match'][$id] = true;
             }
+        }
+
+        if ($slot->titleChampionship !== null) {
 
             // House rule (2026-11-07): any result settles a Rematch Clause,
             // before a title change could open a new one.

@@ -26,6 +26,39 @@ import wweTagTeam from '@/../images/titles/wwe_tag_team.webp';
 import { ChampionshipKeyLabels } from '@/types/enums';
 import type { Brand, ChampionshipKey, PpvKey } from '@/types/enums';
 
+/**
+ * Each image's intrinsic size, for `width` / `height` on the <img> so the
+ * page doesn't shift as logos load (UI audit, 2026-11-20). CSS still sizes
+ * them by height; the attributes only give the browser the aspect ratio.
+ */
+export type ImageSize = { width: number; height: number };
+
+export const brandLogoSize: Record<Brand, ImageSize> = {
+    raw: { width: 384, height: 113 },
+    smackdown: { width: 387, height: 133 },
+};
+
+export const ppvLogoSize: Record<PpvKey, ImageSize> = {
+    armageddon: { width: 384, height: 117 },
+    backlash: { width: 280, height: 133 },
+    cyber_sunday: { width: 264, height: 133 },
+    great_american_bash: { width: 275, height: 133 },
+    judgment_day: { width: 272, height: 133 },
+    new_years_revolution: { width: 355, height: 133 },
+    no_mercy: { width: 261, height: 133 },
+    no_way_out: { width: 384, height: 106 },
+    royal_rumble: { width: 270, height: 133 },
+    summerslam: { width: 287, height: 133 },
+    survivor_series: { width: 294, height: 133 },
+    tribute_to_the_troops: { width: 264, height: 133 },
+    unforgiven: { width: 384, height: 75 },
+    vengeance: { width: 264, height: 133 },
+    wrestlemania: { width: 264, height: 133 },
+};
+
+/** Every title belt is trimmed to the same 320 × 146. */
+export const titleImageSize: ImageSize = { width: 320, height: 146 };
+
 /** Each brand's 2005 logo. */
 export const brandLogo: Record<Brand, string> = {
     raw: rawLogo,

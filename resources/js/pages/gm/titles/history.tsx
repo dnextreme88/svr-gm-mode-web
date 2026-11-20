@@ -5,8 +5,10 @@ import { TitleBeltImage } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { ReignChart } from '@/components/gm/reign-chart';
+import { WeekCell } from '@/components/gm/week-cell';
 import type { Named } from '@/components/gm/wrestler-name';
 import { WrestlerNames } from '@/components/gm/wrestler-name';
+import { prefersReducedMotion } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { Brand, ReignEndReason, TitleHolderType } from '@/types/enums';
@@ -146,9 +148,12 @@ export default function TitleHistory() {
         }
 
         if (scroll) {
-            document
-                .getElementById('lineage')
-                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Smooth only when the player hasn't asked for less motion (UI
+            // audit, 2026-11-20): the CSS rule doesn't reach a scroll from JS.
+            document.getElementById('lineage')?.scrollIntoView({
+                behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+                block: 'start',
+            });
         }
     };
 
@@ -183,11 +188,13 @@ export default function TitleHistory() {
                                     <li key={h.name} className="min-w-0">
                                         <button
                                             type="button"
+                                            // No lineage to open yet: not a dead button.
+                                            disabled={h.id === undefined}
                                             onClick={() =>
                                                 h.id !== undefined &&
                                                 select(h.id, true)
                                             }
-                                            aria-label={`${h.name}: ${h.holder ?? 'Vacant'}. Show lineage`}
+                                            aria-label={`${h.name}: ${h.holder ?? 'Vacant'}${h.id !== undefined ? '. Show lineage' : ''}`}
                                             className="gm-row-link block h-full w-full border-l-2 border-gold/60 bg-white/[0.03] px-3 py-2 text-left transition-colors hover:bg-white/[0.07]"
                                         >
                                             <span className="flex min-w-0 flex-col items-start gap-1 font-condensed text-sm tracking-[0.04em] [overflow-wrap:anywhere] text-gold uppercase sm:text-base sm:tracking-[0.08em] xl:text-xl xl:tracking-[0.14em]">
@@ -399,25 +406,6 @@ export default function TitleHistory() {
     );
 }
 
-function WonCell({
-    season,
-    week,
-    ppv,
-}: {
-    season: number;
-    week: number;
-    ppv: string | null;
-}) {
-    return (
-        <>
-            <span className="gm-num whitespace-nowrap">
-                S{season} W{week}
-            </span>
-            {ppv && <div className="text-xs text-gold">{ppv}</div>}
-        </>
-    );
-}
-
 /**
  * One reign, then a row for each match it was defended in and the match it
  * was won in (newest first), each linked to that match's results.
@@ -428,6 +416,13 @@ function ReignRows({ r }: { r: LineageRow }) {
     // opens the same results.
     const openRow = (e: MouseEvent, link: string) => {
         if ((e.target as HTMLElement).closest('a')) {
+            return;
+        }
+
+        // Ctrl / Cmd / middle-click open a new tab, like the link.
+        if (e.ctrlKey || e.metaKey || e.button === 1) {
+            window.open(link, '_blank', 'noopener');
+
             return;
         }
 
@@ -459,14 +454,14 @@ function ReignRows({ r }: { r: LineageRow }) {
                             href={r.won_link}
                             className="gm-row-link hover:text-brand-hot"
                         >
-                            <WonCell
+                            <WeekCell
                                 season={r.won_season}
                                 week={r.won_season_week}
                                 ppv={r.won_ppv}
                             />
                         </Link>
                     ) : (
-                        <WonCell
+                        <WeekCell
                             season={r.won_season}
                             week={r.won_season_week}
                             ppv={r.won_ppv}
@@ -492,6 +487,7 @@ function ReignRows({ r }: { r: LineageRow }) {
                     data-testid={`${d.kind}-${d.id}`}
                     className="group cursor-pointer text-sm transition-colors hover:bg-white/[0.04]"
                     onClick={(e) => openRow(e, d.link)}
+                    onAuxClick={(e) => e.button === 1 && openRow(e, d.link)}
                 >
                     <td />
                     <td className="pl-6 font-semibold">
@@ -516,7 +512,7 @@ function ReignRows({ r }: { r: LineageRow }) {
                         </Link>
                     </td>
                     <td>
-                        <WonCell
+                        <WeekCell
                             season={d.season}
                             week={d.season_week}
                             ppv={d.ppv}

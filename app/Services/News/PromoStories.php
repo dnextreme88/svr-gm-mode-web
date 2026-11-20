@@ -183,6 +183,33 @@ class PromoStories
             ['Mixed signals from {brand} on the {title}', "A promo hyped the {title}, but there was no title match on {show} to back it up. The fans were confused, and the office was embarrassed. It's the kind of mistake that's easy to avoid. The champion's next defense will need a better build. This one went nowhere."],
         ],
 
+        // Speed-up Injury process (house rule, 2026-11-20): extra treatment
+        // for an injured superstar.
+        'speed_up_injury.minor.success' => [
+            ['{wrestler} is fully healed', '{brand} sent {wrestler} to the trainers for extra treatment on a {injury}, and it worked. The injury is gone. {wrestler} was cleared on the spot and can wrestle at full strength right away. The medical staff worked late every night this week. It was money well spent.'],
+            ['Clean bill of health for {wrestler}', "The trainer gave {wrestler} the all-clear after a week of intense treatment on a {injury}. Ice, tape and long hours in the training room did the job. {wrestler} looked loose and happy in the locker room. There's nothing holding them back now. Expect them to make the most of it."],
+            ['{wrestler} shakes off the injury', "A {injury} had been slowing {wrestler} down, but not anymore. {brand} paid for extra treatment, and the injury cleared up completely. {wrestler} thanked the medical staff in front of the whole locker room. The next opponent won't get an easy night. {wrestler} is back to full speed."],
+            ['Treatment pays off for {wrestler}', "{brand} put {wrestler} through a week of focused rehab on a {injury}. The result is a superstar who is fully healed. The trainers were pleased with how quickly the body responded. {wrestler} can be booked without a worry. It's a nice boost for the brand."],
+        ],
+        'speed_up_injury.minor.failed' => [
+            ['{wrestler} heals a little faster', "Extra treatment didn't fully clear {wrestler}'s {injury}, but it helped. The injury is {weeks_cut} shorter now. {wrestler} should be at full strength {back}. They can still wrestle in the meantime, carefully. The trainers will keep working on it."],
+            ['Progress, not a cure, for {wrestler}', "{brand} sent {wrestler} for extra work on a {injury}. It didn't heal it outright, but it took {weeks_cut} off the recovery. {wrestler} is expected to be fully healthy {back}. The medical staff called it a step in the right direction. Patience is still needed."],
+            ["{wrestler}'s recovery speeds up", "The trainers couldn't make {wrestler}'s {injury} disappear, but they made a dent in it. It's {weeks_cut} shorter than it was. {wrestler} will be fully fit {back}. Until then, every booking carries a little risk. {brand} will be careful with them."],
+            ['Some good news for {wrestler}', "A week of treatment shaved {weeks_cut} off {wrestler}'s {injury}. It isn't the full recovery {brand} wanted. {wrestler} should be at full strength {back}. The tape stays on for now. The trainers are cautiously optimistic."],
+        ],
+        'speed_up_injury.serious.success' => [
+            ['{wrestler} is ahead of schedule', "{brand} paid for the best treatment available for {wrestler}'s {injury}, and it paid off. The recovery is {weeks_cut} shorter now. {wrestler} is expected back {back}. The rehab has been brutal, but the results speak for themselves. The return is closer than anyone thought."],
+            ['Big step forward for {wrestler}', 'The {injury} that took {wrestler} out has healed faster than expected after extra treatment. The doctors cut {weeks_cut} off the timeline. {wrestler} should be cleared {back}. Video from the training room showed real progress. The fans will be thrilled.'],
+            ["{wrestler}'s comeback moves up", "Extra treatment took {weeks_cut} off {wrestler}'s recovery from a {injury}. That's a huge result. {wrestler} is now due back {back}. The specialists were impressed with how hard {wrestler} worked. {brand} can start planning the return."],
+            ['Rehab breakthrough for {wrestler}', '{wrestler} has been battling back from a {injury}, and the extra treatment {brand} paid for made a real difference. The recovery is {weeks_cut} shorter. {wrestler} should be back in the ring {back}. Every week saved matters on a long schedule. The comeback is on track.'],
+        ],
+        'speed_up_injury.serious.failed' => [
+            ['Slow going for {wrestler}', "Extra treatment on {wrestler}'s {injury} didn't bring the big breakthrough {brand} hoped for. It still took {weeks_cut} off the recovery. {wrestler} is now due back {back}. Serious injuries don't follow a schedule. The rehab goes on."],
+            ['{wrestler} gains a little ground', "The doctors couldn't speed up {wrestler}'s {injury} as much as planned, but the recovery is {weeks_cut} shorter. {wrestler} should return {back}. The extra work wasn't wasted. It just wasn't the miracle anyone wanted. {wrestler} remains determined."],
+            ['A modest update on {wrestler}', '{brand} sent {wrestler} for extra treatment on a {injury}. The result: {weeks_cut} off the timeline and nothing more. {wrestler} is expected back {back}. The trainers say the body needs time. The fans will have to wait a while longer.'],
+            ['{wrestler} still has a way to go', "A week of specialist care trimmed {weeks_cut} off {wrestler}'s recovery from a {injury}. It's progress, but not much. {wrestler} should be back {back}. The road back is long with an injury like this. {brand} is staying patient."],
+        ],
+
         // Comeback Reminder: an injured star stays on the fans' minds.
         'comeback_reminder.success' => [
             ['{wrestler} is coming back', "{brand} aired a video on {wrestler}'s recovery from a {injury}. They're about {weeks_left} away, and the crowd can't wait. The footage showed long days in rehab and hard work in the gym. The cheers when it ended were as loud as any match all night. The countdown is officially on."],
@@ -408,6 +435,10 @@ class PromoStories
         'fails' => 'Failed',
         'backfires' => 'Backfired (overused)',
         'disrupts' => 'Success',
+        'minor.success' => 'Minor injury: success',
+        'minor.failed' => 'Minor injury: failed',
+        'serious.success' => 'Serious injury: success',
+        'serious.failed' => 'Serious injury: failed',
         'face.success' => 'Face: success',
         'face.failed' => 'Face: failed',
         'heel.success' => 'Heel: success',

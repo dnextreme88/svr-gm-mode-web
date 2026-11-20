@@ -1,4 +1,4 @@
-import { brandLogo, ppvLogo } from '@/lib/assets';
+import { brandLogo, brandLogoSize, ppvLogo, ppvLogoSize } from '@/lib/assets';
 import { cn } from '@/lib/utils';
 import { PpvKeyLabels } from '@/types/enums';
 import type { Brand, PpvKey } from '@/types/enums';
@@ -21,6 +21,7 @@ export function BrandBug({ brand, size = 'md', className }: Props) {
     return (
         <img
             src={brandLogo[brand]}
+            {...brandLogoSize[brand]}
             alt={brand === 'raw' ? 'Raw' : 'Smackdown'}
             draggable={false}
             className={cn(
@@ -45,6 +46,7 @@ export function PpvBug({
     return (
         <img
             src={ppvLogo[ppv]}
+            {...ppvLogoSize[ppv]}
             alt={PpvKeyLabels[ppv]}
             draggable={false}
             className={cn(

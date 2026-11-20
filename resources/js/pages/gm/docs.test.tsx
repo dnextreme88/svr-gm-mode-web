@@ -534,6 +534,34 @@ describe('Docs page', () => {
         );
     });
 
+    it('moves between tabs with the arrow keys and keeps the tab in the URL (UI audit, 2026-11-20)', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        const first = screen.getByRole('tab', { name: 'Match types' });
+        first.focus();
+        await user.keyboard('{ArrowRight}');
+
+        const second = screen.getByRole('tab', { name: 'Fatigue & injuries' });
+        expect(second).toHaveFocus();
+        expect(second).toHaveAttribute('aria-selected', 'true');
+        expect(first).toHaveAttribute('tabindex', '-1');
+        expect(window.location.search).toBe('?tab=injuries');
+        expect(screen.getByRole('tabpanel')).toHaveAccessibleName(
+            'Fatigue & injuries',
+        );
+    });
+
+    it('opens on the tab in the URL', () => {
+        window.history.replaceState(null, '', '/?tab=morale');
+        render(<Docs />);
+
+        expect(screen.getByRole('tab', { name: 'Morale' })).toHaveAttribute(
+            'aria-selected',
+            'true',
+        );
+    });
+
     it('documents every promo with its cost, success probability, fatigue and needs', async () => {
         const user = userEvent.setup();
         render(<Docs />);

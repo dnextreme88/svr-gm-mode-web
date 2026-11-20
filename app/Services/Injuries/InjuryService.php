@@ -43,8 +43,8 @@ class InjuryService
 
     /**
      * Promos that tire their wrestlers (Interference, Start a Rivalry, Diva
-     * Bikini Contest, Continue Rivalry) roll injuries exactly like a match
-     * that adds the same fatigue (§5, §6).
+     * Bikini Contest) roll injuries exactly like a match that adds the same
+     * fatigue (§5, §6). Continue Rivalry never does (house rule, 2026-11-20).
      */
     public function rollForPromo(SaveWrestler $wrestler, int $fatigueGoingIn, int $fatigueBars, int $week, Rng $rng): ?Injury
     {
@@ -188,6 +188,49 @@ class InjuryService
         }
 
         return $injury->severity === InjurySeverity::Serious && (bool) config('gm.titles.vacate_on_serious_injury');
+    }
+
+    /**
+     * Speed-up Injury Process (house rule, 2026-11-20): a success heals a
+     * minor injury outright or takes 5 weeks off a serious one, a failure
+     * takes 2 weeks off either (`gm.promos.speed_up_injury`). An injury cut
+     * to nothing ends with the week: the superstar is back next week.
+     * Titles already vacated stay vacated.
+     *
+     * @return string|null what happened, for the promo's note; null with no injury
+     */
+    public function speedUp(SaveWrestler $wrestler, bool $succeeded, int $week): ?string
+    {
+        $injury = $this->status->active($wrestler, $week);
+
+        if ($injury === null) {
+            return null;
+        }
+
+        if ($succeeded && $injury->severity === InjurySeverity::Minor) {
+            $injury->update(['healed_week' => $week]);
+
+            return 'Healed';
+        }
+
+        $weeks = (int) config($succeeded ? 'gm.promos.speed_up_injury.serious_success_weeks' : 'gm.promos.speed_up_injury.fail_weeks');
+
+        return $this->shorten($injury, $weeks, $week);
+    }
+
+    /**
+     * Take weeks off an injury, but never past next week: at worst the
+     * superstar is back next week.
+     */
+    public function shorten(Injury $injury, int $weeks, int $week): string
+    {
+        $ends = max($week + 1, $injury->ends_week - $weeks);
+        $cut = $injury->ends_week - $ends;
+        $injury->update(['ends_week' => $ends]);
+
+        return $ends === $week + 1
+            ? "{$cut} ".($cut === 1 ? 'week' : 'weeks').' shorter: back next week'
+            : "{$cut} ".($cut === 1 ? 'week' : 'weeks').' shorter';
     }
 
     private function healCurrent(SaveWrestler $wrestler, int $week): void

@@ -184,8 +184,8 @@ function WeekChip({ game }: { game: GameShell }) {
             className={cn(chip, 'transition-colors hover:bg-white/12')}
             title={
                 game.airing
-                    ? "Back to this week's results"
-                    : "Go to this week's card"
+                    ? 'Back to this week’s results'
+                    : 'Go to this week’s card'
             }
             data-testid="week-chip"
         >
@@ -219,7 +219,7 @@ function Header({ game }: { game: GameShell }) {
                 <Link
                     href={gm.saves.index.url()}
                     className="col-start-1 row-start-1 flex items-center gap-3"
-                    aria-label="All saves"
+                    aria-label="GM Mode: all saves"
                 >
                     <BrandBug brand={game.player_brand} />
                     <span className="hidden font-condensed text-lg tracking-[0.25em] text-ink-dim uppercase @3xl:inline">
@@ -272,7 +272,7 @@ function Header({ game }: { game: GameShell }) {
                                 </>
                             ) : (
                                 <span className="text-ink-dim">
-                                    —
+                                    <span aria-hidden>—</span>
                                     <span className="sr-only">
                                         No show has aired yet
                                     </span>
@@ -425,6 +425,7 @@ function MenuBar({ items, url }: { items: NavItem[]; url: string }) {
                                 key={item.label}
                                 href={item.href}
                                 prefetch
+                                aria-current={active ? 'page' : undefined}
                                 className={cn(
                                     navLink,
                                     active
@@ -443,7 +444,6 @@ function MenuBar({ items, url }: { items: NavItem[]; url: string }) {
                     <div ref={menu.ref} className="relative">
                         <button
                             type="button"
-                            aria-haspopup="menu"
                             aria-expanded={menu.open}
                             aria-label="Menu"
                             onClick={menu.toggle}
@@ -468,8 +468,8 @@ function MenuBar({ items, url }: { items: NavItem[]; url: string }) {
                         {menu.mounted && (
                             <PopoverPanel
                                 open={menu.open}
-                                role="menu"
-                                aria-label="GM menus"
+                                role="group"
+                                aria-label="All GM menus"
                                 className="min-w-64 py-1"
                             >
                                 {items.map((item) => {
@@ -480,7 +480,9 @@ function MenuBar({ items, url }: { items: NavItem[]; url: string }) {
                                             key={item.label}
                                             href={item.href}
                                             prefetch
-                                            role="menuitem"
+                                            aria-current={
+                                                active ? 'page' : undefined
+                                            }
                                             onClick={menu.close}
                                             className={cn(
                                                 navLink,
@@ -521,7 +523,7 @@ function Footer() {
                 GM Mode
             </span>
             <p className="text-xs text-ink-faint">
-                Smackdown vs Raw 2006 - a fan-made GM mode web version
+                Smackdown vs Raw 2006 – a fan-made GM mode web version
             </p>
         </footer>
     );
@@ -566,6 +568,13 @@ export default function GmLayout({ children }: { children: ReactNode }) {
             className="gm-root gm-stage min-h-screen"
             data-brand={game?.player_brand ?? 'raw'}
         >
+            {/* The first Tab stop on every page (UI audit, 2026-11-20). */}
+            <a
+                href="#main"
+                className="sr-only z-50 bg-arena-2 px-4 py-2 font-condensed font-semibold tracking-wider text-ink uppercase focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:outline-2 focus:outline-gold"
+            >
+                Skip to main content
+            </a>
             {game && !onAir && <Header game={game} />}
             {game && !onAir && <Nav game={game} url={page.url} />}
             {game?.deficit.blocked && (
@@ -581,7 +590,11 @@ export default function GmLayout({ children }: { children: ReactNode }) {
                     before the next show can air.
                 </div>
             )}
-            <main className="relative z-10 mx-auto max-w-[1600px] px-4 py-6 md:px-6 md:py-8">
+            <main
+                id="main"
+                tabIndex={-1}
+                className="relative z-10 mx-auto max-w-[1600px] scroll-mt-4 px-4 py-6 outline-none md:px-6 md:py-8"
+            >
                 {children}
             </main>
             <Footer />

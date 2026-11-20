@@ -147,7 +147,7 @@ describe('ReignChart', () => {
             })
             .focus();
 
-        expect(await screen.findByRole('status')).toHaveTextContent(
+        expect(await screen.findByTestId('chart-tooltip')).toHaveTextContent(
             'Defense 2 vs. Kane',
         );
     });

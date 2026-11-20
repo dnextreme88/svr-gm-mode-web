@@ -315,6 +315,12 @@ class PromoService
             };
         }
 
+        // House rule (2026-11-20): the treatment works either way, just less
+        // when it fails.
+        if ($type->key === PromoTypeKey::SpeedUpInjury && $slot->target !== null) {
+            $note = $this->injuries->speedUp($slot->target, $succeeded, $week) ?? 'No injury to treat';
+        }
+
         // House rule: a failed Interview Space for someone not booked on the
         // card gets crashed by another superstar (see `crashInterview`).
         if ($type->key === PromoTypeKey::InterviewSpace && ! $succeeded && $slot->target !== null && ! $this->bookedOn($show, $slot->target->id)) {
@@ -363,7 +369,9 @@ class PromoService
     /**
      * Promo fatigue (house rule): every wrestler in the promo (both Divas in a
      * Bikini Contest, both rivals in Continue Rivalry) takes it, success or
-     * fail, and rolls injury on the fatigue it leaves them on.
+     * fail, and rolls injury on the fatigue it leaves them on. Continue
+     * Rivalry (house rule, 2026-11-20, `gm.promos.injury_exempt`) still tires
+     * them but never injures them.
      */
     private function tire(Show $show, PromoType $type, PromoSlot $slot, Rng $rng): void
     {
@@ -380,6 +388,11 @@ class PromoService
 
             $goingIn = $wrestler->fatigue;
             $wrestler->update(['fatigue' => FatigueZones::cap($goingIn + $type->fatigue_bars * (int) config('gm.fatigue.bar_size'))]);
+
+            if (in_array($type->key->value, (array) config('gm.promos.injury_exempt', []), true)) {
+                continue;
+            }
+
             $this->injuries->rollForPromo($wrestler->refresh(), $goingIn, $type->fatigue_bars, $show->week_number, $rng);
         }
     }

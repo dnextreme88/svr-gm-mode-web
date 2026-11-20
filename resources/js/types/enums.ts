@@ -788,6 +788,7 @@ export const PromoTypeKey = {
     InterviewSpace: 'interview_space',
     DivaBikiniContest: 'diva_bikini_contest',
     CallOut: 'call_out',
+    SpeedUpInjury: 'speed_up_injury',
 } as const;
 export type PromoTypeKey = (typeof PromoTypeKey)[keyof typeof PromoTypeKey];
 export const PromoTypeKeyLabels: Record<PromoTypeKey, string> = {
@@ -806,6 +807,7 @@ export const PromoTypeKeyLabels: Record<PromoTypeKey, string> = {
     'interview_space': 'Interview Space',
     'diva_bikini_contest': 'Diva Bikini Contest',
     'call_out': 'Call-out',
+    'speed_up_injury': 'Speed-up Injury Process',
 };
 
 export const ReignEndReason = {

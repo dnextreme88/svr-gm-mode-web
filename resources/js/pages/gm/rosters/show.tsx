@@ -1,6 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { MoraleBadge, SpecialtyBadge, TitleBelt } from '@/components/gm/badges';
 import { BrandBug, PpvBug } from '@/components/gm/brand-bug';
 import { BusyLabel } from '@/components/gm/busy-label';
@@ -9,6 +9,7 @@ import { EmptyState, PageTitle, Panel, Stat } from '@/components/gm/panel';
 import { ReleaseButton } from '@/components/gm/release-button';
 import { StreakMeter } from '@/components/gm/streak-meter';
 import { formatMoney, pluralize } from '@/lib/gm';
+import { radioKeyDown, useRovingRadios } from '@/lib/radio-group';
 import { useBusy } from '@/lib/use-busy';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
@@ -21,6 +22,7 @@ import type {
 } from '@/types/enums';
 import {
     ComplaintLevelLabels,
+    ContractStatusLabels,
     MoraleComplaintTypeLabels,
     ReignEndReasonLabels,
     RosterTypeLabels,
@@ -481,6 +483,9 @@ export default function WrestlerDetail() {
         wrestler.contract?.length_weeks ?? 52,
     );
     const quote = quotes.find((q) => q.length_weeks === length);
+    // The contract lengths are one Tab stop; the arrows pick.
+    const lengthGroup = useRef<HTMLDivElement>(null);
+    useRovingRadios(lengthGroup);
     const { busy, track } = useBusy();
     const props = usePage<Props>().props;
     const budget = props.budget ?? game.budget;
@@ -644,12 +649,21 @@ export default function WrestlerDetail() {
                             <div className="gm-label mb-2">
                                 {is_own ? 'Renegotiate' : 'Offer a contract'}
                             </div>
-                            <div className="grid grid-cols-5 gap-1">
+                            {/* One length at a time: a radio group (UI audit,
+                                2026-11-20). */}
+                            <div
+                                ref={lengthGroup}
+                                role="radiogroup"
+                                aria-label="Contract length"
+                                onKeyDown={radioKeyDown}
+                                className="grid grid-cols-5 gap-1"
+                            >
                                 {quotes.map((q) => (
                                     <button
                                         key={q.length_weeks}
                                         type="button"
-                                        aria-pressed={length === q.length_weeks}
+                                        role="radio"
+                                        aria-checked={length === q.length_weeks}
                                         onClick={() =>
                                             setLength(q.length_weeks)
                                         }
@@ -777,7 +791,9 @@ export default function WrestlerDetail() {
                                             )}
                                         </td>
                                         <td className="gm-num">
-                                            #{r.reign_number}
+                                            {r.reign_number
+                                                ? `#${r.reign_number}`
+                                                : '—'}
                                         </td>
                                         <td className="gm-num">
                                             W{r.won_week}
@@ -829,7 +845,8 @@ export default function WrestlerDetail() {
                                     )}
                                 </span>
                                 <span className="gm-num text-right">
-                                    {formatMoney(c.weekly_cost)}/wk · {c.status}
+                                    {formatMoney(c.weekly_cost)}/wk ·{' '}
+                                    {ContractStatusLabels[c.status]}
                                 </span>
                             </li>
                         ))}

@@ -112,7 +112,7 @@ describe('End of the draft', () => {
         render(<Draft />);
 
         expect(screen.getByTestId('draft-concluded')).toHaveTextContent(
-            "Draft picks are finished. You may now assign your brand's champions.",
+            'Draft picks are finished. You may now assign your brand’s champions.',
         );
         expect(visit).not.toHaveBeenCalled();
 
@@ -231,7 +231,9 @@ describe('Contract length (house rule, 2026-11-15)', () => {
         );
         expect(row).toHaveTextContent('$120,000');
 
-        await user.click(within(row).getByRole('button', { name: 'Draft' }));
+        await user.click(
+            within(row).getByRole('button', { name: 'Draft Edge' }),
+        );
         expect(post).toHaveBeenCalledWith(
             expect.stringContaining('/draft/pick'),
             { save_wrestler_id: 77, length: 24 },

@@ -1,16 +1,15 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { InjuryChip, SpecialtyBadge } from '@/components/gm/badges';
 import { BusyLabel } from '@/components/gm/busy-label';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { PoolFilters } from '@/components/gm/pool-filters';
-import type { SortState } from '@/components/gm/sort-header';
 import { ariaSort, nextSort, SortHeader } from '@/components/gm/sort-header';
 import { WrestlerName } from '@/components/gm/wrestler-name';
-import type { PoolFilter } from '@/lib/gm';
-import { emptyPoolFilter, filterPool, formatMoney } from '@/lib/gm';
+import { filterPool, formatMoney } from '@/lib/gm';
 import { useBusy } from '@/lib/use-busy';
+import { usePoolFilterUrl, useSortUrl } from '@/lib/use-url-param';
 import gm from '@/routes/gm';
 import { RosterTypeLabels, WeightClassLabels } from '@/types/enums';
 import type { ContractQuote, GamePageProps, WrestlerRow } from '@/types/gm';
@@ -25,6 +24,13 @@ type Props = GamePageProps & {
 };
 
 type SortKey = 'name' | 'type' | 'class' | 'total' | 'weekly';
+const SORT_KEYS: readonly SortKey[] = [
+    'name',
+    'type',
+    'class',
+    'total',
+    'weekly',
+];
 
 const DEFAULT_LENGTH = 52;
 
@@ -38,10 +44,30 @@ function quoteFor(w: FreeAgent, lengthById: Record<number, number>) {
 export default function FreeAgency() {
     const { game, available, locked, lengths, has_room } =
         usePage<Props>().props;
-    const [filter, setFilter] = useState<PoolFilter>(emptyPoolFilter);
-    const [sort, setSort] = useState<SortState<SortKey>>(null);
+    // Filters and sort live in the URL (UI audit, 2026-11-20).
+    const [filter, setFilter] = usePoolFilterUrl();
+    const [sort, setSort] = useSortUrl<SortKey>(SORT_KEYS);
     const [lengthById, setLengthById] = useState<Record<number, number>>({});
     const { busy, isBusy, track } = useBusy();
+    // Stable handlers, so a row only redraws when its own data changes
+    // (UI audit, 2026-11-20: memoised rows, like the draft pool).
+    const setLength = useCallback(
+        (id: number, weeks: number) =>
+            setLengthById((current) => ({ ...current, [id]: weeks })),
+        [],
+    );
+    const sign = (id: number, length: number) =>
+        router.post(
+            gm.freeAgency.sign.url({ save: game.id, saveWrestler: id }),
+            { length_weeks: length },
+            { preserveScroll: true, ...track(`sign:${id}`) },
+        );
+    const signRef = useRef(sign);
+    signRef.current = sign;
+    const onSign = useCallback(
+        (id: number, length: number) => signRef.current(id, length),
+        [],
+    );
 
     const visible = useMemo(() => {
         const rows = filterPool(available, filter);
@@ -156,140 +182,22 @@ export default function FreeAgency() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {visible.map((w) => {
-                                    const length =
-                                        lengthById[w.id] ?? DEFAULT_LENGTH;
-                                    const quote = quoteFor(w, lengthById);
-
-                                    return (
-                                        <tr
-                                            key={w.id}
-                                            data-testid={`free-agent-${w.id}`}
-                                        >
-                                            <td>
-                                                <Link
-                                                    href={gm.rosters.show.url({
-                                                        save: game.id,
-                                                        saveWrestler: w.id,
-                                                    })}
-                                                    className="gm-row-link font-semibold hover:text-brand-hot"
-                                                >
-                                                    <WrestlerName
-                                                        wrestler={w}
-                                                    />
-                                                </Link>
-                                            </td>
-                                            <td className="text-ink-dim">
-                                                {
-                                                    RosterTypeLabels[
-                                                        w.roster_type
-                                                    ]
-                                                }
-                                            </td>
-                                            <td className="text-ink-dim">
-                                                {
-                                                    WeightClassLabels[
-                                                        w.weight_class
-                                                    ]
-                                                }
-                                            </td>
-                                            <td>
-                                                <InjuryChip injury={w.injury} />
-                                            </td>
-                                            <td>
-                                                <div className="flex flex-wrap gap-1">
-                                                    {w.specialties.map((s) => (
-                                                        <SpecialtyBadge
-                                                            key={s}
-                                                            family={s}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <select
-                                                    aria-label={`Contract length for ${w.name}`}
-                                                    className="gm-input py-1 text-sm"
-                                                    value={length}
-                                                    onChange={(e) =>
-                                                        setLengthById({
-                                                            ...lengthById,
-                                                            [w.id]: Number(
-                                                                e.target.value,
-                                                            ),
-                                                        })
-                                                    }
-                                                >
-                                                    {lengths.map((l) => (
-                                                        <option
-                                                            key={l.value}
-                                                            value={l.value}
-                                                        >
-                                                            {l.label}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </td>
-                                            <td className="gm-num text-right">
-                                                {quote &&
-                                                    formatMoney(quote.total)}
-                                            </td>
-                                            <td className="gm-num text-right text-ink-dim">
-                                                {quote &&
-                                                    formatMoney(quote.weekly)}
-                                            </td>
-                                            <td className="text-right whitespace-nowrap">
-                                                {has_room ? (
-                                                    <button
-                                                        type="button"
-                                                        className="gm-btn gm-btn-sm"
-                                                        aria-label={`Sign ${w.name}`}
-                                                        disabled={busy !== null}
-                                                        aria-busy={
-                                                            isBusy(
-                                                                `sign:${w.id}`,
-                                                            ) || undefined
-                                                        }
-                                                        onClick={() =>
-                                                            router.post(
-                                                                gm.freeAgency.sign.url(
-                                                                    {
-                                                                        save: game.id,
-                                                                        saveWrestler:
-                                                                            w.id,
-                                                                    },
-                                                                ),
-                                                                {
-                                                                    length_weeks:
-                                                                        length,
-                                                                },
-                                                                {
-                                                                    preserveScroll: true,
-                                                                    ...track(
-                                                                        `sign:${w.id}`,
-                                                                    ),
-                                                                },
-                                                            )
-                                                        }
-                                                    >
-                                                        <BusyLabel
-                                                            busy={isBusy(
-                                                                `sign:${w.id}`,
-                                                            )}
-                                                            busyText="Signing…"
-                                                        >
-                                                            Sign
-                                                        </BusyLabel>
-                                                    </button>
-                                                ) : (
-                                                    <span className="text-xs text-ink-dim">
-                                                        Roster full
-                                                    </span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                {visible.map((w) => (
+                                    <FreeAgentRow
+                                        key={w.id}
+                                        wrestler={w}
+                                        saveId={game.id}
+                                        length={
+                                            lengthById[w.id] ?? DEFAULT_LENGTH
+                                        }
+                                        lengths={lengths}
+                                        hasRoom={has_room}
+                                        busy={busy !== null}
+                                        signing={isBusy(`sign:${w.id}`)}
+                                        onLength={setLength}
+                                        onSign={onSign}
+                                    />
+                                ))}
                             </tbody>
                         </table>
                     </div>
@@ -310,3 +218,97 @@ export default function FreeAgency() {
         </>
     );
 }
+
+/** One free agent's row, memoised (UI audit, 2026-11-20). */
+const FreeAgentRow = memo(function FreeAgentRow({
+    wrestler: w,
+    saveId,
+    length,
+    lengths,
+    hasRoom,
+    busy,
+    signing,
+    onLength,
+    onSign,
+}: {
+    wrestler: FreeAgent;
+    saveId: number;
+    length: number;
+    lengths: Array<{ value: number; label: string }>;
+    hasRoom: boolean;
+    busy: boolean;
+    signing: boolean;
+    onLength: (id: number, weeks: number) => void;
+    onSign: (id: number, length: number) => void;
+}) {
+    const quote = w.quotes.find((q) => q.length_weeks === length);
+
+    return (
+        <tr data-testid={`free-agent-${w.id}`}>
+            <td>
+                <Link
+                    href={gm.rosters.show.url({
+                        save: saveId,
+                        saveWrestler: w.id,
+                    })}
+                    className="gm-row-link font-semibold hover:text-brand-hot"
+                >
+                    <WrestlerName wrestler={w} />
+                </Link>
+            </td>
+            <td className="text-ink-dim">{RosterTypeLabels[w.roster_type]}</td>
+            <td className="text-ink-dim">
+                {WeightClassLabels[w.weight_class]}
+            </td>
+            <td>
+                <InjuryChip injury={w.injury} />
+            </td>
+            <td>
+                <div className="flex flex-wrap gap-1">
+                    {w.specialties.map((s) => (
+                        <SpecialtyBadge key={s} family={s} />
+                    ))}
+                </div>
+            </td>
+            <td>
+                <select
+                    aria-label={`Contract length for ${w.name}`}
+                    className="gm-input py-1 text-sm"
+                    value={length}
+                    name={`length_${w.id}`}
+                    onChange={(e) => onLength(w.id, Number(e.target.value))}
+                >
+                    {lengths.map((l) => (
+                        <option key={l.value} value={l.value}>
+                            {l.label}
+                        </option>
+                    ))}
+                </select>
+            </td>
+            <td className="gm-num text-right">
+                {quote && formatMoney(quote.total)}
+            </td>
+            <td className="gm-num text-right text-ink-dim">
+                {quote && formatMoney(quote.weekly)}
+            </td>
+            <td className="text-right whitespace-nowrap">
+                {hasRoom ? (
+                    <button
+                        type="button"
+                        className="gm-btn gm-btn-sm"
+                        aria-label={`Sign ${w.name}`}
+                        disabled={busy}
+                        aria-busy={signing || undefined}
+                        onClick={() => onSign(w.id, length)}
+                    >
+                        <BusyLabel busy={signing} busyText="Signing…">
+                            Sign
+                        </BusyLabel>
+                    </button>
+                ) : (
+                    <span className="text-xs text-ink-dim">Roster full</span>
+                )}
+            </td>
+        </tr>
+    );
+});

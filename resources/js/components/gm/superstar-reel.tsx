@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { brandName, prefersReducedMotion } from '@/lib/gm';
+import { useModalFocus } from '@/lib/use-modal-focus';
 import { cn } from '@/lib/utils';
 import type { Brand } from '@/types/enums';
 import type { WrestlerRow } from '@/types/gm';
@@ -100,9 +101,15 @@ export function SuperstarReel({
 
     const face = faces[index] ?? result;
 
+    // Focus moves in and stays in while it spins (UI audit, 2026-11-20).
+    const dialog = useRef<HTMLDivElement>(null);
+    useModalFocus(true, dialog);
+
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm outline-none"
+            ref={dialog}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-label={heading ?? `Re-draft pick ${pickNumber}`}
@@ -131,7 +138,7 @@ export function SuperstarReel({
                         data-testid="superstar-reel-face"
                         data-face={face.id}
                         className={cn(
-                            'gm-heading text-3xl text-ink md:text-4xl',
+                            'gm-heading max-w-full text-3xl break-words text-ink md:text-4xl',
                             landed ? 'animate-gm-slam' : 'animate-gm-rise',
                         )}
                     >

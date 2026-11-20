@@ -201,7 +201,7 @@ export default function CardPage() {
             <Head title={`${show.name} card`} />
             {rearranging && (
                 <LoadingOverlay
-                    text="Re-arranging your matches. Please wait..."
+                    text="Re-arranging your matches. Please wait…"
                     testId="reorder-overlay"
                 />
             )}
@@ -262,7 +262,7 @@ export default function CardPage() {
                 >
                     {summerslam.main_event
                         ? `Your weekly shows drew more fans than your rival prior to Summerslam, so you book matches 1, 3, 5, and the main event. Your rival books matches 2, 4, and 6.`
-                        : `${summerslam.headliner}'s weekly shows drew more fans than you prior to Summerslam, so they book matches 1, 3, 5, and the main event. You book matches 2, 4, and 6.`}
+                        : `${summerslam.headliner}’s weekly shows drew more fans than you prior to Summerslam, so they book matches 1, 3, 5, and the main event. You book matches 2, 4, and 6.`}
                 </p>
             )}
 

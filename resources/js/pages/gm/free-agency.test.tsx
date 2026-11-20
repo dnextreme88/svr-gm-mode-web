@@ -56,9 +56,12 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 const names = () =>
-    screen
-        .getAllByTestId(/^free-agent-\d+$/)
-        .map((r) => within(r).getAllByRole('link')[0].textContent);
+    screen.getAllByTestId(/^free-agent-\d+$/).map((r) =>
+        // Without the screen-reader cue after a coloured name.
+        within(r)
+            .getAllByRole('link')[0]
+            .textContent?.replace(/ \((Diva|Cruiserweight)\)$/, ''),
+    );
 
 describe('Free Agency', () => {
     it('sorts by up-front cost for the length picked on each row', async () => {

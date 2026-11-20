@@ -168,12 +168,25 @@ vi.mock('@inertiajs/react', () => ({
         children,
         href,
         className,
+        onStart,
+        onFinish: _onFinish,
+        ...rest
     }: {
         children: ReactNode;
         href: string;
         className?: string;
+        onStart?: () => void;
+        onFinish?: () => void;
     }) => (
-        <a href={href} className={className}>
+        <a
+            href={href}
+            className={className}
+            onClick={(e) => {
+                e.preventDefault();
+                visit(href, { onStart });
+            }}
+            {...rest}
+        >
             {children}
         </a>
     ),
@@ -197,18 +210,18 @@ describe('Results page', () => {
 
         render(<Results />);
         await user.click(
-            screen.getByRole('button', { name: 'Continue to Financials' }),
+            screen.getByRole('link', { name: 'Continue to Financials' }),
         );
 
         expect(visit).toHaveBeenCalledWith(
             expect.stringMatching(/\/financials\?wrap=1$/),
             expect.anything(),
         );
-        const button = screen.getByRole('button', {
-            name: /Continuing to Financials/,
+        const link = screen.getByRole('link', {
+            name: /Continuing to Financials…/,
         });
-        expect(button).toBeDisabled();
-        expect(button).toHaveAttribute('aria-busy', 'true');
+        expect(link).toHaveAttribute('aria-disabled', 'true');
+        expect(link).toHaveAttribute('aria-busy', 'true');
     });
 
     it('keeps a plain Continue link on a past week', () => {
@@ -285,7 +298,7 @@ describe('Results page', () => {
 
         await user.click(
             screen.getByRole('button', {
-                name: 'Show details for Monday Night Raw match 1',
+                name: /^Show details for Monday Night Raw match 1:/,
             }),
         );
 
@@ -320,14 +333,14 @@ describe('Results page', () => {
 
         await user.click(
             screen.getByRole('button', {
-                name: 'Show details for Monday Night Raw match 1',
+                name: /^Show details for Monday Night Raw match 1:/,
             }),
         );
         await user.keyboard('{ArrowRight}');
         expect(screen.getByText('2 / 2')).toBeInTheDocument();
 
         const row = screen.getByRole('button', {
-            name: 'Show details for Monday Night Raw match 2',
+            name: /^Show details for Monday Night Raw match 2:/,
         });
         expect(row).toHaveAttribute('aria-current', 'true');
 
@@ -553,7 +566,7 @@ describe('Results page', () => {
         render(<Results />);
 
         const row = screen.getByRole('button', {
-            name: 'Show details for Monday Night Raw match 1',
+            name: /^Show details for Monday Night Raw match 1:/,
         });
         // The row button holds the participants, the method and the chevron.
         expect(row.className).toContain('hover:bg-brand');
@@ -604,8 +617,8 @@ describe('Results page', () => {
         render(<Results />);
 
         const row = screen.getByTestId('result-7-1');
-        expect(row).toHaveTextContent('John Cenadef.Edge(C)');
-        const tag = within(row).getByText('(C)');
+        expect(row).toHaveTextContent('John Cenadef.Edge(C)(champion)');
+        const tag = within(row).getByText('(C)').parentElement!;
         expect(tag.className).toContain('text-gold');
         expect(tag.className).toContain('text-sm');
     });
@@ -631,10 +644,10 @@ describe('Results page', () => {
 
         const row = screen.getByTestId('result-7-1');
         expect(row).toHaveTextContent(
-            'Tommy Dreamer(Cpt) & Kane & Kurt Angledef.Christian(Cpt) & Rhino & Spike Dudley',
+            'Tommy Dreamer(Cpt)(captain) & Kane & Kurt Angledef.Christian(Cpt)(captain) & Rhino & Spike Dudley',
         );
         for (const tag of within(row).getAllByText('(Cpt)')) {
-            expect(tag.className).toContain('text-gold');
+            expect(tag.parentElement!.className).toContain('text-gold');
         }
     });
 
@@ -706,7 +719,7 @@ describe('Results page', () => {
                 ),
             ).toBeInTheDocument();
             expect(screen.getByTestId('result-7-2')).toHaveTextContent(
-                'Edge(C)vsJohn Cena',
+                'Edge(C)(champion)vsJohn Cena',
             );
             expect(screen.getByTestId('result-7-3')).toHaveTextContent(
                 'Waiting',
@@ -763,7 +776,7 @@ describe('Results page', () => {
 
             // Greyed out and disabled, so it can't be clicked or tabbed to.
             const row = screen.getByRole('button', {
-                name: 'Monday Night Raw match 3 is waiting for the matches before it',
+                name: /^Monday Night Raw match 3 is waiting for the matches before it/,
             });
             expect(row).toBeDisabled();
             expect(row).toHaveClass('opacity-60', 'cursor-not-allowed');
@@ -839,8 +852,8 @@ describe('Results page', () => {
 
             const button = screen.getByRole('button', { name: 'Continue' });
             expect(button).toBeDisabled();
-            expect(button).toHaveAttribute(
-                'title',
+            // On screen, not only in a tooltip (UI audit, 2026-11-20).
+            expect(button).toHaveAccessibleDescription(
                 'Decide every match to continue',
             );
             // Simulate all sits beside it, in the same row.

@@ -172,12 +172,29 @@ describe('AttendanceChart', () => {
         });
         fireEvent.focus(backlash);
 
-        expect(screen.getByRole('status')).toHaveTextContent(
+        expect(screen.getByTestId('chart-tooltip')).toHaveTextContent(
             'BacklashWeek 4 · Raw21,500 fans · Gate $1,075,000',
         );
 
         fireEvent.blur(backlash);
-        expect(screen.queryByRole('status')).toBeNull();
+        expect(screen.queryByTestId('chart-tooltip')).toBeNull();
+    });
+
+    it('is one Tab stop, with the arrow keys moving night to night (UI audit, 2026-11-20)', async () => {
+        const user = userEvent.setup();
+        const { container } = render(<AttendanceChart points={points} />);
+
+        const stops = container.querySelectorAll(
+            'svg [role="img"][tabindex="0"]',
+        );
+        expect(stops).toHaveLength(1);
+
+        (stops[0] as SVGElement).focus();
+        const first = document.activeElement;
+        await user.keyboard('{ArrowRight}');
+
+        expect(document.activeElement).not.toBe(first);
+        expect(document.activeElement).toHaveAttribute('tabindex', '0');
     });
 
     it('lists every night in a table too', async () => {

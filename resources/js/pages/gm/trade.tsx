@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { InjuryChip, MoraleBadge, TitleBelt } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
-import { BusyLabel } from '@/components/gm/busy-label';
+import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { pluralize } from '@/lib/gm';
@@ -124,6 +124,10 @@ export default function ProposeTrade() {
     // and each side's points, refreshed as the offer changes. Null while
     // there's nothing to judge.
     const [assessment, setAssessment] = useState<Assessment | null>(null);
+    // The odds request failed: say so instead of a silent blank (UI audit,
+    // 2026-11-20).
+    const [oddsFailed, setOddsFailed] = useState(false);
+    const [confirming, setConfirming] = useState(false);
     const chance = assessment?.chance ?? null;
 
     useEffect(() => {
@@ -138,8 +142,18 @@ export default function ProposeTrade() {
             out,
             in: incoming,
         })
-            .then((r) => current && setAssessment(r))
-            .catch(() => current && setAssessment(null));
+            .then((r) => {
+                if (current) {
+                    setAssessment(r);
+                    setOddsFailed(false);
+                }
+            })
+            .catch(() => {
+                if (current) {
+                    setAssessment(null);
+                    setOddsFailed(true);
+                }
+            });
 
         return () => {
             current = false;
@@ -154,8 +168,14 @@ export default function ProposeTrade() {
             {
                 onSuccess: () => (setOut([]), setIncoming([])),
                 ...track('send'),
+                onFinish: () => setConfirming(false),
             },
         );
+    const names = (rows: TradeRow[], ids: number[]) =>
+        rows
+            .filter((w) => ids.includes(w.id))
+            .map((w) => w.name)
+            .join(', ') || 'nobody';
 
     return (
         <>
@@ -172,7 +192,7 @@ export default function ProposeTrade() {
                 judge={judge}
             />
 
-            <div className="mb-6 grid gap-4 md:grid-cols-2" aria-live="polite">
+            <div className="mb-6 grid gap-4 md:grid-cols-2">
                 <SizeCard
                     brand={game.player_brand}
                     size={yourSize}
@@ -213,7 +233,10 @@ export default function ProposeTrade() {
                 aria-label="Your offer"
                 className="gm-panel sticky bottom-0 z-10 mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 !bg-arena-2 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_24px_rgb(0_0_0/0.6)]"
             >
-                <div className="min-w-0 flex-1 space-y-1 text-sm">
+                <div
+                    className="min-w-0 flex-1 space-y-1 text-sm"
+                    aria-live="polite"
+                >
                     <OfferLine
                         label="You send"
                         rows={yours.filter((w) => out.includes(w.id))}
@@ -250,6 +273,15 @@ export default function ProposeTrade() {
                             </span>
                         </p>
                     )}
+                    {oddsFailed && chance === null && !empty && !overCap && (
+                        <p
+                            data-testid="offer-chance-error"
+                            className="text-zone-serious"
+                        >
+                            Couldn’t work out the rival GM’s odds. Change the
+                            offer to try again, or send it anyway.
+                        </p>
+                    )}
                     {assessment && (
                         <div
                             data-testid="offer-points"
@@ -274,13 +306,44 @@ export default function ProposeTrade() {
                     disabled={empty || overCap || busy !== null}
                     aria-busy={busy !== null || undefined}
                     aria-describedby={hint ? 'offer-hint' : undefined}
-                    onClick={send}
+                    onClick={() => setConfirming(true)}
                 >
-                    <BusyLabel busy={busy !== null} busyText="Sending…">
-                        Send offer
-                    </BusyLabel>
+                    Send offer
                 </button>
             </section>
+
+            {/* The rival answers at once, so the offer is confirmed first
+                (UI audit, 2026-11-20). */}
+            <ConfirmDialog
+                open={confirming}
+                title="Send this offer?"
+                message={
+                    <div className="space-y-2">
+                        <p>
+                            <strong className="text-ink">You send:</strong>{' '}
+                            {names(yours, out)}
+                        </p>
+                        <p>
+                            <strong className="text-ink">You receive:</strong>{' '}
+                            {names(theirs, incoming)}
+                        </p>
+                        {chance !== null && (
+                            <p>
+                                The rival GM accepts this{' '}
+                                <span className="gm-num">
+                                    {percent(chance)}
+                                </span>{' '}
+                                of the time. It answers by email straight away.
+                            </p>
+                        )}
+                    </div>
+                }
+                confirmLabel="Send offer"
+                busy={busy !== null}
+                busyText="Sending…"
+                onConfirm={send}
+                onCancel={() => setConfirming(false)}
+            />
 
             {history.length > 0 && (
                 <Panel
@@ -672,7 +735,7 @@ function OfferLine({
                             type="button"
                             onClick={() => onRemove(w.id)}
                             aria-label={`Remove ${w.name}`}
-                            className="gm-row-link p-0.5 text-ink-dim hover:text-ink"
+                            className="gm-row-link inline-flex items-center justify-center p-0.5 text-ink-dim hover:text-ink pointer-coarse:min-h-11 pointer-coarse:min-w-11"
                         >
                             <X aria-hidden className="size-3.5" />
                         </button>
@@ -709,6 +772,9 @@ function RosterPicker({
             actions={
                 <input
                     type="search"
+                    name={`search_${title.toLowerCase().replace(/\W+/g, '_')}`}
+                    autoComplete="off"
+                    spellCheck={false}
                     className="gm-input min-h-11 w-36 py-1 text-sm sm:min-h-0"
                     placeholder="Search…"
                     aria-label={`Search: ${title.toLowerCase()}`}

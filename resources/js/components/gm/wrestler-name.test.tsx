@@ -62,3 +62,37 @@ describe('SvR 2006 name colour coding', () => {
         expect(screen.getByText('Batista')).not.toHaveAttribute('data-tone');
     });
 });
+
+describe('screen-reader cue (UI audit, 2026-11-20)', () => {
+    it('says Diva or Cruiserweight after a coloured name, nothing otherwise', () => {
+        const { container } = render(
+            <>
+                <WrestlerName
+                    wrestler={{
+                        name: 'Lita',
+                        roster_type: 'diva',
+                        weight_class: 'featherweight',
+                    }}
+                />
+                <WrestlerName
+                    wrestler={{
+                        name: 'Rey Mysterio',
+                        roster_type: 'superstar',
+                        weight_class: 'cruiserweight',
+                    }}
+                />
+                <WrestlerName
+                    wrestler={{
+                        name: 'Batista',
+                        roster_type: 'superstar',
+                        weight_class: 'heavyweight',
+                    }}
+                />
+            </>,
+        );
+
+        expect(container.textContent).toBe(
+            'Lita (Diva)Rey Mysterio (Cruiserweight)Batista',
+        );
+    });
+});
