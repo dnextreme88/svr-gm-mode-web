@@ -122,6 +122,27 @@ class TitleReign extends Model
     }
 
     /**
+     * The holders by their own names ("Edge & Christian"), never a faction's:
+     * records and stats count the superstars, so a faction disbanding or
+     * renaming can't split or merge them (house rule, 2026-11-21).
+     */
+    public function memberNames(): string
+    {
+        return $this->isVacant() ? 'Vacant' : implode(' & ', $this->holder_snapshot['names']);
+    }
+
+    /**
+     * The same holders whatever order they're listed in: their sorted ids.
+     */
+    public function holderKey(): string
+    {
+        $ids = $this->holderIds();
+        sort($ids);
+
+        return implode(',', $ids);
+    }
+
+    /**
      * Weeks held, counting to $currentWeek for an active reign.
      */
     public function weeksHeld(int $currentWeek): int

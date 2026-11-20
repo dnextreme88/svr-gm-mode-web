@@ -306,7 +306,7 @@ describe('disbanding', function () {
 
         expect($faction->refresh()->disbanded_week)->toBe(1)
             ->and($faction->date_disbanded?->toDateString())->toBe('2005-04-03')
-            ->and(NewsEvent::where('type', NewsEventType::FactionDisbanded)->sole()->rendered_text)->toBe('Team Xtreme split up')
+            ->and(NewsEvent::where('type', NewsEventType::FactionDisbanded)->sole()->rendered_text)->toBe('Team Xtreme has split up')
             ->and(app(FactionNamer::class)->name($save->id, factionIds($save, ['Matt Hardy', 'Jeff Hardy']), 1))->toBe('Matt Hardy & Jeff Hardy');
 
         $this->post(route('gm.factions.disband', [$save, $faction]))->assertSessionHasErrors('game');
@@ -388,7 +388,7 @@ describe('title news', function () {
         $news = NewsEvent::where('type', NewsEventType::FactionTitleWon)->sole();
 
         expect($news->tier)->toBe(NewsTier::Headline)
-            ->and($news->rendered_text)->toBe('NEW CHAMPIONS: Team Xtreme!')
+            ->and($news->rendered_text)->toBe('Team Xtreme has won tag team gold!')
             ->and(app(NewsTemplates::class)->summary($news->type, $news->payload))->toStartWith('Team Xtreme beat Carlito & Snitsky via pinfall and walk out with the World Tag Team Championship!')
             ->and(NewsEvent::where('type', NewsEventType::TitleChange)->exists())->toBeFalse();
     });
@@ -403,8 +403,8 @@ describe('title news', function () {
 
         factionWeek($save);
 
-        expect(NewsEvent::where('type', NewsEventType::FactionTitleLost)->sole()->rendered_text)->toBe('Team Xtreme lose the gold')
-            ->and(NewsEvent::where('type', NewsEventType::TitleChange)->sole()->rendered_text)->toBe("New owner of the {$title->name} was crowned!");
+        expect(NewsEvent::where('type', NewsEventType::FactionTitleLost)->sole()->rendered_text)->toBe('Team Xtreme has lost their prized possessions')
+            ->and(NewsEvent::where('type', NewsEventType::TitleChange)->sole()->rendered_text)->toBe("The {$title->name} has changed hands!");
     });
 });
 

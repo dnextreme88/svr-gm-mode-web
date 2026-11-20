@@ -22,6 +22,7 @@ import { StoryModal } from '@/components/gm/story-modal';
 import type { ConditionalStoryPopup } from '@/components/gm/story-modal';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
+import { requestJson } from '@/lib/http';
 import { ignoresPageArrows } from '@/lib/keyboard';
 import { useUrlParam } from '@/lib/use-url-param';
 import { cn } from '@/lib/utils';
@@ -227,17 +228,38 @@ export default function Results() {
     // the next match to decide after a short look at the result.
     const [decided, setDecided] = useState<number | null>(null);
     const [direction, setDirection] = useState<'left' | 'right'>('right');
-    // Conditional stories (house rule, 2026-11-07): one pop-up at a time;
-    // `closed` counts this run's, for "1 of 2".
-    const [closed, setClosed] = useState(0);
-    const story = busy ? null : (conditional_stories[0] ?? null);
-    const storyOpen = story !== null;
+    // Conditional stories (house rule, 2026-11-07; one modal, 2026-11-21):
+    // the stories a decision brought are shown together in one modal, in air
+    // order. Got it moves to the next and closes the modal on the last one,
+    // and only then does the fatigue report open. Previous / Next step
+    // between the stories already seen.
+    const [storyBatch, setStoryBatch] = useState<ConditionalStoryPopup[]>([]);
+    const [storyAt, setStoryAt] = useState(0);
+    const [storySeen, setStorySeen] = useState(0);
+
+    // Stories already shown in a batch, so the list the server still sends
+    // until its reload doesn't open them again.
+    const shownStories = useRef(new Set<number>());
 
     useEffect(() => {
-        if (conditional_stories.length === 0) {
-            setClosed(0);
+        const fresh = conditional_stories.filter(
+            (st) => !shownStories.current.has(st.id),
+        );
+
+        if (!busy && storyBatch.length === 0 && fresh.length > 0) {
+            fresh.forEach((st) => shownStories.current.add(st.id));
+            setStoryBatch(fresh);
+            setStoryAt(0);
+            setStorySeen(0);
         }
-    }, [conditional_stories.length]);
+    }, [busy, storyBatch.length, conditional_stories]);
+    // A story is up, or about to be (the batch opens after this render), so
+    // the fatigue report and the cash-in prompt wait (no flash between).
+    const storyOpen = storyBatch.length > 0;
+    const storyPending =
+        storyOpen ||
+        conditional_stories.some((st) => !shownStories.current.has(st.id));
+    const seenRequests = useRef<Promise<unknown>[]>([]);
 
     // House rule (2026-11-12): when the last match is decided here, the
     // night's fatigue opens in a modal (after any story pop-ups), and the
@@ -448,15 +470,40 @@ export default function Results() {
             'cash-in',
         );
 
-    const closeStory = (id: number) => {
-        setClosed((n) => n + 1);
-        post(
+    // Got it: the story is marked seen (in the background, no reload, so
+    // nothing flashes between stories). The last one closes the modal and
+    // reloads the results.
+    const storyGotIt = () => {
+        const story = storyBatch[storyAt];
+
+        if (!story) {
+            return;
+        }
+
+        const seen = requestJson(
+            'POST',
             gm.results.stories.seen.url({
                 save: game.id,
                 week: week_number,
-                trigger: id,
+                trigger: story.id,
             }),
-        );
+        ).catch(() => undefined);
+
+        if (storyAt < storyBatch.length - 1) {
+            seenRequests.current.push(seen);
+            setStoryAt(storyAt + 1);
+            setStorySeen((n) => Math.max(n, storyAt + 1));
+
+            return;
+        }
+
+        setStoryBatch([]);
+        setStoryAt(0);
+        // Once every story's "seen" is in, the server's list is empty.
+        void Promise.all([...seenRequests.current, seen]).then(() => {
+            seenRequests.current = [];
+            router.reload({ only: ['conditional_stories'] });
+        });
     };
 
     const answerCashIn = (yes: boolean) =>
@@ -691,13 +738,8 @@ export default function Results() {
 
                         {new_emails > 0 && !from_schedule && !airing && (
                             <p className="text-sm text-ink-dim">
+                                You received{' '}
                                 {pluralize(new_emails, 'new email')}.{' '}
-                                <Link
-                                    href={gm.email.url(game.id)}
-                                    className="text-brand-hot underline underline-offset-4"
-                                >
-                                    Open inbox
-                                </Link>
                             </p>
                         )}
                     </div>
@@ -808,7 +850,7 @@ export default function Results() {
             )}
 
             <ConfirmDialog
-                open={fatigueModal && !storyOpen}
+                open={fatigueModal && !storyPending}
                 title="Fatigue this week"
                 wide
                 cancelLabel="Got it"
@@ -823,14 +865,18 @@ export default function Results() {
             />
 
             <StoryModal
-                story={story}
-                index={closed + 1}
-                total={closed + conditional_stories.length}
-                onClose={() => story && closeStory(story.id)}
+                story={storyBatch[storyAt] ?? null}
+                index={storyAt + 1}
+                total={storyBatch.length}
+                canPrevious={storyAt > 0}
+                canNext={storyAt < storySeen}
+                onPrevious={() => setStoryAt((i) => Math.max(0, i - 1))}
+                onNext={() => setStoryAt((i) => Math.min(storySeen, i + 1))}
+                onClose={storyGotIt}
             />
 
             <ConfirmDialog
-                open={cash_in_offer !== null && !busy && !storyOpen}
+                open={cash_in_offer !== null && !busy && !storyPending}
                 title="Cash in Money in the Bank?"
                 message={
                     cash_in_offer

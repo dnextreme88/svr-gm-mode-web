@@ -1724,7 +1724,12 @@ function NewsAndEmail({
                         or distracted) and stay out of the Royal Rumble,
                         Elimination Chamber, Steel Cage and Hell in a Cell. The
                         story is added to the match’s news, and a pop-up
-                        explains it on the live results screen.
+                        explains it on the live results screen. When a decision
+                        brings several (Simulate all, say), they share one
+                        pop-up, “Story 1 of 3”: Got it moves to the next one,
+                        Previous and Next step back over the stories already
+                        shown, and Got it on the last closes it before the
+                        week’s fatigue report opens.
                     </p>
                     <table
                         className="gm-table text-sm"
@@ -2430,6 +2435,12 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
                             You and the rival GM alternate picks from the whole
                             pool. Who picks first is random.
                         </li>
+                        <li data-testid="setup-steps-docs">
+                            Setting up a career takes two steps, shown at the
+                            top of both pages: 1 Draft your roster, then 2 Crown
+                            your champions. The menu bar is hidden on both until
+                            the season starts.
+                        </li>
                         <li>
                             Up to {pluralize(rosters.cap, 'pick')} each. You can
                             stop early and fill spots from Free Agency later.
@@ -2771,7 +2782,9 @@ function ScheduleDocs({ calendar }: Pick<Props, 'calendar'>) {
                             as it is now. Loading the career from Saved careers
                             takes you back to that save, and anything you did
                             after it is lost, so save before you stop playing.
-                            Each save replaces the last one.
+                            Each save replaces the last one. The GM Mode logo at
+                            the top left takes you to the save list; with
+                            progress that isn’t saved yet, it asks first.
                         </li>
                     </ul>
                 </Panel>

@@ -1173,3 +1173,22 @@ describe('Injury tables sorting (2026-11-20)', () => {
         }
     });
 });
+
+describe('Career setup and leaving (2026-11-21)', () => {
+    it('explains the two setup steps and the logo asking before leaving', async () => {
+        const user = userEvent.setup();
+        render(<Docs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Rosters & draft' }));
+        expect(screen.getByTestId('setup-steps-docs')).toHaveTextContent(
+            '1 Draft your roster, then 2 Crown your champions',
+        );
+
+        await user.click(
+            screen.getByRole('tab', { name: 'Booking and Scheduling' }),
+        );
+        expect(screen.getByTestId('save-checkpoints')).toHaveTextContent(
+            'with progress that isn’t saved yet, it asks first',
+        );
+    });
+});

@@ -96,7 +96,20 @@ export function WrestlerNames({
         <>
             {names.map((n, i) => (
                 <Fragment key={i}>
-                    {i > 0 && separator}
+                    {/* Names with a portrait sit centred on the line
+                        (align-middle), so the separator does too, or the
+                        "&" between them reads high (2026-11-21). */}
+                    {i > 0 &&
+                        (portrait ? (
+                            <span
+                                data-testid="names-separator"
+                                className="align-middle whitespace-pre"
+                            >
+                                {separator}
+                            </span>
+                        ) : (
+                            separator
+                        ))}
                     <WrestlerName
                         wrestler={n}
                         portrait={n.roster_type ? portrait : undefined}

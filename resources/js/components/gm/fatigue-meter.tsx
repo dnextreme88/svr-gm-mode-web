@@ -55,7 +55,7 @@ export function FatigueMeter({
     const zone = fatigueZone(projected ?? fatigue, config);
 
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex w-37.5 items-center gap-2">
             <div
                 role="meter"
                 aria-label="Fatigue"

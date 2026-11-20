@@ -157,12 +157,17 @@ function promo(
 const page: { props: Record<string, unknown> } = { props };
 const post = vi.fn();
 const visit = vi.fn();
+const reload = vi.fn();
+const requestJson = vi.hoisted(() => vi.fn(async () => ({})));
+
+vi.mock('@/lib/http', () => ({ requestJson }));
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     router: {
         post: (...args: unknown[]) => post(...args),
         visit: (...args: unknown[]) => visit(...args),
+        reload: (...args: unknown[]) => reload(...args),
     },
     Link: ({
         children,
@@ -1024,43 +1029,58 @@ describe('Conditional story pop-up (house rule, 2026-11-07)', () => {
         expect(modal).not.toHaveTextContent('1 of 1');
     });
 
-    it('steps through every story from Simulate all, posting each as seen', async () => {
+    it('shows every story in one modal: Got it moves on, Previous and Next step back over the ones seen (2026-11-21)', async () => {
         const user = userEvent.setup();
         page.props = {
             ...props,
             conditional_stories: [
                 story(5, 'Get the tables!', 'D-Von pulled a table.'),
                 story(6, 'Hornswoggle to the rescue!', 'The shillelagh.'),
+                story(7, 'Lights out!', 'The lights went out.'),
             ],
         };
-        const { rerender } = render(<Results />);
+        render(<Results />);
 
-        expect(screen.getByTestId('story-modal')).toHaveTextContent('1 of 2');
-        expect(
-            screen.getByRole('heading', { name: 'Get the tables!' }),
-        ).toBeInTheDocument();
+        const heading = () => screen.getByRole('heading', { level: 2 });
+        const nav = (name: string) => screen.queryByRole('button', { name });
+
+        // Story 1: nothing seen before it, so no Previous or Next.
+        expect(screen.getByTestId('story-count')).toHaveTextContent('1 of 3');
+        expect(heading()).toHaveTextContent('Get the tables!');
+        expect(nav('Previous story')).toBeNull();
+        expect(nav('Next story')).toBeNull();
 
         await user.click(screen.getByRole('button', { name: 'Got it' }));
-        expect(post).toHaveBeenCalledWith(
+        expect(requestJson).toHaveBeenCalledWith(
+            'POST',
             '/gm/saves/1/results/1/stories/5/seen',
-            {},
-            expect.objectContaining({ preserveState: true }),
         );
+        // No reload between stories, so nothing flashes in between.
+        expect(reload).not.toHaveBeenCalled();
+        expect(screen.getByTestId('story-count')).toHaveTextContent('2 of 3');
+        expect(nav('Previous story')).toBeInTheDocument();
+        expect(nav('Next story')).toBeNull();
 
-        // The server answers with the stories still unseen.
-        post.mock.calls[0][2].onFinish();
-        page.props = {
-            ...props,
-            conditional_stories: [
-                story(6, 'Hornswoggle to the rescue!', 'The shillelagh.'),
-            ],
-        };
-        rerender(<Results />);
+        await user.click(screen.getByRole('button', { name: 'Got it' }));
+        expect(heading()).toHaveTextContent('Lights out!');
 
-        expect(screen.getByTestId('story-modal')).toHaveTextContent('2 of 2');
-        expect(
-            screen.getByRole('heading', { name: 'Hornswoggle to the rescue!' }),
-        ).toBeInTheDocument();
+        // Back to the 2nd: now both ways.
+        await user.click(nav('Previous story')!);
+        expect(heading()).toHaveTextContent('Hornswoggle to the rescue!');
+        expect(nav('Previous story')).toBeInTheDocument();
+        expect(nav('Next story')).toBeInTheDocument();
+
+        await user.click(nav('Next story')!);
+        expect(heading()).toHaveTextContent('Lights out!');
+
+        // Got it on the last closes the modal and reloads the stories.
+        await user.click(screen.getByRole('button', { name: 'Got it' }));
+        expect(screen.queryByTestId('story-modal')).toBeNull();
+        await vi.waitFor(() =>
+            expect(reload).toHaveBeenCalledWith({
+                only: ['conditional_stories'],
+            }),
+        );
     });
 
     it('shows nothing when no story played out', () => {

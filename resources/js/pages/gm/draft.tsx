@@ -9,6 +9,7 @@ import {
     LoadingOverlay,
 } from '@/components/gm/loading-overlay';
 import { PageTitle, Panel, Stat } from '@/components/gm/panel';
+import { SetupSteps } from '@/components/gm/setup-steps';
 import { PoolFilters } from '@/components/gm/pool-filters';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import {
@@ -356,6 +357,7 @@ export default function Draft() {
                     text="Draft picks are finished. You may now assign your brand’s champions."
                 />
             )}
+            <SetupSteps current={1} />
             <PageTitle kicker="Initial draft" title="Build your roster">
                 {!props.player_done && (
                     <button
@@ -918,7 +920,7 @@ function StopDraftSummary({
             </p>
             {picks.length > 0 && (
                 <ul
-                    className="gm-scroll max-h-40 space-y-0.5 overflow-y-auto text-sm"
+                    className="gm-scroll max-h-43 space-y-0.5 overflow-y-auto text-sm"
                     aria-label="Your picks"
                 >
                     {picks.map((p) => (

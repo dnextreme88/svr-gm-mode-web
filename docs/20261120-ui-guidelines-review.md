@@ -287,3 +287,10 @@ Once everything is done, run the same review again: the Web Interface Guidelines
 - Re-audit (three read-only reviewers): no fix was broken. Follow-ups applied: focus kept when News' Older/Newer hides, the entrants quota line is a mounted live region (and hidden when read-only), straight apostrophes and decorative arrows, factions' empty header and search label, one live region on the trade page, reduced-motion scroll in the re-draft tag reveal, Ctrl/middle-click on title-history rows, `aria-current` on the inline nav, no `div` inside the saved-career buttons.
 - Then the four open items: the custom radio groups follow the ARIA radio pattern (`lib/radio-group.ts`), Free Agency rows are memoised (`FreeAgentRow`), the card and Simulate-to-here progress bars slide with `translateX` instead of animating width, and `WrestlerName` adds a hidden "(Diva)" / "(Cruiserweight)" cue.
 - `aria-pressed` toggles keep one name (Skip animation's On / Off is visual only; the ticker button is always "Pause the … ticker"), so their state isn't announced twice.
+
+## Follow-ups (2026-11-21)
+
+- **Title History stats** (`TitleStats`, `TitleStatsTest`): per title, Title matches held on PPV, times vacated and why, the most and least contested match types, different champions (and teams) and total defenses; tag titles' most reigns by superstar and by team. Across all titles, the superstar with the most different titles won and the Grand Slam champions (world, secondary and tag title, either brand; `gm.titles.grand_slam`), in a modal. Title records now group and name holders by the superstars themselves, never a faction's name.
+- Career setup steps animate on the current step, with a clearer connector line; conditional stories share one modal; the header logo asks before leaving an unsaved career.
+- The "&" between portraited names sits level with them (`WrestlerNames`).
+- `database/seeders/data/wrestlers.php` lists are sorted by name (same data).

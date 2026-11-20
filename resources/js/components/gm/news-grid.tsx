@@ -337,7 +337,7 @@ function NewsCardView({
                 </p>
                 {kind === 'story' && (
                     // House rule (2026-11-15): a story's summary starts hidden.
-                    <span className="mt-2 inline-flex min-h-11 items-center gap-1 font-condensed text-xs font-semibold tracking-wider text-ink-dim uppercase sm:min-h-0">
+                    <span className="mt-2 inline-flex min-h-11 items-center gap-1 font-condensed text-sm font-semibold tracking-wider text-ink-dim uppercase sm:min-h-0">
                         <DisclosureChevron open={expanded} />
                         {expanded ? 'Hide story' : 'Show story'}
                     </span>
@@ -381,7 +381,7 @@ function Ticker({
     entries,
 }: {
     label: string;
-    brand?: 'raw' | 'smackdown';
+    brand: 'raw' | 'smackdown';
     entries: { text: string; gold: boolean }[];
 }) {
     // A pause button for keyboard and touch (UI audit, 2026-11-20): hover
@@ -400,8 +400,8 @@ function Ticker({
             data-testid={`ticker-${brand ?? 'neutral'}`}
             className="flex items-stretch overflow-hidden border border-white/8 bg-black/50"
         >
-            <span className="z-10 flex w-28 shrink-0 items-center justify-center bg-brand px-3 font-condensed font-bold tracking-[0.2em] text-white uppercase">
-                {label}
+            <span className="bg-bfrand z-10 flex w-28 shrink-0 items-center justify-center px-3 py-2 font-condensed font-bold tracking-[0.2em] text-white uppercase">
+                <BrandBug brand={brand} size="sm" className="h-7" />
             </span>
             <div className="relative flex-1 overflow-hidden py-2">
                 <ul

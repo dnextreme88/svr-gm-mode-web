@@ -150,3 +150,18 @@ it('covers every per-career table', function () {
 
     expect($missing)->toBe([]);
 });
+
+it('tells the header whether leaving would lose progress (2026-11-21)', function () {
+    $save = GameBuilder::inSeason();
+    $unsaved = fn () => $this->getJson(route('gm.saves.unsaved', $save))->assertOk()->json('unsaved');
+
+    // Never saved.
+    expect($unsaved())->toBeTrue();
+
+    $this->post(route('gm.saves.persist', $save));
+    expect($unsaved())->toBeFalse();
+
+    // Progress since the save.
+    app(WeekResolver::class)->resolve($save->refresh());
+    expect($unsaved())->toBeTrue();
+});

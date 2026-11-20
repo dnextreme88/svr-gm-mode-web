@@ -382,6 +382,14 @@ return [
         // House rule (2026-11-07): the former champion(s) of a title lost in a
         // match are owed a rematch within this many weeks (Active Effect only).
         'rematch_clause_weeks' => 4,
+        // House rule (2026-11-21): a Grand Slam champion has won a title from
+        // each group, on either brand (the Cruiserweight and Women's titles
+        // don't count). Keys are ChampionshipKey values.
+        'grand_slam' => [
+            'world' => ['wwe', 'world_heavyweight'],
+            'secondary' => ['intercontinental', 'united_states'],
+            'tag' => ['world_tag_team', 'wwe_tag_team'],
+        ],
     ],
 
     /*

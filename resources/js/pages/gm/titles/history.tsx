@@ -1,8 +1,9 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Fragment, useState } from 'react';
-import type { MouseEvent } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { TitleBeltImage } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
+import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { ReignChart } from '@/components/gm/reign-chart';
 import { WeekCell } from '@/components/gm/week-cell';
@@ -77,6 +78,8 @@ type HolderRecord = {
     holder: string;
     holder_parts?: NamePart[];
     value: number;
+    /** Several superstars share it: listed with commas, not as a team. */
+    tied?: boolean;
 };
 
 type RecordSet = {
@@ -86,8 +89,51 @@ type RecordSet = {
     most_defenses: HolderRecord | null;
 };
 
+/** One title's stats (house rule, 2026-11-21). */
+type TypeCount = { types: string[]; value: number };
+
+export type TitleStatSet = {
+    title_matches: number;
+    ppv_title_matches: number;
+    vacated: number;
+    vacated_reasons: Partial<Record<ReignEndReason, number>>;
+    most_type: TypeCount | null;
+    least_type: TypeCount | null;
+    /** Different superstars who held it (a tag title counts each partner). */
+    champions: number;
+    /** Tag titles: different pairs of partners. */
+    teams: number | null;
+    defenses: number;
+    most_reigns_superstar: HolderRecord | null;
+    most_reigns_team: HolderRecord | null;
+};
+
+type SlamTitle = {
+    group: 'world' | 'secondary' | 'tag';
+    championship: string;
+    season: number;
+    season_week: number;
+    won_ppv: string | null;
+};
+
+export type GrandSlam = HolderRecord & {
+    /** The first title they won from each group. */
+    titles: SlamTitle[];
+    /** When the last of the three was won. */
+    attained: { season: number; season_week: number; ppv: string | null };
+};
+
+type OverallStats = {
+    most_titles: (HolderRecord & { titles: string[] }) | null;
+    grand_slams: GrandSlam[];
+};
+
 type Props = GamePageProps & {
     titles: TitleRow[];
+    stats?: {
+        per_title: Record<string, TitleStatSet>;
+        overall: OverallStats;
+    };
     hall: Record<
         Brand,
         Array<{
@@ -114,9 +160,17 @@ const plural = (n: number, one: string, many = `${one}s`) =>
     `${n} ${n === 1 ? one : many}`;
 
 /** A holder or side, colour-coded when the parts are there. */
-function Holder({ name, parts }: { name: string; parts?: NamePart[] | null }) {
+function Holder({
+    name,
+    parts,
+    separator,
+}: {
+    name: string;
+    parts?: NamePart[] | null;
+    separator?: string;
+}) {
     return parts && parts.length > 0 ? (
-        <WrestlerNames names={parts} portrait="sm" />
+        <WrestlerNames names={parts} portrait="sm" separator={separator} />
     ) : (
         name
     );
@@ -124,7 +178,7 @@ function Holder({ name, parts }: { name: string; parts?: NamePart[] | null }) {
 
 export default function TitleHistory() {
     const page = usePage<Props>();
-    const { game, titles, hall, records, briefcases } = page.props;
+    const { game, titles, hall, records, briefcases, stats } = page.props;
     // `?title={key}` opens that title's lineage (linked from wrestler pages).
     const [selected, setSelected] = useState<number>(() => {
         const key = new URLSearchParams(page.url.split('?')[1] ?? '').get(
@@ -397,11 +451,23 @@ export default function TitleHistory() {
                             <RecordsPanel
                                 title={`${title.name.replace(' Championship', '')} records`}
                                 records={records.per_title[title.id]}
-                            />
+                                tag={title.is_tag}
+                            >
+                                {stats?.per_title[title.id] && (
+                                    <TitleStatRows
+                                        stats={stats.per_title[title.id]}
+                                        tag={title.is_tag}
+                                    />
+                                )}
+                            </RecordsPanel>
                             <RecordsPanel
                                 title="All titles"
                                 records={records.overall}
-                            />
+                            >
+                                {stats && (
+                                    <OverallStatRows stats={stats.overall} />
+                                )}
+                            </RecordsPanel>
                         </div>
                     </div>
                 )}
@@ -507,11 +573,11 @@ function ReignRows({ r }: { r: LineageRow }) {
                             vs.{' '}
                             {d.opponent_sides && d.opponent_sides.length > 0
                                 ? d.opponent_sides.map((side, i) => (
-                                      <Fragment key={i}>
-                                          {i > 0 && ', '}
-                                          <WrestlerNames names={side} />
-                                      </Fragment>
-                                  ))
+                                    <Fragment key={i}>
+                                        {i > 0 && ', '}
+                                        <WrestlerNames names={side} />
+                                    </Fragment>
+                                ))
                                 : d.opponents}
                         </Link>
                     </td>
@@ -538,16 +604,25 @@ function ReignRows({ r }: { r: LineageRow }) {
     );
 }
 
+type RecordLine = [string, HolderRecord | null | undefined, string];
+
 function RecordsPanel({
     title,
     records,
+    tag = false,
+    children,
 }: {
     title: string;
     records: RecordSet | undefined;
+    /** A tag title: its most reigns are split by superstar and by team below. */
+    tag?: boolean;
+    children?: ReactNode;
 }) {
-    const rows: Array<[string, HolderRecord | null | undefined, string]> = [
+    const rows: RecordLine[] = [
         ['Longest reign', records?.longest, 'week'],
-        ['Most reigns', records?.most_reigns, 'reign'],
+        ...(tag
+            ? []
+            : [['Most reigns', records?.most_reigns, 'reign'] as RecordLine]),
         ['Most defenses', records?.most_defenses, 'defense'],
         ['Shortest reign', records?.shortest, 'week'],
     ];
@@ -556,26 +631,290 @@ function RecordsPanel({
         <Panel title={title}>
             <dl className="space-y-2 text-sm">
                 {rows.map(([label, record, unit]) => (
-                    <div key={label} className="flex justify-between gap-3">
-                        <dt className="text-ink-dim">{label}</dt>
-                        <dd className="text-right font-semibold">
-                            {record ? (
-                                <>
-                                    <Holder
-                                        name={record.holder}
-                                        parts={record.holder_parts}
-                                    />
-                                    <span className="ml-2 font-normal text-ink-dim">
-                                        {plural(record.value, unit)}
-                                    </span>
-                                </>
-                            ) : (
-                                '—'
-                            )}
-                        </dd>
-                    </div>
+                    <StatRow key={label} label={label}>
+                        <HolderValue record={record} unit={unit} />
+                    </StatRow>
                 ))}
+                {children}
             </dl>
         </Panel>
+    );
+}
+
+/** One line of a records card: the label left, the value right. */
+function StatRow({
+    label,
+    children,
+    testId,
+}: {
+    label: string;
+    children: ReactNode;
+    testId?: string;
+}) {
+    return (
+        <div className="flex justify-between gap-3" data-testid={testId}>
+            <dt className="text-ink-dim">{label}</dt>
+            <dd className="min-w-0 text-right font-semibold">{children}</dd>
+        </div>
+    );
+}
+
+function HolderValue({
+    record,
+    unit,
+}: {
+    record: HolderRecord | null | undefined;
+    unit: string;
+}) {
+    return record ? (
+        <>
+            <Holder
+                name={record.holder}
+                parts={record.holder_parts}
+                separator={record.tied ? ', ' : undefined}
+            />
+            <span className="ml-2 font-normal text-ink-dim">
+                {plural(record.value, unit)}
+            </span>
+        </>
+    ) : (
+        '—'
+    );
+}
+
+/** "Hardcore — Single · 4 matches", ties listed together. */
+function TypeValue({ count }: { count: TypeCount | null }) {
+    return count ? (
+        <>
+            {count.types.join(', ')}
+            <span className="ml-2 font-normal text-ink-dim">
+                {plural(count.value, 'match', 'matches')}
+            </span>
+        </>
+    ) : (
+        '—'
+    );
+}
+
+/**
+ * A title's stats under its records (house rule, 2026-11-21). Tag titles
+ * add their most reigns by superstar and by team, both named by the
+ * superstars themselves, never a faction.
+ */
+function TitleStatRows({ stats, tag }: { stats: TitleStatSet; tag: boolean }) {
+    const reasons = Object.entries(stats.vacated_reasons) as Array<
+        [ReignEndReason, number]
+    >;
+
+    return (
+        <>
+            {tag && (
+                <>
+                    <StatRow
+                        label="Most reigns (superstar)"
+                        testId="stat-most-reigns-superstar"
+                    >
+                        <HolderValue
+                            record={stats.most_reigns_superstar}
+                            unit="reign"
+                        />
+                    </StatRow>
+                    <StatRow
+                        label="Most reigns (team)"
+                        testId="stat-most-reigns-team"
+                    >
+                        <HolderValue
+                            record={stats.most_reigns_team}
+                            unit="reign"
+                        />
+                    </StatRow>
+                </>
+            )}
+            <hr className="border-0 border-t border-white/10" />
+            <StatRow label="Title matches held on PPV" testId="stat-ppv">
+                <span className="gm-num">{stats.ppv_title_matches}</span>
+                <span className="ml-2 font-normal text-ink-dim">
+                    of{' '}
+                    {plural(
+                        stats.title_matches,
+                        'title match',
+                        'title matches',
+                    )}
+                </span>
+            </StatRow>
+            <StatRow label="Times vacated" testId="stat-vacated">
+                <span className="gm-num">{stats.vacated}</span>
+                {reasons.length > 0 && (
+                    <span className="block text-xs font-normal text-ink-dim">
+                        {reasons
+                            .map(
+                                ([reason, n]) =>
+                                    `${ReignEndReasonLabels[reason]} ${n}`,
+                            )
+                            .join(' · ')}
+                    </span>
+                )}
+            </StatRow>
+            <StatRow label="Most contested in" testId="stat-most-type">
+                <TypeValue count={stats.most_type} />
+            </StatRow>
+            <StatRow label="Least contested in" testId="stat-least-type">
+                <TypeValue count={stats.least_type} />
+            </StatRow>
+            <StatRow label="Different champions" testId="stat-champions">
+                {plural(stats.champions, 'superstar')}
+                {stats.teams !== null && (
+                    <span className="ml-2 font-normal text-ink-dim">
+                        {plural(stats.teams, 'team')}
+                    </span>
+                )}
+            </StatRow>
+            <StatRow label="Total defenses" testId="stat-defenses">
+                <span className="gm-num">{stats.defenses}</span>
+            </StatRow>
+        </>
+    );
+}
+
+/**
+ * Across every title, both brands (house rule, 2026-11-21): the superstar
+ * who has won the most different titles, and the Grand Slam champions.
+ */
+function OverallStatRows({ stats }: { stats: OverallStats }) {
+    const [open, setOpen] = useState(false);
+    const slams = stats.grand_slams;
+
+    return (
+        <>
+            <hr className="border-0 border-t border-white/10" />
+            <StatRow label="Most titles won" testId="stat-most-titles">
+                <HolderValue record={stats.most_titles} unit="title" />
+                {stats.most_titles && (
+                    <span className="block text-xs font-normal text-ink-dim">
+                        {stats.most_titles.titles
+                            .map((t) => t.replace(' Championship', ''))
+                            .join(' · ')}
+                    </span>
+                )}
+            </StatRow>
+            <StatRow label="Grand Slam champions" testId="stat-grand-slams">
+                <span className="inline-flex items-center gap-3">
+                    <span className="gm-num">{slams.length}</span>
+                    {slams.length > 0 && (
+                        <button
+                            type="button"
+                            className="gm-btn gm-btn-ghost gm-btn-sm"
+                            onClick={() => setOpen(true)}
+                            aria-haspopup="dialog"
+                        >
+                            View
+                        </button>
+                    )}
+                </span>
+            </StatRow>
+            <ConfirmDialog
+                open={open}
+                wide
+                title="Grand Slam champions"
+                cancelLabel="Close"
+                onCancel={() => setOpen(false)}
+                message={<GrandSlamTable slams={slams} />}
+            />
+        </>
+    );
+}
+
+const SLAM_GROUPS: Record<SlamTitle['group'], string> = {
+    world: 'World title',
+    secondary: 'Secondary title',
+    tag: 'Tag team title',
+};
+
+/**
+ * Who has won a world title (WWE or World Heavyweight), a secondary title
+ * (Intercontinental or United States) and a tag title (WWE or World Tag
+ * Team), on either brand: the first of each they won, and when the last
+ * one completed the set.
+ */
+export function GrandSlamTable({ slams }: { slams: GrandSlam[] }) {
+    return (
+        <div className="space-y-3">
+            <p>
+                A Grand Slam champion has won a world title (WWE or World
+                Heavyweight), a secondary title (Intercontinental or United
+                States) and a tag team title (WWE or World Tag Team), on either
+                brand. The Cruiserweight and Women’s titles don’t count.
+            </p>
+            <div className="gm-scroll max-h-[60vh] overflow-auto">
+                <table className="gm-table" data-testid="grand-slam-table">
+                    <thead>
+                        <tr>
+                            <th>Superstar</th>
+                            <th>Title</th>
+                            <th>First won</th>
+                            <th>Date attained</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {slams.map((slam) =>
+                            slam.titles.map((t, i) => (
+                                <tr
+                                    key={`${slam.holder}-${t.group}`}
+                                    className={cn(
+                                        i === 0 && 'border-t border-white/15',
+                                    )}
+                                >
+                                    {i === 0 && (
+                                        <th
+                                            scope="row"
+                                            rowSpan={slam.titles.length}
+                                            className="align-top font-semibold text-ink"
+                                        >
+                                            <Holder
+                                                name={slam.holder}
+                                                parts={slam.holder_parts}
+                                            />
+                                        </th>
+                                    )}
+                                    <td>
+                                        <span className="flex items-center gap-2">
+                                            <TitleBeltImage
+                                                name={t.championship}
+                                                decorative
+                                            />
+                                            <span>
+                                                {t.championship}
+                                                <span className="block text-xs text-ink-faint">
+                                                    {SLAM_GROUPS[t.group]}
+                                                </span>
+                                            </span>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <WeekCell
+                                            season={t.season}
+                                            week={t.season_week}
+                                            ppv={t.won_ppv}
+                                        />
+                                    </td>
+                                    {i === 0 && (
+                                        <td
+                                            rowSpan={slam.titles.length}
+                                            className="align-top"
+                                        >
+                                            <WeekCell
+                                                season={slam.attained.season}
+                                                week={slam.attained.season_week}
+                                                ppv={slam.attained.ppv}
+                                            />
+                                        </td>
+                                    )}
+                                </tr>
+                            )),
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     );
 }

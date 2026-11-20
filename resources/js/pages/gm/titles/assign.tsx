@@ -9,6 +9,7 @@ import {
     LoadingOverlay,
 } from '@/components/gm/loading-overlay';
 import { PageTitle, Panel } from '@/components/gm/panel';
+import { SetupSteps } from '@/components/gm/setup-steps';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
@@ -64,6 +65,7 @@ export default function AssignTitles() {
     return (
         <>
             <Head title="Assign Championships" />
+            {initial && <SetupSteps current={2} />}
             <PageTitle
                 kicker={initial ? 'After the draft' : 'Vacant titles'}
                 title="Crown your champions"

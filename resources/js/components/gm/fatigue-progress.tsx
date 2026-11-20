@@ -110,39 +110,38 @@ export function FatigueProgress({
     );
     const frame = (children: ReactNode) =>
         framed ? (
-            <Panel title="Fatigue this week" actions={replay}>
-                {children}
-            </Panel>
+            <Panel title="Fatigue this week">{children}</Panel>
         ) : (
-            <div data-testid="fatigue-progress">
-                <div className="mb-3 flex justify-end">{replay}</div>
-                {children}
-            </div>
+            <div data-testid="fatigue-progress">{children}</div>
         );
 
     return frame(
         <>
-            <ol
-                className="mb-3 flex flex-wrap gap-2 font-condensed text-xs tracking-wider uppercase"
-                aria-label="Fatigue stage"
-            >
-                {stages.map((label, i) => (
-                    <li
-                        key={label}
-                        aria-current={i === stage ? 'step' : undefined}
-                        className={cn(
-                            'px-2 py-0.5 transition-colors',
-                            i === stage
-                                ? 'bg-brand text-white'
-                                : i < stage
-                                  ? 'bg-white/10 text-ink'
-                                  : 'bg-white/5 text-ink-faint',
-                        )}
-                    >
-                        {label}
-                    </li>
-                ))}
-            </ol>
+            <div className="mb-3 flex items-center justify-between">
+                <ol
+                    className="flex flex-wrap gap-2 font-condensed text-sm tracking-wider uppercase"
+                    aria-label="Fatigue stage"
+                >
+                    {stages.map((label, i) => (
+                        <li
+                            key={label}
+                            aria-current={i === stage ? 'step' : undefined}
+                            className={cn(
+                                'px-2 py-0.5 transition-colors',
+                                i === stage
+                                    ? 'bg-brand text-white'
+                                    : i < stage
+                                      ? 'bg-white/10 text-ink'
+                                      : 'bg-white/5 text-ink-faint',
+                            )}
+                        >
+                            {label}
+                        </li>
+                    ))}
+                </ol>
+
+                <div className="flex justify-end">{replay}</div>
+            </div>
             {beforeRecovery && (
                 <p
                     className="mb-3 text-sm text-ink-faint"
@@ -199,14 +198,16 @@ export function FatigueProgress({
                                             id={w.id}
                                         />
                                     )}
-                                <span className="gm-num font-condensed text-sm tracking-wide text-ink-faint uppercase">
-                                    {w.start}% → {w.after_shows}%
-                                    {w.end !== null &&
-                                        ` → ${serious(w) ? 'Injured' : `${w.end}%`}`}
+                                <span className="gm-num flex justify-between font-condensed text-sm tracking-wide text-ink-faint uppercase">
+                                    <span className="w-32.5">
+                                        {w.start}% → {w.after_shows}%
+                                        {w.end !== null &&
+                                            ` → ${serious(w) ? 'Injured' : `${w.end}%`}`}
+                                    </span>
                                     {stage === 2 && !serious(w) && (
                                         <span
                                             className={cn(
-                                                'ml-2',
+                                                'ml-5',
                                                 w.rested
                                                     ? 'text-[#74B4FF]'
                                                     : 'text-zone-safe',

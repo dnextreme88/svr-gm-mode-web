@@ -14,7 +14,7 @@ class NewsTemplates
      * @var array<string, string>
      */
     private const TEMPLATES = [
-        'title_change' => 'New owner of the {title} was crowned!',
+        'title_change' => 'The {title} has changed hands!',
         'title_change.legacy' => 'NEW CHAMPION! {winner} defeats {loser} for the {title} at {show}!',
         'title_retained' => 'A successful {title} defense',
         'retained_by_dq' => '{champion} keeps the gold on a technicality',
@@ -107,10 +107,10 @@ class NewsTemplates
         // Factions (house rule).
         'faction_formed' => '{faction} is born!',
         'faction_member_added' => '{wrestler} joins {faction}!',
-        'faction_title_won' => 'NEW CHAMPIONS: {faction}!',
-        'faction_title_lost' => '{faction} lose the gold',
+        'faction_title_won' => '{faction} has won tag team gold!',
+        'faction_title_lost' => '{faction} has lost their prized possessions',
         'faction_interbrand_win' => '{faction} win one for {brand}!',
-        'faction_disbanded' => '{faction} split up',
+        'faction_disbanded' => '{faction} has split up',
     ];
 
     /**

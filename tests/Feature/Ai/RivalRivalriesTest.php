@@ -65,10 +65,11 @@ function feud(Save $save, int $heat, int $matches): Rivalry
     return $rivalry->refresh();
 }
 
+/** Their 1v1 on the show, if any (a random multi-man fill that happens to hold both doesn't count). */
 function sharesSlot(Show $show, Rivalry $rivalry): ?MatchSlot
 {
     return MatchSlot::with('participants')->where('show_id', $show->id)->get()
-        ->first(fn (MatchSlot $s): bool => in_array($rivalry->wrestler_a_id, $s->competitorIds(), true) && in_array($rivalry->wrestler_b_id, $s->competitorIds(), true));
+        ->first(fn (MatchSlot $s): bool => count($s->competitorIds()) === 2 && in_array($rivalry->wrestler_a_id, $s->competitorIds(), true) && in_array($rivalry->wrestler_b_id, $s->competitorIds(), true));
 }
 
 it('books each of its rivalries 1v1 on its card', function () {
