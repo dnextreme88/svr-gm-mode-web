@@ -241,3 +241,21 @@ describe('Contract length (house rule, 2026-11-15)', () => {
         );
     });
 });
+
+describe('Skip animation toggle (UI audit, 2026-11-20)', () => {
+    it('keeps one name and says its state through aria-pressed', async () => {
+        const user = userEvent.setup();
+        render(<Draft />);
+
+        const toggle = screen.getByRole('button', { name: 'Skip animation' });
+        const pressed = toggle.getAttribute('aria-pressed');
+        await user.click(toggle);
+
+        expect(
+            screen.getByRole('button', { name: 'Skip animation' }),
+        ).toHaveAttribute(
+            'aria-pressed',
+            pressed === 'true' ? 'false' : 'true',
+        );
+    });
+});

@@ -378,7 +378,11 @@ export default function Draft() {
                     )}
                     onClick={() => setSkipAnimation((on) => !on)}
                 >
-                    Skip animation: {skipAnimation ? 'On' : 'Off'}
+                    Skip animation
+                    {/* aria-pressed carries the state, so the On / Off is
+                        visual only and isn't said twice (UI audit,
+                        2026-11-20). */}
+                    <span aria-hidden>: {skipAnimation ? 'On' : 'Off'}</span>
                 </button>
                 {props.player_done ? (
                     aiTurn && (

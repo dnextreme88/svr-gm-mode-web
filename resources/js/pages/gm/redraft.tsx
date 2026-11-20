@@ -577,7 +577,12 @@ export default function Redraft() {
                             );
                         }}
                     >
-                        Skip animation: {skipAnimation ? 'On' : 'Off'}
+                        Skip animation
+                        {/* aria-pressed carries the state; On / Off is
+                            visual only (UI audit, 2026-11-20). */}
+                        <span aria-hidden>
+                            : {skipAnimation ? 'On' : 'Off'}
+                        </span>
                     </button>
                 )}
 

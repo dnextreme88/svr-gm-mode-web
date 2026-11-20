@@ -189,7 +189,7 @@ describe('NewsGrid', () => {
         await user.click(pause);
 
         expect(
-            screen.getByRole('button', { name: 'Play the Raw ticker' }),
+            screen.getByRole('button', { name: 'Pause the Raw ticker' }),
         ).toHaveAttribute('aria-pressed', 'true');
     });
 

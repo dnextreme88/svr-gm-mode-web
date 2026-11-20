@@ -432,8 +432,11 @@ function Ticker({
             <button
                 type="button"
                 onClick={() => setPaused((p) => !p)}
+                // One name; aria-pressed says whether it's paused, so the
+                // state isn't announced twice (UI audit, 2026-11-20).
                 aria-pressed={paused}
-                aria-label={`${paused ? 'Play' : 'Pause'} the ${label} ticker`}
+                aria-label={`Pause the ${label} ticker`}
+                title={paused ? 'Play' : 'Pause'}
                 className="z-10 flex w-11 shrink-0 items-center justify-center border-l border-white/8 text-ink-dim hover:bg-white/8 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-gold"
             >
                 {paused ? (
