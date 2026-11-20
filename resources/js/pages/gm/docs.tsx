@@ -921,7 +921,7 @@ function InjuryTable({
                             <td className="gm-num">
                                 {r.min_weeks === r.max_weeks
                                     ? pluralize(r.min_weeks, 'week')
-                                    : `${r.min_weeks}–${r.max_weeks} weeks`}
+                                    : `${r.min_weeks}–${pluralize(r.max_weeks, 'week')}`}
                             </td>
                             {escalates && (
                                 <td className="text-ink-dim">
