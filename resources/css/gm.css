@@ -786,6 +786,19 @@
         overscroll-behavior: contain;
     }
 
+    /*
+     * Scroll boxes are the containing block for anything absolutely
+     * positioned inside them (2026-11-20). Screen-reader-only text
+     * (`sr-only`, position: absolute) in a long list otherwise escapes the
+     * box's clipping and stretches the page by the list's full height (empty
+     * space under Free Agency, the rosters and the trade lists). A
+     * positioning utility on the box itself still wins (utilities layer).
+     */
+    .gm-root
+        :is(.gm-scroll, .overflow-auto, .overflow-x-auto, .overflow-y-auto) {
+        position: relative;
+    }
+
     .gm-scroll::-webkit-scrollbar {
         width: 8px;
         height: 8px;
