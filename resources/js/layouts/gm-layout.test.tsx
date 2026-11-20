@@ -32,6 +32,7 @@ const game = {
 };
 
 const post = vi.hoisted(() => vi.fn());
+const visit = vi.hoisted(() => vi.fn());
 
 const pageState = vi.hoisted(() => ({
     component: 'gm/factions',
@@ -39,7 +40,11 @@ const pageState = vi.hoisted(() => ({
 }));
 
 vi.mock('@inertiajs/react', () => ({
-    router: { on: () => () => {}, post: (...args: unknown[]) => post(...args) },
+    router: {
+        on: () => () => {},
+        post: (...args: unknown[]) => post(...args),
+        visit: (...args: unknown[]) => visit(...args),
+    },
     usePage: () => ({
         props: { game, ...pageState.extra },
         url: '/gm/saves/1/factions',
@@ -129,14 +134,14 @@ describe('GM menu bar', () => {
 
         await user.click(button);
 
-        const menu = screen.getByRole('menu', { name: 'GM menus' });
-        const items = within(menu).getAllByRole('menuitem');
+        const menu = screen.getByRole('group', { name: 'All GM menus' });
+        const items = within(menu).getAllByRole('link');
         expect(items.map((i) => i.textContent)).toContain('Free Agency');
         expect(
-            within(menu).getByRole('menuitem', { name: 'Factions' }).className,
+            within(menu).getByRole('link', { name: 'Factions' }).className,
         ).toContain('border-brand');
         expect(
-            within(menu).getByRole('menuitem', { name: /Email/ }),
+            within(menu).getByRole('link', { name: /Email/ }),
         ).toHaveAttribute('href', expect.stringContaining('/email'));
     });
 
@@ -288,7 +293,7 @@ describe('GM footer', () => {
         // Tall enough for a long dropdown near the bottom to land on.
         expect(footer.className).toContain('min-h-56');
         expect(footer).toHaveTextContent(
-            'Smackdown vs Raw 2006 - a fan-made GM mode web version',
+            'Smackdown vs Raw 2006 – a fan-made GM mode web version',
         );
         expect(within(footer).queryByRole('link')).toBeNull();
     });
@@ -360,5 +365,85 @@ describe('Save career (house rule, 2026-11-17)', () => {
 
         expect(button).toHaveTextContent('Save career');
         expect(button).toBeEnabled();
+    });
+});
+
+describe('Career setup (2026-11-21)', () => {
+    afterEach(() => {
+        pageState.component = 'gm/factions';
+        pageState.extra = {};
+    });
+
+    it('hides the menu bar on the initial draft, keeping the header', () => {
+        pageState.component = 'gm/draft';
+        renderAt(1100, 1400);
+
+        expect(screen.getByTestId('gm-header')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('navigation', { name: 'GM menus' }),
+        ).toBeNull();
+    });
+
+    it('hides it while crowning the first champions, not for a vacant title later', () => {
+        pageState.component = 'gm/titles/assign';
+        pageState.extra = { initial: true };
+        const { unmount } = renderAt(1100, 1400);
+        expect(
+            screen.queryByRole('navigation', { name: 'GM menus' }),
+        ).toBeNull();
+        unmount();
+
+        pageState.extra = { initial: false };
+        renderAt(1100, 1400);
+        expect(
+            screen.getByRole('navigation', { name: 'GM menus' }),
+        ).toBeInTheDocument();
+    });
+});
+
+describe('Leaving through the GM Mode logo (2026-11-21)', () => {
+    afterEach(() => visit.mockReset());
+
+    const stubUnsaved = (unsaved: boolean) =>
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => ({ json: async () => ({ unsaved }) })),
+        );
+
+    it('asks first when the career has progress that isn’t saved', async () => {
+        const user = userEvent.setup();
+        stubUnsaved(true);
+        renderAt(1100, 1400);
+
+        await user.click(
+            screen.getByRole('link', { name: 'GM Mode: all saves' }),
+        );
+
+        expect(
+            await screen.findByRole('dialog', {
+                name: 'Leave without saving?',
+            }),
+        ).toBeInTheDocument();
+        expect(visit).not.toHaveBeenCalled();
+        // A danger dialog: Stay is focused, so Enter doesn't leave.
+        expect(screen.getByRole('button', { name: 'Stay' })).toHaveFocus();
+
+        await user.click(
+            screen.getByRole('button', { name: 'Leave without saving' }),
+        );
+        expect(visit).toHaveBeenCalledWith('/gm');
+    });
+
+    it('goes straight to the save list when everything is saved', async () => {
+        const user = userEvent.setup();
+        stubUnsaved(false);
+        renderAt(1100, 1400);
+
+        await user.click(
+            screen.getByRole('link', { name: 'GM Mode: all saves' }),
+        );
+
+        await vi.waitFor(() => expect(visit).toHaveBeenCalledWith('/gm'));
+        expect(screen.queryByRole('dialog')).toBeNull();
     });
 });

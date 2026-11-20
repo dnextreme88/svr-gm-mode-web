@@ -44,8 +44,8 @@ const brandPitch: Record<Brand, { tagline: string; perks: Perk[] }> = {
         tagline: 'Monday nights. Red ropes. No mercy.',
         perks: [
             { text: 'WWE, Intercontinental & World Tag Team titles' },
-            { text: "Women's Championship", tone: 'diva' },
-            { text: "Elimination Chamber at New Year's Revolution" },
+            { text: 'Women’s Championship', tone: 'diva' },
+            { text: 'Elimination Chamber at New Year’s Revolution' },
         ],
     },
     smackdown: {
@@ -150,7 +150,7 @@ function UnsavedCareer({ save }: { save: SaveSlot }) {
                 save={save}
                 className="gm-btn gm-btn-sm gm-btn-ghost"
                 title="Discard this career?"
-                message={`Discard "${save.name}"? It was never saved.`}
+                message={`Discard “${save.name}”? It was never saved.`}
                 confirmLabel="Discard"
             >
                 Discard
@@ -178,7 +178,7 @@ function draftRules(startingBudget: number, mode: DraftMode): string[] {
         `Each show starts with a ${formatMoney(startingBudget)} budget`,
         'You are not required to draft and fill up 30 slots',
         'Legends cannot be drafted on the initial draft',
-        'Recommended roster size: 15-30',
+        'Recommended roster size: 15–30',
     ];
 }
 
@@ -299,8 +299,8 @@ export default function Saves({
                     testId="starting-game"
                     text={
                         usesWweRoster
-                            ? 'Signing the WWE rosters. Please wait...'
-                            : 'Setting up the draft. Please wait...'
+                            ? 'Signing the WWE rosters. Please wait…'
+                            : 'Setting up the draft. Please wait…'
                     }
                 />
             )}
@@ -308,7 +308,7 @@ export default function Saves({
             {opening && (
                 <LoadingOverlay
                     testId="loading-career"
-                    text="Loading your career. Please wait..."
+                    text="Loading your career. Please wait…"
                 />
             )}
 
@@ -365,7 +365,7 @@ export default function Saves({
                                                 key={brand}
                                                 data-brand-tint={brand}
                                                 className={cn(
-                                                    'group relative block cursor-pointer overflow-hidden border p-5 transition-all',
+                                                    'group relative block cursor-pointer overflow-hidden border p-5 transition-[border-color,background-color,box-shadow] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-gold',
                                                     selected
                                                         ? 'border-brand bg-brand/10 shadow-[0_0_40px_-12px_var(--gm-brand)]'
                                                         : 'border-white/10 bg-black/30 hover:border-white/25',
@@ -399,7 +399,10 @@ export default function Saves({
                                                             key={perk.text}
                                                             className="flex gap-2"
                                                         >
-                                                            <span className="text-brand-hot">
+                                                            <span
+                                                                aria-hidden
+                                                                className="text-brand-hot"
+                                                            >
                                                                 ▸
                                                             </span>
                                                             <span
@@ -439,7 +442,7 @@ export default function Saves({
                                             <label
                                                 key={mode}
                                                 className={cn(
-                                                    'block cursor-pointer border px-4 py-3 transition-all',
+                                                    'block cursor-pointer border px-4 py-3 transition-[border-color,background-color] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-gold',
                                                     selected
                                                         ? 'border-brand bg-brand/10'
                                                         : 'border-white/10 bg-black/30 hover:border-white/25',
@@ -487,7 +490,10 @@ export default function Saves({
                                     form.data.draft_mode,
                                 ).map((rule) => (
                                     <li key={rule} className="flex gap-2">
-                                        <span className="text-brand-hot">
+                                        <span
+                                            aria-hidden
+                                            className="text-brand-hot"
+                                        >
                                             ▸
                                         </span>
                                         {rule}
@@ -502,15 +508,30 @@ export default function Saves({
                             </label>
                             <input
                                 id="save-name"
+                                name="name"
+                                autoComplete="off"
+                                spellCheck={false}
                                 className="gm-input"
                                 value={form.data.name}
                                 maxLength={60}
+                                aria-invalid={
+                                    form.errors.name ? true : undefined
+                                }
+                                aria-describedby={
+                                    form.errors.name
+                                        ? 'save-name-error'
+                                        : undefined
+                                }
                                 onChange={(e) =>
                                     form.setData('name', e.target.value)
                                 }
                             />
                             {form.errors.name && (
-                                <p className="text-sm text-zone-serious">
+                                <p
+                                    id="save-name-error"
+                                    role="alert"
+                                    className="text-sm text-zone-serious"
+                                >
                                     {form.errors.name}
                                 </p>
                             )}
@@ -524,7 +545,7 @@ export default function Saves({
                                 href={gm.docs.url()}
                                 className="flex items-center gap-1.5 text-sm text-ink-dim hover:text-ink"
                             >
-                                <BookOpen className="size-4" />
+                                <BookOpen aria-hidden className="size-4" />
                                 Documentation
                             </Link>
                             <button
@@ -569,26 +590,26 @@ export default function Saves({
                                             brand={save.player_brand}
                                             size="sm"
                                         />
-                                        <div className="min-w-0 flex-1">
-                                            <div className="truncate font-semibold">
+                                        <span className="block min-w-0 flex-1">
+                                            <span className="block truncate font-semibold">
                                                 {save.name}
-                                            </div>
-                                            <div className="font-condensed text-xs tracking-wider text-ink-dim uppercase">
+                                            </span>
+                                            <span className="block font-condensed text-xs tracking-wider text-ink-dim uppercase">
                                                 {SaveStageLabels[save.stage]} ·
                                                 Season {save.season}, week{' '}
                                                 {save.season_week} ·{' '}
                                                 {save.month}
-                                            </div>
+                                            </span>
                                             {save.has_changes && (
-                                                <div
+                                                <span
                                                     className="text-xs text-gold-hot"
                                                     data-testid={`unsaved-progress-${save.id}`}
                                                 >
                                                     Progress since this save
                                                     isn’t saved
-                                                </div>
+                                                </span>
                                             )}
-                                        </div>
+                                        </span>
                                         {save.budget !== null && (
                                             <span
                                                 className={cn(
@@ -606,10 +627,13 @@ export default function Saves({
                                         className="mx-1 inline-flex min-h-11 min-w-11 items-center justify-center text-ink-faint transition-colors hover:text-zone-serious focus-visible:text-zone-serious"
                                         label={`Delete ${save.name}`}
                                         title="Delete this career?"
-                                        message={`Delete "${save.name}"? This can't be undone.`}
+                                        message={`Delete “${save.name}”? This can’t be undone.`}
                                         confirmLabel="Delete"
                                     >
-                                        <Trash2 className="size-4" />
+                                        <Trash2
+                                            aria-hidden
+                                            className="size-4"
+                                        />
                                     </DeleteSaveButton>
                                 </li>
                             ))}

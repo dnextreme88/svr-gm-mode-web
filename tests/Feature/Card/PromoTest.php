@@ -138,7 +138,7 @@ it('pays a successful Interference $100,000 and bills a failed one $25,000 more'
     'fails' => [0.0, -25_000],
 ]);
 
-it('makes every promo a sure thing except Interview Space, Interference, Slander and Call-out', function () {
+it('makes every promo a sure thing except Interview Space, Interference, Slander, Call-out and Speed-up Injury', function () {
     $rates = config('gm.promos.success_rates');
 
     expect(array_filter($rates, fn (float $rate): bool => $rate < 1.0))->toBe([
@@ -147,6 +147,8 @@ it('makes every promo a sure thing except Interview Space, Interference, Slander
         'slander_promotion' => 0.50,
         'interview_space' => 0.90,
         'call_out' => 0.80,
+        // House rule (2026-11-20).
+        'speed_up_injury' => 0.80,
     ]);
 });
 

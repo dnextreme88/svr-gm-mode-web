@@ -48,4 +48,34 @@ describe('ConfirmDialog', () => {
         await user.keyboard('{Escape}');
         expect(onCancel).toHaveBeenCalled();
     });
+
+    it('focuses Cancel first in a danger dialog, so Enter doesn’t destroy (UI audit, 2026-11-20)', () => {
+        render(
+            <ConfirmDialog
+                open
+                danger
+                title="Clear match 2?"
+                message="Its booking is removed."
+                confirmLabel="Yes, clear it"
+                onCancel={vi.fn()}
+                onConfirm={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    });
+
+    it('focuses the confirm button in a plain dialog', () => {
+        render(
+            <ConfirmDialog
+                open
+                title="Continue to Raw?"
+                message="The card locks."
+                onCancel={vi.fn()}
+                onConfirm={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByRole('button', { name: 'Yes' })).toHaveFocus();
+    });
 });

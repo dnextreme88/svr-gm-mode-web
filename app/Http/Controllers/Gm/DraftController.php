@@ -205,6 +205,8 @@ class DraftController extends Controller
             'brand' => $p->brand->value,
             'save_wrestler_id' => $p->save_wrestler_id,
             'name' => $p->saveWrestler?->wrestler->name,
+            // Their portrait (2026-11-20).
+            'slug' => $p->saveWrestler?->wrestler->slug,
             'roster_type' => $p->saveWrestler?->wrestler->roster_type->value,
             'weight_class' => $p->saveWrestler?->wrestler->weight_class->value,
             'pick_type' => $p->pick_type->value,

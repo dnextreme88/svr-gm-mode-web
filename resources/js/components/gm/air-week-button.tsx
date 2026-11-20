@@ -107,7 +107,7 @@ export function AirWeekButton({
             {airing && (
                 <LoadingOverlay
                     testId="airing-week"
-                    text={`${ppv ? `Airing ${ppv}` : `Airing week ${game.season_week}`}. Please wait...`}
+                    text={`${ppv ? `Airing ${ppv}` : `Airing week ${game.season_week}`}. Please wait…`}
                 />
             )}
             {/* Why it can't air, in words (UI audit, 2026-11-12). */}

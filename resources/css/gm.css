@@ -42,6 +42,8 @@
 
     --color-zone-safe: #27c46b;
     --color-zone-minor: #f3c42b;
+    /* The rivalry heat bar's middle step (house rule, 2026-11-20). */
+    --color-zone-warn: #ff8a2b;
     --color-zone-serious: #ff3341;
     /* Fatigue's safe zone and the Unsatisfied morale badge. */
     --color-gm-orange: #ff8a1f;
@@ -250,14 +252,16 @@
     }
 }
 
-/* Used by .gm-sheen, not by an animate-* utility, so it lives outside @theme. */
+/* Used by .gm-sheen, not by an animate-* utility, so it lives outside @theme.
+   It moves with transform, not left (UI audit, 2026-11-20): the sheen is 40%
+   of the bar, so -100% / 275% of itself is -40% / 110% of the bar. */
 @keyframes gm-sheen {
     0% {
-        left: -40%;
+        transform: translateX(-100%);
     }
     60%,
     100% {
-        left: 110%;
+        transform: translateX(275%);
     }
 }
 
@@ -302,13 +306,15 @@
     html:has(.gm-root),
     body:has(.gm-root) {
         background-color: var(--color-arena) !important;
+        /* Dialogs portal to <body>, outside .gm-root: their native controls
+           and scrollbars stay dark too (UI audit, 2026-11-20). */
+        color-scheme: dark;
     }
 
     .gm-current-week {
         position: relative;
         isolation: isolate;
         background-color: color-mix(in srgb, var(--gm-brand) 12%, transparent);
-        animation: gm-current-glow 2.4s ease-in-out infinite alternate;
     }
 
     /* A faint full border, and the sweeping arc over it. */
@@ -320,8 +326,12 @@
         pointer-events: none;
     }
 
+    /* The glow pulses on its own layer's opacity, not by animating
+       box-shadow (UI audit, 2026-11-20). */
     .gm-current-week::before {
         border: 1px solid color-mix(in srgb, var(--gm-brand) 35%, transparent);
+        box-shadow: 0 0 22px -4px var(--gm-brand);
+        animation: gm-current-glow 2.4s ease-in-out infinite alternate;
     }
 
     .gm-current-week::after {
@@ -350,10 +360,86 @@
 
     @keyframes gm-current-glow {
         from {
-            box-shadow: 0 0 10px -6px var(--gm-brand);
+            opacity: 0.55;
         }
         to {
-            box-shadow: 0 0 22px -4px var(--gm-brand);
+            opacity: 1;
+        }
+    }
+
+    /* Career setup steps (2026-11-21). The current step's number pings
+       outwards (a ring on its own layer, scale and opacity only). */
+    .gm-step-ping {
+        position: relative;
+    }
+
+    .gm-step-ping::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 9999px;
+        box-shadow: 0 0 0 2px #fff;
+        animation: gm-step-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+        pointer-events: none;
+    }
+
+    @keyframes gm-step-ping {
+        0% {
+            opacity: 0.8;
+            transform: scale(1);
+        }
+        80%,
+        100% {
+            opacity: 0;
+            transform: scale(1.9);
+        }
+    }
+
+    /* The line between steps: a clear track, filled in the brand colour
+       once the step before is done (the fill grows in with scaleX), and a
+       light running along it towards the step still to come. */
+    .gm-step-line {
+        position: relative;
+        overflow: hidden;
+        height: 4px;
+        border-radius: 9999px;
+        background-color: rgb(255 255 255 / 0.28);
+        box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
+    }
+
+    .gm-step-line-fill {
+        position: absolute;
+        inset: 0;
+        transform-origin: left;
+        background: linear-gradient(
+            90deg,
+            var(--gm-brand),
+            var(--gm-brand-hot)
+        );
+        box-shadow: 0 0 10px var(--gm-brand);
+        animation: gm-step-fill 700ms cubic-bezier(0.6, 0, 0.2, 1) 150ms both;
+    }
+
+    .gm-step-line::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        width: 40%;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgb(255 255 255 / 0.85),
+            transparent
+        );
+        animation: gm-sheen 2.2s ease-in-out infinite;
+    }
+
+    @keyframes gm-step-fill {
+        from {
+            transform: scaleX(0);
+        }
+        to {
+            transform: scaleX(1);
         }
     }
 
@@ -711,8 +797,9 @@
         position: absolute;
         top: 0;
         bottom: 0;
-        left: -40%;
+        left: 0;
         width: 40%;
+        transform: translateX(-100%);
         background: linear-gradient(
             90deg,
             transparent,
@@ -732,6 +819,13 @@
 
     .gm-input:focus {
         outline: none;
+    }
+
+    /* Keyboard focus only: a mouse click doesn't draw the ring (UI audit,
+       2026-11-20). A text field still shows it while typing. */
+    .gm-input:focus-visible,
+    input.gm-input:focus,
+    textarea.gm-input:focus {
         border-color: var(--gm-brand);
         box-shadow: 0 0 0 1px var(--gm-brand);
     }
@@ -762,9 +856,54 @@
         background: rgb(255 255 255 / 0.03);
     }
 
+    /* A scroll box doesn't hand its scroll on to the page (UI audit,
+       2026-11-20). */
+    .gm-scroll {
+        overscroll-behavior: contain;
+    }
+
+    /*
+     * Scroll boxes are the containing block for anything absolutely
+     * positioned inside them (2026-11-20). Screen-reader-only text
+     * (`sr-only`, position: absolute) in a long list otherwise escapes the
+     * box's clipping and stretches the page by the list's full height (empty
+     * space under Free Agency, the rosters and the trade lists). A
+     * positioning utility on the box itself still wins (utilities layer).
+     */
+    .gm-root
+        :is(.gm-scroll, .overflow-auto, .overflow-x-auto, .overflow-y-auto) {
+        position: relative;
+    }
+
     .gm-scroll::-webkit-scrollbar {
         width: 8px;
         height: 8px;
+    }
+
+    /*
+     * A long list's rows skip layout and paint while off screen (UI audit,
+     * 2026-11-20): every row stays in the DOM (search, tests), the browser
+     * just doesn't render the ones you can't see. The size is a row's guess
+     * until it has been rendered once.
+     */
+    .gm-cv {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 4rem;
+    }
+
+    .gm-cv-panel {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 24rem;
+    }
+
+    /* Taps act at once (no double-tap zoom wait), without the grey flash. */
+    .gm-btn,
+    .gm-input,
+    .gm-row-link,
+    [role='option'],
+    [role='tab'] {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
     }
 
     .gm-scroll::-webkit-scrollbar-thumb {
@@ -845,7 +984,12 @@
 
     .gm-root *,
     .gm-root *::before,
-    .gm-root *::after {
+    .gm-root *::after,
+    /* Dialogs portaled to <body> (UI audit, 2026-11-20). */
+    body:has(.gm-root) [data-slot^='dialog'],
+    body:has(.gm-root) [data-slot^='dialog'] *,
+    body:has(.gm-root) [data-slot^='dialog'] *::before,
+    body:has(.gm-root) [data-slot^='dialog'] *::after {
         animation-duration: 1ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 1ms !important;

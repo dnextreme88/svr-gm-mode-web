@@ -59,7 +59,7 @@ export function BookingSteps({
         <div className="mb-4 space-y-3">
             {order.blocked_by && (
                 <div
-                    role="alert"
+                    role="status"
                     className="border-l-4 border-brand bg-brand/10 px-4 py-3 text-sm"
                 >
                     {order.waits_for_airing ? (

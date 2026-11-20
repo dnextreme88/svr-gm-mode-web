@@ -53,6 +53,8 @@ type Props = GamePageProps & {
     roster: RosterEntry[];
     title_context: TitleContext;
     buried_alive: BuriedAlive[];
+    /** Active Effects (2026-11-20): sitting out after a blocked defection. */
+    sitting_out?: BuriedAlive[];
     rivalries?: ActiveRivalry[];
     promo_slots: PromoSlotView[];
     promo_types: PromoTypeOption[];
@@ -77,6 +79,7 @@ export default function CardPage() {
         roster,
         title_context,
         buried_alive,
+        sitting_out = [],
         rivalries,
         promo_slots,
         promo_types,
@@ -201,7 +204,7 @@ export default function CardPage() {
             <Head title={`${show.name} card`} />
             {rearranging && (
                 <LoadingOverlay
-                    text="Re-arranging your matches. Please wait..."
+                    text="Re-arranging your matches. Please wait…"
                     testId="reorder-overlay"
                 />
             )}
@@ -262,7 +265,7 @@ export default function CardPage() {
                 >
                     {summerslam.main_event
                         ? `Your weekly shows drew more fans than your rival prior to Summerslam, so you book matches 1, 3, 5, and the main event. Your rival books matches 2, 4, and 6.`
-                        : `${summerslam.headliner}'s weekly shows drew more fans than you prior to Summerslam, so they book matches 1, 3, 5, and the main event. You book matches 2, 4, and 6.`}
+                        : `${summerslam.headliner}’s weekly shows drew more fans than you prior to Summerslam, so they book matches 1, 3, 5, and the main event. You book matches 2, 4, and 6.`}
                 </p>
             )}
 
@@ -293,6 +296,7 @@ export default function CardPage() {
             <ActiveEffects
                 context={title_context}
                 buriedAlive={buried_alive}
+                sittingOut={sitting_out}
                 rivalries={rivalries}
             />
 

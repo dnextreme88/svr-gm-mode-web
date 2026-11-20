@@ -314,6 +314,8 @@ export default function Inbox() {
                                             undefined
                                         }
                                         className={cn(
+                                            // Off-screen rows skip rendering (UI audit, 2026-11-20).
+                                            'gm-cv',
                                             arrived.includes(email.id) &&
                                                 'animate-gm-mail-in motion-reduce:animate-none',
                                         )}
@@ -381,6 +383,7 @@ export default function Inbox() {
                                             className="gm-btn gm-btn-ghost gm-btn-sm size-10 p-0 text-zone-serious"
                                             aria-label="Delete"
                                             title="Delete"
+                                            disabled={busy !== null}
                                             onClick={() => setConfirming('one')}
                                         >
                                             <Trash2
@@ -390,7 +393,7 @@ export default function Inbox() {
                                         </button>
                                     </div>
                                 </div>
-                                <h2 className="gm-heading mt-3 text-3xl">
+                                <h2 className="gm-heading mt-3 text-3xl text-balance break-words">
                                     <MentionText
                                         text={selected.subject}
                                         matcher={matcher}
@@ -432,7 +435,7 @@ export default function Inbox() {
                 open={confirming === 'all'}
                 danger
                 title="Delete emails"
-                message={`Delete ${scopeText}? This can't be undone.`}
+                message={`Delete ${scopeText}? This can’t be undone.`}
                 confirmLabel="Delete"
                 busy={busy === 'delete-all'}
                 busyText="Deleting…"
@@ -443,7 +446,7 @@ export default function Inbox() {
                 open={confirming === 'one' && selected !== null}
                 danger
                 title="Delete email"
-                message={`Delete “${selected?.subject ?? ''}”? This can't be undone.`}
+                message={`Delete “${selected?.subject ?? ''}”? This can’t be undone.`}
                 confirmLabel="Delete"
                 busy={busy === 'delete-one'}
                 busyText="Deleting…"
@@ -645,7 +648,7 @@ function CategoryPicker({
         <div ref={popover.ref} className="relative">
             <PickerButton
                 open={popover.open}
-                aria-label="Category"
+                label="Category"
                 onClick={popover.toggle}
             >
                 <span className="truncate">

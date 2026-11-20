@@ -43,7 +43,9 @@ describe('SideNames', () => {
             />,
         );
 
-        expect(container.textContent).toBe('Team Xtreme(C) & Kane');
+        expect(container.textContent).toBe(
+            'Team Xtreme (Matt Hardy & Jeff Hardy)(C)(champion) & Kane',
+        );
         expect(screen.getByText('Team Xtreme')).toHaveAttribute(
             'title',
             'Matt Hardy & Jeff Hardy',

@@ -6,14 +6,25 @@ import type { MatchFaction } from '@/types/gm';
  * Marks the champion going into a title match.
  */
 export function ChampionTag() {
-    return <span className="ml-1 text-sm text-gold">(C)</span>;
+    // Screen readers hear "champion", not "C" (UI audit, 2026-11-20).
+    return (
+        <span className="ml-1 text-sm text-gold">
+            <span aria-hidden>(C)</span>
+            <span className="sr-only">(champion)</span>
+        </span>
+    );
 }
 
 /**
  * Marks a team's captain in a Captain Fall match.
  */
 export function CaptainTag() {
-    return <span className="ml-1 text-sm text-gold">(Cpt)</span>;
+    return (
+        <span className="ml-1 text-sm text-gold">
+            <span aria-hidden>(Cpt)</span>
+            <span className="sr-only">(captain)</span>
+        </span>
+    );
 }
 
 /**
@@ -30,6 +41,8 @@ export function FactionName({
     return (
         <span className="gm-faction-name" title={members.join(' & ')}>
             {name}
+            {/* Who they are, for screen readers too (UI audit, 2026-11-20). */}
+            <span className="sr-only"> ({members.join(' & ')})</span>
         </span>
     );
 }

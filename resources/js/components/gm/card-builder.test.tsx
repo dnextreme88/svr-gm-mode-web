@@ -291,11 +291,11 @@ function setup(
         const t = matchTypes.find((m) => m.id === typeId) as MatchTypeOption;
         await user.click(
             screen.getByRole('button', {
-                name: `Match type for match ${position}`,
+                name: new RegExp(`^Match type for match ${position}(?: |$)`),
             }),
         );
         const dialog = screen.getByRole('dialog', {
-            name: `Match type for match ${position}`,
+            name: new RegExp(`^Match type for match ${position}(?: |$)`),
         });
         await user.click(
             within(dialog).getByRole('option', {
@@ -315,7 +315,9 @@ function setup(
 
     /** Open a wrestler slot and pick a name. */
     const pickWrestler = async (label: string, name: string) => {
-        await user.click(screen.getByRole('button', { name: label }));
+        await user.click(
+            screen.getByRole('button', { name: pickerName(label) }),
+        );
         await user.click(
             within(screen.getByRole('listbox', { name: label })).getByRole(
                 'option',
@@ -326,6 +328,10 @@ function setup(
 
     return { onSave, onClear, user, pickType, pickWrestler };
 }
+
+/** A picker button reads its label, then its value (UI audit, 2026-11-20). */
+const pickerName = (label: string) =>
+    new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: |$)`);
 
 describe('CardBuilder', () => {
     it('books a match: type first, then wrestlers, then save', async () => {
@@ -353,7 +359,9 @@ describe('CardBuilder', () => {
         const { user, pickType } = setup();
 
         await user.click(
-            screen.getByRole('button', { name: 'Match type for match 1' }),
+            screen.getByRole('button', {
+                name: /^Match type for match 1(?: |$)/,
+            }),
         );
         // Variants only appear once a category is picked.
         expect(
@@ -367,7 +375,9 @@ describe('CardBuilder', () => {
             '6-Man Tag → Captain Fall Tornado 6-Man Tag Elimination',
         );
         expect(
-            screen.queryByRole('dialog', { name: 'Match type for match 1' }),
+            screen.queryByRole('dialog', {
+                name: /^Match type for match 1(?: |$)/,
+            }),
         ).not.toBeInTheDocument();
     });
 
@@ -376,7 +386,9 @@ describe('CardBuilder', () => {
         await pickType(1, 1);
 
         const slot = 'Match 1 side 1 superstar 1';
-        await user.click(screen.getByRole('button', { name: slot }));
+        await user.click(
+            screen.getByRole('button', { name: pickerName(slot) }),
+        );
         expect(screen.getByRole('listbox', { name: slot })).toBeInTheDocument();
 
         await user.keyboard('{Escape}');
@@ -384,7 +396,9 @@ describe('CardBuilder', () => {
             screen.queryByRole('listbox', { name: slot }),
         ).not.toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: slot }));
+        await user.click(
+            screen.getByRole('button', { name: pickerName(slot) }),
+        );
         await user.click(document.body);
         expect(
             screen.queryByRole('listbox', { name: slot }),
@@ -397,7 +411,9 @@ describe('CardBuilder', () => {
         await pickType(1, 1);
 
         expect(
-            screen.getByRole('button', { name: 'Match 1 side 1 superstar 1' }),
+            screen.getByRole('button', {
+                name: /^Match 1 side 1 superstar 1(?: |$)/,
+            }),
         ).toHaveTextContent('VACANT');
     });
 
@@ -597,11 +613,15 @@ describe('CardBuilder', () => {
 
         await pickType(1, 1);
         await user.click(
-            screen.getByRole('button', { name: 'Match 1 side 1 superstar 1' }),
+            screen.getByRole('button', {
+                name: /^Match 1 side 1 superstar 1(?: |$)/,
+            }),
         );
 
         const flair = within(
-            screen.getByRole('listbox', { name: 'Match 1 side 1 superstar 1' }),
+            screen.getByRole('listbox', {
+                name: /^Match 1 side 1 superstar 1(?: |$)/,
+            }),
         ).getByRole('option', { name: /Ric Flair/ });
         expect(flair).toBeDisabled();
         expect(flair).toHaveTextContent('Seriously injured');
@@ -628,11 +648,13 @@ describe('CardBuilder', () => {
         await pickWrestler('Match 1 side 1 superstar 1', 'Edge');
         await pickType(2, 1);
         await user.click(
-            screen.getByRole('button', { name: 'Match 2 side 1 superstar 1' }),
+            screen.getByRole('button', {
+                name: /^Match 2 side 1 superstar 1(?: |$)/,
+            }),
         );
 
         const list = screen.getByRole('listbox', {
-            name: 'Match 2 side 1 superstar 1',
+            name: /^Match 2 side 1 superstar 1(?: |$)/,
         });
         const edge = within(list).getByRole('option', { name: /Edge/ });
         const booked = within(edge).getByText('Booked');
@@ -742,7 +764,9 @@ describe('CardBuilder', () => {
             />,
         );
         const label = 'Match type for match 2';
-        await user.click(screen.getByRole('button', { name: label }));
+        await user.click(
+            screen.getByRole('button', { name: pickerName(label) }),
+        );
         await user.click(
             within(screen.getByRole('dialog', { name: label })).getByRole(
                 'option',
@@ -755,12 +779,14 @@ describe('CardBuilder', () => {
             ).getByRole('option', { name: /^No Manager (Free|\$)/ }),
         );
         await user.click(
-            screen.getByRole('button', { name: 'Match 2 side 1 superstar 1' }),
+            screen.getByRole('button', {
+                name: /^Match 2 side 1 superstar 1(?: |$)/,
+            }),
         );
         await user.click(
             within(
                 screen.getByRole('listbox', {
-                    name: 'Match 2 side 1 superstar 1',
+                    name: /^Match 2 side 1 superstar 1(?: |$)/,
                 }),
             ).getByRole('option', { name: /Kane/ }),
         );
@@ -784,10 +810,12 @@ describe('CardBuilder', () => {
 
         const { user } = { user: userEvent.setup() };
         await user.click(
-            screen.getByRole('button', { name: 'Match 1 manager for side 2' }),
+            screen.getByRole('button', {
+                name: /^Match 1 manager for side 2(?: |$)/,
+            }),
         );
         const list = screen.getByRole('listbox', {
-            name: 'Match 1 manager for side 2',
+            name: /^Match 1 manager for side 2(?: |$)/,
         });
         expect(
             within(list).getByRole('option', { name: /Edge/ }),
@@ -812,12 +840,14 @@ describe('CardBuilder', () => {
         ).toBeDisabled();
 
         await user.click(
-            screen.getByRole('button', { name: 'Match 1 special referee' }),
+            screen.getByRole('button', {
+                name: /^Match 1 special referee(?: |$)/,
+            }),
         );
         expect(
             within(
                 screen.getByRole('listbox', {
-                    name: 'Match 1 special referee',
+                    name: /^Match 1 special referee(?: |$)/,
                 }),
             ).getByRole('option', { name: /Edge/ }),
         ).toBeDisabled();
@@ -837,14 +867,19 @@ describe('CardBuilder', () => {
 
         await pickType(1, 4);
         await user.click(
-            screen.getByRole('button', { name: 'Match 1 side 1 superstar 1' }),
+            screen.getByRole('button', {
+                name: /^Match 1 side 1 superstar 1(?: |$)/,
+            }),
         );
 
         const names = within(
-            screen.getByRole('listbox', { name: 'Match 1 side 1 superstar 1' }),
+            screen.getByRole('listbox', {
+                name: /^Match 1 side 1 superstar 1(?: |$)/,
+            }),
         )
             .getAllByRole('option')
-            .map((o) => o.textContent);
+            // Without the screen-reader cue after a Diva's name.
+            .map((o) => o.textContent?.replace(' (Diva)', ''));
 
         expect(names).toEqual(['Lita', 'Trish Stratus']);
     });
@@ -859,7 +894,9 @@ describe('CardBuilder', () => {
             'Match 1 side 2 superstar 1',
             'Match 1 special referee',
         ]) {
-            await user.click(screen.getByRole('button', { name }));
+            await user.click(
+                screen.getByRole('button', { name: pickerName(name) }),
+            );
             const options = within(
                 screen.getByRole('listbox', { name }),
             ).getAllByRole('option');
@@ -918,7 +955,9 @@ describe('CardBuilder', () => {
 
         expect(onClear).toHaveBeenCalledWith(1);
         expect(
-            screen.getByRole('button', { name: 'Match type for match 1' }),
+            screen.getByRole('button', {
+                name: /^Match type for match 1(?: |$)/,
+            }),
         ).toHaveTextContent('Choose a match type');
     });
 
@@ -990,10 +1029,14 @@ describe('CardBuilder', () => {
             'Normal Matches → No Manager',
         );
         expect(
-            screen.getByRole('button', { name: 'Match 1 side 1 superstar 1' }),
+            screen.getByRole('button', {
+                name: /^Match 1 side 1 superstar 1(?: |$)/,
+            }),
         ).toHaveTextContent('Edge');
         expect(
-            screen.getByRole('button', { name: 'Match 1 side 2 superstar 1' }),
+            screen.getByRole('button', {
+                name: /^Match 1 side 2 superstar 1(?: |$)/,
+            }),
         ).toHaveTextContent('Kane');
         expect(slot).not.toHaveAttribute('data-dirty');
         expect(
@@ -1014,11 +1057,13 @@ describe('CardBuilder', () => {
         );
 
         expect(
-            screen.getByRole('button', { name: 'Match type for match 2' }),
+            screen.getByRole('button', {
+                name: /^Match type for match 2(?: |$)/,
+            }),
         ).toHaveTextContent('Choose a match type');
         expect(
             screen.queryByRole('button', {
-                name: 'Match 2 side 1 superstar 1',
+                name: /^Match 2 side 1 superstar 1(?: |$)/,
             }),
         ).toBeNull();
         // Edge's other bookings no longer count this slot.
@@ -1039,7 +1084,9 @@ describe('CardBuilder', () => {
         );
 
         expect(
-            screen.getByRole('button', { name: 'Match type for match 1' }),
+            screen.getByRole('button', {
+                name: /^Match type for match 1(?: |$)/,
+            }),
         ).toBeDisabled();
         expect(
             screen.queryByRole('button', { name: /Save/ }),
@@ -1089,12 +1136,14 @@ describe('CardBuilder', () => {
         );
 
         await user.click(
-            screen.getByRole('button', { name: 'Match 1 side 2 superstar 1' }),
+            screen.getByRole('button', {
+                name: /^Match 1 side 2 superstar 1(?: |$)/,
+            }),
         );
         const kane = screen.getByRole('option', { name: /Kane/ });
 
         expect(kane).toBeDisabled();
-        expect(kane).toHaveTextContent("Can't book");
+        expect(kane).toHaveTextContent('Can’t book');
     });
 
     it('lets only the #1 contender challenge for a title they wait on', async () => {
@@ -1121,13 +1170,15 @@ describe('CardBuilder', () => {
         );
 
         await user.click(
-            screen.getByRole('button', { name: 'Match 1 side 2 superstar 1' }),
+            screen.getByRole('button', {
+                name: /^Match 1 side 2 superstar 1(?: |$)/,
+            }),
         );
 
         expect(screen.getByRole('option', { name: /Kane/ })).toBeEnabled();
         expect(
             screen.getByRole('option', { name: /Ric Flair/ }),
-        ).toHaveTextContent("Can't book");
+        ).toHaveTextContent('Can’t book');
     });
 });
 
@@ -1181,12 +1232,14 @@ describe('WrestleMania interbrand series (house rule, 2026-11-15)', () => {
         );
 
         const yours = screen.getByRole('button', {
-            name: 'Match 5 side 1 superstar 1',
+            name: /^Match 5 side 1 superstar 1(?: |$)/,
         });
         expect(yours).toBeEnabled();
         expect(yours).toHaveTextContent('VACANT');
         expect(
-            screen.getByRole('button', { name: 'Match 5 side 2 superstar 1' }),
+            screen.getByRole('button', {
+                name: /^Match 5 side 2 superstar 1(?: |$)/,
+            }),
         ).toBeDisabled();
         expect(screen.getByTestId('side-brand-5-0')).toHaveAttribute(
             'data-brand-tint',
@@ -1245,12 +1298,12 @@ describe('WrestleMania interbrand series (house rule, 2026-11-15)', () => {
             );
             expect(
                 screen.getByRole('button', {
-                    name: 'Match 5 side 1 superstar 1',
+                    name: /^Match 5 side 1 superstar 1(?: |$)/,
                 }),
             ).toBeDisabled();
             expect(
                 screen.getByRole('button', {
-                    name: 'Match 5 side 2 superstar 1',
+                    name: /^Match 5 side 2 superstar 1(?: |$)/,
                 }),
             ).toBeEnabled();
             expect(

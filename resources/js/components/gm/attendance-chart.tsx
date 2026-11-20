@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ppvLogo } from '@/lib/assets';
 import { brandName, formatMoney } from '@/lib/gm';
+import { useRoving } from '@/lib/use-roving';
 import { cn } from '@/lib/utils';
 import type { Brand, PpvKey } from '@/types/enums';
 
@@ -44,6 +45,12 @@ const SERIES: Record<
 };
 
 const fmt = (n: number) => n.toLocaleString('en-US');
+// "15k" on the axis (UI audit, 2026-11-20: Intl, not string building).
+const compact = new Intl.NumberFormat('en-US', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+});
+const pointKey = (p: { week: number; name: string }) => `${p.week}:${p.name}`;
 
 /** "Raw", "Smackdown" or "Raw & Smackdown" for a night. */
 function brandsLabel(brands: Brand[]): string {
@@ -151,13 +158,26 @@ export function AttendanceChart({
 
     const tooltipBelow = active !== null && y(active.crowd) < HEIGHT * 0.4;
 
+    // One Tab stop for the chart; the arrow keys move from night to night.
+    const order = useMemo(
+        () =>
+            [...shown]
+                .sort((a, b) => a.week - b.week || a.name.localeCompare(b.name))
+                .map(pointKey),
+        [shown],
+    );
+    const roving = useRoving(order);
+
     const pointProps = (p: AttendancePoint) => ({
-        tabIndex: 0,
+        ...roving.props(pointKey(p)),
         role: 'img' as const,
         'aria-label': `Week ${p.week}, ${p.name}: ${fmt(p.crowd)} fans, gate ${formatMoney(p.gate)}`,
         onMouseEnter: () => setActive(p),
         onMouseLeave: () => setActive(null),
-        onFocus: () => setActive(p),
+        onFocus: () => {
+            setActive(p);
+            roving.focused(pointKey(p));
+        },
         onBlur: () => setActive(null),
         className: 'cursor-pointer outline-none focus-visible:stroke-white',
     });
@@ -261,7 +281,7 @@ export function AttendanceChart({
                                             dominantBaseline="middle"
                                             className="gm-num fill-ink-faint text-[12px]"
                                         >
-                                            {t === 0 ? '0' : `${t / 1000}k`}
+                                            {compact.format(t)}
                                         </text>
                                     </g>
                                 ))}
@@ -396,7 +416,8 @@ export function AttendanceChart({
 
                             {active && (
                                 <div
-                                    role="status"
+                                    aria-hidden
+                                    data-testid="chart-tooltip"
                                     className={cn(
                                         'pointer-events-none absolute z-10 -translate-x-1/2 border border-white/10 bg-arena-3 px-3 py-2 text-sm whitespace-nowrap shadow-lg',
                                         // Near the top it opens below the point, so the scroll box can't clip it.

@@ -116,13 +116,15 @@ describe('Inbox', () => {
     it('filters by a category the inbox holds, with its counts', () => {
         render(<Inbox />);
 
-        fireEvent.click(screen.getByRole('button', { name: 'Category' }));
+        fireEvent.click(
+            screen.getByRole('button', { name: /^Category(?: |$)/ }),
+        );
 
         const options = screen.getAllByRole('option');
 
         expect(options.map((o) => o.textContent)).toEqual([
             'All categories (4)',
-            'Morale Complaint13',
+            'Morale Complaint1 unread3',
             'Trade1',
         ]);
 
@@ -148,7 +150,7 @@ describe('Inbox', () => {
 
         expect(
             screen.getByText(
-                "Delete 3 Morale Complaint emails? This can't be undone.",
+                'Delete 3 Morale Complaint emails? This can’t be undone.',
             ),
         ).toBeInTheDocument();
 

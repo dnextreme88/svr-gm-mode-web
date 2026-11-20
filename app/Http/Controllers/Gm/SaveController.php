@@ -122,6 +122,18 @@ class SaveController extends Controller
      * Load a saved career from Saved careers: back to its last save, losing
      * anything done since. A career with no checkpoint opens as it is.
      */
+    /**
+     * Whether leaving now would lose progress (2026-11-21): the career was
+     * never saved, or it has changed since its last save. The header's GM
+     * Mode link asks before leaving when it would.
+     */
+    public function unsaved(Save $save, CareerCheckpoint $checkpoints): JsonResponse
+    {
+        return response()->json([
+            'unsaved' => $save->saved_at === null || $checkpoints->hasChanges($save) !== false,
+        ]);
+    }
+
     public function load(Save $save, CareerCheckpoint $checkpoints): RedirectResponse
     {
         $checkpoints->restore($save);

@@ -527,8 +527,9 @@ describe('championships (§14)', function () {
 });
 
 describe('promo types (§5)', function () {
-    it('seeds 15 promos with spec amounts and config success rates', function () {
-        expect(PromoType::count())->toBe(15)
+    it('seeds 16 promos with spec amounts and config success rates', function () {
+        expect(PromoType::count())->toBe(16)
+            ->and(PromoType::where('key', 'speed_up_injury')->value('base_amount'))->toBe(-15_000)
             ->and(PromoType::where('key', 'advertising')->value('base_amount'))->toBe(200_000)
             ->and(PromoType::where('key', 'call_out')->value('base_amount'))->toBe(-10_000)
             ->and(PromoType::where('key', 'new_superstar')->value('base_amount'))->toBe(-50_000)

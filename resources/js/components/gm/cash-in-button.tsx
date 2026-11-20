@@ -48,7 +48,7 @@ export function CashInButton({
                     setOpen(true);
                 }}
             >
-                💼 Cash in: {briefcase.holder}
+                <span aria-hidden>💼 </span>Cash in: {briefcase.holder}
             </button>
             <ConfirmDialog
                 open={open}

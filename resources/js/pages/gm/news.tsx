@@ -10,22 +10,23 @@ type Props = GamePageProps & {
     // House rule (2026-11-16): the weekly show after a PPV night, the
     // Schedule after the re-draft, else the inbox.
     continue_to?: { name: string; url: string };
+    /** House rule (2026-11-17): the end-of-week flow for the week just aired. */
+    wrap_up?: boolean;
 };
 
 export default function News() {
-    const { game, pages, continue_to } = usePage<Props>().props;
+    const { game, pages, continue_to, wrap_up } = usePage<Props>().props;
     const next = continue_to ?? { name: 'Inbox', url: gm.email.url(game.id) };
-    const toCard = next.url.includes('/shows/');
 
     return (
         <>
             <Head title="News" />
             <PageTitle kicker="Around the WWE" title="News">
                 <Link href={next.url} className="gm-btn">
-                    {toCard ? `Continue to ${next.name}` : 'Continue to Emails'}
+                    Continue to {next.name}
                 </Link>
             </PageTitle>
-            <NewsGrid pages={pages} />
+            <NewsGrid pages={pages} wrapUp={wrap_up === true} />
         </>
     );
 }

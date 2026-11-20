@@ -82,6 +82,8 @@ class GameBuilder
             'gm.ai.roster.renewal.decide_at_weeks_left' => -1,
             'gm.ai.rivalries.max_per_brand' => 0,
             'gm.ai.rivalries.rivalry_match_chance' => 0.0,
+            'gm.ai.rivalries.continue_unpaired' => false,
+            'gm.ai.rivalries.blowoff_min_heat' => PHP_INT_MAX,
             'gm.ai.promos.interference_every_weeks' => PHP_INT_MAX,
             'gm.ai.promos.slander_gap_weeks' => [PHP_INT_MAX => 1.0],
             'gm.ai.promos.ppv_hype_weeks_before' => [PHP_INT_MAX => 1.0],

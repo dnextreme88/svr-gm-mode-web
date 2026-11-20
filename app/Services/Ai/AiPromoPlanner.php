@@ -28,6 +28,8 @@ use App\Support\Rng\Rng;
  *  1. Low on cash (or saving up for renewals, `AiRosterManager::needsCash`):
  *     Advertising, then Merchandise Sponsorship.
  *  2. PPV Hype, 1 or 2 weeks (rolled once per PPV) before its own brand-only PPVs.
+ *  2b. Continue Rivalry for each rivalry it couldn't pair on this card,
+ *     hottest first (house rule, 2026-11-20).
  *  3. Interference, every 4 weeks.
  *  4. Slander, once the rolled gap (3, 5 or 6 weeks) since the last one has passed.
  *  5. Start a Rivalry, when the rivalry plan wants one.
@@ -41,22 +43,31 @@ class AiPromoPlanner
     /** @var array<int, int> */
     private array $fatigue = [];
 
+    /** @var list<array{0: int, 1: int}> rivalries still to continue on this card */
+    private array $continueLeft = [];
+
     public function __construct(
         private PromoService $promos,
         private PromoEligibility $eligibility,
         private CalendarService $calendar,
         private TitleService $titles,
+        private AiTradeJudge $judge,
         private RivalryService $rivalries,
         private AiBooker $booker,
         private AiRosterManager $roster,
         private QualifierService $qualifiers,
     ) {}
 
-    public function book(Show $show, Brand $brand, int $rivalryStarts = 0): void
+    /**
+     * @param  list<array{0: int, 1: int}>  $continuePairs  rivalries it couldn't pair on this card, hottest first
+     */
+    public function book(Show $show, Brand $brand, int $rivalryStarts = 0, array $continuePairs = []): void
     {
         if ($show->brand !== $brand || $show->promoSlotCount() === 0) {
             return;
         }
+
+        $this->continueLeft = $continuePairs;
 
         $rng = $show->game->rng("ai.promos.{$show->streamKey()}", $show->week_number);
         $this->fatigue = $this->booker->plannedFatigue($show, $brand);
@@ -81,6 +92,10 @@ class AiPromoPlanner
 
                 if ($key === PromoTypeKey::StartRivalry) {
                     $rivalryStarts--;
+                }
+
+                if ($key === PromoTypeKey::ContinueRivalry) {
+                    $this->continueLeft = array_values(array_filter($this->continueLeft, fn (array $p): bool => ! (in_array($a, $p, true) && in_array($b, $p, true))));
                 }
 
                 foreach (array_filter([$a, $b]) as $id) {
@@ -120,6 +135,17 @@ class AiPromoPlanner
             $list[] = $rest;
         }
 
+        // House rule (2026-11-20): keep every rivalry going. One it couldn't
+        // pair on the card holds its heat with a Continue Rivalry, if both
+        // rivals can take the bar.
+        $limit = (int) config('gm.ai.booking.careful_max_fatigue') - (int) config('gm.fatigue.bar_size');
+
+        foreach ($this->continueLeft as [$a, $b]) {
+            if (($this->fatigue[$a] ?? 0) <= $limit && ($this->fatigue[$b] ?? 0) <= $limit) {
+                $list[] = [PromoTypeKey::ContinueRivalry, $a, $b];
+            }
+        }
+
         if ($this->weeksSince($show, $brand, PromoTypeKey::InterferencePromotion) >= (int) config('gm.ai.promos.interference_every_weeks')) {
             $target = $this->tiringTarget($show, $brand, PromoTypeKey::InterferencePromotion, $rng);
 
@@ -146,7 +172,8 @@ class AiPromoPlanner
 
         return array_values(array_filter($list, fn (array $c): bool => ! in_array($c[0], $used, true)
             || in_array($c, $money, true)
-            || $c[0] === PromoTypeKey::StartRivalry));
+            || $c[0] === PromoTypeKey::StartRivalry
+            || $c[0] === PromoTypeKey::ContinueRivalry));
     }
 
     /**
@@ -266,6 +293,18 @@ class AiPromoPlanner
 
         if ($longOut !== []) {
             $options['comeback_reminder'] = [PromoTypeKey::ComebackReminder, $rng->pick($longOut)];
+        }
+
+        // House rule (2026-11-20): treatment for an injured superstar, its
+        // champions first, then the one it values most (a trade's points).
+        $hurt = $rules[PromoTypeKey::SpeedUpInjury->value]['wrestler_ids'] ?? [];
+
+        if ($hurt !== []) {
+            $patient = collect($hurt)
+                ->sortByDesc(fn (int $id): int => (($roster->get($id) !== null && $this->titles->isChampion($roster->get($id))) ? 1000 : 0)
+                    + $this->judge->value($show->game, $brand, [$id]))
+                ->first();
+            $options['speed_up_injury'] = [PromoTypeKey::SpeedUpInjury, $patient];
         }
 
         $inactive = collect($rules[PromoTypeKey::InactiveSuperstar->value]['wrestler_ids'])

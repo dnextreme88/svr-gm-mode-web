@@ -35,7 +35,7 @@ export default function Faction() {
                     href={gm.factions.index.url(game.id)}
                     className="gm-btn gm-btn-ghost gm-btn-sm"
                 >
-                    ← All factions
+                    <span aria-hidden>← </span>All factions
                 </Link>
             </PageTitle>
 

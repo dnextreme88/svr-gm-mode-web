@@ -1,6 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { nameTone, WrestlerName } from '@/components/gm/wrestler-name';
+import {
+    nameTone,
+    WrestlerName,
+    WrestlerNames,
+} from '@/components/gm/wrestler-name';
 
 describe('SvR 2006 name colour coding', () => {
     it('colours Cruiserweights and Light Heavyweights blue and Divas red', () => {
@@ -60,5 +64,68 @@ describe('SvR 2006 name colour coding', () => {
         expect(screen.getByText('Rey Mysterio')).toHaveClass('gm-name-cruiser');
         expect(screen.getByText('Lita')).toHaveClass('gm-name-diva');
         expect(screen.getByText('Batista')).not.toHaveAttribute('data-tone');
+    });
+});
+
+describe('screen-reader cue (UI audit, 2026-11-20)', () => {
+    it('says Diva or Cruiserweight after a coloured name, nothing otherwise', () => {
+        const { container } = render(
+            <>
+                <WrestlerName
+                    wrestler={{
+                        name: 'Lita',
+                        roster_type: 'diva',
+                        weight_class: 'featherweight',
+                    }}
+                />
+                <WrestlerName
+                    wrestler={{
+                        name: 'Rey Mysterio',
+                        roster_type: 'superstar',
+                        weight_class: 'cruiserweight',
+                    }}
+                />
+                <WrestlerName
+                    wrestler={{
+                        name: 'Batista',
+                        roster_type: 'superstar',
+                        weight_class: 'heavyweight',
+                    }}
+                />
+            </>,
+        );
+
+        expect(container.textContent).toBe(
+            'Lita (Diva)Rey Mysterio (Cruiserweight)Batista',
+        );
+    });
+
+    it('centres the & between names with portraits, like the names', () => {
+        const team = [
+            {
+                name: 'Jamie Noble',
+                slug: 'jamie-noble',
+                roster_type: 'superstar' as const,
+                weight_class: 'cruiserweight' as const,
+            },
+            {
+                name: 'The Great Khali',
+                slug: 'the-great-khali',
+                roster_type: 'superstar' as const,
+                weight_class: 'ultra_heavyweight' as const,
+            },
+        ];
+        const { rerender } = render(
+            <WrestlerNames names={team} portrait="sm" />,
+        );
+
+        expect(screen.getByTestId('names-separator')).toHaveClass(
+            'align-middle',
+        );
+        expect(screen.getByTestId('names-separator')).toHaveTextContent('&');
+
+        rerender(<WrestlerNames names={team} />);
+
+        expect(screen.queryByTestId('names-separator')).toBeNull();
     });
 });

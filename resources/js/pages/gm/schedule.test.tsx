@@ -133,8 +133,17 @@ const props = {
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
-    Link: ({ children, href }: { children: ReactNode; href: string }) => (
-        <a href={href}>{children}</a>
+    Link: ({
+        children,
+        href,
+        ...rest
+    }: {
+        children: ReactNode;
+        href: string;
+    }) => (
+        <a href={href} {...rest}>
+            {children}
+        </a>
     ),
     router,
     usePage: () => ({ props }),
@@ -261,15 +270,13 @@ describe('Schedule calendar', () => {
         expect(cell?.className).not.toContain('gm-current-week');
     });
 
-    it('opens an aired show’s results, the rival’s included', async () => {
-        const user = userEvent.setup();
+    it('opens an aired show’s results, the rival’s included', () => {
         render(<Schedule />);
 
-        await user.click(screen.getByTestId('air-2005-04-08-weekly-smackdown'));
-
-        expect(router.visit).toHaveBeenCalledWith(
-            '/results/1?brand=smackdown&show=2',
-        );
+        // A real link (UI audit, 2026-11-20): Cmd / Ctrl-click opens a tab.
+        expect(
+            screen.getByTestId('air-2005-04-08-weekly-smackdown'),
+        ).toHaveAttribute('href', '/results/1?brand=smackdown&show=2');
     });
 
     it('won’t simulate to the rival’s show nights', async () => {

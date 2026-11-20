@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Brand;
+use App\Enums\WeightClass;
 use App\Models\Contract;
 use App\Models\DraftPick;
 use App\Models\MatchSlot;
@@ -106,7 +107,11 @@ it('has the rival enter non-champions first', function () {
 
 it('adds champions only when it’s short, unbooked ones before booked ones', function () {
     $save = rumbleSave(size: 16);
-    $smackdown = SaveWrestler::with('wrestler')->where('save_id', $save->id)->where('brand', Brand::Smackdown)->orderBy('id')->get();
+    // Cruiserweights and Light Heavyweights first, so the third (the
+    // Cruiserweight champion) is eligible whatever order the catalog is in.
+    $smackdown = SaveWrestler::with('wrestler')->where('save_id', $save->id)->where('brand', Brand::Smackdown)->orderBy('id')->get()
+        ->sortBy(fn (SaveWrestler $w): int => in_array($w->wrestler->weight_class, [WeightClass::Cruiserweight, WeightClass::LightHeavyweight], true) ? 0 : 1)
+        ->values();
     // 16 superstars, 3 of them champions: 13 non-champions, so 2 champions go in.
     GameBuilder::giveTitle($save, 'world_heavyweight', [$smackdown[0]->name()]);
     GameBuilder::giveTitle($save, 'united_states', [$smackdown[1]->name()]);

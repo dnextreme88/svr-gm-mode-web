@@ -106,12 +106,12 @@ describe('Crown your champions (house rule, 2026-11-07)', () => {
 
         // The overlay shows at once and the button is disabled.
         expect(screen.getByTestId('starting-season')).toHaveTextContent(
-            'Starting the season. Please wait...',
+            'Starting the season. Please wait…',
         );
         expect(screen.getByRole('status')).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: 'Start the season' }),
-        ).toBeDisabled();
+        const busy = screen.getByRole('button', { name: /Starting…/ });
+        expect(busy).toBeDisabled();
+        expect(busy).toHaveAttribute('aria-busy', 'true');
 
         // The season starts once the delay is up.
         expect(post).not.toHaveBeenCalled();

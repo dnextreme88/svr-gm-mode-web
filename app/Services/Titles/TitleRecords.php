@@ -31,15 +31,18 @@ class TitleRecords
         $longest = $reigns->sortByDesc(fn (TitleReign $r): int => $r->weeksHeld($week))->first();
         $shortest = $closed->sortBy(fn (TitleReign $r): int => $r->weeksHeld($week))->first();
 
-        $byHolder = $reigns->groupBy(fn (TitleReign $r): string => $r->holderName());
+        // Grouped by the superstars themselves, named individually, so a
+        // faction disbanding can't split a team's reigns (house rule,
+        // 2026-11-21). Ties go to whoever got there first.
+        $byHolder = $reigns->sortBy('id')->groupBy(fn (TitleReign $r): string => $r->holderKey());
         $mostReigns = $byHolder->sortByDesc(fn (Collection $group): int => $group->count())->first();
         $mostDefenses = $byHolder->sortByDesc(fn (Collection $group): int => (int) $group->sum('defenses'))->first();
 
         return [
             'longest' => $longest === null ? null : $this->reignRow($longest, $week),
             'shortest' => $shortest === null ? null : $this->reignRow($shortest, $week),
-            'most_reigns' => $mostReigns === null ? null : ['holder' => $mostReigns->first()->holderName(), 'holder_ids' => $mostReigns->first()->holderIds(), 'value' => $mostReigns->count()],
-            'most_defenses' => $mostDefenses === null || (int) $mostDefenses->sum('defenses') === 0 ? null : ['holder' => $mostDefenses->first()->holderName(), 'holder_ids' => $mostDefenses->first()->holderIds(), 'value' => (int) $mostDefenses->sum('defenses')],
+            'most_reigns' => $mostReigns === null ? null : ['holder' => $mostReigns->first()->memberNames(), 'holder_ids' => $mostReigns->first()->holderIds(), 'value' => $mostReigns->count()],
+            'most_defenses' => $mostDefenses === null || (int) $mostDefenses->sum('defenses') === 0 ? null : ['holder' => $mostDefenses->first()->memberNames(), 'holder_ids' => $mostDefenses->first()->holderIds(), 'value' => (int) $mostDefenses->sum('defenses')],
         ];
     }
 
@@ -72,10 +75,10 @@ class TitleRecords
     public function checkAfterReignStarted(TitleReign $started, int $week): void
     {
         $reigns = $this->reigns($started->game, $started->championship);
-        $counts = $reigns->groupBy(fn (TitleReign $r): string => $r->holderName())->map->count();
-        $mine = $counts->get($started->holderName(), 0);
+        $counts = $reigns->groupBy(fn (TitleReign $r): string => $r->holderKey())->map->count();
+        $mine = $counts->get($started->holderKey(), 0);
 
-        if ($mine > 1 && $mine > $counts->except($started->holderName())->max()) {
+        if ($mine > 1 && $mine > $counts->except($started->holderKey())->max()) {
             $this->announce($started, "most {$started->championship->name} reigns", $week);
         }
     }
@@ -98,7 +101,7 @@ class TitleRecords
     private function reignRow(TitleReign $reign, int $week): array
     {
         return [
-            'holder' => $reign->holderName(),
+            'holder' => $reign->memberNames(),
             'holder_ids' => $reign->holderIds(),
             'championship' => $reign->championship->name,
             'value' => $reign->weeksHeld($week),

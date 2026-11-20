@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { TitleMark } from '@/components/gm/badges';
+import { useMemo, useRef, useState } from 'react';
+import { InjuryChip, TitleMark } from '@/components/gm/badges';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { Panel } from '@/components/gm/panel';
@@ -12,6 +12,7 @@ import { WrestlerPicker } from '@/components/gm/wrestler-picker';
 import type { PickerOption } from '@/components/gm/wrestler-picker';
 import { formatMoney } from '@/lib/gm';
 import { slotSaveKey, useSaveStatus } from '@/lib/save-status';
+import { radioKeyDown, useRovingRadios } from '@/lib/radio-group';
 import { cn } from '@/lib/utils';
 import type { FatigueConfig, RosterEntry } from '@/types/gm';
 
@@ -88,34 +89,6 @@ type Props = {
  * The two weekly promo slots (§5): every promo on a grid with its cost and
  * success probability, greyed out when nobody on the roster can do it.
  */
-/**
- * Arrow keys move between the enabled radios of a tile group, as in a
- * native radio group; Tab still leaves it (UI audit, 2026-11-12).
- */
-function moveBetweenRadios(e: React.KeyboardEvent<HTMLDivElement>) {
-    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[
-        e.key
-    ];
-
-    if (step === undefined) {
-        return;
-    }
-
-    const radios = Array.from(
-        e.currentTarget.querySelectorAll<HTMLButtonElement>(
-            '[role="radio"]:not(:disabled)',
-        ),
-    );
-    const at = radios.indexOf(document.activeElement as HTMLButtonElement);
-
-    if (radios.length === 0 || at === -1) {
-        return;
-    }
-
-    e.preventDefault();
-    radios[(at + step + radios.length) % radios.length].focus();
-}
-
 export function PromoSlots({ slots, ...props }: Props) {
     return (
         <div className="grid gap-4 xl:grid-cols-2">
@@ -177,7 +150,7 @@ function amountLabel(t: PromoTypeOption): string {
     }
 
     if (t.amount === 0) {
-        return '$0';
+        return formatMoney(0);
     }
 
     return `${t.amount > 0 ? '+' : '−'}${formatMoney(Math.abs(t.amount))}`;
@@ -358,6 +331,9 @@ function PromoEditor({
         setBefore(savedBefore);
     };
 
+    const radioRoot = useRef<HTMLDivElement>(null);
+    useRovingRadios(radioRoot);
+
     const choose = (t: PromoTypeOption) => {
         setTypeId(t.id);
         setA(null);
@@ -367,421 +343,470 @@ function PromoEditor({
     };
 
     return (
-        <Panel title={`Promo ${slot.position}`}>
-            <div
-                role="radiogroup"
-                aria-label={`Promo ${slot.position} type`}
-                className="grid grid-cols-2 gap-1.5"
-                onKeyDown={moveBetweenRadios}
-            >
-                {sorted.map((t) => {
-                    const off = eligibility[t.key]?.available === false;
-                    const selected = t.id === typeId;
+        // Each radio group is one Tab stop; the arrows pick (UI audit, 2026-11-20).
+        <div ref={radioRoot}>
+            <Panel title={`Promo ${slot.position}`}>
+                <div
+                    role="radiogroup"
+                    aria-label={`Promo ${slot.position} type`}
+                    className="grid grid-cols-2 gap-1.5"
+                    onKeyDown={radioKeyDown}
+                >
+                    {sorted.map((t) => {
+                        const off = eligibility[t.key]?.available === false;
+                        const selected = t.id === typeId;
 
-                    return (
-                        <button
-                            key={t.id}
-                            type="button"
-                            role="radio"
-                            aria-checked={selected}
-                            disabled={readOnly || off}
-                            title={
-                                off
-                                    ? (eligibility[t.key]?.reason ?? undefined)
-                                    : t.effect
-                            }
-                            onClick={() => choose(t)}
-                            data-testid={`promo-${slot.position}-${t.key}`}
-                            className={cn(
-                                'border border-white/8 bg-black/25 px-2.5 py-2 text-left transition-colors',
-                                selected
-                                    ? 'border-brand bg-brand/15 shadow-[0_0_0_1px_var(--gm-brand)]'
-                                    : !off &&
-                                          !readOnly &&
-                                          'hover:border-white/25 hover:bg-white/4',
-                                off && 'cursor-not-allowed',
-                            )}
-                        >
-                            <span
+                        return (
+                            <button
+                                key={t.id}
+                                type="button"
+                                role="radio"
+                                aria-checked={selected}
+                                disabled={readOnly || off}
+                                title={
+                                    off
+                                        ? (eligibility[t.key]?.reason ??
+                                          undefined)
+                                        : t.effect
+                                }
+                                onClick={() => choose(t)}
+                                data-testid={`promo-${slot.position}-${t.key}`}
                                 className={cn(
-                                    'block font-condensed font-bold tracking-wide uppercase',
-                                    off && 'opacity-40',
-                                )}
-                            >
-                                {t.name}
-                            </span>
-                            <span
-                                className={cn(
-                                    'mt-0.5 flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-dim',
-                                    // An unavailable promo is one line and its
-                                    // reason on a phone (UI audit, 2026-11-12).
-                                    off ? 'hidden opacity-40 sm:flex' : 'flex',
+                                    'border border-white/8 bg-black/25 px-2.5 py-2 text-left transition-colors',
+                                    selected
+                                        ? 'border-brand bg-brand/15 shadow-[0_0_0_1px_var(--gm-brand)]'
+                                        : !off &&
+                                              !readOnly &&
+                                              'hover:border-white/25 hover:bg-white/4',
+                                    off && 'cursor-not-allowed',
                                 )}
                             >
                                 <span
                                     className={cn(
-                                        'gm-num',
-                                        (t.amount > 0 || t.variable_amount) &&
-                                            'text-zone-safe',
+                                        'block font-condensed font-bold tracking-wide uppercase',
+                                        off && 'opacity-40',
                                     )}
                                 >
-                                    {amountLabel(t)}
+                                    {t.name}
                                 </span>
-                                <span>
-                                    Success Probability:{' '}
-                                    <span className="gm-num text-ink">
-                                        {successLabel(t)}
-                                    </span>
-                                </span>
-                                {(t.recovery_bars ?? 0) > 0 && (
-                                    <FatigueCost
-                                        bars={t.recovery_bars ?? 0}
-                                        max={t.recovery_bars}
-                                        recovers
-                                    />
-                                )}
-                                {(t.fatigue_bars ?? 0) > 0 && (
-                                    <FatigueCost
-                                        bars={t.fatigue_bars ?? 0}
-                                        max={t.fatigue_bars}
-                                    />
-                                )}
-                            </span>
-                            {off &&
-                                eligibility[t.key]?.reason && (
-                                    // The reason in words, not only on hover.
+                                <span
+                                    className={cn(
+                                        'mt-0.5 flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-dim',
+                                        // An unavailable promo is one line and its
+                                        // reason on a phone (UI audit, 2026-11-12).
+                                        off
+                                            ? 'hidden opacity-40 sm:flex'
+                                            : 'flex',
+                                    )}
+                                >
                                     <span
-                                        className="mt-1 block text-xs text-ink-dim"
-                                        data-testid={`promo-${slot.position}-${t.key}-reason`}
+                                        className={cn(
+                                            'gm-num',
+                                            (t.amount > 0 ||
+                                                t.variable_amount) &&
+                                                'text-zone-safe',
+                                        )}
                                     >
-                                        <span className="sr-only">
-                                            Unavailable:{' '}
-                                        </span>
-                                        {eligibility[t.key]?.reason}
+                                        {amountLabel(t)}
                                     </span>
-                                )}
-                        </button>
-                    );
-                })}
-            </div>
+                                    <span>
+                                        Success Probability:{' '}
+                                        <span className="gm-num text-ink">
+                                            {successLabel(t)}
+                                        </span>
+                                    </span>
+                                    {(t.recovery_bars ?? 0) > 0 && (
+                                        <FatigueCost
+                                            bars={t.recovery_bars ?? 0}
+                                            max={t.recovery_bars}
+                                            recovers
+                                        />
+                                    )}
+                                    {(t.fatigue_bars ?? 0) > 0 && (
+                                        <FatigueCost
+                                            bars={t.fatigue_bars ?? 0}
+                                            max={t.fatigue_bars}
+                                        />
+                                    )}
+                                </span>
+                                {off &&
+                                    eligibility[t.key]?.reason && (
+                                        // The reason in words, not only on hover.
+                                        <span
+                                            className="mt-1 block text-xs text-ink-dim"
+                                            data-testid={`promo-${slot.position}-${t.key}-reason`}
+                                        >
+                                            <span className="sr-only">
+                                                Unavailable:{' '}
+                                            </span>
+                                            {eligibility[t.key]?.reason}
+                                        </span>
+                                    )}
+                            </button>
+                        );
+                    })}
+                </div>
 
-            {type && (
-                <div
-                    key={type.id}
-                    data-testid={`promo-details-${slot.position}`}
-                    // The fade-in leaves a transform, which makes this a
-                    // stacking context: lift it so its pickers' lists sit
-                    // above the buttons and the next promo panel.
-                    className="relative z-20 mt-3 animate-gm-pop-in space-y-3 border-t border-white/8 pt-3"
-                >
-                    <div className="text-sm">
-                        <p className="font-condensed font-bold tracking-wide uppercase">
-                            {type.name}
-                        </p>
-                        <p className="text-ink-dim">{type.effect}</p>
-                        {type.requirement && (
-                            <p className="mt-1 text-sm text-ink-faint">
-                                Needs: {type.requirement}
+                {type && (
+                    <div
+                        key={type.id}
+                        data-testid={`promo-details-${slot.position}`}
+                        // The fade-in leaves a transform, which makes this a
+                        // stacking context: lift it so its pickers' lists sit
+                        // above the buttons and the next promo panel.
+                        className="relative z-20 mt-3 animate-gm-pop-in space-y-3 border-t border-white/8 pt-3"
+                    >
+                        <div className="text-sm">
+                            <p className="font-condensed font-bold tracking-wide uppercase">
+                                {type.name}
                             </p>
-                        )}
-                    </div>
-
-                    {pickRivalry && (
-                        <div>
-                            <div className="gm-label mb-1">Rivalry</div>
-                            <RivalryPicker
-                                label={`Promo ${slot.position} rivalry`}
-                                value={a !== null && b !== null ? [a, b] : null}
-                                options={rivalryOptions}
-                                disabled={readOnly}
-                                onChange={([x, y]) => {
-                                    setA(x);
-                                    setB(y);
-                                }}
-                            />
+                            <p className="text-ink-dim">{type.effect}</p>
+                            {type.requirement && (
+                                <p className="mt-1 text-sm text-ink-faint">
+                                    Needs: {type.requirement}
+                                </p>
+                            )}
                         </div>
-                    )}
 
-                    {isCallOut && a !== null && b !== null && (
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        {pickRivalry && (
+                            <div>
+                                <div className="gm-label mb-1">Rivalry</div>
+                                <RivalryPicker
+                                    label={`Promo ${slot.position} rivalry`}
+                                    value={
+                                        a !== null && b !== null ? [a, b] : null
+                                    }
+                                    options={rivalryOptions}
+                                    disabled={readOnly}
+                                    onChange={([x, y]) => {
+                                        setA(x);
+                                        setB(y);
+                                    }}
+                                />
+                            </div>
+                        )}
+
+                        {isCallOut && a !== null && b !== null && (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div>
+                                    <div className="gm-label mb-1">
+                                        Who does the talking
+                                    </div>
+                                    <div
+                                        role="radiogroup"
+                                        onKeyDown={radioKeyDown}
+                                        aria-label={`Promo ${slot.position} speaker`}
+                                        className="flex flex-wrap gap-1.5"
+                                    >
+                                        {[a, b].map((id) => {
+                                            const speaking = id === a;
+
+                                            return (
+                                                <button
+                                                    key={id}
+                                                    type="button"
+                                                    role="radio"
+                                                    aria-checked={speaking}
+                                                    disabled={readOnly}
+                                                    onClick={() => {
+                                                        if (!speaking) {
+                                                            setB(a);
+                                                            setA(id);
+                                                        }
+                                                    }}
+                                                    className={cn(
+                                                        'min-h-11 px-3 py-1.5 text-left text-sm sm:min-h-0',
+                                                        speaking
+                                                            ? 'bg-brand text-white'
+                                                            : 'bg-white/[0.05] text-ink-dim hover:text-ink',
+                                                    )}
+                                                >
+                                                    {rosterById.get(id)?.name}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="gm-label mb-1">
+                                        Plays it as
+                                    </div>
+                                    <div
+                                        role="radiogroup"
+                                        onKeyDown={radioKeyDown}
+                                        aria-label={`Promo ${slot.position} alignment`}
+                                        className="flex flex-wrap gap-1.5"
+                                    >
+                                        {(['face', 'heel'] as const).map(
+                                            (al) => (
+                                                <button
+                                                    key={al}
+                                                    type="button"
+                                                    role="radio"
+                                                    aria-checked={
+                                                        alignment === al
+                                                    }
+                                                    disabled={readOnly}
+                                                    onClick={() =>
+                                                        setAlignment(al)
+                                                    }
+                                                    className={cn(
+                                                        'min-h-11 px-3 py-1.5 text-left text-sm sm:min-h-0',
+                                                        alignment === al
+                                                            ? 'bg-brand text-white'
+                                                            : 'bg-white/[0.05] text-ink-dim hover:text-ink',
+                                                    )}
+                                                >
+                                                    <span className="font-semibold">
+                                                        {al === 'face'
+                                                            ? 'Face'
+                                                            : 'Heel'}
+                                                    </span>
+                                                    <span className="block text-xs opacity-80">
+                                                        {al === 'face'
+                                                            ? 'Rally the fans'
+                                                            : 'Insult the fans'}
+                                                    </span>
+                                                </button>
+                                            ),
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {(type.needs_wrestler || pair) && !pickRivalry && (
+                            <div className="grid gap-2 sm:grid-cols-2">
+                                <div>
+                                    <div className="gm-label mb-1">
+                                        {pair ? 'First superstar' : 'Superstar'}
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="min-w-0 flex-1">
+                                            <WrestlerPicker
+                                                label={`Promo ${slot.position} ${pair ? 'first superstar' : 'superstar'}`}
+                                                value={a}
+                                                options={optionsFor(firstIds)}
+                                                required
+                                                disabled={readOnly}
+                                                onChange={(id) => {
+                                                    setA(id);
+
+                                                    if (isContinue) {
+                                                        setB(null);
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                        {/* House rule (2026-11-17): how tired the
+                                        superstar the promo rests is. */}
+                                        {type?.key === 'inactive_superstar' &&
+                                            a !== null &&
+                                            fatigueConfig &&
+                                            rosterById.has(a) && (
+                                                <div
+                                                    className="shrink-0"
+                                                    data-testid={`promo-${slot.position}-fatigue`}
+                                                >
+                                                    <FatigueMeter
+                                                        fatigue={
+                                                            rosterById.get(a)
+                                                                ?.fatigue ?? 0
+                                                        }
+                                                        config={fatigueConfig}
+                                                        showLabel
+                                                    />
+                                                </div>
+                                            )}
+                                        {/* House rule (2026-11-20): the injury
+                                        the treatment is for. */}
+                                        {type?.key === 'speed_up_injury' &&
+                                            a !== null &&
+                                            rosterById.get(a)?.injury && (
+                                                <div
+                                                    className="shrink-0"
+                                                    data-testid={`promo-${slot.position}-injury`}
+                                                >
+                                                    <InjuryChip
+                                                        injury={
+                                                            rosterById.get(a)
+                                                                ?.injury ?? null
+                                                        }
+                                                    />
+                                                </div>
+                                            )}
+                                    </div>
+                                </div>
+                                {pair && (
+                                    <div>
+                                        <div className="gm-label mb-1">
+                                            Second superstar
+                                        </div>
+                                        <WrestlerPicker
+                                            label={`Promo ${slot.position} second superstar`}
+                                            value={b}
+                                            options={optionsFor(
+                                                secondIds,
+                                                type.needs_diva_pair ? a : null,
+                                            )}
+                                            required
+                                            disabled={readOnly || a === null}
+                                            onChange={setB}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {type.needs_championship && (
                             <div>
                                 <div className="gm-label mb-1">
-                                    Who does the talking
+                                    Title to hype
                                 </div>
                                 <div
                                     role="radiogroup"
-                                    aria-label={`Promo ${slot.position} speaker`}
+                                    onKeyDown={radioKeyDown}
+                                    aria-label={`Promo ${slot.position} title`}
                                     className="flex flex-wrap gap-1.5"
                                 >
-                                    {[a, b].map((id) => {
-                                        const speaking = id === a;
-
-                                        return (
+                                    {(rules?.championship_ids ?? []).map(
+                                        (id) => (
                                             <button
                                                 key={id}
                                                 type="button"
                                                 role="radio"
-                                                aria-checked={speaking}
+                                                aria-checked={title === id}
                                                 disabled={readOnly}
-                                                onClick={() => {
-                                                    if (!speaking) {
-                                                        setB(a);
-                                                        setA(id);
-                                                    }
-                                                }}
+                                                onClick={() => setTitle(id)}
                                                 className={cn(
-                                                    'min-h-11 px-3 py-1.5 text-left text-sm sm:min-h-0',
-                                                    speaking
-                                                        ? 'bg-brand text-white'
-                                                        : 'bg-white/[0.05] text-ink-dim hover:text-ink',
+                                                    'inline-flex items-center gap-1.5 px-3 py-1 font-condensed text-sm font-bold tracking-[0.14em] uppercase',
+                                                    title === id
+                                                        ? 'bg-gradient-to-b from-gold-hot to-gold text-arena'
+                                                        : 'bg-white/5 text-ink-dim hover:text-ink',
                                                 )}
                                             >
-                                                {rosterById.get(id)?.name}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                            <div>
-                                <div className="gm-label mb-1">Plays it as</div>
-                                <div
-                                    role="radiogroup"
-                                    aria-label={`Promo ${slot.position} alignment`}
-                                    className="flex flex-wrap gap-1.5"
-                                >
-                                    {(['face', 'heel'] as const).map((al) => (
-                                        <button
-                                            key={al}
-                                            type="button"
-                                            role="radio"
-                                            aria-checked={alignment === al}
-                                            disabled={readOnly}
-                                            onClick={() => setAlignment(al)}
-                                            className={cn(
-                                                'min-h-11 px-3 py-1.5 text-left text-sm sm:min-h-0',
-                                                alignment === al
-                                                    ? 'bg-brand text-white'
-                                                    : 'bg-white/[0.05] text-ink-dim hover:text-ink',
-                                            )}
-                                        >
-                                            <span className="font-semibold">
-                                                {al === 'face'
-                                                    ? 'Face'
-                                                    : 'Heel'}
-                                            </span>
-                                            <span className="block text-xs opacity-80">
-                                                {al === 'face'
-                                                    ? 'Rally the fans'
-                                                    : 'Insult the fans'}
-                                            </span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {(type.needs_wrestler || pair) && !pickRivalry && (
-                        <div className="grid gap-2 sm:grid-cols-2">
-                            <div>
-                                <div className="gm-label mb-1">
-                                    {pair ? 'First superstar' : 'Superstar'}
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="min-w-0 flex-1">
-                                        <WrestlerPicker
-                                            label={`Promo ${slot.position} ${pair ? 'first superstar' : 'superstar'}`}
-                                            value={a}
-                                            options={optionsFor(firstIds)}
-                                            required
-                                            disabled={readOnly}
-                                            onChange={(id) => {
-                                                setA(id);
-
-                                                if (isContinue) {
-                                                    setB(null);
-                                                }
-                                            }}
-                                        />
-                                    </div>
-                                    {/* House rule (2026-11-17): how tired the
-                                        superstar the promo rests is. */}
-                                    {type?.key === 'inactive_superstar' &&
-                                        a !== null &&
-                                        fatigueConfig &&
-                                        rosterById.has(a) && (
-                                            <div
-                                                className="shrink-0"
-                                                data-testid={`promo-${slot.position}-fatigue`}
-                                            >
-                                                <FatigueMeter
-                                                    fatigue={
-                                                        rosterById.get(a)
-                                                            ?.fatigue ?? 0
-                                                    }
-                                                    config={fatigueConfig}
-                                                    showLabel
+                                                <TitleMark
+                                                    name={titleNames[id] ?? ''}
                                                 />
-                                            </div>
-                                        )}
+                                                {titleNames[id] ??
+                                                    `Title ${id}`}
+                                            </button>
+                                        ),
+                                    )}
                                 </div>
                             </div>
-                            {pair && (
-                                <div>
-                                    <div className="gm-label mb-1">
-                                        Second superstar
-                                    </div>
-                                    <WrestlerPicker
-                                        label={`Promo ${slot.position} second superstar`}
-                                        value={b}
-                                        options={optionsFor(
-                                            secondIds,
-                                            type.needs_diva_pair ? a : null,
-                                        )}
-                                        required
-                                        disabled={readOnly || a === null}
-                                        onChange={setB}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    )}
+                        )}
 
-                    {type.needs_championship && (
                         <div>
-                            <div className="gm-label mb-1">Title to hype</div>
+                            <div className="gm-label mb-1">Airs</div>
                             <div
                                 role="radiogroup"
-                                aria-label={`Promo ${slot.position} title`}
+                                onKeyDown={radioKeyDown}
+                                aria-label={`Promo ${slot.position} airs`}
                                 className="flex flex-wrap gap-1.5"
                             >
-                                {(rules?.championship_ids ?? []).map((id) => (
-                                    <button
-                                        key={id}
-                                        type="button"
-                                        role="radio"
-                                        aria-checked={title === id}
-                                        disabled={readOnly}
-                                        onClick={() => setTitle(id)}
-                                        className={cn(
-                                            'inline-flex items-center gap-1.5 px-3 py-1 font-condensed text-sm font-bold tracking-[0.14em] uppercase',
-                                            title === id
-                                                ? 'bg-gradient-to-b from-gold-hot to-gold text-arena'
-                                                : 'bg-white/5 text-ink-dim hover:text-ink',
-                                        )}
-                                    >
-                                        <TitleMark
-                                            name={titleNames[id] ?? ''}
-                                        />
-                                        {titleNames[id] ?? `Title ${id}`}
-                                    </button>
-                                ))}
+                                {Array.from(
+                                    { length: matchSlotCount },
+                                    (_, i) => i + 1,
+                                ).map((position) => {
+                                    const holder = taken.get(position);
+
+                                    return (
+                                        <button
+                                            key={position}
+                                            type="button"
+                                            role="radio"
+                                            aria-checked={before === position}
+                                            disabled={
+                                                readOnly || holder !== undefined
+                                            }
+                                            data-taken={
+                                                holder !== undefined ||
+                                                undefined
+                                            }
+                                            title={
+                                                holder === undefined
+                                                    ? undefined
+                                                    : `Promo ${holder} already airs here`
+                                            }
+                                            onClick={() => setBefore(position)}
+                                            className={cn(
+                                                'inline-flex items-center gap-1 px-2.5 py-1 font-condensed text-sm font-semibold tracking-wider uppercase',
+                                                holder !== undefined
+                                                    ? 'cursor-not-allowed bg-white/[0.02] text-ink-faint'
+                                                    : before === position
+                                                      ? 'bg-brand text-white'
+                                                      : 'bg-white/5 text-ink-dim hover:text-ink',
+                                            )}
+                                        >
+                                            {holder !== undefined && (
+                                                <X
+                                                    aria-hidden
+                                                    strokeWidth={3}
+                                                    className="size-3 text-zone-serious"
+                                                />
+                                            )}
+                                            {airsLabel(
+                                                position,
+                                                matchSlotCount,
+                                            )}
+                                            {holder !== undefined && (
+                                                <span className="sr-only">
+                                                    , taken by Promo {holder}
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
-                    )}
-
-                    <div>
-                        <div className="gm-label mb-1">Airs</div>
-                        <div
-                            role="radiogroup"
-                            aria-label={`Promo ${slot.position} airs`}
-                            className="flex flex-wrap gap-1.5"
-                        >
-                            {Array.from(
-                                { length: matchSlotCount },
-                                (_, i) => i + 1,
-                            ).map((position) => {
-                                const holder = taken.get(position);
-
-                                return (
-                                    <button
-                                        key={position}
-                                        type="button"
-                                        role="radio"
-                                        aria-checked={before === position}
-                                        disabled={
-                                            readOnly || holder !== undefined
-                                        }
-                                        data-taken={
-                                            holder !== undefined || undefined
-                                        }
-                                        title={
-                                            holder === undefined
-                                                ? undefined
-                                                : `Promo ${holder} already airs here`
-                                        }
-                                        onClick={() => setBefore(position)}
-                                        className={cn(
-                                            'inline-flex items-center gap-1 px-2.5 py-1 font-condensed text-sm font-semibold tracking-wider uppercase',
-                                            holder !== undefined
-                                                ? 'cursor-not-allowed bg-white/[0.02] text-ink-faint'
-                                                : before === position
-                                                  ? 'bg-brand text-white'
-                                                  : 'bg-white/5 text-ink-dim hover:text-ink',
-                                        )}
-                                    >
-                                        {holder !== undefined && (
-                                            <X
-                                                aria-hidden
-                                                strokeWidth={3}
-                                                className="size-3 text-zone-serious"
-                                            />
-                                        )}
-                                        {airsLabel(position, matchSlotCount)}
-                                        {holder !== undefined && (
-                                            <span className="sr-only">
-                                                , taken by Promo {holder}
-                                            </span>
-                                        )}
-                                    </button>
-                                );
-                            })}
-                        </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {slot.outcome_note && (
-                <p
-                    className={cn(
-                        'mt-2 text-sm font-semibold',
-                        slot.succeeded ? 'text-zone-safe' : 'text-zone-serious',
+                {slot.outcome_note && (
+                    <p
+                        className={cn(
+                            'mt-2 text-sm font-semibold',
+                            slot.succeeded
+                                ? 'text-zone-safe'
+                                : 'text-zone-serious',
+                        )}
+                    >
+                        {slot.outcome_note}
+                    </p>
+                )}
+                {/* An empty promo has nothing to save, discard or clear. */}
+                {!readOnly &&
+                    (typeId !== null || slot.promo_type_id !== null) && (
+                        <SlotActions
+                            name={`promo ${slot.position}`}
+                            dirty={dirty}
+                            ready={ready}
+                            filled={slot.promo_type_id !== null}
+                            saveStatus={saveStatus}
+                            clearMessage="This removes the promo and its superstars from this slot."
+                            onSave={() =>
+                                type &&
+                                onSave(slot.position, {
+                                    promo_type_id: type.id,
+                                    target_wrestler_id:
+                                        type.needs_wrestler || pair ? a : null,
+                                    target_wrestler_b_id: pair ? b : null,
+                                    target_championship_id:
+                                        type.needs_championship ? title : null,
+                                    before_position: before,
+                                    ...(isCallOut ? { alignment } : {}),
+                                })
+                            }
+                            onDiscard={discard}
+                            onClear={() => {
+                                setTypeId(null);
+                                onClear(slot.position);
+                            }}
+                            className="mt-3 gap-2"
+                        />
                     )}
-                >
-                    {slot.outcome_note}
-                </p>
-            )}
-            {/* An empty promo has nothing to save, discard or clear. */}
-            {!readOnly && (typeId !== null || slot.promo_type_id !== null) && (
-                <SlotActions
-                    name={`promo ${slot.position}`}
-                    dirty={dirty}
-                    ready={ready}
-                    filled={slot.promo_type_id !== null}
-                    saveStatus={saveStatus}
-                    clearMessage="This removes the promo and its superstars from this slot."
-                    onSave={() =>
-                        type &&
-                        onSave(slot.position, {
-                            promo_type_id: type.id,
-                            target_wrestler_id:
-                                type.needs_wrestler || pair ? a : null,
-                            target_wrestler_b_id: pair ? b : null,
-                            target_championship_id: type.needs_championship
-                                ? title
-                                : null,
-                            before_position: before,
-                            ...(isCallOut ? { alignment } : {}),
-                        })
-                    }
-                    onDiscard={discard}
-                    onClear={() => {
-                        setTypeId(null);
-                        onClear(slot.position);
-                    }}
-                    className="mt-3 gap-2"
-                />
-            )}
-        </Panel>
+            </Panel>
+        </div>
     );
 }

@@ -7,7 +7,7 @@ use App\Models\PromoType;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeds the 14 promo types (§5). Amounts, success rates and fatigue come from
+ * Seeds the 16 promo types (§5). Amounts, success rates and fatigue come from
  * config. Who each promo can target is decided by PromoEligibility.
  */
 class PromoTypeSeeder extends Seeder
@@ -88,6 +88,11 @@ class PromoTypeSeeder extends Seeder
             'effect' => 'A superstar calls out their rival, as a face or a heel. A success adds 10 heat to the rivalry and keeps it from going quiet that week.',
             'requirement' => 'An active rivalry; pick the rival who does the talking and how they play it.',
             'pair' => true,
+        ],
+        'speed_up_injury' => [
+            'effect' => 'Extra treatment for an injured superstar. A success heals a minor injury outright, or takes 5 weeks off a serious one; a failure takes 2 weeks off either.',
+            'requirement' => 'A superstar with a minor or serious injury.',
+            'wrestler' => true,
         ],
     ];
 

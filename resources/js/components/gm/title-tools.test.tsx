@@ -117,7 +117,9 @@ function Harness({
 }
 
 const open = async (user: ReturnType<typeof userEvent.setup>) =>
-    user.click(screen.getByRole('button', { name: 'Stipulation for match 1' }));
+    user.click(
+        screen.getByRole('button', { name: /^Stipulation for match 1(?: |$)/ }),
+    );
 
 describe('StipulationPicker', () => {
     it('is a dropdown that reads Select stipulation and picks one', async () => {

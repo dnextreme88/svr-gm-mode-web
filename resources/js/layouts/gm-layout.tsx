@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { UnreadPill } from '@/components/gm/badges';
 import { BrandBug } from '@/components/gm/brand-bug';
+import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { FactionPromptModal } from '@/components/gm/faction-prompt-modal';
 import { FloppyIcon } from '@/components/gm/floppy-icon';
 import { NoticeModal } from '@/components/gm/notice-modal';
@@ -184,8 +185,8 @@ function WeekChip({ game }: { game: GameShell }) {
             className={cn(chip, 'transition-colors hover:bg-white/12')}
             title={
                 game.airing
-                    ? "Back to this week's results"
-                    : "Go to this week's card"
+                    ? 'Back to this week’s results'
+                    : 'Go to this week’s card'
             }
             data-testid="week-chip"
         >
@@ -204,6 +205,41 @@ function WeekChip({ game }: { game: GameShell }) {
  * - Below 42rem: the week chip gets its own row under brand and Save.
  */
 function Header({ game }: { game: GameShell }) {
+    // Leaving for the save list (2026-11-21): with progress that isn't saved
+    // (a career never saved, or changed since its last save), ask first, so
+    // a stray click on the logo doesn't lose it. Ctrl / Cmd / middle-click
+    // still open the save list in a new tab without asking.
+    const [leaving, setLeaving] = useState(false);
+    const leave = async (e: React.MouseEvent) => {
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) {
+            return;
+        }
+
+        e.preventDefault();
+
+        try {
+            const response = await fetch(gm.saves.unsaved.url(game.id), {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin',
+            });
+            const { unsaved } = (await response.json()) as {
+                unsaved: boolean;
+            };
+
+            if (unsaved) {
+                setLeaving(true);
+
+                return;
+            }
+        } catch {
+            // Can't tell: ask rather than risk it.
+            setLeaving(true);
+
+            return;
+        }
+
+        router.visit(gm.saves.index.url());
+    };
     const stat = 'min-w-0 text-left @6xl:text-right';
     // On a phone the three stats share one row in small type, so the page
     // starts higher up (UI audit, 2026-11-12).
@@ -211,96 +247,113 @@ function Header({ game }: { game: GameShell }) {
     const statValue = 'text-sm @2xl:text-lg';
 
     return (
-        <header
-            className="@container relative z-10 border-b border-white/8 bg-arena/80 backdrop-blur"
-            data-testid="gm-header"
-        >
-            <div className="mx-auto grid max-w-[1600px] grid-cols-[auto_1fr_auto] items-center gap-x-6 gap-y-2 px-4 py-2 md:px-6 @2xl:gap-y-3 @2xl:py-3 @6xl:flex">
-                <Link
-                    href={gm.saves.index.url()}
-                    className="col-start-1 row-start-1 flex items-center gap-3"
-                    aria-label="All saves"
-                >
-                    <BrandBug brand={game.player_brand} />
-                    <span className="hidden font-condensed text-lg tracking-[0.25em] text-ink-dim uppercase @3xl:inline">
-                        GM Mode
-                    </span>
-                </Link>
+        <>
+            <header
+                className="@container relative z-10 border-b border-white/8 bg-arena/80 backdrop-blur"
+                data-testid="gm-header"
+            >
+                <div className="mx-auto grid max-w-[1600px] grid-cols-[auto_1fr_auto] items-center gap-x-6 gap-y-2 px-4 py-2 md:px-6 @2xl:gap-y-3 @2xl:py-3 @6xl:flex">
+                    <Link
+                        href={gm.saves.index.url()}
+                        className="col-start-1 row-start-1 flex items-center gap-3"
+                        aria-label="GM Mode: all saves"
+                        onClick={leave}
+                    >
+                        <BrandBug brand={game.player_brand} />
+                        <span className="hidden font-condensed text-lg tracking-[0.25em] text-ink-dim uppercase @3xl:inline">
+                            GM Mode
+                        </span>
+                    </Link>
 
-                <div className="col-span-3 row-start-2 min-w-0 @2xl:col-span-1 @2xl:col-start-2 @2xl:row-start-1">
-                    <WeekChip game={game} />
-                </div>
+                    <div className="col-span-3 row-start-2 min-w-0 @2xl:col-span-1 @2xl:col-start-2 @2xl:row-start-1">
+                        <WeekChip game={game} />
+                    </div>
 
-                <div
-                    className="col-span-3 row-start-3 grid grid-cols-3 items-start gap-x-3 @2xl:row-start-2 @2xl:flex @2xl:flex-wrap @2xl:items-center @2xl:gap-x-8 @2xl:gap-y-2 @6xl:ml-auto @6xl:gap-5"
-                    data-testid="gm-header-stats"
-                >
-                    {game.next_ppv && (
+                    <div
+                        className="col-span-3 row-start-3 grid grid-cols-3 items-start gap-x-3 @2xl:row-start-2 @2xl:flex @2xl:flex-wrap @2xl:items-center @2xl:gap-x-8 @2xl:gap-y-2 @6xl:ml-auto @6xl:gap-5"
+                        data-testid="gm-header-stats"
+                    >
+                        {game.next_ppv && (
+                            <div className={stat}>
+                                <div className={statLabel}>Next PPV</div>
+                                <div
+                                    className={cn(
+                                        'font-condensed font-semibold text-ink',
+                                        statValue,
+                                    )}
+                                >
+                                    {game.next_ppv.name}
+                                    <span className="ml-1.5 text-ink-dim">
+                                        {game.next_ppv.weeks_away === 0
+                                            ? 'this week'
+                                            : `in ${pluralize(game.next_ppv.weeks_away, 'week')}`}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                         <div className={stat}>
-                            <div className={statLabel}>Next PPV</div>
-                            <div
-                                className={cn(
-                                    'font-condensed font-semibold text-ink',
-                                    statValue,
+                            <div className={statLabel}>Attendance</div>
+                            <div className={cn('gm-num', statValue)}>
+                                {game.last_attendance ? (
+                                    <>
+                                        {game.last_attendance.crowd.toLocaleString(
+                                            'en-US',
+                                        )}
+                                        {/* Which show, in words rather than a
+                                        hover-only tooltip. */}
+                                        <span className="ml-1.5 font-normal text-ink-dim">
+                                            <span className="sr-only">
+                                                at {game.last_attendance.show}
+                                                ,{' '}
+                                            </span>
+                                            wk {game.last_attendance.week}
+                                        </span>
+                                    </>
+                                ) : (
+                                    <span className="text-ink-dim">
+                                        <span aria-hidden>—</span>
+                                        <span className="sr-only">
+                                            No show has aired yet
+                                        </span>
+                                    </span>
                                 )}
-                            >
-                                {game.next_ppv.name}
-                                <span className="ml-1.5 text-ink-dim">
-                                    {game.next_ppv.weeks_away === 0
-                                        ? 'this week'
-                                        : `in ${pluralize(game.next_ppv.weeks_away, 'week')}`}
-                                </span>
                             </div>
                         </div>
-                    )}
-                    <div className={stat}>
-                        <div className={statLabel}>Attendance</div>
-                        <div className={cn('gm-num', statValue)}>
-                            {game.last_attendance ? (
-                                <>
-                                    {game.last_attendance.crowd.toLocaleString(
-                                        'en-US',
-                                    )}
-                                    {/* Which show, in words rather than a
-                                        hover-only tooltip. */}
-                                    <span className="ml-1.5 font-normal text-ink-dim">
-                                        <span className="sr-only">
-                                            at {game.last_attendance.show},{' '}
-                                        </span>
-                                        wk {game.last_attendance.week}
-                                    </span>
-                                </>
-                            ) : (
-                                <span className="text-ink-dim">
-                                    —
-                                    <span className="sr-only">
-                                        No show has aired yet
-                                    </span>
-                                </span>
-                            )}
+                        <div className={stat}>
+                            <div className={statLabel}>Budget</div>
+                            <div
+                                className={cn(
+                                    'gm-num',
+                                    statValue,
+                                    game.budget < 0
+                                        ? 'text-zone-serious'
+                                        : 'text-zone-safe',
+                                )}
+                            >
+                                {formatMoney(game.budget)}
+                            </div>
                         </div>
                     </div>
-                    <div className={stat}>
-                        <div className={statLabel}>Budget</div>
-                        <div
-                            className={cn(
-                                'gm-num',
-                                statValue,
-                                game.budget < 0
-                                    ? 'text-zone-serious'
-                                    : 'text-zone-safe',
-                            )}
-                        >
-                            {formatMoney(game.budget)}
-                        </div>
-                    </div>
-                </div>
 
-                <div className="col-start-3 row-start-1 justify-self-end">
-                    <SaveCareerButton game={game} />
+                    <div className="col-start-3 row-start-1 justify-self-end">
+                        <SaveCareerButton game={game} />
+                    </div>
                 </div>
-            </div>
-        </header>
+            </header>
+            <ConfirmDialog
+                open={leaving}
+                danger
+                title="Leave without saving?"
+                message="You have recently made progress on this career but you haven't saved yet. Are you sure you want to leave? You will lose any unsaved progress. Press the Save Career button on top of the header to save your progress"
+                confirmLabel="Leave without saving"
+                cancelLabel="Stay"
+                onConfirm={() => {
+                    setLeaving(false);
+                    router.visit(gm.saves.index.url());
+                }}
+                onCancel={() => setLeaving(false)}
+            />
+        </>
     );
 }
 
@@ -425,6 +478,7 @@ function MenuBar({ items, url }: { items: NavItem[]; url: string }) {
                                 key={item.label}
                                 href={item.href}
                                 prefetch
+                                aria-current={active ? 'page' : undefined}
                                 className={cn(
                                     navLink,
                                     active
@@ -443,7 +497,6 @@ function MenuBar({ items, url }: { items: NavItem[]; url: string }) {
                     <div ref={menu.ref} className="relative">
                         <button
                             type="button"
-                            aria-haspopup="menu"
                             aria-expanded={menu.open}
                             aria-label="Menu"
                             onClick={menu.toggle}
@@ -468,8 +521,8 @@ function MenuBar({ items, url }: { items: NavItem[]; url: string }) {
                         {menu.mounted && (
                             <PopoverPanel
                                 open={menu.open}
-                                role="menu"
-                                aria-label="GM menus"
+                                role="group"
+                                aria-label="All GM menus"
                                 className="min-w-64 py-1"
                             >
                                 {items.map((item) => {
@@ -480,7 +533,9 @@ function MenuBar({ items, url }: { items: NavItem[]; url: string }) {
                                             key={item.label}
                                             href={item.href}
                                             prefetch
-                                            role="menuitem"
+                                            aria-current={
+                                                active ? 'page' : undefined
+                                            }
                                             onClick={menu.close}
                                             className={cn(
                                                 navLink,
@@ -521,7 +576,7 @@ function Footer() {
                 GM Mode
             </span>
             <p className="text-xs text-ink-faint">
-                Smackdown vs Raw 2006 - a fan-made GM mode web version
+                Smackdown vs Raw 2006 – a fan-made GM mode web version
             </p>
         </footer>
     );
@@ -535,6 +590,7 @@ export default function GmLayout({ children }: { children: ReactNode }) {
         wrapping_up?: boolean;
         wrap_up?: boolean;
         filters?: { wrap?: boolean };
+        initial?: boolean;
     }>();
     const game = page.props.game;
     // House rule (2026-11-12): while a night airs on the live results (its
@@ -561,13 +617,27 @@ export default function GmLayout({ children }: { children: ReactNode }) {
                 Boolean(page.props.continue_to) ||
                 page.props.wrapping_up === true));
 
+    // Setting up a career (2026-11-21): the initial draft and crowning the
+    // first champions hide the menu bar, so nothing leads away before the
+    // season starts; the setup steps say where the player is instead.
+    const settingUp =
+        page.component === 'gm/draft' ||
+        (page.component === 'gm/titles/assign' && page.props.initial === true);
+
     return (
         <div
             className="gm-root gm-stage min-h-screen"
             data-brand={game?.player_brand ?? 'raw'}
         >
+            {/* The first Tab stop on every page (UI audit, 2026-11-20). */}
+            <a
+                href="#main"
+                className="sr-only z-50 bg-arena-2 px-4 py-2 font-condensed font-semibold tracking-wider text-ink uppercase focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:outline-2 focus:outline-gold"
+            >
+                Skip to main content
+            </a>
             {game && !onAir && <Header game={game} />}
-            {game && !onAir && <Nav game={game} url={page.url} />}
+            {game && !onAir && !settingUp && <Nav game={game} url={page.url} />}
             {game?.deficit.blocked && (
                 <div className="relative z-10 border-b border-zone-serious/40 bg-zone-serious/15 px-6 py-2 text-center font-condensed text-sm tracking-wide text-zone-serious uppercase">
                     {pluralize(game.deficit.weeks, 'week')} in the red. Choose a
@@ -581,7 +651,11 @@ export default function GmLayout({ children }: { children: ReactNode }) {
                     before the next show can air.
                 </div>
             )}
-            <main className="relative z-10 mx-auto max-w-[1600px] px-4 py-6 md:px-6 md:py-8">
+            <main
+                id="main"
+                tabIndex={-1}
+                className="relative z-10 mx-auto max-w-[1600px] scroll-mt-4 px-4 py-6 outline-none md:px-6 md:py-8"
+            >
                 {children}
             </main>
             <Footer />

@@ -142,6 +142,18 @@ export default function PpvEntrants() {
                     qualified.length > 0 &&
                     ` ${qualified.length} of your team qualified on the weekly shows and can’t be changed; pick the other ${needed}.`}
             </p>
+            {/* Why the other boxes are greyed out (UI audit, 2026-11-20). */}
+            <p
+                role="status"
+                className="-mt-3 mb-6 text-sm text-gold empty:hidden"
+            >
+                {picked.length >= needed && !readOnly && (
+                    <span data-testid="entrants-full">
+                        All {needed} spots are picked. Untick someone to swap
+                        them out.
+                    </span>
+                )}
+            </p>
 
             <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
                 <Panel title="Your roster" bodyClassName="p-0">
@@ -179,7 +191,10 @@ export default function PpvEntrants() {
                                             aria-label={w.name}
                                         />
                                         <span className="flex-1 font-medium">
-                                            <WrestlerName wrestler={w} />
+                                            <WrestlerName
+                                                wrestler={w}
+                                                portrait="md"
+                                            />
                                             {diva && (
                                                 <span className="ml-2 text-xs text-ink-faint">
                                                     No Divas

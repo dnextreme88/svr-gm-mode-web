@@ -145,6 +145,21 @@ class CardController extends Controller
                     'weeks_left' => (int) $w->unbookable_until_week - $week,
                 ])
                 ->values(),
+            // Active Effects (2026-11-20): anyone else sitting out, today a
+            // superstar whose defection was blocked (a full rival roster).
+            'sitting_out' => SaveWrestler::with('wrestler')
+                ->where('save_id', $save->id)
+                ->where('brand', $brand)
+                ->whereNull('buried_week')
+                ->where('unbookable_until_week', '>', $week)
+                ->orderBy('id')
+                ->get()
+                ->map(fn (SaveWrestler $w): array => [
+                    'id' => $w->id,
+                    'name' => $w->name(),
+                    'weeks_left' => (int) $w->unbookable_until_week - $week,
+                ])
+                ->values(),
             'promo_slots' => PromoSlot::with('promoType')->where('show_id', $show->id)->orderBy('position')->get()->map(fn (PromoSlot $p): array => [
                 'position' => $p->position,
                 'promo_type_id' => $p->promo_type_id,

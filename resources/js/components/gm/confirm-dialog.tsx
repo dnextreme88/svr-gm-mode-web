@@ -26,7 +26,7 @@ export function ConfirmDialog({
     danger = false,
     footer,
     confirmDisabled = false,
-    focusCancel = false,
+    focusCancel,
     busy = false,
     busyText = 'Working…',
     wide = false,
@@ -45,7 +45,11 @@ export function ConfirmDialog({
     /** Shown just above the buttons (e.g. a progress bar). */
     footer?: ReactNode;
     confirmDisabled?: boolean;
-    /** Focus the cancel button first, when confirming is the bigger step. */
+    /**
+     * Focus the cancel button first, when confirming is the bigger step.
+     * A `danger` dialog does by default (UI audit, 2026-11-20), so Enter
+     * never runs a destructive action straight away.
+     */
     focusCancel?: boolean;
     /** The confirmed request is in flight: both buttons wait, the dialog stays open. */
     busy?: boolean;
@@ -60,6 +64,7 @@ export function ConfirmDialog({
     stayOpen?: boolean;
 }) {
     const brand = usePage<{ game?: GameShell }>().props.game?.player_brand;
+    const cancelFirst = focusCancel ?? danger;
 
     return (
         <Dialog
@@ -93,7 +98,7 @@ export function ConfirmDialog({
                         className="gm-btn gm-btn-ghost gm-btn-sm"
                         onClick={onCancel}
                         disabled={busy}
-                        autoFocus={focusCancel || !onConfirm}
+                        autoFocus={cancelFirst || !onConfirm}
                         aria-busy={(busy && !onConfirm) || undefined}
                     >
                         {onConfirm ? (
@@ -115,7 +120,7 @@ export function ConfirmDialog({
                             onClick={onConfirm}
                             disabled={confirmDisabled || busy}
                             aria-busy={busy || undefined}
-                            autoFocus={!focusCancel}
+                            autoFocus={!cancelFirst}
                         >
                             <BusyLabel busy={busy} busyText={busyText}>
                                 {confirmLabel}

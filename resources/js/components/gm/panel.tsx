@@ -52,7 +52,7 @@ export function PageTitle({ kicker, title, children }: PageTitleProps) {
                         {kicker}
                     </div>
                 )}
-                <h1 className="gm-heading text-4xl font-bold text-ink md:text-5xl">
+                <h1 className="gm-heading text-4xl font-bold text-balance text-ink md:text-5xl">
                     {title}
                 </h1>
             </div>

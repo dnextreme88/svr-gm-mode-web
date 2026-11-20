@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
+import { useRef } from 'react';
+import { radioKeyDown, useRovingRadios } from '@/lib/radio-group';
 import { cn } from '@/lib/utils';
 
-/** A row of toggle buttons for one filter. */
+/** A row of toggle buttons for one filter: a radio group. */
 export function FilterGroup<T extends string>({
     label,
     options,
@@ -16,11 +18,17 @@ export function FilterGroup<T extends string>({
     /** Keep the label for screen readers only. */
     hideLabel?: boolean;
 }) {
+    // One Tab stop; the arrows pick (UI audit, 2026-11-20).
+    const group = useRef<HTMLDivElement>(null);
+    useRovingRadios(group);
+
     return (
         <div
+            ref={group}
             className="flex flex-wrap items-center gap-1"
             role="radiogroup"
             aria-label={label}
+            onKeyDown={radioKeyDown}
         >
             {!hideLabel && <span className="gm-label mr-1">{label}</span>}
             {options.map((o) => (

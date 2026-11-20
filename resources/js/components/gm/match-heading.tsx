@@ -24,7 +24,8 @@ export function MatchHeading({
     return (
         <header data-testid={testId}>
             <h2 className="font-display text-xl leading-tight font-bold tracking-wide text-ink uppercase lg:text-2xl">
-                {isMainEvent ? 'Main Event' : `Match ${position}`} - {matchType}
+                {isMainEvent ? 'Main Event' : `Match ${position}`}
+                {matchType && ` - ${matchType}`}
             </h2>
             {title && (
                 <p

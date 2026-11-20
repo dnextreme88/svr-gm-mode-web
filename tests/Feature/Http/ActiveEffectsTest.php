@@ -40,3 +40,16 @@ it('sends Buried Alive losers while they sit out', function () {
             ->where('buried_alive.0.name', 'Undertaker')
             ->where('buried_alive.0.weeks_left', 3));
 });
+
+it('sends superstars sitting out after a blocked defection, apart from Buried Alive (2026-11-20)', function () {
+    $save = GameBuilder::inSeason(raw: ['Batista', 'Undertaker', 'Edge'], smackdown: ['Kane']);
+    GameBuilder::wrestler($save, 'Edge')->update(['unbookable_until_week' => $save->current_week + 2]);
+    GameBuilder::wrestler($save, 'Undertaker')->update(['buried_week' => 0, 'unbookable_until_week' => $save->current_week + 3]);
+
+    $this->get(route('gm.card.show', [$save, Card::show($save)]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('sitting_out', 1)
+            ->where('sitting_out.0.name', 'Edge')
+            ->where('sitting_out.0.weeks_left', 2)
+            ->has('buried_alive', 1));
+});

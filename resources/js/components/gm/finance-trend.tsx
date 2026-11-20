@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { formatMoney, formatSignedMoney } from '@/lib/gm';
 import { cn } from '@/lib/utils';
 
@@ -43,11 +44,20 @@ export function FinanceTrend({
     const x = (seasonWeek: number) => PAD_X + (seasonWeek - 1) * slot;
     const h = (net: number) => (Math.abs(net) / max) * (plot / 2);
 
+    const bars = useRef(new Map<number, SVGGElement>());
+    // One Tab stop (UI audit, 2026-11-20): the selected week's bar, else the
+    // latest, so the chart is always reachable.
+    const tabStop = weeks.some((w) => w.week_number === selected)
+        ? selected
+        : weeks[weeks.length - 1]?.week_number;
+
     const step = (from: number, delta: number) => {
         const index = weeks.findIndex((w) => w.week_number === from);
         const next = weeks[index + delta];
 
         if (next) {
+            // Focus follows the arrow, so the next press steps on from there.
+            bars.current.get(next.week_number)?.focus();
             onSelect(next.week_number);
         }
     };
@@ -88,8 +98,17 @@ export function FinanceTrend({
                             return (
                                 <g
                                     key={w.week_number}
+                                    ref={(el) => {
+                                        if (el) {
+                                            bars.current.set(w.week_number, el);
+                                        } else {
+                                            bars.current.delete(w.week_number);
+                                        }
+                                    }}
                                     role="button"
-                                    tabIndex={active ? 0 : -1}
+                                    tabIndex={
+                                        w.week_number === tabStop ? 0 : -1
+                                    }
                                     aria-pressed={active}
                                     aria-label={`Week ${w.season_week}${w.ppv ? ` (${w.ppv})` : ''}: net ${formatSignedMoney(w.net)}, balance ${formatMoney(w.balance)}`}
                                     onClick={() => onSelect(w.week_number)}
@@ -117,7 +136,7 @@ export function FinanceTrend({
                                         y={PAD_TOP}
                                         width={bar}
                                         height={plot}
-                                        className="fill-transparent group-hover:fill-white/5 group-focus-visible:fill-white/10"
+                                        className="fill-transparent group-hover:fill-white/5 group-focus-visible:fill-white/10 group-focus-visible:stroke-gold group-focus-visible:stroke-2"
                                     />
                                     <rect
                                         x={x(w.season_week)}

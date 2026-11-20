@@ -201,3 +201,22 @@ describe('Active Effects (house rule)', () => {
         );
     });
 });
+
+describe('Sitting out (2026-11-20)', () => {
+    it('lists a superstar sitting out after a blocked defection, with the weeks left', () => {
+        render(
+            <ActiveEffects
+                context={empty}
+                buriedAlive={[]}
+                sittingOut={[{ id: 7, name: 'Edge', weeks_left: 2 }]}
+            />,
+        );
+
+        const box = screen.getByRole('region', { name: 'Active Effects' });
+        expect(box).toHaveTextContent(
+            'Edge tried to leave for the other brand, which had no room, and sits out for 2 more weeks.',
+        );
+        expect(box).toHaveTextContent('Sitting out');
+        expect(box.className).toContain('border-gold');
+    });
+});
