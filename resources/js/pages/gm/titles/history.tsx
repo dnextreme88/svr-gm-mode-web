@@ -573,11 +573,11 @@ function ReignRows({ r }: { r: LineageRow }) {
                             vs.{' '}
                             {d.opponent_sides && d.opponent_sides.length > 0
                                 ? d.opponent_sides.map((side, i) => (
-                                    <Fragment key={i}>
-                                        {i > 0 && ', '}
-                                        <WrestlerNames names={side} />
-                                    </Fragment>
-                                ))
+                                      <Fragment key={i}>
+                                          {i > 0 && ', '}
+                                          <WrestlerNames names={side} />
+                                      </Fragment>
+                                  ))
                                 : d.opponents}
                         </Link>
                     </td>
