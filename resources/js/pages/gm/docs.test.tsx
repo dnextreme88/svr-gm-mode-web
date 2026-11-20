@@ -1107,3 +1107,69 @@ describe('Docs page', () => {
         );
     });
 });
+
+describe('Injury tables sorting (2026-11-20)', () => {
+    const injury = (label: string, min: number, max: number) => ({
+        label,
+        min_weeks: min,
+        max_weeks: max,
+        escalates_to: null,
+    });
+
+    it('sorts by duration by default, and by Injury or Duration on click', async () => {
+        const user = userEvent.setup();
+        const before = props.injuries;
+        props.injuries = {
+            minor: [
+                injury('Sprained Wrist', 3, 5),
+                injury('Bruised Ribs', 1, 3),
+                injury('Twisted Ankle', 2, 4),
+            ],
+            serious: [],
+        } as typeof props.injuries;
+
+        try {
+            window.history.replaceState(null, '', '/?tab=injuries');
+            render(<Docs />);
+
+            const table = () =>
+                screen
+                    .getAllByRole('table')
+                    .find((t) => within(t).queryByText('Bruised Ribs'))!;
+            const names = () =>
+                within(table())
+                    .getAllByRole('row')
+                    .slice(1)
+                    .map((r) => r.querySelector('td')?.textContent);
+            const header = (name: string) =>
+                within(table()).getByRole('button', { name });
+
+            expect(names()).toEqual([
+                'Bruised Ribs',
+                'Twisted Ankle',
+                'Sprained Wrist',
+            ]);
+            expect(header('Duration').closest('th')).toHaveAttribute(
+                'aria-sort',
+                'ascending',
+            );
+
+            await user.click(header('Duration'));
+            expect(names()).toEqual([
+                'Sprained Wrist',
+                'Twisted Ankle',
+                'Bruised Ribs',
+            ]);
+
+            await user.click(header('Injury'));
+            expect(names()).toEqual([
+                'Bruised Ribs',
+                'Sprained Wrist',
+                'Twisted Ankle',
+            ]);
+            expect(window.location.search).toContain('minor_sort=injury');
+        } finally {
+            props.injuries = before;
+        }
+    });
+});

@@ -6,10 +6,11 @@ import { PpvBug } from '@/components/gm/brand-bug';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
 import { PageTitle, Panel } from '@/components/gm/panel';
+import { ariaSort, nextSort, SortHeader } from '@/components/gm/sort-header';
 import { successLabel } from '@/components/gm/promo-slots';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { brandName, formatMoney, pluralize } from '@/lib/gm';
-import { useUrlParam } from '@/lib/use-url-param';
+import { useSortUrl, useUrlParam } from '@/lib/use-url-param';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type {
@@ -846,28 +847,81 @@ function MatchTypes({
     );
 }
 
-function InjuryTable({ title, rows }: { title: string; rows: Injury[] }) {
+type InjurySortKey = 'injury' | 'duration';
+
+const INJURY_SORT_KEYS: readonly InjurySortKey[] = ['injury', 'duration'];
+
+/** By duration, shortest first, unless the player sorts otherwise. */
+const INJURY_DEFAULT_SORT = { key: 'duration', dir: 'asc' } as const;
+
+/**
+ * Sort an injury list (2026-11-20): by name, or by duration (shortest
+ * minimum first, then the shorter maximum, then the name).
+ */
+export function sortInjuries(
+    rows: Injury[],
+    sort: { key: InjurySortKey; dir: 'asc' | 'desc' } | null,
+): Injury[] {
+    const by = sort ?? INJURY_DEFAULT_SORT;
+    const flip = by.dir === 'asc' ? 1 : -1;
+
+    return [...rows].sort((a, b) => {
+        const order =
+            by.key === 'injury'
+                ? a.label.localeCompare(b.label)
+                : a.min_weeks - b.min_weeks ||
+                  a.max_weeks - b.max_weeks ||
+                  a.label.localeCompare(b.label);
+
+        return order * flip;
+    });
+}
+
+function InjuryTable({
+    title,
+    rows,
+    param,
+}: {
+    title: string;
+    rows: Injury[];
+    /** The table's sort in the URL (`?minor_sort=injury:asc`). */
+    param: string;
+}) {
     const escalates = rows.some((r) => r.escalates_to !== null);
+    const [sort, setSort] = useSortUrl<InjurySortKey>(
+        INJURY_SORT_KEYS,
+        param,
+        INJURY_DEFAULT_SORT,
+    );
+    const sorted = sortInjuries(rows, sort);
+    const header = (key: InjurySortKey, label: string) => (
+        <th aria-sort={ariaSort(sort, key)}>
+            <SortHeader
+                label={label}
+                active={sort?.key === key ? sort.dir : null}
+                onClick={() => setSort((s) => nextSort(s, key))}
+            />
+        </th>
+    );
 
     return (
         <Panel title={title} bodyClassName="p-0">
             <table className="gm-table">
                 <thead>
                     <tr>
-                        <th>Injury</th>
-                        <th>Duration</th>
+                        {header('injury', 'Injury')}
+                        {header('duration', 'Duration')}
                         {escalates && <th>Escalates to</th>}
                     </tr>
                 </thead>
                 <tbody>
-                    {rows.map((r) => (
+                    {sorted.map((r) => (
                         <tr key={r.label}>
                             <td className="font-semibold">{r.label}</td>
                             <td className="gm-num">
                                 {r.min_weeks === r.max_weeks
-                                    ? r.min_weeks
-                                    : `${r.min_weeks}–${r.max_weeks}`}{' '}
-                                weeks
+                                    ? pluralize(r.min_weeks, 'week')
+                                    : `${r.min_weeks}–${r.max_weeks} weeks`}
                             </td>
                             {escalates && (
                                 <td className="text-ink-dim">
@@ -960,10 +1014,12 @@ function Injuries({ injuries, fatigue }: Pick<Props, 'injuries' | 'fatigue'>) {
                 <InjuryTable
                     title={`Minor injuries · ${injuries.minor.length}`}
                     rows={injuries.minor}
+                    param="minor_sort"
                 />
                 <InjuryTable
                     title={`Serious injuries · ${injuries.serious.length}`}
                     rows={injuries.serious}
+                    param="serious_sort"
                 />
             </div>
         </div>

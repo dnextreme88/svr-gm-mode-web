@@ -78,10 +78,14 @@ export function usePoolFilterUrl(): [PoolFilter, (filter: PoolFilter) => void] {
 
 /**
  * A table's sort in the URL (`?sort=fatigue:desc`). `keys` are the columns
- * it can sort by; anything else in the URL is ignored.
+ * it can sort by; anything else in the URL is ignored. `param` names it when
+ * a page has more than one sortable table, and `fallback` is the sort with
+ * nothing in the URL (left out of the URL).
  */
 export function useSortUrl<K extends string>(
     keys: readonly K[],
+    param = 'sort',
+    fallback: { key: K; dir: 'asc' | 'desc' } | null = null,
 ): [
     { key: K; dir: 'asc' | 'desc' } | null,
     (
@@ -93,7 +97,10 @@ export function useSortUrl<K extends string>(
               ) => { key: K; dir: 'asc' | 'desc' } | null),
     ) => void,
 ] {
-    const [raw, setRaw] = useUrlParam('sort', '');
+    const [raw, setRaw] = useUrlParam(
+        param,
+        fallback ? `${fallback.key}:${fallback.dir}` : '',
+    );
     const [key, dir] = raw.split(':');
     const sort =
         keys.includes(key as K) && (dir === 'asc' || dir === 'desc')
