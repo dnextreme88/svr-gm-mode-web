@@ -1,6 +1,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { NewsGrid } from '@/components/gm/news-grid';
 import type { NewsPage } from '@/components/gm/news-grid';
+import { WeekSteps } from '@/components/gm/setup-steps';
 import { PageTitle } from '@/components/gm/panel';
 import gm from '@/routes/gm';
 import type { GamePageProps } from '@/types/gm';
@@ -21,6 +22,8 @@ export default function News() {
     return (
         <>
             <Head title="News" />
+            {/* The end of the week just aired (house rule, 2026-11-21). */}
+            {wrap_up && <WeekSteps current={4} />}
             <PageTitle kicker="Around the WWE" title="News">
                 <Link href={next.url} className="gm-btn">
                     Continue to {next.name}

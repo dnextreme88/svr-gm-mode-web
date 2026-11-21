@@ -15,6 +15,7 @@ use App\Models\MatchSlot;
 use App\Models\MatchType;
 use App\Models\Show;
 use App\Services\Factions\FactionNamer;
+use App\Services\Matches\WinningOdds;
 use App\Services\Ppv\PpvCardService;
 
 /**
@@ -198,6 +199,8 @@ class CardPresenter
             'mitb_cash_in' => $slot->mitb_cash_in?->value,
             'titles_won' => self::titleNames(array_map(fn (array $won): int => $won['championship_id'], $result->titles_won ?? [])),
             'bouts' => self::bouts($slot),
+            // Winning odds going in (house rule, 2026-11-21); null for results from before.
+            'winning_odds' => self::oddsView($slot, $result->winning_odds),
             'rating' => $slot->rating,
             'fan_delta' => $slot->fan_delta,
             'participants' => $slot->participants->map(fn (MatchParticipant $p): array => [
@@ -251,7 +254,65 @@ class CardPresenter
             'captains' => self::captains($slot),
             'factions' => self::factions($slot),
             'gauntlet' => $slot->matchType?->family === MatchFamily::Gauntlet,
+            // Winning odds (house rule, 2026-11-21): a Gauntlet's are per bout,
+            // keyed "a-b" by the two sides, since anyone can meet anyone.
+            'winning_odds' => $slot->matchType?->family === MatchFamily::Gauntlet ? null : self::oddsView($slot, app(WinningOdds::class)->forSlot($slot)),
+            'bout_odds' => self::boutOdds($slot),
         ];
+    }
+
+    /**
+     * Each side's win chance and what made it, for the outcome and Book to
+     * Win cards.
+     *
+     * @param  array<string, mixed>|null  $odds  `WinningOdds::forSlot`
+     * @return list<array{side: int, label: string, chance: float, points: int, factors: list<array{label: string, points: int}>}>|null
+     */
+    private static function oddsView(MatchSlot $slot, ?array $odds): ?array
+    {
+        if (! is_array($odds['sides'] ?? null)) {
+            return null;
+        }
+
+        $view = [];
+
+        foreach ($odds['sides'] as $side => $data) {
+            $view[] = [
+                'side' => (int) $side,
+                'label' => self::sideLabel($slot, (int) $side),
+                'chance' => (float) $data['chance'],
+                'points' => (int) $data['points'],
+                'factors' => array_values($data['factors']),
+            ];
+        }
+
+        return $view;
+    }
+
+    /**
+     * A pending Gauntlet's odds for every pair of entrants, keyed "a-b".
+     *
+     * @return array<string, list<array<string, mixed>>>|null
+     */
+    private static function boutOdds(MatchSlot $slot): ?array
+    {
+        if ($slot->matchType?->family !== MatchFamily::Gauntlet) {
+            return null;
+        }
+
+        $sides = $slot->sides();
+        // Tornado Tag Turmoil's bouts are tag matches (house rule, 2026-11-17).
+        $family = $sides !== [] && max(array_map('count', $sides)) > 1 ? MatchFamily::TagTeam : MatchFamily::Single;
+        $keys = array_keys($sides);
+        $odds = [];
+
+        foreach ($keys as $i => $a) {
+            foreach (array_slice($keys, $i + 1) as $b) {
+                $odds["{$a}-{$b}"] = self::oddsView($slot, app(WinningOdds::class)->forSlot($slot, [$a => $sides[$a], $b => $sides[$b]], $family)) ?? [];
+            }
+        }
+
+        return $odds;
     }
 
     /**
@@ -274,6 +335,7 @@ class CardPresenter
             'method_label' => $bout->method->label(),
             'booked' => $bout->booked,
             'summary' => $bout->summary,
+            'winning_odds' => self::oddsView($slot, $bout->winning_odds),
         ])->all());
     }
 

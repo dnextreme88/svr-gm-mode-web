@@ -107,6 +107,9 @@ Route::prefix('gm')->name('gm.')->group(function () {
             Route::get('trade', [TradeController::class, 'show'])->name('trade.show');
             Route::post('trade', [TradeController::class, 'store'])->name('trade.store');
             Route::post('trade/odds', [TradeController::class, 'odds'])->name('trade.odds');
+            // House rule (2026-11-21): answering the rival GM's offer.
+            Route::post('trade/offers/{trade}/accept', [TradeController::class, 'accept'])->name('trade.offers.accept');
+            Route::post('trade/offers/{trade}/decline', [TradeController::class, 'decline'])->name('trade.offers.decline');
 
             Route::get('email', [EmailController::class, 'index'])->name('email');
             Route::post('email/read-all', [EmailController::class, 'readAll'])->name('email.read-all');

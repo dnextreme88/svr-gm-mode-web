@@ -18,7 +18,7 @@ A second UI/UX audit covered Factions, Propose Trade, Free Agency, Financials an
 - Phones: picking a match scrolls to its card; while a week airs, a **Decide match N** button jumps there.
 - A title match for a vacant title reads "◆ {title} (vacant)" in the list, Book to Win and the outcome card.
 - Promos are numbered in the order they air, and a Title Match Hype row shows the title it hyped (gold badge, `promos[].title` from `target_championship_id`).
-- Continue says "Decide every match to continue."; the pending fatigue note is rewritten.
+- Continue says "Resolve all matches to continue."; the pending fatigue note is rewritten.
 
 ### Propose Trade
 

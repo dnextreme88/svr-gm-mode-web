@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { SetupSteps } from '@/components/gm/setup-steps';
+import { SetupSteps, WeekSteps } from '@/components/gm/setup-steps';
 
 describe('SetupSteps (2026-11-21)', () => {
     it('highlights the draft as step 1', () => {
@@ -61,5 +61,35 @@ describe('SetupSteps (2026-11-21)', () => {
                 .getByTestId('setup-line-2')
                 .querySelector('.gm-step-line-fill'),
         ).not.toBeNull();
+    });
+});
+
+describe('WeekSteps (house rule, 2026-11-21)', () => {
+    it('walks the week: book, results, Financials, News, Emails', () => {
+        render(<WeekSteps current={3} />);
+
+        const nav = screen.getByRole('navigation', { name: 'This week' });
+        expect(nav).toHaveTextContent(
+            /Book the week.*Show results.*Weekly financials.*News.*Emails/,
+        );
+        expect(screen.getByTestId('week-step-3')).toHaveAttribute(
+            'aria-current',
+            'step',
+        );
+        expect(screen.getByTestId('week-step-2')).toHaveTextContent(', done');
+    });
+
+    it('names the PPV on a PPV night', () => {
+        render(<WeekSteps current={1} ppv="Backlash" />);
+
+        expect(screen.getByTestId('week-step-1')).toHaveTextContent(
+            'Book Backlash',
+        );
+        expect(screen.getByTestId('week-step-2')).toHaveTextContent(
+            'Backlash results',
+        );
+        expect(screen.getByTestId('week-step-3')).toHaveTextContent(
+            'Backlash financials',
+        );
     });
 });

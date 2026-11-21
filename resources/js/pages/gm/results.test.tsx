@@ -855,12 +855,15 @@ describe('Results page', () => {
             page.props = live();
             render(<Results />);
 
-            const button = screen.getByRole('button', { name: 'Continue' });
+            // On screen, not only in a tooltip (2026-11-21: on the button).
+            const button = screen.getByRole('button', {
+                name: 'Resolve all matches to continue',
+            });
             expect(button).toBeDisabled();
-            // On screen, not only in a tooltip (UI audit, 2026-11-20).
-            expect(button).toHaveAccessibleDescription(
-                'Decide every match to continue',
-            );
+            // The old line of text beside the button is gone.
+            expect(
+                screen.queryByText('Decide every match to continue'),
+            ).toBeNull();
             // Simulate all sits beside it, in the same row.
             expect(button.parentElement).toContainElement(
                 screen.getByRole('button', { name: 'Simulate all' }),
@@ -871,9 +874,7 @@ describe('Results page', () => {
             page.props = live();
             render(<Results />);
 
-            expect(
-                screen.getByRole('button', { name: 'Continue' }),
-            ).toBeDisabled();
+            expect(screen.getByTestId('continue-held')).toBeDisabled();
             expect(screen.getByTestId('fatigue-pending')).toBeInTheDocument();
             expect(screen.queryByTestId(/^fatigue-\d+$/)).toBeNull();
         });

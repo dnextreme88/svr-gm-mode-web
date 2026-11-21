@@ -15,4 +15,6 @@ enum TradeStatus: string
     case Accepted = 'accepted';
     case Rejected = 'rejected';
     case Invalid = 'invalid';
+    // House rule (2026-11-21): a rival GM offer the player never answered.
+    case Expired = 'expired';
 }

@@ -29,13 +29,13 @@ use Tests\Support\GameBuilder;
 | §1 Setup: new save, initial draft, title assignment.
 */
 
-it('creates a save with every wrestler in Free Agency and $15M per brand, granted once', function () {
+it('creates a save with every wrestler in Free Agency and $12M per brand, granted once', function () {
     $save = GameBuilder::newSave();
 
     expect(SaveWrestler::where('save_id', $save->id)->count())->toBe(215)
         ->and(SaveWrestler::where('save_id', $save->id)->whereNotNull('brand')->count())->toBe(0)
-        ->and($save->brand(Brand::Raw)->budget)->toBe(15_000_000)
-        ->and($save->brand(Brand::Smackdown)->budget)->toBe(15_000_000)
+        ->and($save->brand(Brand::Raw)->budget)->toBe(12_000_000)
+        ->and($save->brand(Brand::Smackdown)->budget)->toBe(12_000_000)
         ->and(LedgerEntry::where('save_id', $save->id)->where('category', LedgerCategory::StartingBudget)->count())->toBe(2)
         ->and($save->stage)->toBe(SaveStage::Drafting);
 });
@@ -85,7 +85,8 @@ it('caps each brand at 30 picks and sends everyone undrafted to Free Agency', fu
     while (($brand = $draft->nextBrand($save)) !== null) {
         if ($save->isHuman($brand)) {
             $wrestler = SaveWrestler::where('save_id', $save->id)->whereNull('brand')->orderBy('id')->first();
-            $draft->pick($save, $brand, $wrestler);
+            // Six months each, so 30 picks fit the $12M budget.
+            $draft->pick($save, $brand, $wrestler, length: ContractLength::from(24));
         }
 
         $draft->runAi($save);
@@ -113,8 +114,8 @@ it('starts draftees Happy on a contract paid in full when drafted (house rule, 2
         ->and($contract?->weeks_remaining)->toBe(52)
         ->and($contract?->upfront_fee)->toBe($total)
         ->and($contract?->weekly_cost)->toBe((int) round($total / 52))
-        ->and($save->brand($brand)->budget)->toBe(15_000_000 - $total)
-        ->and(app(DraftService::class)->availableBudget($save, $brand))->toBe(15_000_000 - $total);
+        ->and($save->brand($brand)->budget)->toBe(12_000_000 - $total)
+        ->and(app(DraftService::class)->availableBudget($save, $brand))->toBe(12_000_000 - $total);
 });
 
 it('signs a pick for the length chosen (house rule, 2026-11-15)', function () {
@@ -163,7 +164,7 @@ describe('Use WWE roster (house rule)', function () {
             expect(LedgerEntry::where('save_id', $this->save->id)->where('brand', $brand)->where('category', LedgerCategory::SigningFee)->count())->toBe(30)
                 ->and(LedgerEntry::where('save_id', $this->save->id)->where('brand', $brand)->where('category', LedgerCategory::SigningFee)->pluck('week_number')->unique()->all())->toBe([1])
                 ->and($paid)->toBeLessThan(0)
-                ->and($this->save->brand($brand)->budget)->toBe(15_000_000 + $paid);
+                ->and($this->save->brand($brand)->budget)->toBe(12_000_000 + $paid);
         }
 
         $wrestler = GameBuilder::wrestler($this->save, 'John Cena');
@@ -488,4 +489,36 @@ it("refuses a random pick when it isn't the player's turn", function () {
     $draft->randomPick($save, Brand::Raw);
 
     expect(fn () => $draft->randomPick($save, Brand::Raw))->toThrow(GameRuleException::class);
+});
+
+describe('Rival draft budget (house rule, 2026-11-21)', function () {
+    it('signs its picks for 12, 9 or 6 months and keeps $1M to $3M', function () {
+        $save = GameBuilder::newSave(seed: 'rival-budget');
+        $draft = app(DraftService::class);
+        $rival = $save->rivalBrand();
+
+        // The player stops at once; the rival drafts its whole roster.
+        $draft->finish($save, $save->player_brand);
+        $draft->runAi($save->refresh());
+
+        $lengths = DraftPick::with('saveWrestler.activeContract')
+            ->where('save_id', $save->id)
+            ->where('brand', $rival)
+            ->get()
+            ->map(fn (DraftPick $p): int => $p->saveWrestler->activeContract->length_weeks)
+            ->unique()
+            ->values()
+            ->all();
+        $left = $save->refresh()->brand($rival)->budget;
+
+        expect($draft->picksMade($save, $rival))->toBe(30)
+            ->and(array_diff($lengths, [52, 36, 24]))->toBe([])
+            ->and(count($lengths))->toBeGreaterThan(1)
+            ->and($left)->toBeGreaterThanOrEqual(1_000_000)
+            ->and($left)->toBeLessThanOrEqual(3_000_000 + 240_000);
+    });
+
+    it('starts each brand on $12M', function () {
+        expect((int) config('gm.starting_budget'))->toBe(12_000_000);
+    });
 });

@@ -17,7 +17,8 @@ return [
     /*
     | §1 Setup
     */
-    'starting_budget' => 15_000_000,
+    // House rule (2026-11-21): $12M (was $15M), for balance.
+    'starting_budget' => 12_000_000,
     'roster_cap' => 30,
     'initial_draft_max_picks' => 30,
 
@@ -224,9 +225,25 @@ return [
     | §20 / §21 Match outcomes (placeholder model).
     */
     'outcomes' => [
-        'base_side_weight' => 1.0,
-        // ASSUMPTION: specialty bonus amount is TBD.
-        'specialty_bonus_weight' => 1.0,
+        // Winning odds (house rule, 2026-11-21; `WinningOdds`): percentage points on
+        // top of an equal share per side. A side's points come off the other
+        // sides evenly, so equal modifiers cancel out.
+        'winning_odds' => [
+            // The match's family is a competitor's specialty: once per side.
+            'specialty' => 10,
+            // The side's best win streak going in: 5+, 10+ and 20+ wins.
+            'streaks' => [5 => 5, 10 => 10, 20 => 15],
+            // An Interview Space that aired for a competitor this week:
+            // +5 when it succeeded, -5 when it failed.
+            'interview_space' => 5,
+            // Each competitor with a minor injury.
+            'minor_injury' => -10,
+            // Only when every side is one weight class: this many points
+            // for every class a side is above the lightest side.
+            'weight_class_step' => 5,
+            // ASSUMPTION: no side drops below this share.
+            'min_chance' => 5,
+        ],
         // ASSUMPTION: clean-finish chance is TBD.
         'clean_finish_chance' => 0.60,
         'finish_event_weights' => [
@@ -362,6 +379,12 @@ return [
     /*
     | §8 Trades.
     */
+    // House rule (2026-11-21): the Records book's PPV leaderboards show this
+    // many superstars (more when tied at the cut).
+    'records' => [
+        'leaderboard_size' => 10,
+    ],
+
     'trades' => [
         'max_per_side' => 5,
         // The rival GM's answers are in `ai.trades`.
@@ -964,6 +987,26 @@ return [
             'fair_accept' => 0.75,
             'fair_ahead_accept' => [1 => 0.9, 2 => 1.0],
             'unfair_accept' => 0.25,
+            // House rule (2026-11-21): the rival GM's own offers (AiTradeOffers).
+            'offers' => [
+                // ASSUMPTION: on season weeks 8, 16, 24, 32, 40 and 48.
+                'every_weeks' => 8,
+                // ASSUMPTION: the offer is open this many weeks after it's sent.
+                'answer_weeks' => 2,
+                // It comes out this many points ahead, picked at random per offer
+                // (the 90% and 100% bands of fair_ahead_accept).
+                'ahead' => [1, 2],
+                // House rule (2026-11-21): it asks for between ask[0] and ask[1]
+                // of the player's superstars (how many drawn at random), from
+                // their `targets` most valuable tradeable ones, trying up to
+                // `ask_tries` sets of that size, most valuable first,
+                'ask' => [1, 5],
+                'targets' => 8,
+                'ask_tries' => 10,
+                // and offers up to max_give of its give_pool least valuable ones.
+                'give_pool' => 10,
+                'max_give' => 5,
+            ],
         ],
         // House rule (2026-11-13): stipulations it plans for (AiStipulationPlanner).
         'stipulations' => [
@@ -1004,6 +1047,14 @@ return [
             // Once it has a member of a tag team or stable, each pick has
             // this % chance (1-100) to go for a teammate who's still free.
             'teammate_chance' => 25,
+            // House rule (2026-11-21): it signs its draft picks for 12, 9 or
+            // 6 months (weeks), drawn at random, stepping down to a shorter
+            // deal when the longer one would eat into what it keeps back.
+            'lengths' => [52, 36, 24],
+            // It keeps back a random $1M to $3M (in $100,000 steps) for
+            // booking matches, drawn once per draft.
+            'reserve_min' => 1_000_000,
+            'reserve_max' => 3_000_000,
         ],
     ],
 ];

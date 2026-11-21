@@ -18,8 +18,8 @@ use Illuminate\Support\Collection;
 use InvalidArgumentException;
 
 /**
- * Placeholder outcome model (§20, §21): equal base weight per side, plus a
- * specialty bonus; roll the winner, then roll a finish event.
+ * Outcome model (§20): roll the winner on the winning odds (`WinningOdds`, house
+ * rule 2026-11-21), then roll a finish event.
  *
  * Match rules (house rules): without ring outs the fight can't leave the ring,
  * so there are no count-outs or run-ins; rope breaks make clean submissions
@@ -34,7 +34,7 @@ use InvalidArgumentException;
  */
 class MatchResolver
 {
-    public function __construct(private FactionNamer $factions) {}
+    public function __construct(private FactionNamer $factions, private WinningOdds $odds) {}
 
     /**
      * @param  Collection<int, Rivalry>  $activeRivalries
@@ -113,6 +113,7 @@ class MatchResolver
                 'interferer_id' => $last->interfererId,
                 'booked' => $booked !== null,
                 'summary' => $last->summary,
+                'winning_odds' => $last->winningOdds,
             ];
 
             if ($last->winnerSide === $holder) {
@@ -158,18 +159,20 @@ class MatchResolver
      *
      * @param  array<int, list<int>>  $sides
      * @param  Collection<int, Rivalry>  $activeRivalries
-     * @param  MatchFamily|null  $specialtyFamily  whose specialists get the bonus (default: the type's family)
+     * @param  MatchFamily|null  $specialtyFamily  whose specialists get the odds bonus (default: the type's family)
      */
     private function decide(MatchSlot $slot, array $sides, Rng $rng, Collection $activeRivalries, ?int $bookedSide, ?MatchFamily $specialtyFamily = null, ?ForcedOutcome $forced = null): ResolvedMatch
     {
         $before = $rng->steps();
+        // The odds going in, kept on the result even when booked or forced.
+        $odds = $this->odds->forSlot($slot, $sides, $specialtyFamily);
 
         if ($forced !== null) {
             // A conditional story decides it: the given winner, or anyone but the given loser.
             $winnerSide = $forced->winnerSide
                 ?? (int) $rng->pick(array_values(array_filter(array_keys($sides), fn (int $s): bool => $s !== $forced->loserSide)));
         } else {
-            $winnerSide = $bookedSide ?? (int) $rng->weightedPick($this->sideWeights($slot, $sides, $specialtyFamily));
+            $winnerSide = $bookedSide ?? (int) $rng->weightedPick(array_map(fn (array $side): float => $side['chance'], $odds['sides']));
         }
 
         $otherSides = array_values(array_filter(array_keys($sides), fn (int $s): bool => $s !== $winnerSide));
@@ -245,7 +248,7 @@ class MatchResolver
             $loserScore = $rng->int(0, $winnerScore - 1);
             [$method, $summary] = $this->timedFinish($slot, $text, $winnerScore, $loserScore);
 
-            return new ResolvedMatch($winnerSide, $loserSide, $winners, $losers, $method, null, null, $summary, $rng->steps() - $before, winnerScore: $winnerScore, loserScore: $loserScore);
+            return new ResolvedMatch($winnerSide, $loserSide, $winners, $losers, $method, null, null, $summary, $rng->steps() - $before, winnerScore: $winnerScore, loserScore: $loserScore, winningOdds: $odds);
         }
 
         // House rule: a Submission specialist wins a clean finish by submission.
@@ -263,6 +266,7 @@ class MatchResolver
             $interferer,
             $summary,
             $rng->steps() - $before,
+            winningOdds: $odds,
         );
     }
 
@@ -288,32 +292,6 @@ class MatchResolver
         }
 
         return $rng->pick($events);
-    }
-
-    /**
-     * Win weight per side: base weight plus the specialty bonus, with bonuses
-     * cancelling when several sides share the specialty (§21).
-     *
-     * @param  array<int, list<int>>|null  $sides  only these sides (a Gauntlet bout)
-     * @return array<int, float>
-     */
-    public function sideWeights(MatchSlot $slot, ?array $sides = null, ?MatchFamily $family = null): array
-    {
-        $family ??= $slot->matchType?->family;
-        $base = (float) config('gm.outcomes.base_side_weight');
-        $bonus = (float) config('gm.outcomes.specialty_bonus_weight');
-        $specialists = [];
-
-        foreach ($sides ?? $slot->sides() as $side => $ids) {
-            $specialists[$side] = $slot->competitors()
-                ->filter(fn (MatchParticipant $p): bool => $p->side === $side
-                    && $p->saveWrestler->wrestler->specialties->contains(fn (WrestlerSpecialty $s): bool => $s->family === $family))
-                ->count();
-        }
-
-        $shared = $specialists === [] ? 0 : min($specialists);
-
-        return array_map(fn (int $count): float => $base + ($count - $shared) * $bonus, $specialists);
     }
 
     /**

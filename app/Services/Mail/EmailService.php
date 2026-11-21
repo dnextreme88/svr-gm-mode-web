@@ -14,6 +14,8 @@ use App\Models\PendingRosterMove;
 use App\Models\PpvEvent;
 use App\Models\Save;
 use App\Models\SaveWrestler;
+use App\Models\Trade;
+use App\Models\TradeItem;
 use App\Services\Attendance\SummerSlamMainEvent;
 use App\Services\Calendar\CalendarService;
 use App\Services\Titles\TitleService;
@@ -328,6 +330,39 @@ class EmailService
             "{$opening}\n\n{$list($out)}\n\nfor\n\n{$list($in)}",
             $week,
             $this->rivalGm($proposer),
+        );
+    }
+
+    /**
+     * The rival GM offers the player a trade (house rule, 2026-11-21), with
+     * Accept and Decline on the email until it expires.
+     */
+    public function rivalTradeOffer(Save $save, Trade $trade, int $week): Email
+    {
+        $player = $save->player_brand;
+        $names = fn (string $direction): array => array_values($trade->items->where('direction', $direction)->map(fn (TradeItem $i): string => $i->saveWrestler->name())->all());
+        $list = fn (array $names): string => $names === [] ? '(nobody)' : implode('
+', $names);
+        $weeks = max(1, (int) $trade->expires_week - $week + 1);
+        $opening = $this->text($save, 'trade.offer', $player, $week, ['weeks' => $this->weeks($weeks)]);
+
+        return $this->send(
+            $save,
+            $player,
+            EmailTemplate::RivalTradeOffer,
+            'A trade offer for you',
+            ['trade_id' => $trade->id, 'gives' => $names('out'), 'gets' => $names('in')],
+            "{$opening}
+
+I give you:
+
+{$list($names('out'))}
+
+for
+
+{$list($names('in'))}",
+            $week,
+            $this->rivalGm($player),
         );
     }
 

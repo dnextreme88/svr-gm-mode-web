@@ -58,7 +58,7 @@ class DraftController extends Controller
             ])
             ->values();
 
-        $picks = DraftPick::with('saveWrestler.wrestler')
+        $picks = DraftPick::with('saveWrestler.wrestler.specialties')
             ->where('save_id', $save->id)
             ->where('season', $save->current_season)
             ->where('phase', DraftPhase::Initial)
@@ -146,7 +146,7 @@ class DraftController extends Controller
 
         $result = DB::transaction(fn (): array => $this->draft->aiStep($save));
         $save->refresh();
-        $pick = $result['pick']?->load('saveWrestler.wrestler');
+        $pick = $result['pick']?->load('saveWrestler.wrestler.specialties');
 
         return response()->json([
             'pick' => $pick === null ? null : $this->pickRow($pick),
@@ -209,6 +209,8 @@ class DraftController extends Controller
             'slug' => $p->saveWrestler?->wrestler->slug,
             'roster_type' => $p->saveWrestler?->wrestler->roster_type->value,
             'weight_class' => $p->saveWrestler?->wrestler->weight_class->value,
+            // Has a match specialty, for the brand card's count (2026-11-21).
+            'specialist' => $p->saveWrestler !== null && $p->saveWrestler->wrestler->specialties->isNotEmpty(),
             'pick_type' => $p->pick_type->value,
         ];
     }

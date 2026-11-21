@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Gm;
 
 use App\Enums\Brand;
+use App\Enums\ShowType;
 use App\Http\Controllers\Controller;
 use App\Http\Presenters\CardPresenter;
 use App\Models\MatchSlot;
@@ -11,6 +12,7 @@ use App\Models\Save;
 use App\Models\Show;
 use App\Services\Attendance\AttendanceNights;
 use App\Services\Calendar\CalendarService;
+use App\Services\Ppv\PpvRecords;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -22,7 +24,7 @@ use Inertia\Response;
  */
 class ReportsController extends Controller
 {
-    public function __invoke(Save $save, AttendanceNights $nights, CalendarService $calendar): Response
+    public function __invoke(Save $save, AttendanceNights $nights, CalendarService $calendar, PpvRecords $records): Response
     {
         $shows = Show::with('ppvEvent')
             ->where('save_id', $save->id)
@@ -67,6 +69,31 @@ class ReportsController extends Controller
             ->map(fn (PpvEvent $p): array => ['key' => $p->key->value, 'name' => $p->name, 'week' => (int) $p->season_week])
             ->values();
 
-        return Inertia::render('gm/reports', ['shows' => $shows, 'attendance' => $attendance, 'shared_ppvs' => $sharedPpvs]);
+        // House rule (2026-11-21): the Records book tab, PPVs only, both brands.
+        $ppvShows = Show::with('ppvEvent')
+            ->where('save_id', $save->id)
+            ->where('status', 'aired')
+            ->where('show_type', ShowType::Ppv)
+            ->orderByDesc('week_number')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Show $show): array => [
+                ...CardPresenter::show($show),
+                'outcomes' => MatchSlot::with(['matchType', 'participants.saveWrestler.wrestler', 'result', 'titleChampionship', 'gauntletBouts'])
+                    ->where('show_id', $show->id)
+                    ->whereHas('result')
+                    ->orderBy('position')
+                    ->get()
+                    ->map(fn (MatchSlot $slot): array => CardPresenter::outcome($slot))
+                    ->values(),
+            ])
+            ->values();
+
+        return Inertia::render('gm/reports', [
+            'shows' => $shows,
+            'attendance' => $attendance,
+            'shared_ppvs' => $sharedPpvs,
+            'records' => [...$records->build($save), 'ppv_shows' => $ppvShows],
+        ]);
     }
 }

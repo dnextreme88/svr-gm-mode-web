@@ -10,6 +10,7 @@ use App\Models\SaveWrestler;
 use App\Models\Trade;
 use App\Models\TradeItem;
 use App\Services\Ai\AiTradeJudge;
+use App\Services\Ai\AiTradeOffers;
 use App\Services\Injuries\InjuryStatus;
 use App\Services\Roster\RosterService;
 use App\Services\Roster\TradeService;
@@ -59,6 +60,8 @@ class TradeController extends Controller
                 'id' => $t->id,
                 'week_number' => $t->week_number,
                 'status' => $t->status->value,
+                // House rule (2026-11-21): the rival GM's own offers too.
+                'from_rival' => $t->proposer_brand === $save->rivalBrand(),
                 'out' => $t->items->where('direction', 'out')->map(fn (TradeItem $i): string => $i->saveWrestler->name())->values(),
                 'in' => $t->items->where('direction', 'in')->map(fn (TradeItem $i): string => $i->saveWrestler->name())->values(),
             ])->values(),
@@ -107,6 +110,26 @@ class TradeController extends Controller
         Inertia::flash('toast', $trade->status === TradeStatus::Accepted
             ? ['type' => 'success', 'message' => "{$save->rivalBrand()->label()} accepted the trade!"]
             : ['type' => 'error', 'message' => "{$save->rivalBrand()->label()} turned the offer down."]);
+
+        return back();
+    }
+
+    /**
+     * Accept the rival GM's offer (house rule, 2026-11-21): it goes through now.
+     */
+    public function accept(Save $save, Trade $trade, AiTradeOffers $offers): RedirectResponse
+    {
+        app(WeekResolver::class)->assertNotAiring($save);
+        DB::transaction(fn () => $offers->accept($save, $trade));
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Trade accepted. The superstars have switched brands.']);
+
+        return back();
+    }
+
+    public function decline(Save $save, Trade $trade, AiTradeOffers $offers): RedirectResponse
+    {
+        $offers->decline($save, $trade);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "You turned down {$save->rivalBrand()->label()}'s offer."]);
 
         return back();
     }

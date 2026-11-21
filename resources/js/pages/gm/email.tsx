@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/gm/confirm-dialog';
 import { ReleaseButton } from '@/components/gm/release-button';
 import { FilterGroup } from '@/components/gm/filter-group';
 import { MentionText } from '@/components/gm/mention-text';
+import { WeekSteps } from '@/components/gm/setup-steps';
 import { EmptyState, PageTitle } from '@/components/gm/panel';
 import {
     PickerButton,
@@ -18,6 +19,7 @@ import { usePopover } from '@/components/gm/popover';
 import { brandName, formatMoney, pluralize } from '@/lib/gm';
 import type { MentionMatcher, NamedWrestler } from '@/lib/mentions';
 import { buildMentionMatcher } from '@/lib/mentions';
+import { useBusy } from '@/lib/use-busy';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { EmailSenderKind, EmailTemplate, Morale } from '@/types/enums';
@@ -39,6 +41,15 @@ type EmailDetail = Omit<EmailSummary, 'read'> & {
     sender_wrestler_id: number | null;
     body: string | null;
     payload: Record<string, unknown>;
+    /** The rival GM's trade offer (house rule, 2026-11-21). */
+    trade_offer?: TradeOffer | null;
+};
+
+type TradeOffer = {
+    id: number;
+    status: import('@/types/enums').TradeStatus;
+    open: boolean;
+    expires_week: number | null;
 };
 
 type Category = { template: EmailTemplate; total: number; unread: number };
@@ -193,6 +204,8 @@ export default function Inbox() {
     return (
         <>
             <Head title="Email" />
+            {/* The end of the week just aired (house rule, 2026-11-21). */}
+            {filters.wrap && <WeekSteps current={5} />}
             <PageTitle
                 kicker={game.player_brand === 'raw' ? 'From JR' : 'From Tazz'}
                 title={<span className="flex items-center gap-3">Email</span>}
@@ -710,6 +723,10 @@ function EmailBody({
     email: EmailDetail;
     matcher: MentionMatcher;
 }) {
+    if (email.template === 'rival_trade_offer' && email.trade_offer) {
+        return <TradeOfferActions saveId={saveId} offer={email.trade_offer} />;
+    }
+
     if (email.template === 'expiring_contracts') {
         const rows = email.payload.rows as ExpiringRow[];
 
@@ -828,4 +845,96 @@ function EmailBody({
     }
 
     return null;
+}
+
+/**
+ * Accept or Decline the rival GM's trade offer (house rule, 2026-11-21),
+ * while it's open; after that, what became of it.
+ */
+function TradeOfferActions({
+    saveId,
+    offer,
+}: {
+    saveId: number;
+    offer: TradeOffer;
+}) {
+    const { isBusy, track, busy } = useBusy();
+    const [confirming, setConfirming] = useState(false);
+
+    if (!offer.open) {
+        const outcome: Record<string, string> = {
+            accepted: 'You accepted this offer.',
+            rejected: 'You turned this offer down.',
+            expired: 'This offer expired before you answered it.',
+            invalid: 'This offer could no longer go through.',
+            proposed: 'This offer is no longer open.',
+        };
+
+        return (
+            <p className="gm-label" data-testid="trade-offer-status">
+                {outcome[offer.status] ?? outcome.proposed}
+            </p>
+        );
+    }
+
+    const decline = () =>
+        router.post(
+            gm.trade.offers.decline.url({ save: saveId, trade: offer.id }),
+            {},
+            { preserveScroll: true, ...track('decline') },
+        );
+    const accept = () =>
+        router.post(
+            gm.trade.offers.accept.url({ save: saveId, trade: offer.id }),
+            {},
+            {
+                preserveScroll: true,
+                onStart: track('accept').onStart,
+                onFinish: () => {
+                    track('accept').onFinish();
+                    setConfirming(false);
+                },
+            },
+        );
+
+    return (
+        <div data-testid="trade-offer-actions">
+            {offer.expires_week !== null && (
+                <p className="mb-3 text-sm text-ink-faint">
+                    Open until the end of week {offer.expires_week}.
+                </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+                <button
+                    type="button"
+                    className="gm-btn gm-btn-gold"
+                    disabled={busy !== null}
+                    onClick={() => setConfirming(true)}
+                >
+                    Accept
+                </button>
+                <button
+                    type="button"
+                    className="gm-btn"
+                    disabled={busy !== null}
+                    aria-busy={isBusy('decline') || undefined}
+                    onClick={decline}
+                >
+                    <BusyLabel busy={isBusy('decline')} busyText="Declining…">
+                        Decline
+                    </BusyLabel>
+                </button>
+            </div>
+            <ConfirmDialog
+                open={confirming}
+                title="Accept this trade?"
+                message="The superstars switch brands right away, contracts and all. A Money in the Bank briefcase or a #1 contendership doesn't travel with them."
+                confirmLabel="Accept trade"
+                busy={isBusy('accept')}
+                busyText="Accepting…"
+                onConfirm={accept}
+                onCancel={() => setConfirming(false)}
+            />
+        </div>
+    );
 }

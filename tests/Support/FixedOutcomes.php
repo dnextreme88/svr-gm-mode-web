@@ -9,6 +9,7 @@ use App\Services\Factions\FactionNamer;
 use App\Services\Matches\ForcedOutcome;
 use App\Services\Matches\MatchResolver;
 use App\Services\Matches\ResolvedMatch;
+use App\Services\Matches\WinningOdds;
 use App\Support\Rng\Rng;
 use Illuminate\Support\Collection;
 
@@ -29,7 +30,7 @@ class FixedOutcomes extends MatchResolver
     {
         $fake = app()->bound(MatchResolver::class) && app(MatchResolver::class) instanceof self
             ? app(MatchResolver::class)
-            : new self(app(FactionNamer::class));
+            : new self(app(FactionNamer::class), app(WinningOdds::class));
 
         $fake->queue[] = ['winner' => $winner, 'method' => $method];
         app()->instance(MatchResolver::class, $fake);

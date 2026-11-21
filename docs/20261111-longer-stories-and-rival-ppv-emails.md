@@ -55,7 +55,7 @@ News summaries were mostly 1–3 sentences and emails 2–3 short paragraphs. Th
 ## TODOs added
 
 - Rework the Save career button.
-- Win odds design: specialty, win streak, weight class, minor injury, already booked that week, and a win-chance indicator on the outcome card.
+- Winning odds design: specialty, win streak, weight class, minor injury, already booked that week, and a win-chance indicator on the outcome card.
 
 ## Verification
 

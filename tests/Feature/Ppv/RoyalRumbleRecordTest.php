@@ -144,10 +144,11 @@ it('signs the rival’s draft picks for random lengths', function () {
         $save = app(NewGameService::class)->create('X', Brand::Raw, "lengths-{$i}");
 
         if ($save->draft_order[0] === 'smackdown') {
+            $expected = $ai->draftLength($save, Brand::Smackdown, 1)->value;
             $pick = app(DraftService::class)->aiStep($save)['pick'];
             $contract = Contract::where('save_wrestler_id', $pick->save_wrestler_id)->sole();
 
-            expect($contract->length_weeks)->toBe($ai->draftLength($save, Brand::Smackdown, 1)->value)
+            expect($contract->length_weeks)->toBe($expected)
                 ->and(DraftPick::where('save_id', $save->id)->count())->toBe(1);
 
             return;

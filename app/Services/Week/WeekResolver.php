@@ -57,6 +57,8 @@ class WeekResolver
         // After defections, so the rival GM can refill what it just lost.
         Steps\RivalRosterUpkeep::class,
         Steps\ApplyPendingMoves::class,
+        // House rule (2026-11-21): once the rosters are settled for the week.
+        Steps\RivalTradeOffer::class,
         Steps\TitleUpkeep::class,
         // House rule: the rival awards or forfeits its vacated titles' #1 contenderships.
         Steps\SettleTitleVacancies::class,

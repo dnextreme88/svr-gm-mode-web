@@ -413,7 +413,7 @@ describe('re-draft', function () {
             $have = SaveWrestler::where('save_id', $save->id)->where('brand', $brand)->count();
 
             foreach (SaveWrestler::where('save_id', $save->id)->whereNull('brand')->orderBy('id')->limit(30 - $have)->get() as $w) {
-                app(ContractService::class)->signDrafted($save, $w, $brand, 1);
+                app(ContractService::class)->signDrafted($save, $w, $brand, 1, checkBudget: false);
             }
         }
 

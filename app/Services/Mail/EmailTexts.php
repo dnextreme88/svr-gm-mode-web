@@ -142,6 +142,13 @@ class EmailTexts
             "I've looked it over, and I decline your trade. You'll have to do better than that. My superstars are worth more than what you're offering. Come back when you're serious. This is what you sent me.",
         ],
 
+        // Rival GM: its own trade offer (house rule, 2026-11-21).
+        'trade.offer' => [
+            "I've been looking over your roster, and I think we can help each other out. I've put together a trade that makes sense for both shows. Take a look at the names below and think it over. The offer stands for {weeks}, and after that it's off the table. Accept or decline right here in this email.",
+            "Let's talk business. There's talent on your roster I like, and I've got superstars who'd get more chances on your show than on mine. I'm offering you a fair deal, and I don't make many of those. You have {weeks} to answer before it expires. Accept or decline below, it's your call.",
+            "I'll keep this short, because my time is worth money. I want to make a trade, and I think you'll like what I'm sending your way. The paperwork is ready to go the moment you say yes. You've got {weeks} to decide, then I take my offer elsewhere. Accept or decline below.",
+        ],
+
         // Rival GM: the player's Slander.
         'slander.success' => [
             "I saw what you pulled with that smear campaign against {rival}. Cute. Enjoy it while it lasts. The fans are buying it for now, and my phone hasn't stopped ringing. But I don't forget, and I will get you back for this. You just made an enemy.",

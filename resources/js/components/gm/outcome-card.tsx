@@ -2,6 +2,7 @@ import { CashInTag, TitleMark } from '@/components/gm/badges';
 import { MatchHeading } from '@/components/gm/match-heading';
 import { Fragment } from 'react';
 import { SideNames } from '@/components/gm/champion-tag';
+import { WinningOdds } from '@/components/gm/winning-odds';
 import { cn } from '@/lib/utils';
 import type { MatchOutcome } from '@/types/gm';
 
@@ -120,6 +121,9 @@ export function OutcomeCard({
                 {outcome.summary}
             </p>
 
+            {/* The odds going in (house rule, 2026-11-21). */}
+            <WinningOdds odds={outcome.winning_odds} className="mt-6" />
+
             {outcome.bouts && outcome.bouts.length > 0 && (
                 <ol
                     data-testid="gauntlet-bouts"
@@ -150,6 +154,10 @@ export function OutcomeCard({
                             <p className="mt-0.5 text-sm text-ink-dim">
                                 {bout.summary}
                             </p>
+                            <WinningOdds
+                                odds={bout.winning_odds}
+                                className="mt-2"
+                            />
                         </li>
                     ))}
                 </ol>

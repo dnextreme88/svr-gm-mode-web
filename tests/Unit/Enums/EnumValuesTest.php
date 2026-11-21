@@ -55,7 +55,7 @@ dataset('spec enums', [
     'ReignEndReason (§16)' => [ReignEndReason::class, ['active', 'lost_match', 'defected', 'injured', 'loser_leaves', 'released', 'contract_expired']],
     'MitbStatus (§11)' => [MitbStatus::class, ['held', 'cashed_in_won', 'cashed_in_lost', 'expired', 'voided']],
     'TitleShotStatus (§22)' => [TitleShotStatus::class, ['pending', 'fulfilled', 'voided', 'forfeited']],
-    'TradeStatus (§11)' => [TradeStatus::class, ['proposed', 'accepted', 'rejected', 'invalid']],
+    'TradeStatus (§11)' => [TradeStatus::class, ['proposed', 'accepted', 'rejected', 'invalid', 'expired']],
     'DraftPhase (§11)' => [DraftPhase::class, ['initial', 'wrestlemania_reset']],
     'DraftPickSource (§11)' => [DraftPickSource::class, ['free_agency', 'rival_roster']],
     'DraftPickType (§11)' => [DraftPickType::class, ['manual', 'random']],

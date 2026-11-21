@@ -1,6 +1,11 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
-import { BookingAction, BookingSteps } from '@/components/gm/booking-steps';
+import {
+    BookingAction,
+    BookingSteps,
+    nightSteps,
+} from '@/components/gm/booking-steps';
+import { WeekSteps } from '@/components/gm/setup-steps';
 import type { BookingOrder } from '@/components/gm/booking-steps';
 import type { RepeatWarning } from '@/components/gm/air-week-button';
 import { BrandBug } from '@/components/gm/brand-bug';
@@ -206,6 +211,18 @@ export default function CardPage() {
                 <LoadingOverlay
                     text="Re-arranging your matches. Please wait…"
                     testId="reorder-overlay"
+                />
+            )}
+            {/* Where the week stands (house rule, 2026-11-21): this
+                week's cards are step 1. */}
+            {booking_order.airs_this_week && (
+                <WeekSteps
+                    current={1}
+                    ppv={
+                        booking_order.night === 'ppv'
+                            ? (nightSteps(booking_order)[0]?.name ?? 'the PPV')
+                            : null
+                    }
                 />
             )}
             <PageTitle

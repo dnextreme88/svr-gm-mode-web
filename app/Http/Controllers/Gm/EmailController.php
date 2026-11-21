@@ -9,6 +9,8 @@ use App\Http\Support\WrapUp;
 use App\Models\Email;
 use App\Models\Save;
 use App\Models\SaveWrestler;
+use App\Models\Trade;
+use App\Services\Ai\AiTradeOffers;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -81,6 +83,8 @@ class EmailController extends Controller
                 'subject' => $selected->subject,
                 'body' => $selected->body,
                 'payload' => $selected->payload,
+                // House rule (2026-11-21): the rival GM's offer, answerable while open.
+                'trade_offer' => $this->tradeOffer($save, $selected),
                 'season' => $selected->season,
                 'week_number' => $selected->week_number,
             ],
@@ -103,6 +107,32 @@ class EmailController extends Controller
                 ])
                 ->values(),
         ]);
+    }
+
+    /**
+     * The trade a rival GM offer email is about: its status, and whether it
+     * can still be answered.
+     *
+     * @return array{id: int, status: string, open: bool, expires_week: int|null}|null
+     */
+    private function tradeOffer(Save $save, Email $email): ?array
+    {
+        if ($email->template !== EmailTemplate::RivalTradeOffer) {
+            return null;
+        }
+
+        $trade = Trade::where('save_id', $save->id)->whereKey((int) ($email->payload['trade_id'] ?? 0))->first();
+
+        if ($trade === null) {
+            return null;
+        }
+
+        return [
+            'id' => $trade->id,
+            'status' => $trade->status->value,
+            'open' => app(AiTradeOffers::class)->isOpen($save, $trade),
+            'expires_week' => $trade->expires_week,
+        ];
     }
 
     /**

@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $eliminated_by_id
  * @property int|null $elimination_order
  * @property bool $won
+ * @property-read SaveWrestler $saveWrestler
  * @property-read SaveWrestler|null $eliminatedBy
  * @property-read MatchSlot $matchSlot
  */
@@ -30,6 +31,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class RoyalRumbleEntry extends Model
 {
     use BelongsToGame;
+
+    /**
+     * @return BelongsTo<SaveWrestler, $this>
+     */
+    public function saveWrestler(): BelongsTo
+    {
+        return $this->belongsTo(SaveWrestler::class);
+    }
 
     /**
      * @return BelongsTo<SaveWrestler, $this>

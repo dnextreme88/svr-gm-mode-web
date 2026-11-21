@@ -123,6 +123,8 @@ class DocsController extends Controller
                 'attendance_bonus' => (int) config('gm.finances.attendance_bonus'),
                 'ticket_prices' => array_map('intval', (array) config('gm.attendance.ticket_prices')),
             ],
+            // House rule (2026-11-21): the winning odds' modifiers.
+            'winning_odds' => (array) config('gm.outcomes.winning_odds'),
             'rosters' => [
                 'cap' => (int) config('gm.roster_cap'),
                 'starting_budget' => (int) config('gm.starting_budget'),
@@ -169,6 +171,9 @@ class DocsController extends Controller
                 'mitb' => (array) config('gm.ai.mitb'),
                 'max_focus_picks' => (int) config('gm.ai.draft.max_focus_picks'),
                 'teammate_chance' => (int) config('gm.ai.draft.teammate_chance'),
+                // House rule (2026-11-21): its draft contracts and the money it keeps back.
+                'draft_lengths' => array_map('intval', (array) config('gm.ai.draft.lengths')),
+                'draft_reserve' => [(int) config('gm.ai.draft.reserve_min'), (int) config('gm.ai.draft.reserve_max')],
                 'low_cash' => (int) config('gm.emails.low_cash_threshold'),
             ],
             'promos' => [
@@ -353,6 +358,7 @@ class DocsController extends Controller
             ['Deficit', $jrTazz, 'After '.(int) config('gm.finances.deficit_weeks_limit').' straight weeks in the red. You must pick a way to recover before the next week airs.', ['deficit' => 'The warning']],
             ['Defection attempt', $jrTazz, 'When an Unsatisfied or Upset superstar tries to jump to the other brand.', ['defection' => 'The warning']],
             ['Trade answer', $rivalGm, 'Right after every trade offer: accepted or declined, with each superstar on its own line.', ['trade.accepted' => 'Accepted', 'trade.declined' => 'Declined']],
+            ['Trade offer', $rivalGm, 'Every '.(int) config('gm.ai.trades.offers.every_weeks').' season weeks, when a fair offer fits: the rival asks for 1 to 5 of your superstars and offers some of its own, coming out 1 or 2 of its trade points ahead. Accept or Decline on the email; it expires after '.(int) config('gm.ai.trades.offers.answer_weeks').' weeks.', ['trade.offer' => 'The offer']],
             ['Slander reaction', $rivalGm, 'After your Slander promo airs. Furious and out for revenge if it worked, laughing at you if it didn’t.', ['slander.success' => 'It worked', 'slander.failure' => 'It failed']],
             ['Interference reaction', $rivalGm, 'After your Interference promo airs on their show. Furious about the damage and the bill, and vowing revenge, if it worked; gloating if it was foiled.', ['interference.success' => 'It worked', 'interference.failure' => 'It was foiled']],
             ['Before a shared PPV', $rivalGm, "{$emails['rival_ppv_weeks_before']} week before SummerSlam, Survivor Series, Royal Rumble and WrestleMania. Polite or arrogant, at even odds; before SummerSlam it talks about who is ahead in the crowd race.", [

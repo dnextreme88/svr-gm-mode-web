@@ -15,6 +15,7 @@ use App\Models\Save;
 use App\Models\SaveFaction;
 use App\Models\SaveWrestler;
 use App\Models\Show;
+use App\Models\Wrestler;
 use App\Services\Card\CardRandomizer;
 use App\Services\Card\CardService;
 use App\Services\Contracts\ContractPricing;
@@ -121,12 +122,75 @@ class AiGm
 
     /**
      * How long the rival signs an initial draft pick for (house rule,
-     * 2026-11-15): 1, 3, 6, 9 or 12 months at random, on its own stream so
-     * it doesn't change who it picks.
+     * 2026-11-21): 12, 9 or 6 months at random (`gm.ai.draft.lengths`), on
+     * its own stream so it doesn't change who it picks. A length that would
+     * leave too little for its remaining picks at the shortest length, plus
+     * the money it keeps back (`draftReserve`), steps down to a shorter one.
      */
     public function draftLength(Save $save, Brand $brand, int $pickNumber): ContractLength
     {
-        return $save->rng("ai.draft.length.{$brand->value}.{$pickNumber}", 0)->pick(ContractLength::cases());
+        $lengths = array_map(fn (int $weeks): ContractLength => ContractLength::from($weeks), (array) config('gm.ai.draft.lengths'));
+        usort($lengths, fn (ContractLength $a, ContractLength $b): int => $b->value <=> $a->value);
+
+        // No lengths configured: the draft's own default.
+        if ($lengths === []) {
+            return DraftService::defaultLength();
+        }
+
+        $drawn = $save->rng("ai.draft.length.{$brand->value}.{$pickNumber}", 0)->pick($lengths);
+        $spendable = $this->draftSpendable($save, $brand, $pickNumber);
+        $salary = $this->referenceSalary();
+        $shortest = $drawn;
+
+        foreach ($lengths as $length) {
+            if ($length->value > $drawn->value) {
+                continue;
+            }
+
+            $shortest = $length;
+
+            if ($salary * $length->months() <= $spendable) {
+                return $length;
+            }
+        }
+
+        return $shortest;
+    }
+
+    /**
+     * What one pick can cost and still leave the rest of its picks (at the
+     * shortest length) and its reserve covered.
+     */
+    public function draftSpendable(Save $save, Brand $brand, int $pickNumber): int
+    {
+        $lengths = array_map(fn (int $weeks): ContractLength => ContractLength::from($weeks), (array) config('gm.ai.draft.lengths'));
+        $shortest = min([...array_map(fn (ContractLength $l): int => $l->months(), $lengths), PHP_INT_MAX]);
+        $after = max(0, (int) config('gm.initial_draft_max_picks') - $pickNumber);
+
+        return app(DraftService::class)->availableBudget($save, $brand)
+            - $this->draftReserve($save, $brand)
+            - $after * $shortest * $this->referenceSalary();
+    }
+
+    /**
+     * The money the rival keeps back from the draft for booking matches
+     * (house rule, 2026-11-21): $1M to $3M, drawn once per draft.
+     */
+    public function draftReserve(Save $save, Brand $brand): int
+    {
+        $step = 100_000;
+        $min = intdiv((int) config('gm.ai.draft.reserve_min'), $step);
+        $max = intdiv((int) config('gm.ai.draft.reserve_max'), $step);
+
+        return $save->rng("ai.draft.reserve.{$brand->value}", 0)->int($min, $max) * $step;
+    }
+
+    /**
+     * A male superstar's monthly salary: the most a non-Legend costs.
+     */
+    private function referenceSalary(): int
+    {
+        return (int) Wrestler::where('roster_type', '!=', RosterType::Legend->value)->max('monthly_salary');
     }
 
     /**
@@ -143,14 +207,22 @@ class AiGm
         // Salaries are weekly: what's left is the budget minus every contract's value.
         $budget = app(DraftService::class)->availableBudget($save, $brand);
         $length = $this->draftLength($save, $brand, $pickNumber);
+        // House rule (2026-11-21): within what keeps its reserve and its
+        // remaining picks covered; past that, anyone it can still afford.
+        $spendable = $this->draftSpendable($save, $brand, $pickNumber);
 
-        $pool = $this->roster->freeAgentsQuery($save, $save->current_week)
+        $free = $this->roster->freeAgentsQuery($save, $save->current_week)
             ->with('wrestler')
             ->orderBy('id')
             ->get()
             ->filter(fn (SaveWrestler $w): bool => $w->wrestler->isDraftable()
                 && $this->pricing->quote($w->wrestler, $length)['total'] <= $budget)
             ->values();
+        $pool = $free->filter(fn (SaveWrestler $w): bool => $this->pricing->quote($w->wrestler, $length)['total'] <= $spendable)->values();
+
+        if ($pool->isEmpty()) {
+            $pool = $free;
+        }
 
         if ($pool->isEmpty()) {
             return null;

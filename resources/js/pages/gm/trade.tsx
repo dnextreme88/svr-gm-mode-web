@@ -86,6 +86,8 @@ type Props = GamePageProps & {
         id: number;
         week_number: number;
         status: TradeStatus;
+        /** The rival GM's own offer (house rule, 2026-11-21). */
+        from_rival?: boolean;
         out: string[];
         in: string[];
     }>;
@@ -361,6 +363,11 @@ export default function ProposeTrade() {
                                     <span className="gm-num mr-2 text-ink-faint">
                                         W{t.week_number}
                                     </span>
+                                    {t.from_rival && (
+                                        <span className="gm-label mr-2 text-rival">
+                                            Their offer
+                                        </span>
+                                    )}
                                     {t.out.join(', ') || 'nothing'}{' '}
                                     <span className="text-ink-faint">for</span>{' '}
                                     {t.in.join(', ') || 'nothing'}
@@ -571,6 +578,11 @@ function TradeRules({
                     <li>
                         A traded Money in the Bank holder loses the briefcase,
                         and a traded #1 contender loses the title shot.
+                    </li>
+                    <li>
+                        Every few weeks the rival GM emails you an offer of its
+                        own. Accept or decline it from the email before it
+                        expires.
                     </li>
                 </ul>
                 {judge && (

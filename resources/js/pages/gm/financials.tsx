@@ -6,6 +6,7 @@ import { BusyLabel } from '@/components/gm/busy-label';
 import { DisclosureChevron, DisclosurePanel } from '@/components/gm/disclosure';
 import { FinanceTrend } from '@/components/gm/finance-trend';
 import type { TrendWeek } from '@/components/gm/finance-trend';
+import { WeekSteps } from '@/components/gm/setup-steps';
 import { EmptyState, PageTitle, Panel, Stat } from '@/components/gm/panel';
 import { brandName, formatMoney, formatSignedMoney, pluralize } from '@/lib/gm';
 import { cn } from '@/lib/utils';
@@ -294,6 +295,8 @@ export default function Financials() {
     return (
         <>
             <Head title="Financials" />
+            {/* The end of the week just aired (house rule, 2026-11-21). */}
+            {props.wrap_up && <WeekSteps current={3} />}
             <PageTitle kicker="Income statement" title="Financials">
                 {props.wrap_up ? (
                     <Link

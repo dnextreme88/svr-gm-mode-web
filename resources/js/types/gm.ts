@@ -258,6 +258,8 @@ export type MatchOutcome = {
     mitb_cash_in?: import('./enums').MitbCashInTiming | null;
     /** A Gauntlet's bouts, in order. */
     bouts?: GauntletBout[];
+    /** Each side's win chance going in (house rule, 2026-11-21); null before it existed. */
+    winning_odds?: WinningOddsSide[] | null;
     rating: number | null;
     fan_delta: number | null;
 };
@@ -270,6 +272,18 @@ export type GauntletBout = {
     method_label: string;
     booked: boolean;
     summary: string;
+    winning_odds?: WinningOddsSide[] | null;
+};
+
+/** One side's win chance and the modifiers behind it (house rule, 2026-11-21). */
+export type WinningOddsSide = {
+    side: number;
+    label: string;
+    /** Percent, 0–100. */
+    chance: number;
+    /** The side's modifiers added up, in percentage points. */
+    points: number;
+    factors: Array<{ label: string; points: number }>;
 };
 
 export type PendingMatch = {
@@ -310,6 +324,10 @@ export type PendingMatch = {
     factions?: MatchFaction[];
     /** A Gauntlet: the sides are the entrants in order, decided bout by bout. */
     gauntlet?: boolean;
+    /** Each side's win chance (house rule, 2026-11-21); null for a Gauntlet. */
+    winning_odds?: WinningOddsSide[] | null;
+    /** A Gauntlet's odds for every pair of entrants, keyed "a-b". */
+    bout_odds?: Record<string, WinningOddsSide[]> | null;
 };
 
 /** A promo on the results screen, placed before the match it aired in front of. */
