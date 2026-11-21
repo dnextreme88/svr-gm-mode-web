@@ -398,3 +398,48 @@ describe('Season welcome (house rule, 2026-11-16)', () => {
         expect(screen.queryByText(/Welcome to Season/)).toBeNull();
     });
 });
+
+describe('Guided tour (house rule, 2026-11-21)', () => {
+    const page = props as typeof props & {
+        tour?: { career: number; auto: boolean };
+    };
+
+    beforeEach(() => window.localStorage.clear());
+
+    it('opens on its own in the first week, steps through every tab, once per career', async () => {
+        page.tour = { career: 1, auto: true };
+        const user = userEvent.setup();
+        const { unmount } = render(<Schedule />);
+
+        const dialog = screen.getByTestId('guided-tour');
+        expect(within(dialog).getByTestId('tour-progress')).toHaveTextContent(
+            '1 of 12 · Schedule',
+        );
+        await user.click(within(dialog).getByRole('button', { name: 'Next' }));
+        expect(within(dialog).getByTestId('tour-progress')).toHaveTextContent(
+            '2 of 12 · Email',
+        );
+        await user.click(within(dialog).getByRole('button', { name: 'Back' }));
+        expect(within(dialog).getByTestId('tour-progress')).toHaveTextContent(
+            '1 of 12',
+        );
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Skip tour' }),
+        );
+        expect(screen.queryByTestId('guided-tour')).toBeNull();
+
+        unmount();
+        render(<Schedule />);
+        expect(screen.queryByTestId('guided-tour')).toBeNull();
+        page.tour = undefined;
+    });
+
+    it('opens again from Take the tour', async () => {
+        const user = userEvent.setup();
+        render(<Schedule />);
+
+        expect(screen.queryByTestId('guided-tour')).toBeNull();
+        await user.click(screen.getByTestId('take-tour'));
+        expect(screen.getByTestId('guided-tour')).toBeInTheDocument();
+    });
+});

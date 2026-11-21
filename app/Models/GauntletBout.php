@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property FinishEvent|null $finish_event
  * @property int|null $interferer_id
  * @property bool $booked
+ * @property array<string, mixed>|null $winning_odds the bout's win chances going in (house rule, 2026-11-21)
  * @property string $summary
  * @property-read MatchSlot $matchSlot
  */
@@ -42,6 +43,7 @@ class GauntletBout extends Model
             'method' => MatchMethod::class,
             'finish_event' => FinishEvent::class,
             'booked' => 'boolean',
+            'winning_odds' => 'array',
         ];
     }
 }

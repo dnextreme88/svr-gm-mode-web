@@ -41,4 +41,6 @@ enum EmailTemplate: string
     // House rule (2026-11-15): a superstar after their Call-out promo.
     case CallOutFace = 'call_out_face';
     case CallOutHeel = 'call_out_heel';
+    // House rule (2026-11-21): the rival GM offers the player a trade.
+    case RivalTradeOffer = 'rival_trade_offer';
 }

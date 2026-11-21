@@ -212,7 +212,7 @@ it('charges each contract in full when signed, with no weekly salaries (house ru
     // Two male superstars on 12 months: $480,000 each, paid at signing.
     expect($signings->pluck('amount')->all())->toBe([-480_000, -480_000])
         ->and($signings->pluck('memo')->all())->toBe(['Signed Edge for 12 months', 'Signed Kane for 12 months'])
-        ->and($save->brand(Brand::Raw)->budget)->toBe(15_000_000 - 960_000);
+        ->and($save->brand(Brand::Raw)->budget)->toBe(12_000_000 - 960_000);
 
     app(WeekResolver::class)->resolve($save->refresh());
 

@@ -220,6 +220,7 @@ class ShowResolver
             'summary' => $resolved->summary,
             'winner_score' => $resolved->winnerScore,
             'loser_score' => $resolved->loserScore,
+            'winning_odds' => $resolved->winningOdds,
             'rng_seed_step' => $rng->steps(),
         ]);
 

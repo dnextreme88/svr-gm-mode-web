@@ -224,7 +224,7 @@ class AiTradeJudge
      * @param  list<int>  $outIds
      * @param  list<int>  $inIds
      */
-    private function breaksATitle(Save $save, Brand $rival, array $outIds, array $inIds): bool
+    public function breaksATitle(Save $save, Brand $rival, array $outIds, array $inIds): bool
     {
         $before = SaveWrestler::with('wrestler')->where('save_id', $save->id)->where('brand', $rival)->get();
         $arriving = SaveWrestler::with('wrestler')->whereIn('id', $outIds)->get();

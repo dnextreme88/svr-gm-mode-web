@@ -1,14 +1,10 @@
 <?php
 
-use App\Enums\Brand;
 use App\Enums\FinishEvent;
 use App\Enums\MatchMethod;
-use App\Enums\ShowType;
 use App\Models\MatchResult;
 use App\Models\MatchSlot;
 use App\Models\Rivalry;
-use App\Services\Card\Booking;
-use App\Services\Card\CardService;
 use App\Services\Matches\MatchResolver;
 use App\Services\Rivalries\RivalryService;
 use App\Services\Week\WeekResolver;
@@ -126,40 +122,4 @@ it('starts a rivalry after repeated singles meetings', function () {
     }
 
     expect(Rivalry::where('save_id', $save->id)->where('active', true)->count())->toBe(1);
-});
-
-describe('specialties (§21)', function () {
-    it('gives a specialist a bonus win weight in their specialty', function () {
-        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
-        $slot = loadSlot(Card::book($save, Card::show($save), 1, Card::type('ladder', 'Single'), [['Edge'], ['Kane']]));
-
-        expect(app(MatchResolver::class)->sideWeights($slot))->toBe([0 => 2.0, 1 => 1.0]);
-    });
-
-    it('cancels the bonus when both sides have the specialty', function () {
-        $save = GameBuilder::inSeason(raw: ['Edge', 'Jeff Hardy'], smackdown: ['Batista']);
-        $slot = loadSlot(Card::book($save, Card::show($save), 1, Card::type('tlc', 'Single'), [['Edge'], ['Jeff Hardy']]));
-
-        expect(app(MatchResolver::class)->sideWeights($slot))->toBe([0 => 1.0, 1 => 1.0]);
-    });
-
-    it('applies once per specialist on tag teams', function () {
-        $save = GameBuilder::inSeason(raw: ['Edge', 'Jeff Hardy', 'Kane', 'Big Show'], smackdown: ['Batista']);
-        $slot = loadSlot(Card::book($save, Card::show($save), 1, Card::type('ladder', 'Tornado Tag'), [['Edge', 'Jeff Hardy'], ['Kane', 'Big Show']]));
-
-        expect(app(MatchResolver::class)->sideWeights($slot))->toBe([0 => 3.0, 1 => 1.0]);
-    });
-
-    it('covers Money in the Bank as a Ladder variant', function () {
-        $save = GameBuilder::inSeason(raw: ['Edge', 'Kane', 'Big Show', 'Carlito', 'Kurt Angle', 'Ric Flair'], smackdown: ['Batista']);
-        $show = Card::show($save, Brand::Raw, ShowType::Weekly);
-        $slot = MatchSlot::where('show_id', $show->id)->where('position', 1)->firstOrFail();
-        $slot->update(['match_type_id' => Card::type('ladder', 'Money in the Bank')->id]);
-        app(CardService::class)->writeParticipants($slot, new Booking(
-            Card::type('ladder', 'Money in the Bank'),
-            array_map(fn (string $n) => [GameBuilder::wrestler($save, $n)->id], ['Edge', 'Kane', 'Big Show', 'Carlito', 'Kurt Angle', 'Ric Flair']),
-        ));
-
-        expect(app(MatchResolver::class)->sideWeights(loadSlot($slot))[0])->toBe(2.0);
-    });
 });

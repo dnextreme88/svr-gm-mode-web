@@ -11,6 +11,12 @@ import {
 import { PageTitle, Panel, Stat } from '@/components/gm/panel';
 import { SetupSteps } from '@/components/gm/setup-steps';
 import { PoolFilters } from '@/components/gm/pool-filters';
+import {
+    ariaSort,
+    nextSort,
+    SortHeader,
+    type SortState,
+} from '@/components/gm/sort-header';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import {
     brandName,
@@ -27,7 +33,11 @@ import { usePoolFilterUrl } from '@/lib/use-url-param';
 import { cn } from '@/lib/utils';
 import gm from '@/routes/gm';
 import type { Brand, RosterType, WeightClass } from '@/types/enums';
-import { RosterTypeLabels, WeightClassLabels } from '@/types/enums';
+import {
+    RosterTypeLabels,
+    WeightClass as WeightClasses,
+    WeightClassLabels,
+} from '@/types/enums';
 import type { GamePageProps, WrestlerRow } from '@/types/gm';
 
 type Quote = {
@@ -50,6 +60,8 @@ type Pick = {
     slug?: string | null;
     roster_type: RosterType | null;
     weight_class: WeightClass | null;
+    /** Has a match specialty (for the brand card's count). */
+    specialist?: boolean;
     pick_type: 'manual' | 'random';
 };
 
@@ -86,6 +98,47 @@ type BoardView = 'all' | 'by-show';
 
 const sleep = (ms: number) =>
     new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** How long the board stays on screen after the last pick, before the overlay. */
+const LAST_PICK_PAUSE_MS = 1800;
+
+type PoolSortKey = 'name' | 'class';
+
+/** Lightest to heaviest, the order the weight classes are listed in. */
+const CLASS_ORDER: WeightClass[] = Object.values(WeightClasses);
+
+/** The pool sorted by name or by weight class (then name). */
+export function sortPool<T extends { name: string; weight_class: WeightClass }>(
+    rows: T[],
+    sort: SortState<PoolSortKey>,
+): T[] {
+    if (!sort) {
+        return rows;
+    }
+
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    const byName = (a: T, b: T) => a.name.localeCompare(b.name);
+    const byClass = (a: T, b: T) =>
+        CLASS_ORDER.indexOf(a.weight_class) -
+        CLASS_ORDER.indexOf(b.weight_class);
+
+    return [...rows].sort((a, b) =>
+        sort.key === 'name'
+            ? dir * byName(a, b)
+            : dir * byClass(a, b) || byName(a, b),
+    );
+}
+
+/** A brand's picks so far: men, Divas and superstars with a specialty. */
+export function pickCounts(picks: Pick[]) {
+    const made = picks.filter((p) => p.save_wrestler_id !== null);
+
+    return {
+        superstars: made.filter((p) => p.roster_type !== 'diva').length,
+        divas: made.filter((p) => p.roster_type === 'diva').length,
+        specialists: made.filter((p) => p.specialist).length,
+    };
+}
 
 export default function Draft() {
     const props = usePage<Props>().props;
@@ -276,6 +329,9 @@ export default function Draft() {
         }
 
         if (over) {
+            // Leave the last pick on the board for a moment (2026-11-21), so
+            // the rival's final pick is seen before the overlay covers it.
+            await sleep(skip.current ? 0 : LAST_PICK_PAUSE_MS);
             setDraftOver(true);
         } else if (abort.current) {
             router.post(gm.draft.aiFinish.url(game.id));
@@ -291,9 +347,11 @@ export default function Draft() {
         }
     }, [aiTurn, runAi]);
 
+    // Sort the pool by name or class (2026-11-21); the server sends it by name.
+    const [poolSort, setPoolSort] = useState<SortState<PoolSortKey>>(null);
     const visible = useMemo(
-        () => filterPool(pool, poolFilter),
-        [pool, poolFilter],
+        () => sortPool(filterPool(pool, poolFilter), poolSort),
+        [pool, poolFilter, poolSort],
     );
 
     const skipRestOfDraft = () => {
@@ -455,6 +513,9 @@ export default function Draft() {
                         mine={brand === game.player_brand}
                         drafting={nextBrand === brand}
                         picks={picksMade[brand]}
+                        counts={pickCounts(
+                            picks.filter((p) => p.brand === brand),
+                        )}
                         maxPicks={max_picks}
                         budget={
                             budgets?.[brand] ??
@@ -507,9 +568,37 @@ export default function Draft() {
                         <table className="gm-table">
                             <thead className="sticky top-0 z-10 bg-arena-2">
                                 <tr>
-                                    <th>Superstar</th>
+                                    <th aria-sort={ariaSort(poolSort, 'name')}>
+                                        <SortHeader
+                                            label="Superstar"
+                                            active={
+                                                poolSort?.key === 'name'
+                                                    ? poolSort.dir
+                                                    : null
+                                            }
+                                            onClick={() =>
+                                                setPoolSort(
+                                                    nextSort(poolSort, 'name'),
+                                                )
+                                            }
+                                        />
+                                    </th>
                                     <th>Type</th>
-                                    <th>Class</th>
+                                    <th aria-sort={ariaSort(poolSort, 'class')}>
+                                        <SortHeader
+                                            label="Class"
+                                            active={
+                                                poolSort?.key === 'class'
+                                                    ? poolSort.dir
+                                                    : null
+                                            }
+                                            onClick={() =>
+                                                setPoolSort(
+                                                    nextSort(poolSort, 'class'),
+                                                )
+                                            }
+                                        />
+                                    </th>
                                     <th>Specialties</th>
                                     <th>Contract</th>
                                     <th className="text-right">Total</th>
@@ -689,6 +778,7 @@ function BrandDraftCard({
     mine,
     drafting,
     picks,
+    counts,
     maxPicks,
     budget,
 }: {
@@ -696,6 +786,8 @@ function BrandDraftCard({
     mine: boolean;
     drafting: boolean;
     picks: number;
+    /** Who it has picked so far (2026-11-21). */
+    counts: ReturnType<typeof pickCounts>;
     maxPicks: number;
     budget: number | null;
 }) {
@@ -729,6 +821,26 @@ function BrandDraftCard({
                             }
                         />
                     </div>
+                    {/* Who it has drafted (2026-11-21), above the turn line. */}
+                    <dl
+                        className="grid grid-cols-3 gap-2 text-sm"
+                        data-testid={`brand-counts-${brand}`}
+                    >
+                        {(
+                            [
+                                ['Superstars', counts.superstars],
+                                ['Divas', counts.divas],
+                                ['Specialists', counts.specialists],
+                            ] as const
+                        ).map(([label, value]) => (
+                            <div key={label}>
+                                <dt className="gm-label">{label}</dt>
+                                <dd className="gm-num text-lg text-ink">
+                                    {value}
+                                </dd>
+                            </div>
+                        ))}
+                    </dl>
                     {/* Keeps its height so both cards stay level. */}
                     <div className="min-h-5">
                         {drafting && (

@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { BrandBug, PpvBug } from '@/components/gm/brand-bug';
 import { ConfirmDialog } from '@/components/gm/confirm-dialog';
+import { GuidedTour } from '@/components/gm/guided-tour';
 import { PageTitle } from '@/components/gm/panel';
 import { pluralize, readPreference, writePreference } from '@/lib/gm';
 import { requestJson } from '@/lib/http';
@@ -49,6 +50,8 @@ type Props = GamePageProps & {
     initial_month: string;
     /** The new season to welcome, after the re-draft's News (2026-11-16). */
     welcome_season?: number | null;
+    /** The guided tour (house rule, 2026-11-21). */
+    tour?: { career: number; auto: boolean };
 };
 
 const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -88,8 +91,28 @@ function longDate(date: string): string {
  * order, or one of your own later show nights to simulate up to it.
  */
 export default function Schedule() {
-    const { game, season, seasons, months, initial_month, welcome_season } =
-        usePage<Props>().props;
+    const {
+        game,
+        season,
+        seasons,
+        months,
+        initial_month,
+        welcome_season,
+        tour,
+    } = usePage<Props>().props;
+    // House rule (2026-11-21): the guided tour opens on its own once per
+    // career, in its first week (remembered per browser), and Take the tour
+    // opens it again any time.
+    const tourKey = `gm.tour.${game.id}.${tour?.career ?? 0}`;
+    const [touring, setTouring] = useState(
+        () =>
+            tour?.auto === true &&
+            readPreference(tourKey, 'unseen', ['unseen', 'seen']) === 'unseen',
+    );
+    const endTour = () => {
+        writePreference(tourKey, 'seen');
+        setTouring(false);
+    };
     // House rule (2026-11-16): a new season opens with a welcome, once per
     // browser (a refresh doesn't bring it back).
     const welcomeKey = `gm.season-welcome.${game.id}.${welcome_season ?? 0}`;
@@ -158,6 +181,14 @@ export default function Schedule() {
         <>
             <Head title="Schedule" />
             <PageTitle kicker={`Season ${season}`} title="Schedule">
+                <button
+                    type="button"
+                    className="gm-btn gm-btn-ghost gm-btn-sm"
+                    data-testid="take-tour"
+                    onClick={() => setTouring(true)}
+                >
+                    Take the tour
+                </button>
                 {seasons.length > 1 && (
                     <nav
                         aria-label="Seasons"
@@ -261,6 +292,8 @@ export default function Schedule() {
                     </li>
                 </ul>
             </section>
+
+            <GuidedTour open={touring && !welcome} onClose={endTour} />
 
             <ConfirmDialog
                 open={welcome}

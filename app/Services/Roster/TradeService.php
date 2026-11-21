@@ -161,7 +161,10 @@ class TradeService
         return $trade;
     }
 
-    public function execute(Trade $trade): void
+    /**
+     * @param  bool  $answer  the rival GM answers the player's offer by email (not for its own offers)
+     */
+    public function execute(Trade $trade, bool $answer = true): void
     {
         $save = $trade->game;
         $week = $trade->week_number;
@@ -188,6 +191,10 @@ class TradeService
             'brand_b' => $rival->label(),
             'wrestlers_in' => $names('in'),
         ], ['wrestler_ids' => $trade->items->pluck('save_wrestler_id')->all()], priority: 85, week: $week);
+
+        if (! $answer) {
+            return;
+        }
 
         // The rival GM answers the offer.
         $this->emails->tradeAnswer($save, $proposer, true, $this->namesFor($trade, 'out'), $this->namesFor($trade, 'in'), $week);

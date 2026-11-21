@@ -35,7 +35,8 @@ final readonly class ResolvedMatch
     /**
      * @param  list<int>  $winners
      * @param  list<int>  $losers
-     * @param  list<array{round: int, side_a: int, side_b: int, winner_side: int, method: MatchMethod, finish_event: FinishEvent|null, interferer_id: int|null, booked: bool, summary: string}>  $bouts  a Gauntlet's bouts, in order
+     * @param  list<array{round: int, side_a: int, side_b: int, winner_side: int, method: MatchMethod, finish_event: FinishEvent|null, interferer_id: int|null, booked: bool, summary: string, winning_odds: array<string, mixed>|null}>  $bouts  a Gauntlet's bouts, in order
+     * @param  array<string, mixed>|null  $winningOdds  the winning odds going in (`WinningOdds::forSlot`); null for a Gauntlet, whose bouts carry their own
      */
     public function __construct(
         public int $winnerSide,
@@ -50,6 +51,7 @@ final readonly class ResolvedMatch
         public array $bouts = [],
         public ?int $winnerScore = null,
         public ?int $loserScore = null,
+        public ?array $winningOdds = null,
     ) {}
 
     /**

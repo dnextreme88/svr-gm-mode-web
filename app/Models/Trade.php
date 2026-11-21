@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property Brand $proposer_brand
  * @property TradeStatus $status
  * @property string|null $note
+ * @property int|null $expires_week a rival GM offer's last week to answer (house rule, 2026-11-21)
  * @property-read Collection<int, TradeItem> $items
  */
 #[Unguarded]

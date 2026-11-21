@@ -86,6 +86,16 @@ class Save extends Model
     }
 
     /**
+     * For the trade offer routes' scoped binding.
+     *
+     * @return HasMany<Trade, $this>
+     */
+    public function trades(): HasMany
+    {
+        return $this->hasMany(Trade::class);
+    }
+
+    /**
      * @return HasMany<NewsEvent, $this>
      */
     public function newsEvents(): HasMany

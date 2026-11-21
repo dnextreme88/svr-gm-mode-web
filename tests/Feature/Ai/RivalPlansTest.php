@@ -223,6 +223,8 @@ describe('roster', function () {
     it('fills up to 30, signing Legends first up to 3, within budget', function () {
         $save = planSave();
         config(['gm.ai.roster.target_size' => 30, 'gm.ai.roster.legend_chance' => 1.0]);
+        // Enough to sign everyone at full price (the $12M start is spent on the test roster).
+        $save->brand(Brand::Raw)->update(['budget' => 20_000_000]);
 
         app(AiRosterManager::class)->sign($save, Brand::Raw, 1);
 

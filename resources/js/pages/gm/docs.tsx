@@ -145,6 +145,15 @@ type Props = {
         attendance_bonus: number;
         ticket_prices: Record<string, number>;
     };
+    /** Winning odds (house rule, 2026-11-21): percentage points per side. */
+    winning_odds?: {
+        specialty: number;
+        streaks: Record<string, number>;
+        interview_space: number;
+        minor_injury: number;
+        weight_class_step: number;
+        min_chance: number;
+    };
     rosters: {
         cap: number;
         starting_budget: number;
@@ -248,10 +257,19 @@ type Props = {
             fair_accept: number;
             fair_ahead_accept: Record<string, number>;
             unfair_accept: number;
+            /** Its own offers (house rule, 2026-11-21). */
+            offers?: {
+                every_weeks: number;
+                answer_weeks: number;
+                ahead: number[];
+            };
         };
         mitb: { cash_in_champion_fatigue: number; cash_in_weeks_left: number };
         max_focus_picks: number;
         teammate_chance: number;
+        /** Its draft contracts, in weeks, and what it keeps back (2026-11-21). */
+        draft_lengths?: number[];
+        draft_reserve?: [number, number];
         low_cash: number;
     };
     stipulations: Array<{ value: Stipulation; label: string }>;
@@ -576,11 +594,13 @@ function MatchTypes({
     buriedWeeks,
     rumbleEntrants,
     specialists,
+    winningOdds,
 }: {
     families: Props['match_types'];
     buriedWeeks: number;
     rumbleEntrants: number;
     specialists: Props['specialists'];
+    winningOdds?: Props['winning_odds'];
 }) {
     return (
         <div className="space-y-6">
@@ -763,6 +783,7 @@ function MatchTypes({
                     </li>
                 </ul>
             </Panel>
+            <WinningOddsDocs odds={winningOdds} />
             <Specialties specialists={specialists} />
             {families.map((family) => (
                 <Panel
@@ -1026,13 +1047,73 @@ function Injuries({ injuries, fatigue }: Pick<Props, 'injuries' | 'fatigue'>) {
     );
 }
 
+/**
+ * How a simulated match picks its winner (house rule, 2026-11-21): equal
+ * shares plus percentage points, shown on every outcome card.
+ */
+function WinningOddsDocs({ odds }: { odds?: Props['winning_odds'] }) {
+    if (!odds) {
+        return null;
+    }
+
+    const streaks = Object.entries(odds.streaks)
+        .map(([wins, points]) => `${wins}+ wins in a row +${points}%`)
+        .join(', ');
+
+    return (
+        <Panel title="Winning odds">
+            <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-dim marker:text-ink-faint">
+                <li>
+                    Every side starts with an equal share: 50% each in a one on
+                    one, a third each in a Triple Threat.
+                </li>
+                <li>
+                    Each modifier is percentage points. A side’s own points add
+                    to its share and come off the other sides, split evenly, so
+                    a specialist in a one on one has 60% to 40%, and two
+                    specialists cancel out at 50% each.
+                </li>
+                <li>
+                    The match is a competitor’s specialty: +{odds.specialty}%
+                    for the side, once.
+                </li>
+                <li>The side’s best win streak: {streaks}.</li>
+                <li>
+                    An Interview Space that aired for a competitor earlier that
+                    week: +{odds.interview_space}% if it succeeded, −
+                    {odds.interview_space}% if it failed. Nothing if they don’t
+                    compete that week.
+                </li>
+                <li>
+                    Each competitor with a minor injury: {odds.minor_injury}%.
+                </li>
+                <li>
+                    Weight class, only when every side is a single class: +
+                    {odds.weight_class_step}% for every class a side is above
+                    the lightest side (Featherweight, Cruiserweight, Light
+                    Heavyweight, Heavyweight, Super Heavyweight, Ultra
+                    Heavyweight). An Ultra Heavyweight against a Featherweight
+                    is +{odds.weight_class_step * 5}%.
+                </li>
+                <li>No side drops below {odds.min_chance}%.</li>
+                <li>
+                    Every outcome card and Book to Win card shows each side’s
+                    chance as a bar; Why these odds? opens the breakdown. Book
+                    to Win ignores the odds.
+                </li>
+            </ul>
+        </Panel>
+    );
+}
+
 function Specialties({ specialists }: Pick<Props, 'specialists'>) {
     return (
         <Panel title="Match specialties" bodyClassName="p-0">
             <p className="border-b border-white/6 px-4 py-3 text-sm text-ink-dim">
-                A specialist gets a bonus win weight in every variant of their
-                specialty’s match type. If both sides have the specialty, the
-                bonuses cancel out. Money in the Bank counts as a Ladder match.
+                A specialist’s side gets a winning odds bonus in every variant
+                of their specialty’s match type (see Winning odds). If both
+                sides have the specialty, the bonuses cancel out. Money in the
+                Bank counts as a Ladder match.
             </p>
             <table className="gm-table">
                 <thead>
@@ -2297,6 +2378,20 @@ function RivalGmPanel({ rival }: Pick<Props, 'rival'>) {
                     Trade page shows the chance and the points as you build an
                     offer.
                 </li>
+                {rival.trades.offers && (
+                    <li data-testid="rival-trade-offers">
+                        <strong>Trade offers:</strong> every{' '}
+                        {pluralize(rival.trades.offers.every_weeks, 'week')} of
+                        the season it emails you an offer of its own: 1 to 5 of
+                        the superstars it values most on your roster (how many
+                        varies from offer to offer), for some of its own least
+                        valuable ones, sized so it comes out{' '}
+                        {rival.trades.offers.ahead.join(' or ')} of its points
+                        ahead. Accept or Decline it on the email within{' '}
+                        {pluralize(rival.trades.offers.answer_weeks, 'week')};
+                        after that it expires.
+                    </li>
+                )}
                 <li>
                     <strong>Money in the Bank:</strong> it cashes in when its
                     world champion goes in at{' '}
@@ -2481,6 +2576,20 @@ function RostersDocs({ rosters, rival }: Pick<Props, 'rosters' | 'rival'>) {
                             anyone affordable. Otherwise it makes the division
                             roll above. Its first pick has no teammate roll.
                         </li>
+                        {rival.draft_lengths && rival.draft_reserve && (
+                            <li data-testid="draft-budget">
+                                It signs each pick for{' '}
+                                {rival.draft_lengths
+                                    .map((weeks) => monthsLabel(weeks))
+                                    .join(', ')}{' '}
+                                at random, and drops to a shorter deal when the
+                                longer one would leave too little for the rest
+                                of its picks. It keeps{' '}
+                                {formatMoney(rival.draft_reserve[0])} to{' '}
+                                {formatMoney(rival.draft_reserve[1])} of its
+                                budget back for booking matches.
+                            </li>
+                        )}
                     </ul>
                 </Panel>
                 <Panel title="Use WWE roster">
@@ -3352,6 +3461,19 @@ function ResultsDocs() {
                             card.
                         </li>
                         <li>
+                            Every match card shows each side’s winning odds as a
+                            bar (see Winning odds on the Match types tab), and
+                            Why these odds? lists what made them.
+                        </li>
+                        <li>
+                            Reports lists every result. Its Records book tab
+                            keeps the PPVs only, both brands: who has the most
+                            PPV main events, Match 1 openers, wins and losses,
+                            Royal Rumble eliminations, and every Royal Rumble,
+                            Survivor Series, interbrand series and Money in the
+                            Bank winner.
+                        </li>
+                        <li>
                             While the week airs, the card opens on the match to
                             decide. Once it’s decided, its result stays up for 5
                             seconds, then the card moves on to the next match to
@@ -3572,6 +3694,7 @@ export default function Docs() {
                         buriedWeeks={props.results.buried_alive_weeks}
                         rumbleEntrants={props.results.rumble_entrants_per_brand}
                         specialists={props.specialists}
+                        winningOdds={props.winning_odds}
                     />
                 )}
                 {tab === 'morale' && <MoraleDocs morale={props.morale} />}

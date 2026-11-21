@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $winner_score a timed match's score (house rule, 2026-11-08)
  * @property int|null $loser_score
  * @property int $rng_seed_step
+ * @property array<string, mixed>|null $winning_odds each side's win chance going in (house rule, 2026-11-21)
  * @property-read MatchSlot $matchSlot
  * @property-read SaveWrestler|null $interferer
  * @property-read TitleReign|null $championReign
@@ -74,6 +75,7 @@ class MatchResult extends Model
             'title_changed' => 'boolean',
             'titles_won' => 'array',
             'booked' => 'boolean',
+            'winning_odds' => 'array',
         ];
     }
 }

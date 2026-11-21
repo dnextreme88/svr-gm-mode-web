@@ -10,6 +10,7 @@ import {
     FactionName,
     ManagerTag,
 } from '@/components/gm/champion-tag';
+import { WinningOdds } from '@/components/gm/winning-odds';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { groupSide } from '@/lib/factions';
 import type { PendingMatch } from '@/types/gm';
@@ -108,6 +109,8 @@ export function BookToWinCard({
                             </li>
                         ))}
                     </ul>
+
+                    <WinningOdds odds={match.winning_odds} className="mt-5" />
 
                     {match.referee && (
                         <p className="mt-1 text-sm text-ink-dim">
@@ -333,6 +336,14 @@ function GauntletBouts({
                             </li>
                         ))}
                     </ul>
+                    <WinningOdds
+                        odds={
+                            match.bout_odds?.[
+                                `${Math.min(holder.side, challenger.side)}-${Math.max(holder.side, challenger.side)}`
+                            ]
+                        }
+                        className="mt-5"
+                    />
                 </>
             )}
 

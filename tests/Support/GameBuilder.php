@@ -59,7 +59,8 @@ class GameBuilder
             $names ??= Wrestler::where('placeholder_brand', $brand)->where('roster_type', RosterType::Superstar)->orderBy('id')->limit($size)->pluck('name')->all();
 
             foreach ($names as $name) {
-                $contracts->signDrafted($save, self::wrestler($save, $name), $brand, 1, $length);
+                // A test roster, whatever it costs: big ones go past the $12M budget.
+                $contracts->signDrafted($save, self::wrestler($save, $name), $brand, 1, $length, checkBudget: false);
             }
         }
 

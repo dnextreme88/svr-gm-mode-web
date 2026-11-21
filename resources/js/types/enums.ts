@@ -230,6 +230,7 @@ export const EmailTemplate = {
     RivalPpvTaunt: 'rival_ppv_taunt',
     CallOutFace: 'call_out_face',
     CallOutHeel: 'call_out_heel',
+    RivalTradeOffer: 'rival_trade_offer',
 } as const;
 export type EmailTemplate = (typeof EmailTemplate)[keyof typeof EmailTemplate];
 export const EmailTemplateLabels: Record<EmailTemplate, string> = {
@@ -260,6 +261,7 @@ export const EmailTemplateLabels: Record<EmailTemplate, string> = {
     'rival_ppv_taunt': 'Rival Ppv Taunt',
     'call_out_face': 'Call Out Face',
     'call_out_heel': 'Call Out Heel',
+    'rival_trade_offer': 'Rival Trade Offer',
 };
 
 export const FactionOrigin = {
@@ -961,6 +963,7 @@ export const TradeStatus = {
     Accepted: 'accepted',
     Rejected: 'rejected',
     Invalid: 'invalid',
+    Expired: 'expired',
 } as const;
 export type TradeStatus = (typeof TradeStatus)[keyof typeof TradeStatus];
 export const TradeStatusLabels: Record<TradeStatus, string> = {
@@ -968,6 +971,7 @@ export const TradeStatusLabels: Record<TradeStatus, string> = {
     'accepted': 'Accepted',
     'rejected': 'Rejected',
     'invalid': 'Invalid',
+    'expired': 'Expired',
 };
 
 export const Weapon = {

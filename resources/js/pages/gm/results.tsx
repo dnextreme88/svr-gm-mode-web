@@ -20,6 +20,7 @@ import type { FatigueStep } from '@/components/gm/fatigue-progress';
 import { OutcomeCard } from '@/components/gm/outcome-card';
 import { StoryModal } from '@/components/gm/story-modal';
 import type { ConditionalStoryPopup } from '@/components/gm/story-modal';
+import { WeekSteps } from '@/components/gm/setup-steps';
 import { EmptyState, PageTitle, Panel } from '@/components/gm/panel';
 import { WrestlerName } from '@/components/gm/wrestler-name';
 import { requestJson } from '@/lib/http';
@@ -165,6 +166,7 @@ export default function Results() {
         from_schedule,
         airing = false,
         wrapping_up = false,
+        continue_to = null,
         cash_in_offer = null,
         conditional_stories = [],
         shows,
@@ -559,6 +561,20 @@ export default function Results() {
     return (
         <>
             <Head title={`Week ${week_number} results`} />
+            {/* While the week airs (house rule, 2026-11-21): step 2. A PPV
+                night's results lead on to the weekly show, not Financials. */}
+            {(airing || continue_to || wrapping_up) && (
+                <WeekSteps
+                    current={2}
+                    // A PPV night: name the PPV.
+                    ppv={
+                        continue_to
+                            ? (shows.find((s) => s.show_type === 'ppv')?.name ??
+                              'the PPV')
+                            : null
+                    }
+                />
+            )}
             <PageTitle
                 kicker={`Week ${season_week ?? week_number}${rival && brand ? ` · ${brandName(brand)}` : ''}`}
                 title={
@@ -582,21 +598,16 @@ export default function Results() {
                 ) : airing ? (
                     <>
                         {simulateAll}
-                        {/* The reason is on screen, not only in a tooltip
-                            (UI audit, 2026-11-20). */}
-                        <span
-                            id="continue-held"
-                            className="text-sm text-ink-dim"
-                        >
-                            Decide every match to continue
-                        </span>
+                        {/* The held Continue says why on the button itself
+                            (2026-11-21; was a line of text beside it): on
+                            screen, not only in a tooltip. */}
                         <button
                             type="button"
                             className="gm-btn"
                             disabled
-                            aria-describedby="continue-held"
+                            data-testid="continue-held"
                         >
-                            Continue
+                            Resolve all matches to continue
                         </button>
                     </>
                 ) : wrapping_up ? (

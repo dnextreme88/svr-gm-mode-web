@@ -33,7 +33,12 @@ const STRATEGY_RAW = ['Big Show', 'Lance Cade', 'Trevor Murdoch', 'Carlito', 'Ch
 
 function strategySave(string $seed = GameBuilder::SEED): Save
 {
-    return GameBuilder::inSeason(raw: STRATEGY_RAW, smackdown: ['Batista', 'Rey Mysterio', 'Booker T', 'JBL'], player: Brand::Smackdown, seed: $seed);
+    $save = GameBuilder::inSeason(raw: STRATEGY_RAW, smackdown: ['Batista', 'Rey Mysterio', 'Booker T', 'JBL'], player: Brand::Smackdown, seed: $seed);
+    // The test roster's 12-month deals eat most of the $12M start: leave the
+    // rival enough to fill its roster and stay above its low-cash mark.
+    $save->brand(Brand::Raw)->update(['budget' => 20_000_000]);
+
+    return $save->refresh();
 }
 
 function bookRival(Save $save): Show

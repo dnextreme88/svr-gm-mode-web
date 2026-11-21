@@ -56,6 +56,13 @@ class ScheduleController extends Controller
             'welcome_season' => $request->boolean('welcome') && $currentSeason > 1 && $calendar->seasonWeek($save->current_week) === 1
                 ? $currentSeason
                 : null,
+            // The guided tour (house rule, 2026-11-21): opens on its own once
+            // per career, in its first week; `career` keys what this browser
+            // has seen, so a rebuilt save reusing an id starts fresh.
+            'tour' => [
+                'career' => $save->created_at->timestamp,
+                'auto' => $save->stage === SaveStage::InSeason && $save->current_week === $calendar->firstWeekOfSeason(1),
+            ],
         ]);
     }
 

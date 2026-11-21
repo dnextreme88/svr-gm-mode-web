@@ -36,7 +36,7 @@ function fillBrand($save, Brand $brand, int $size): void
     $free = SaveWrestler::where('save_id', $save->id)->whereNull('brand')->orderBy('id')->limit($size - $have)->get();
 
     foreach ($free as $w) {
-        app(ContractService::class)->signDrafted($save, $w, $brand, 1);
+        app(ContractService::class)->signDrafted($save, $w, $brand, 1, checkBudget: false);
     }
 }
 
