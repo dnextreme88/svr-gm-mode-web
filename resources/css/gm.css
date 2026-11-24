@@ -64,6 +64,8 @@
         cubic-bezier(0.2, 0.8, 0.2, 1) both;
     --animate-gm-slide-from-above: gm-slide-from-above 280ms
         cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    /* Financials: the other brand's books fade in (2026-11-21). */
+    --animate-gm-fade-in: gm-fade-in 320ms ease-out both;
     --animate-gm-pop-in: gm-pop-in 160ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
     /* A new email arriving in the inbox (2026-11-17): it pops out from above,
        overshoots a little and settles into the list. */
@@ -230,6 +232,15 @@
         }
     }
 
+    @keyframes gm-fade-in {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
     @keyframes gm-rise {
         from {
             opacity: 0;
@@ -300,6 +311,22 @@
 }
 
 @layer components {
+    /* Financials' season trend (2026-11-21): each bar grows out of the zero
+       line; the delay is set per bar. */
+    .gm-trend-bar {
+        transform-box: fill-box;
+        animation: gm-bar-grow 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    }
+
+    @keyframes gm-bar-grow {
+        from {
+            transform: scaleY(0);
+        }
+        to {
+            transform: scaleY(1);
+        }
+    }
+
     /* Anything that runs past a GM page (a long dropdown) shows the arena,
        not the app's light page background. app.blade.php paints html in an
        unlayered <style>, which beats this layer, hence !important. */
@@ -980,6 +1007,10 @@
     /* Dialogs render outside .gm-root; the bar still fills, without stripes moving. */
     .gm-progress-fill {
         animation: none !important;
+    }
+
+    .gm-trend-bar {
+        animation-delay: 0s !important;
     }
 
     .gm-root *,

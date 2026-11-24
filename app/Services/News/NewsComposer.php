@@ -106,7 +106,11 @@ class NewsComposer
         // House rule (2026-11-15): WrestleMania week. The re-draft leads the
         // WWE card, and each brand's card leads with its last match on the
         // WrestleMania card (the main event for the brand that had it).
-        $redraft = $rows->first(fn (array $e): bool => $e['type'] === NewsEventType::RedraftResults->value);
+        // The one Re-draft Picks headline (house rule, 2026-11-21), or an old
+        // week's Re-draft Results. Season 1, week 1 opens with Vince's welcome.
+        $redraft = $rows->first(fn (array $e): bool => $e['tier'] === NewsTier::Headline->value
+            && in_array($e['type'], [NewsEventType::RedraftPick->value, NewsEventType::RedraftResults->value], true));
+        $welcome = $rows->first(fn (array $e): bool => $e['type'] === NewsEventType::Welcome->value);
         $leadSlots = (array) ($redraft['payload']['headline_slots'] ?? []);
         $keys = $events->pluck('dedupe_key', 'id');
 
@@ -118,11 +122,14 @@ class NewsComposer
             $pool = $rows->filter(fn (array $e): bool => $e['slot'] === $slot && $e['tier'] !== NewsTier::Ticker->value)->values();
             // House rule: in a PPV week the PPV wins the WWE headline: its main
             // event (or the Royal Rumble), biggest first.
-            $headline = $slot === 'neutral' ? $redraft : $this->leadingMatch($rows, $keys, $leadSlots[$slot] ?? null, $picked);
+            $headline = $slot === 'neutral' ? ($welcome ?? $redraft) : $this->leadingMatch($rows, $keys, $leadSlots[$slot] ?? null, $picked);
             $headline ??= $slot === 'neutral' ? $pool->filter(fn (array $e): bool => $e['type'] === NewsEventType::PpvResults->value)->sortByDesc('priority')->first() : null;
             // House rule (2026-11-17): the week before a PPV, the PPV leads
             // ("Backlash is 1 week away").
             $headline ??= $slot === 'neutral' ? $pool->filter(fn (array $e): bool => $e['type'] === NewsEventType::PpvUpcoming->value && $e['tier'] === NewsTier::Headline->value)->sortByDesc('priority')->first() : null;
+            // House rule (2026-11-21): the week after the Royal Rumble, a
+            // briefcase still held leads (it runs out at WrestleMania).
+            $headline ??= $slot === 'neutral' ? $pool->first(fn (array $e): bool => $e['type'] === NewsEventType::MitbExpiring->value && $e['tier'] === NewsTier::Headline->value) : null;
             $headline ??= $slot === 'neutral' ? $pool->first(fn (array $e): bool => in_array($e['type'], self::FORCED_NEUTRAL, true)) : null;
             // House rule: a title change always takes its card's headline.
             $headline ??= $pool->filter(fn (array $e): bool => in_array($e['type'], [NewsEventType::TitleChange->value, NewsEventType::FactionTitleWon->value], true) && $e['tier'] === NewsTier::Headline->value)

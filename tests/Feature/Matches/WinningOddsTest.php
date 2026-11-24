@@ -5,6 +5,8 @@ use App\Enums\PromoTypeKey;
 use App\Models\MatchSlot;
 use App\Models\PromoSlot;
 use App\Models\PromoType;
+use App\Models\SaveFaction;
+use App\Services\Factions\FactionService;
 use App\Services\Injuries\InjuryService;
 use App\Services\Matches\WinningOdds;
 use App\Services\Week\WeekResolver;
@@ -101,6 +103,26 @@ it('ignores an Interview Space that has not aired yet', function () {
     expect(chances($slot))->toBe([0 => 50.0, 1 => 50.0]);
 });
 
+/**
+ * Weight class points per side (only the sides that got any).
+ *
+ * @return array<int, int>
+ */
+function weightPoints(MatchSlot $slot): array
+{
+    $points = [];
+
+    foreach (app(WinningOdds::class)->forSlot(oddsSlot($slot))['sides'] as $side => $odds) {
+        foreach ($odds['factors'] as $factor) {
+            if (str_contains($factor['label'], 'weight vs ')) {
+                $points[$side] = $factor['points'];
+            }
+        }
+    }
+
+    return $points;
+}
+
 it('gives 5 points for every weight class above the lightest side', function () {
     $save = GameBuilder::inSeason(raw: ['Big Show', 'Tajiri', 'Edge', 'Carlito'], smackdown: ['Batista']);
     $show = Card::show($save);
@@ -112,6 +134,48 @@ it('gives 5 points for every weight class above the lightest side', function () 
     // Heavyweight vs Light Heavyweight: 1 class.
     $slot = Card::book($save, $show, 2, Card::singles(), [['Edge'], ['Carlito']]);
     expect(chances($slot))->toBe([0 => 55.0, 1 => 45.0]);
+});
+
+it('gives the weight gap to the one heaviest side', function (string $family, string $variant, array $sides, array $expected) {
+    $save = GameBuilder::inSeason(raw: array_merge(...$sides), smackdown: ['Batista']);
+    $slot = Card::book($save, Card::show($save), 1, Card::type($family, $variant), $sides);
+
+    expect(weightPoints($slot))->toBe($expected);
+})->with([
+    'a Heavyweight against 3 Cruiserweights' => ['single', 'Fatal 4-Way', [['Edge'], ['Tajiri'], ['Rey Mysterio'], ['Paul London']], [0 => 10]],
+    'Super Heavyweights against Heavyweights' => ['tag_team', 'Normal Tag', [['Big Show', 'Kane'], ['Edge', 'Triple H']], [0 => 5]],
+    'Super Heavyweights, Heavyweights and Light Heavyweights' => ['six_man_tag', 'Triple Threat Tornado Tag Elimination', [['Big Show', 'Kane'], ['Edge', 'Triple H'], ['Carlito', 'Eugene']], [0 => 10]],
+    'Super Heavyweights against 2 Heavyweight teams' => ['six_man_tag', 'Triple Threat Tornado Tag Elimination', [['Big Show', 'Kane'], ['Edge', 'Triple H'], ['John Cena', 'Kurt Angle']], [0 => 5]],
+    'a Heavyweight against 5 Cruiserweights' => ['single', 'Six-Pack Challenge', [['Tajiri'], ['Edge'], ['Rey Mysterio'], ['Paul London'], ['Funaki'], ['The Hurricane']], [1 => 10]],
+]);
+
+it('skips the weight gap when no side clearly outweighs the rest', function (string $family, string $variant, array $sides) {
+    $save = GameBuilder::inSeason(raw: array_merge(...$sides), smackdown: ['Batista']);
+    $slot = Card::book($save, Card::show($save), 1, Card::type($family, $variant), $sides);
+
+    expect(weightPoints($slot))->toBe([]);
+})->with([
+    'a Heavyweight, 2 Cruiserweights and a Light Heavyweight' => ['single', 'Fatal 4-Way', [['Edge'], ['Tajiri'], ['Rey Mysterio'], ['Carlito']]],
+    'a mixed team against Heavyweights' => ['tag_team', 'Normal Tag', [['Big Show', 'Carlito'], ['Edge', 'Triple H']]],
+    'a third team of mixed classes' => ['six_man_tag', 'Triple Threat Tornado Tag Elimination', [['Big Show', 'Kane'], ['Edge', 'Triple H'], ['Carlito', 'Tajiri']]],
+    'two mixed teams' => ['six_man_tag', 'Triple Threat Tornado Tag Elimination', [['Big Show', 'Kane'], ['Viscera', 'Edge'], ['Tajiri', 'Carlito']]],
+    '2 Heavyweights, 2 Light Heavyweights, 2 Cruiserweights' => ['single', 'Six-Pack Challenge', [['Edge'], ['Triple H'], ['Carlito'], ['Eugene'], ['Tajiri'], ['Rey Mysterio']]],
+    'two Super Heavyweights at the top' => ['single', 'Fatal 5-Way', [['Kane'], ['Dolph Ziggler'], ['JBL'], ['Triple H'], ['Undertaker']]],
+]);
+
+it('gives 10 points to a side with a manager', function () {
+    $save = GameBuilder::inSeason(raw: ['Shelton Benjamin', 'Snitsky', 'Eugene', 'Ric Flair'], smackdown: ['Batista']);
+    $show = Card::show($save);
+
+    $slot = Card::book($save, $show, 1, Card::type('single', 'Single vs. w/ Manager'), [['Shelton Benjamin'], ['Snitsky']], [1 => 'Eugene']);
+    $odds = app(WinningOdds::class)->forSlot(oddsSlot($slot));
+
+    expect(chances($slot))->toBe([0 => 40.0, 1 => 60.0])
+        ->and($odds['sides'][1]['factors'][0])->toBe(['label' => 'Manager: Eugene', 'points' => 10]);
+
+    $slot = Card::book($save, $show, 2, Card::type('single', 'Single w/ Manager vs. w/ Manager'), [['Shelton Benjamin'], ['Snitsky']], [0 => 'Ric Flair', 1 => 'Eugene']);
+
+    expect(chances($slot))->toBe([0 => 50.0, 1 => 50.0]);
 });
 
 it('skips the weight class gap when a side mixes classes', function () {
@@ -126,6 +190,39 @@ it('gives an Ultra Heavyweight 25 points over a Featherweight', function () {
     $slot = Card::book($save, Card::show($save), 1, Card::singles(), [['Andre The Giant'], ['Lita']]);
 
     expect(chances($slot))->toBe([0 => 75.0, 1 => 25.0]);
+});
+
+it('gives 10 points to faction members teaming on a side', function () {
+    $save = GameBuilder::inSeason(raw: ['Bubba Ray Dudley', 'D-Von Dudley', 'Triple H', 'Kurt Angle'], smackdown: ['Batista']);
+    $slot = Card::book($save, Card::show($save), 1, Card::type('tag_team', 'Normal Tag'), [['Bubba Ray Dudley', 'D-Von Dudley'], ['Triple H', 'Kurt Angle']]);
+    $odds = app(WinningOdds::class)->forSlot(oddsSlot($slot));
+
+    expect(chances($slot))->toBe([0 => 60.0, 1 => 40.0])
+        ->and($odds['sides'][0]['factors'])->toBe([['label' => 'Faction: Dudley Boyz', 'points' => 10]]);
+});
+
+it('cancels out when both sides are factions', function () {
+    $save = GameBuilder::inSeason(raw: ['Bubba Ray Dudley', 'D-Von Dudley', 'Triple H', 'Ric Flair'], smackdown: ['Batista']);
+    $slot = Card::book($save, Card::show($save), 1, Card::type('tag_team', 'Normal Tag'), [['Bubba Ray Dudley', 'D-Von Dudley'], ['Triple H', 'Ric Flair']]);
+
+    expect(chances($slot))->toBe([0 => 50.0, 1 => 50.0]);
+});
+
+it('skips the faction bonus when its members are on opposite sides', function () {
+    $save = GameBuilder::inSeason(raw: ['Bubba Ray Dudley', 'D-Von Dudley'], smackdown: ['Batista']);
+    $slot = Card::book($save, Card::show($save), 1, Card::singles(), [['Bubba Ray Dudley'], ['D-Von Dudley']]);
+
+    expect(chances($slot))->toBe([0 => 50.0, 1 => 50.0]);
+});
+
+it('skips the faction bonus once the faction has disbanded', function () {
+    $save = GameBuilder::inSeason(raw: ['Bubba Ray Dudley', 'D-Von Dudley', 'Triple H', 'Kurt Angle'], smackdown: ['Batista']);
+    $show = Card::show($save);
+    $faction = SaveFaction::where('save_id', $save->id)->where('faction_name', 'Dudley Boyz')->firstOrFail();
+    app(FactionService::class)->disband($save, $faction);
+    $slot = Card::book($save, $show, 1, Card::type('tag_team', 'Normal Tag'), [['Bubba Ray Dudley', 'D-Von Dudley'], ['Triple H', 'Kurt Angle']]);
+
+    expect(chances($slot))->toBe([0 => 50.0, 1 => 50.0]);
 });
 
 it('keeps every side at 5% or more', function () {

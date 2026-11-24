@@ -9,8 +9,7 @@ use App\Services\News\PromoStories;
 | Short headlines (house rule, 2026-11-15): every news headline is a
 | summarized headline of at most 6 words of its own text ("New record for
 | the {title_short}!"), with at most 3 {tokens}. The detail goes in the
-| summary. News written before keeps its `*.legacy` wording, and ticker
-| lines are exempt.
+| summary. Ticker lines are exempt.
 */
 
 const HEADLINE_MAX_WORDS = 6;
@@ -38,9 +37,7 @@ function headlineTemplates(): array
     $headlines = [];
 
     foreach ((array) (new ReflectionClassConstant(NewsTemplates::class, 'TEMPLATES'))->getValue() as $key => $template) {
-        if (! str_ends_with((string) $key, '.legacy')) {
-            $headlines["news:{$key}"] = (string) $template;
-        }
+        $headlines["news:{$key}"] = (string) $template;
     }
 
     foreach (PromoStories::keys() as $key) {
@@ -49,9 +46,9 @@ function headlineTemplates(): array
         }
     }
 
-    // The ticker's locker room lines are exempt; budget lines have no headline.
+    // Budget lines have no headline.
     foreach ((array) (new ReflectionClassConstant(FallbackStories::class, 'STORIES'))->getValue() as $key => $variants) {
-        if (str_starts_with((string) $key, 'locker') || str_starts_with((string) $key, 'ticker')) {
+        if (str_starts_with((string) $key, 'ticker')) {
             continue;
         }
 

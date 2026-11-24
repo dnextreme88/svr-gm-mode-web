@@ -40,3 +40,5 @@ Dated implementation and upgrade plans for this site. Each plan is a Markdown fi
 | **2026-11-17** | [Qualifying Matches for Survivor Series & Money in the Bank, News Headline Priorities](20261117-qualifying-matches.md) |
 | **2026-11-20** | [UI Guidelines Review, Rivalry Rules & Speed-up Injury Promo](20261120-ui-guidelines-review.md) |
 | **2026-11-21** | [Winning Odds, Rival Trade Offers, Guided Tour, Records Book & Draft Balance](20261121-winning-odds-trade-offers-tour-records.md) |
+| **2026-11-21** | [Winning Odds: Weight Class Rule, Manager & Faction Bonuses](20261121-winning-odds-weight-and-manager.md) |
+| **2026-11-21** | [News Tiers, Re-draft Picks Headline & Season Welcome](20261121-news-tiers-and-welcome.md) |

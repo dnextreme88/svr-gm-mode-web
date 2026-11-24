@@ -36,7 +36,9 @@ class FinancialsController extends Controller
 
         // House rule (2026-11-17): from the results' Continue, the week that
         // just aired (a signing can already put a line on the next week).
-        $wrapUp = WrapUp::active($request, $save) && $brand === $save->player_brand;
+        // Either brand: the rival's books for the same week keep the header
+        // hidden too (fix, 2026-11-21).
+        $wrapUp = WrapUp::active($request, $save);
         $week = $request->integer('week') ?: ($wrapUp ? $save->current_week - 1 : $latest);
 
         return Inertia::render('gm/financials', [

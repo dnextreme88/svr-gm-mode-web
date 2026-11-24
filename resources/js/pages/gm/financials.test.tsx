@@ -255,6 +255,11 @@ describe('Financials after an aired week (house rule, 2026-11-17)', () => {
             // House rule (2026-11-20): no week buttons while it wraps up.
             const nav = screen.getByRole('navigation', { name: 'Week' });
             expect(within(nav).queryAllByRole('link')).toHaveLength(0);
+            // Fix (2026-11-21): the rival's books stay in wrap-up mode.
+            const brands = screen.getByRole('group', { name: 'Brand' });
+            expect(
+                within(brands).getByRole('link', { name: /Raw/ }),
+            ).toHaveAttribute('href', expect.stringContaining('wrap=1'));
         } finally {
             Object.assign(props, { wrap_up: false });
         }

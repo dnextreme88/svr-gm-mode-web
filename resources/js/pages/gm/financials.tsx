@@ -5,6 +5,7 @@ import { BrandBug } from '@/components/gm/brand-bug';
 import { BusyLabel } from '@/components/gm/busy-label';
 import { DisclosureChevron, DisclosurePanel } from '@/components/gm/disclosure';
 import { FinanceTrend } from '@/components/gm/finance-trend';
+import { RollingNumber } from '@/components/gm/rolling-number';
 import type { TrendWeek } from '@/components/gm/finance-trend';
 import { WeekSteps } from '@/components/gm/setup-steps';
 import { EmptyState, PageTitle, Panel, Stat } from '@/components/gm/panel';
@@ -283,6 +284,9 @@ export default function Financials() {
                     : {}),
                 ...(query.week !== undefined ? { week: query.week } : {}),
                 ...(query.season !== undefined ? { season: query.season } : {}),
+                // The week just aired stays in wrap-up mode on either brand,
+                // so the header stays hidden (fix, 2026-11-21).
+                ...(wrapUp ? { wrap: 1 } : {}),
             },
         });
     const go = (week: number) =>
@@ -320,6 +324,7 @@ export default function Financials() {
                             key={b}
                             href={href({ brand: b, week: statement.week })}
                             preserveScroll
+                            preserveState
                             aria-current={brand === b ? 'page' : undefined}
                             aria-label={`${brandName(b)} ${b === game.player_brand ? '(you)' : '(rival)'}`}
                             className={cn(
@@ -336,7 +341,7 @@ export default function Financials() {
                     ))}
                 </div>
 
-                {seasons.length > 1 && (
+                {!wrapUp && seasons.length > 1 && (
                     <div
                         role="group"
                         aria-label="Season"
@@ -407,188 +412,214 @@ export default function Financials() {
                 </nav>
             </div>
 
-            {!mine && (
-                <p className="-mt-3 mb-6 text-sm text-ink-dim">
-                    You’re looking at the rival GM’s books. They’re read-only.
-                </p>
-            )}
-
-            {mine && game.deficit.blocked && (
-                <Panel title="The board wants a plan" className="mb-6">
-                    <p className="mb-4 text-sm text-ink-dim">
-                        You’ve run a deficit for{' '}
-                        {pluralize(game.deficit.weeks, 'week')}. Pick how you’ll
-                        recover before the next show airs.
+            {/* Switching brand fades the books in (house rule, 2026-11-21). */}
+            <div key={brand} className="animate-gm-fade-in">
+                {!mine && (
+                    <p className="-mt-3 mb-6 text-sm text-ink-dim">
+                        You’re looking at the rival GM’s books. They’re
+                        read-only.
                     </p>
-                    <div className="grid gap-3 md:grid-cols-3">
-                        {deficit_choices.map((choice) => (
-                            <button
-                                key={choice}
-                                type="button"
-                                className="gm-panel p-4 text-left transition-colors hover:bg-white/[0.04] disabled:cursor-wait disabled:opacity-60"
-                                disabled={choosing !== null}
-                                aria-busy={choosing === choice || undefined}
-                                onClick={() =>
-                                    router.post(
-                                        gm.financials.deficitChoice.url(
-                                            game.id,
-                                        ),
-                                        { choice },
-                                        {
-                                            onStart: () => setChoosing(choice),
-                                            onFinish: () => setChoosing(null),
-                                        },
-                                    )
-                                }
-                            >
-                                <div className="gm-heading flex items-center gap-2 text-xl">
-                                    <BusyLabel
-                                        busy={choosing === choice}
-                                        busyText="Saving…"
-                                    >
-                                        {choiceCopy[choice]?.title ?? choice}
-                                    </BusyLabel>
-                                </div>
-                                <div className="mt-1 text-sm text-ink-dim">
-                                    {choiceCopy[choice]?.body}
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                </Panel>
-            )}
+                )}
 
-            <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-                <Panel>
-                    <Stat
-                        label="Balance now"
-                        value={formatMoney(balance)}
-                        tone={balance < 0 ? 'bad' : undefined}
-                    />
-                </Panel>
-                <Panel>
-                    <Stat
-                        label={`Net, week ${statement.season_week}`}
-                        value={formatSignedMoney(statement.net)}
-                        tone={statement.net >= 0 ? 'good' : 'bad'}
-                    />
-                </Panel>
-                <Panel>
-                    <Stat
-                        label="Income"
-                        value={formatMoney(statement.income)}
-                    />
-                </Panel>
-                <Panel>
-                    <Stat
-                        label="Costs"
-                        value={formatMoney(Math.abs(statement.expenses))}
-                    />
-                </Panel>
-            </div>
-
-            {(statement.starting_budget ?? 0) > 0 && (
-                <p className="-mt-3 mb-6 text-sm text-ink-dim">
-                    Week {statement.season_week} also opened{' '}
-                    {mine ? 'your' : 'the rival’s'} budget with{' '}
-                    <span className="gm-num text-ink">
-                        {formatMoney(statement.starting_budget ?? 0)}
-                    </span>
-                    . That’s {mine ? 'your' : 'its'} starting balance, so it
-                    isn’t counted as income.
-                </p>
-            )}
-
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
-                <Panel
-                    title={`Week ${statement.season_week} statement`}
-                    bodyClassName="p-0"
-                >
-                    {statement.groups.length === 0 ? (
-                        <div className="p-4">
-                            <EmptyState>No transactions this week.</EmptyState>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="border-b border-white/6 p-4">
-                                <SplitBars statement={statement} />
-                            </div>
-                            {statement.groups.map((g) => (
-                                <section
-                                    key={g.key}
-                                    data-testid={`night-${g.key}`}
-                                    aria-label={g.name}
-                                    className="border-b border-white/6 last:border-b-0"
+                {mine && game.deficit.blocked && (
+                    <Panel title="The board wants a plan" className="mb-6">
+                        <p className="mb-4 text-sm text-ink-dim">
+                            You’ve run a deficit for{' '}
+                            {pluralize(game.deficit.weeks, 'week')}. Pick how
+                            you’ll recover before the next show airs.
+                        </p>
+                        <div className="grid gap-3 md:grid-cols-3">
+                            {deficit_choices.map((choice) => (
+                                <button
+                                    key={choice}
+                                    type="button"
+                                    className="gm-panel p-4 text-left transition-colors hover:bg-white/[0.04] disabled:cursor-wait disabled:opacity-60"
+                                    disabled={choosing !== null}
+                                    aria-busy={choosing === choice || undefined}
+                                    onClick={() =>
+                                        router.post(
+                                            gm.financials.deficitChoice.url(
+                                                game.id,
+                                            ),
+                                            { choice },
+                                            {
+                                                onStart: () =>
+                                                    setChoosing(choice),
+                                                onFinish: () =>
+                                                    setChoosing(null),
+                                            },
+                                        )
+                                    }
                                 >
-                                    <header className="flex items-baseline justify-between gap-3 bg-white/[0.03] px-4 py-2">
-                                        <h3
-                                            className={cn(
-                                                'font-condensed text-sm font-semibold tracking-wider uppercase',
-                                                g.ppv
-                                                    ? 'text-gold-hot'
-                                                    : 'text-ink',
-                                            )}
+                                    <div className="gm-heading flex items-center gap-2 text-xl">
+                                        <BusyLabel
+                                            busy={choosing === choice}
+                                            busyText="Saving…"
                                         >
-                                            {g.name}
-                                            {g.crowd !== null && (
-                                                <span className="ml-2 font-sans text-xs font-normal tracking-normal text-ink-dim normal-case">
-                                                    {g.crowd.toLocaleString(
-                                                        'en-US',
-                                                    )}{' '}
-                                                    fans
-                                                </span>
-                                            )}
-                                        </h3>
-                                        <span
-                                            className={cn(
-                                                'gm-num text-sm font-semibold',
-                                                g.total >= 0
-                                                    ? 'text-zone-safe'
-                                                    : 'text-zone-serious',
-                                            )}
-                                        >
-                                            {formatSignedMoney(g.total)}
-                                        </span>
-                                    </header>
-                                    <ul className="divide-y divide-white/5">
-                                        {rowsOf(g.lines).map((row) => (
-                                            <StatementRow
-                                                key={row.group}
-                                                row={row}
-                                            />
-                                        ))}
-                                    </ul>
-                                </section>
+                                            {choiceCopy[choice]?.title ??
+                                                choice}
+                                        </BusyLabel>
+                                    </div>
+                                    <div className="mt-1 text-sm text-ink-dim">
+                                        {choiceCopy[choice]?.body}
+                                    </div>
+                                </button>
                             ))}
-                            <div className="flex items-baseline justify-between px-4 py-3 text-sm">
-                                <span className="gm-label">
-                                    Balance after week {statement.season_week}
-                                </span>
-                                <span
-                                    className={cn(
-                                        'gm-num text-lg',
-                                        closing < 0 && 'text-zone-serious',
-                                    )}
-                                >
-                                    {formatMoney(closing)}
-                                </span>
-                            </div>
-                        </>
-                    )}
-                </Panel>
+                        </div>
+                    </Panel>
+                )}
 
-                <Panel title={`Season ${season}, week by week`}>
-                    {seasonWeeks.length === 0 ? (
-                        <EmptyState>No weeks on the books yet.</EmptyState>
-                    ) : (
-                        <FinanceTrend
-                            weeks={seasonWeeks}
-                            selected={statement.week}
-                            onSelect={go}
-                            season={season}
+                <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+                    <Panel>
+                        <Stat
+                            label="Balance now"
+                            value={
+                                <RollingNumber value={formatMoney(balance)} />
+                            }
+                            tone={balance < 0 ? 'bad' : undefined}
                         />
-                    )}
-                </Panel>
+                    </Panel>
+                    <Panel>
+                        <Stat
+                            label={`Net, week ${statement.season_week}`}
+                            value={
+                                <RollingNumber
+                                    value={formatSignedMoney(statement.net)}
+                                />
+                            }
+                            tone={statement.net >= 0 ? 'good' : 'bad'}
+                        />
+                    </Panel>
+                    <Panel>
+                        <Stat
+                            label="Income"
+                            value={
+                                <RollingNumber
+                                    value={formatMoney(statement.income)}
+                                />
+                            }
+                        />
+                    </Panel>
+                    <Panel>
+                        <Stat
+                            label="Costs"
+                            value={
+                                <RollingNumber
+                                    value={formatMoney(
+                                        Math.abs(statement.expenses),
+                                    )}
+                                />
+                            }
+                        />
+                    </Panel>
+                </div>
+
+                {(statement.starting_budget ?? 0) > 0 && (
+                    <p className="-mt-3 mb-6 text-sm text-ink-dim">
+                        Week {statement.season_week} also opened{' '}
+                        {mine ? 'your' : 'the rival’s'} budget with{' '}
+                        <span className="gm-num text-ink">
+                            {formatMoney(statement.starting_budget ?? 0)}
+                        </span>
+                        . That’s {mine ? 'your' : 'its'} starting balance, so it
+                        isn’t counted as income.
+                    </p>
+                )}
+
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+                    <Panel
+                        title={`Week ${statement.season_week} statement`}
+                        bodyClassName="p-0"
+                    >
+                        {statement.groups.length === 0 ? (
+                            <div className="p-4">
+                                <EmptyState>
+                                    No transactions this week.
+                                </EmptyState>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="border-b border-white/6 p-4">
+                                    <SplitBars statement={statement} />
+                                </div>
+                                {statement.groups.map((g) => (
+                                    <section
+                                        key={g.key}
+                                        data-testid={`night-${g.key}`}
+                                        aria-label={g.name}
+                                        className="border-b border-white/6 last:border-b-0"
+                                    >
+                                        <header className="flex items-baseline justify-between gap-3 bg-white/[0.03] px-4 py-2">
+                                            <h3
+                                                className={cn(
+                                                    'font-condensed text-sm font-semibold tracking-wider uppercase',
+                                                    g.ppv
+                                                        ? 'text-gold-hot'
+                                                        : 'text-ink',
+                                                )}
+                                            >
+                                                {g.name}
+                                                {g.crowd !== null && (
+                                                    <span className="ml-2 font-sans text-xs font-normal tracking-normal text-ink-dim normal-case">
+                                                        {g.crowd.toLocaleString(
+                                                            'en-US',
+                                                        )}{' '}
+                                                        fans
+                                                    </span>
+                                                )}
+                                            </h3>
+                                            <span
+                                                className={cn(
+                                                    'gm-num text-sm font-semibold',
+                                                    g.total >= 0
+                                                        ? 'text-zone-safe'
+                                                        : 'text-zone-serious',
+                                                )}
+                                            >
+                                                {formatSignedMoney(g.total)}
+                                            </span>
+                                        </header>
+                                        <ul className="divide-y divide-white/5">
+                                            {rowsOf(g.lines).map((row) => (
+                                                <StatementRow
+                                                    key={row.group}
+                                                    row={row}
+                                                />
+                                            ))}
+                                        </ul>
+                                    </section>
+                                ))}
+                                <div className="flex items-baseline justify-between px-4 py-3 text-sm">
+                                    <span className="gm-label">
+                                        Balance after week{' '}
+                                        {statement.season_week}
+                                    </span>
+                                    <span
+                                        className={cn(
+                                            'gm-num text-lg',
+                                            closing < 0 && 'text-zone-serious',
+                                        )}
+                                    >
+                                        {formatMoney(closing)}
+                                    </span>
+                                </div>
+                            </>
+                        )}
+                    </Panel>
+
+                    <Panel title={`Season ${season}, week by week`}>
+                        {seasonWeeks.length === 0 ? (
+                            <EmptyState>No weeks on the books yet.</EmptyState>
+                        ) : (
+                            <FinanceTrend
+                                weeks={seasonWeeks}
+                                selected={statement.week}
+                                onSelect={go}
+                                season={season}
+                            />
+                        )}
+                    </Panel>
+                </div>
             </div>
         </>
     );
