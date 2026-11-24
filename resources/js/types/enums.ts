@@ -567,7 +567,6 @@ export const NewsEventType = {
     LosingStreak: 'losing_streak',
     InterferenceFinish: 'interference_finish',
     InterbrandSeriesResult: 'interbrand_series_result',
-    UpsetWin: 'upset_win',
     RivalryStarted: 'rivalry_started',
     RivalryHeatingUp: 'rivalry_heating_up',
     RivalryBlowoff: 'rivalry_blowoff',
@@ -613,6 +612,7 @@ export const NewsEventType = {
     SuperstarRecap: 'superstar_recap',
     InjuryReport: 'injury_report',
     LockerRoomNote: 'locker_room_note',
+    Welcome: 'welcome',
 } as const;
 export type NewsEventType = (typeof NewsEventType)[keyof typeof NewsEventType];
 export const NewsEventTypeLabels: Record<NewsEventType, string> = {
@@ -644,7 +644,6 @@ export const NewsEventTypeLabels: Record<NewsEventType, string> = {
     'losing_streak': 'Losing Streak',
     'interference_finish': 'Interference Finish',
     'interbrand_series_result': 'Interbrand Series Result',
-    'upset_win': 'Upset Win',
     'rivalry_started': 'Rivalry Started',
     'rivalry_heating_up': 'Rivalry Heating Up',
     'rivalry_blowoff': 'Rivalry Blowoff',
@@ -690,6 +689,7 @@ export const NewsEventTypeLabels: Record<NewsEventType, string> = {
     'superstar_recap': 'Superstar Recap',
     'injury_report': 'Injury Report',
     'locker_room_note': 'Locker Room Note',
+    'welcome': 'Welcome',
 };
 
 export const NewsSlot = {

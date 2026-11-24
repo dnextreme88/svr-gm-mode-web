@@ -238,8 +238,15 @@ return [
             'interview_space' => 5,
             // Each competitor with a minor injury.
             'minor_injury' => -10,
-            // Only when every side is one weight class: this many points
-            // for every class a side is above the lightest side.
+            // A side with a manager in its corner (w/ Manager types).
+            'manager' => 10,
+            // 2+ members of an active faction (tag team or stable) teaming on
+            // one side: once per side.
+            'faction' => 10,
+            // Only when every side is one weight class, exactly one side is
+            // the heaviest and the others are all one class or all different:
+            // that side gets this many points for every class it's above the
+            // lightest side.
             'weight_class_step' => 5,
             // ASSUMPTION: no side drops below this share.
             'min_chance' => 5,
@@ -484,7 +491,6 @@ return [
     */
     'mitb' => [
         'expiry_weeks' => 52,
-        'expiring_warning_weeks' => 4,
     ],
 
     /*
@@ -695,6 +701,8 @@ return [
         // makes the news only when it had reached 10.
         'win_streaks' => [10, 15, 20],
         'win_streak_headline_at' => 10,
+        // The upset win (house rule, 2026-11-21: Upset Win merged into it): a
+        // streak this long snapped makes the headline.
         'streak_snapped_min' => 10,
         'losing_streak_min' => 4,
         'reign_milestones' => [10, 25, 52],
@@ -720,8 +728,10 @@ return [
         'winner_takes_all_variants' => ['celebrate' => 80, 'revenge' => 20],
         'number_one_contender_variants' => ['fired_up' => 1, 'staredown' => 1, 'fans' => 1],
         'stories_per_brand' => 2,
-        // Deferred: overall ratings aren't designed yet, so upset_win is off.
-        'upset_win_overall_margin' => null,
+        // House rule (2026-11-21): the week after the Royal Rumble, a Money in
+        // the Bank briefcase still held is the WWE headline (it runs out at
+        // WrestleMania).
+        'mitb_expiring_priority' => 85,
         // Every aired match is a story; headlines and stories are drawn from
         // the week's pool weighted by priority.
         'match_result_priority' => [
@@ -741,6 +751,14 @@ return [
             'not_decisive_penalty' => 6,
         ],
         'free_agent_signed_priority' => 18,
+        // House rule (2026-11-21): these were ticker lines; as brand stories
+        // they rank with the other roster stories.
+        'morale_priority' => [
+            'losing_streak' => 20,
+            'contract_demand' => 20,
+            'title_demand' => 20,
+            'morale_unrest' => 25,
+        ],
         'promo_result_priority' => 14,
         // Quiet weeks: where a brand's top champion tours, and how far back
         // the injury report looks (about 6 months).

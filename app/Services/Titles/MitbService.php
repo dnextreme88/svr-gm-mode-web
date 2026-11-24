@@ -330,11 +330,13 @@ class MitbService
     }
 
     /**
-     * Expire briefcases past their week, and warn when one has 4 weeks left.
+     * Expire briefcases past their week. The week after the Royal Rumble
+     * (house rule, 2026-11-21), a briefcase still held makes the WWE
+     * headline: it runs out at WrestleMania.
      */
     public function expire(Save $save, int $week, bool $wrestleManiaResolved = false): void
     {
-        $warn = (int) config('gm.mitb.expiring_warning_weeks');
+        $afterRumble = $week > 1 && $this->calendar->isPpvWeek($week - 1, PpvKey::RoyalRumble);
 
         foreach ($this->held($save) as $briefcase) {
             if ($wrestleManiaResolved || $briefcase->expires_week <= $week) {
@@ -343,10 +345,11 @@ class MitbService
                 continue;
             }
 
-            if ($briefcase->expires_week - $week === $warn) {
-                $this->news->record($save, NewsEventType::MitbExpiring, NewsTier::Ticker, $briefcase->brand, [
+            if ($afterRumble) {
+                $this->news->record($save, NewsEventType::MitbExpiring, NewsTier::Headline, NewsBrand::Both, [
                     'wrestler' => $briefcase->holder->name(),
-                ], ['wrestler_ids' => [$briefcase->save_wrestler_id]], week: $week);
+                    'brand' => $briefcase->brand->label(),
+                ], ['wrestler_ids' => [$briefcase->save_wrestler_id]], priority: (int) config('gm.news.mitb_expiring_priority'), week: $week);
             }
         }
     }

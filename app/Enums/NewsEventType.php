@@ -41,7 +41,6 @@ enum NewsEventType: string
     case LosingStreak = 'losing_streak';
     case InterferenceFinish = 'interference_finish';
     case InterbrandSeriesResult = 'interbrand_series_result';
-    case UpsetWin = 'upset_win';
     case RivalryStarted = 'rivalry_started';
     case RivalryHeatingUp = 'rivalry_heating_up';
     case RivalryBlowoff = 'rivalry_blowoff';
@@ -94,6 +93,8 @@ enum NewsEventType: string
     case SuperstarRecap = 'superstar_recap';
     case InjuryReport = 'injury_report';
     case LockerRoomNote = 'locker_room_note';
+    // House rule (2026-11-21): Vince McMahon's WWE headline for season 1, week 1.
+    case Welcome = 'welcome';
 
     /**
      * Quiet-week filler: never promoted over real news.

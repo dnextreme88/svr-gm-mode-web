@@ -119,7 +119,7 @@ it('names every protected and hand-picked superstar in the re-draft headline', f
 
     $series = InterbrandSeries::where('save_id', $save->id)->first();
     $names = fn (array $ids) => SaveWrestler::with('wrestler')->whereIn('id', $ids)->get()->map->name()->all();
-    $payload = NewsEvent::where('save_id', $save->id)->where('type', 'redraft_results')->sole()->payload;
+    $payload = NewsEvent::where('save_id', $save->id)->where('type', 'redraft_pick')->sole()->payload;
 
     foreach ($names($series->exemptIds()) as $name) {
         expect($payload['immune'])->toContain($name);

@@ -107,7 +107,7 @@ class ContendershipService
             ]);
         }
 
-        $this->news->record($save, NewsEventType::ContendershipVoided, NewsTier::Ticker, $shot->brand, [
+        $this->news->record($save, NewsEventType::ContendershipVoided, NewsTier::Story, $shot->brand, [
             'contenders' => $contenders,
             'title' => $title,
             'reason' => $why,

@@ -11,6 +11,7 @@ use App\Models\MatchSlot;
 use App\Models\PromoSlot;
 use App\Models\SaveWrestler;
 use App\Models\WrestlerSpecialty;
+use App\Services\Factions\FactionNamer;
 use App\Services\Injuries\InjuryStatus;
 use Illuminate\Support\Str;
 
@@ -26,14 +27,16 @@ use Illuminate\Support\Str;
  * Modifiers: the match is a competitor's specialty (+10 per side), the
  * side's best win streak (5+, 10+, 20+), an Interview Space that aired for
  * a competitor this week (+5 succeeded, -5 failed), each competitor with a
- * minor injury (-10), and the weight class gap when every side is one class
- * (+5 for every class above the lightest side).
+ * minor injury (-10), a manager in the side's corner (+10), 2+ members of
+ * an active faction teaming on the side (+10, once per side), and the weight
+ * class gap (+5 for every class the heaviest side is above the lightest),
+ * only when one side clearly outweighs the rest (see `weightBonuses`).
  *
  * The simulation rolls the winner on these chances; Book to Win ignores them.
  */
 class WinningOdds
 {
-    public function __construct(private InjuryStatus $injuryStatus) {}
+    public function __construct(private InjuryStatus $injuryStatus, private FactionNamer $factions) {}
 
     /**
      * @param  array<int, list<int>>|null  $sides  only these sides (a Gauntlet bout)
@@ -58,6 +61,11 @@ class WinningOdds
         $injuries = $this->injuryStatus->activeByWrestler((int) $show->save_id, $week);
         $interviews = $this->interviews((int) $show->save_id, $week, array_keys($wrestlers));
         $weights = $this->weightBonuses($sides, $wrestlers, (int) $config['weight_class_step']);
+        $managers = [];
+
+        foreach ($slot->managers() as $p) {
+            $managers[$p->side] ??= $p->saveWrestler->wrestler->name;
+        }
 
         $factors = [];
 
@@ -97,6 +105,19 @@ class WinningOdds
                 if ($injury instanceof Injury && $injury->severity === InjurySeverity::Minor) {
                     $list[] = ['label' => "Minor injury: {$w->wrestler->name}", 'points' => (int) $config['minor_injury']];
                 }
+            }
+
+            $factions = count($ids) > 1 ? $this->factions->factionsOn((int) $show->save_id, $ids, $week) : [];
+
+            if ($factions !== []) {
+                $names = implode(' & ', array_map(fn ($f): string => (string) $f->faction_name, $factions));
+                $list[] = ['label' => "Faction: {$names}", 'points' => (int) $config['faction']];
+            }
+
+            $manager = $managers[$side] ?? null;
+
+            if ($manager !== null) {
+                $list[] = ['label' => "Manager: {$manager}", 'points' => (int) $config['manager']];
             }
 
             if (($weights[$side] ?? null) !== null) {
@@ -155,12 +176,16 @@ class WinningOdds
     }
 
     /**
-     * The weight class gap (house rule): only when every side is one class.
-     * Each side gets a step for every class it's above the lightest side.
+     * The weight class gap (house rule, 2026-11-21). Every side must be one
+     * weight class, exactly one side must be the heaviest, and the other
+     * sides must be either all the same class or all different classes.
+     * Only that heaviest side gains a step for every class it's above the
+     * lightest side: a Heavyweight against three Cruiserweights gets +10,
+     * a Heavyweight against two Cruiserweights and a Light Heavyweight none.
      *
      * @param  array<int, list<int>>  $sides
      * @param  array<int, SaveWrestler>  $wrestlers
-     * @return array<int, array{label: string, points: int}|null>
+     * @return array<int, array{label: string, points: int}>
      */
     private function weightBonuses(array $sides, array $wrestlers, int $step): array
     {
@@ -177,25 +202,31 @@ class WinningOdds
                 return [];
             }
 
-            $classes[$side] = $sideClasses[0];
+            $classes[$side] = $order[$sideClasses[0]];
         }
 
-        if ($classes === []) {
+        if (count($classes) < 2) {
             return [];
         }
 
-        $lightest = min(array_map(fn (string $c): int => $order[$c], $classes));
-        $lightestLabel = $this->classLabel(WeightClass::cases()[$lightest]);
-        $bonuses = [];
+        $heaviest = max($classes);
+        $top = array_keys($classes, $heaviest, true);
 
-        foreach ($classes as $side => $class) {
-            $gap = $order[$class] - $lightest;
-            $bonuses[$side] = $gap > 0
-                ? ['label' => $this->classLabel(WeightClass::from($class))." vs {$lightestLabel}", 'points' => $gap * $step]
-                : null;
+        if (count($top) !== 1) {
+            return [];
         }
 
-        return $bonuses;
+        $others = array_values(array_diff_key($classes, [$top[0] => true]));
+        $distinct = count(array_unique($others));
+
+        if ($distinct !== 1 && $distinct !== count($others)) {
+            return [];
+        }
+
+        $lightest = min($classes);
+        $label = $this->classLabel(WeightClass::cases()[$heaviest]).' vs '.$this->classLabel(WeightClass::cases()[$lightest]);
+
+        return [$top[0] => ['label' => $label, 'points' => ($heaviest - $lightest) * $step]];
     }
 
     /**

@@ -40,9 +40,8 @@ class NewsCatalog
         'main_event_hype_result' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline (worded by the Main Event Hype promo story)'],
         'interference_finish' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Story'],
         'win_streak' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline at 10, 15 and 20 wins'],
-        'streak_snapped' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline, a streak of 10+ wins'],
-        'losing_streak' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Ticker'],
-        'upset_win' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Story', 'active' => false],
+        'streak_snapped' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Headline: the upset win, when someone beats a superstar on a 10+ win streak (Upset Win merged into it, 2026-11-21)'],
+        'losing_streak' => ['group' => 'Matches', 'card' => 'brand', 'tier' => 'Story'],
 
         'title_change' => ['group' => 'Titles', 'card' => 'brand', 'tier' => 'Headline'],
         'title_retained' => ['group' => 'Titles', 'card' => 'brand', 'tier' => 'Story'],
@@ -52,14 +51,14 @@ class NewsCatalog
         'reign_milestone' => ['group' => 'Titles', 'card' => 'brand', 'tier' => 'Story'],
         'record_broken' => ['group' => 'Titles', 'card' => 'brand', 'tier' => 'Headline'],
         'mitb_cash_in' => ['group' => 'Titles', 'card' => 'wwe', 'tier' => 'Headline'],
-        'mitb_expiring' => ['group' => 'Titles', 'card' => 'brand', 'tier' => 'Ticker'],
+        'mitb_expiring' => ['group' => 'Titles', 'card' => 'wwe', 'tier' => 'Headline, the week after the Royal Rumble, while a briefcase is still held (it runs out at WrestleMania)'],
 
         'contender_earned_shot' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Headline'],
         'last_chance_result' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Headline'],
         'champion_survived_challenge' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Story, when the champion wins a Champion vs. Contender match'],
         'winner_takes_all' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Headline: the winner celebrates (80%) or the losers vow revenge (20%)'],
         'number_one_contender' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Headline: fired up, a staredown with the champion, or celebrating with the fans (a third each)'],
-        'contendership_voided' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Ticker, when a #1 contender leaves the brand, is seriously injured or forfeits'],
+        'contendership_voided' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Story, when a #1 contender leaves the brand, is seriously injured or forfeits'],
         'contender_awarded_title' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Headline, when a vacated title is awarded to its #1 contender(s)'],
         'loser_leaves' => ['group' => 'Stipulations', 'card' => 'brand', 'tier' => 'Headline'],
 
@@ -85,12 +84,12 @@ class NewsCatalog
         'released' => ['group' => 'Roster and contracts', 'card' => 'brand', 'tier' => 'Story'],
         'contract_expiring' => ['group' => 'Roster and contracts', 'card' => 'brand', 'tier' => 'Story'],
         'trade_completed' => ['group' => 'Roster and contracts', 'card' => 'wwe', 'tier' => 'Headline'],
-        'redraft_pick' => ['group' => 'Roster and contracts', 'card' => 'brand', 'tier' => 'Ticker'],
+        'redraft_pick' => ['group' => 'Roster and contracts', 'card' => 'wwe', 'tier' => 'Headline, always the WWE headline after the WrestleMania re-draft, before week 1 of the next season: every pick, the tags and the season closing'],
         'defection_attempt' => ['group' => 'Roster and contracts', 'card' => 'brand', 'tier' => 'Story'],
         'defection_blocked' => ['group' => 'Roster and contracts', 'card' => 'brand', 'tier' => 'Story'],
         'defection_completed' => ['group' => 'Roster and contracts', 'card' => 'wwe', 'tier' => 'Headline'],
         'season_reset' => ['group' => 'Roster and contracts', 'card' => 'wwe', 'tier' => 'Headline'],
-        'redraft_results' => ['group' => 'Roster and contracts', 'card' => 'wwe', 'tier' => 'Headline'],
+        'redraft_results' => ['group' => 'Roster and contracts', 'card' => 'wwe', 'tier' => 'Headline (old news only: before 2026-11-21, now Redraft pick)'],
 
         'promo_result' => ['group' => 'Promos', 'card' => 'brand', 'tier' => 'Story (worded by the promo story, see Promo stories)'],
         'call_out_face' => ['group' => 'Promos', 'card' => 'brand', 'tier' => 'Story (a face Call-out, worded by the promo story)'],
@@ -101,9 +100,9 @@ class NewsCatalog
         'injury' => ['group' => 'Injuries and morale', 'card' => 'brand', 'tier' => 'Story, Headline when a champion is seriously hurt'],
         'injury_escalated' => ['group' => 'Injuries and morale', 'card' => 'brand', 'tier' => 'Story'],
         'injury_return' => ['group' => 'Injuries and morale', 'card' => 'brand', 'tier' => 'Story'],
-        'contract_demand' => ['group' => 'Injuries and morale', 'card' => 'brand', 'tier' => 'Ticker'],
-        'title_demand' => ['group' => 'Injuries and morale', 'card' => 'brand', 'tier' => 'Ticker'],
-        'morale_unrest' => ['group' => 'Injuries and morale', 'card' => 'brand', 'tier' => 'Ticker'],
+        'contract_demand' => ['group' => 'Injuries and morale', 'card' => 'brand', 'tier' => 'Story'],
+        'title_demand' => ['group' => 'Injuries and morale', 'card' => 'brand', 'tier' => 'Story'],
+        'morale_unrest' => ['group' => 'Injuries and morale', 'card' => 'brand', 'tier' => 'Story'],
 
         'ratings_war' => ['group' => 'Brand battle', 'card' => 'brand', 'tier' => 'Story', 'active' => false],
         'ratings_streak' => ['group' => 'Brand battle', 'card' => 'brand', 'tier' => 'Story', 'active' => false],
@@ -118,18 +117,20 @@ class NewsCatalog
         'tickets_on_sale' => ['group' => 'Quiet weeks', 'card' => 'wwe', 'tier' => 'Headline, only when the WWE card has nothing else'],
         'brand_spotlight' => ['group' => 'Quiet weeks', 'card' => 'brand', 'tier' => 'Headline, only when a brand has nothing else'],
         'superstar_recap' => ['group' => 'Quiet weeks', 'card' => 'brand', 'tier' => 'Story, filling an empty story slot'],
-        'injury_report' => ['group' => 'Quiet weeks', 'card' => 'brand', 'tier' => 'Story, filling the second empty story slot'],
-        'locker_room_note' => ['group' => 'Quiet weeks', 'card' => 'brand', 'tier' => 'Ticker, when the ticker is empty'],
+        'injury_report' => ['group' => 'Quiet weeks', 'card' => 'brand', 'tier' => 'Story, filling the second empty story slot when the locker room has nothing to report'],
+        'locker_room_note' => ['group' => 'Quiet weeks', 'card' => 'brand', 'tier' => 'Story, filling the second empty story slot: unhappy superstars, else contracts about to run out'],
+        'welcome' => ['group' => 'Quiet weeks', 'card' => 'wwe', 'tier' => 'Headline from Vince McMahon, always and only in season 1, week 1'],
     ];
 
     public function __construct(private NewsTemplates $templates) {}
 
     /**
-     * @return list<array{type: string, label: string, group: string, card: string, tier: string, active: bool, headline: string, summary: string, summary_variants: list<array{variant: string, summary: string}>}>
+     * @return list<array{type: string, label: string, group: string, card: string, tier: string, active: bool, priority: int, priority_note: string|null, headline: string, summary: string, summary_variants: list<array{variant: string, summary: string}>}>
      */
     public function entries(): array
     {
         $entries = [];
+        $priorities = $this->priorities();
 
         foreach (self::ENTRIES as $value => $entry) {
             $type = NewsEventType::from($value);
@@ -141,6 +142,10 @@ class NewsCatalog
                 'card' => $entry['card'],
                 'tier' => $entry['tier'],
                 'active' => $entry['active'] ?? true,
+                // House rule (2026-11-21): how much weight it carries when
+                // headlines and stories are drawn (see `priorities()`).
+                'priority' => $priorities[$value][0] ?? 0,
+                'priority_note' => $priorities[$value][1] ?? null,
                 'headline' => $this->readable($this->templates->template($type)),
                 'summary' => $this->readable($this->templates->summaryTemplate($type)),
                 // Every other way the summary can read (house rule, 2026-11-11).
@@ -153,6 +158,116 @@ class NewsCatalog
         }
 
         return $entries;
+    }
+
+    /**
+     * Each event's priority as recorded: its weight when headlines and
+     * stories are drawn, and the order bigger news wins in. Read from the
+     * same config the game uses, with a note where it varies. A test checks
+     * the plain numbers against the code that records them.
+     *
+     * @return array<string, array{0: int, 1?: string}>
+     */
+    public function priorities(): array
+    {
+        $news = (array) config('gm.news');
+        $stip = (array) $news['stipulation_priority'];
+        $faction = (array) $news['faction_priority'];
+        $morale = (array) $news['morale_priority'];
+        $result = (array) $news['match_result_priority'];
+        $ppvMain = (array) $news['ppv_main_event_priority'];
+        $promo = (int) $news['promo_result_priority'];
+        $other = (int) $result['other'];
+        $main = (int) $result['main_event'];
+        $biggest = $main + (int) $result['ppv_bonus'] + (int) $result['title_bonus'] + (int) $result['gimmick_bonus'];
+        $filler = 'Filler: always the lowest';
+
+        return [
+            'match_result' => [$other, sprintf('%d for an undercard match, %d for the main event; +%d at a PPV, +%d with a title on the line, +%d for a gimmick match, −%d for a DQ or count-out win (up to %d)', $other, $main, $result['ppv_bonus'], $result['title_bonus'], $result['gimmick_bonus'], $result['not_decisive_penalty'], $biggest)],
+            'main_event_hype_result' => [(int) $result['hyped_main_event']],
+            'interference_finish' => [30],
+            'win_streak' => [40, '10 + 3 per win in the streak: 40 at 10 wins, 70 at 20'],
+            'streak_snapped' => [60],
+            'losing_streak' => [(int) $morale['losing_streak']],
+
+            'title_change' => [100],
+            'title_retained' => [35],
+            'retained_by_dq' => [35],
+            'title_vacated' => [80],
+            'title_awarded' => [40],
+            'reign_milestone' => [30],
+            'record_broken' => [65],
+            'mitb_cash_in' => [90],
+            'mitb_expiring' => [(int) $news['mitb_expiring_priority']],
+
+            'contender_earned_shot' => [(int) $stip['contender_earned_shot']],
+            'last_chance_result' => [70],
+            'champion_survived_challenge' => [(int) $stip['champion_survived_challenge']],
+            'winner_takes_all' => [(int) $stip['winner_takes_all']],
+            'number_one_contender' => [(int) $stip['number_one_contender']],
+            'contendership_voided' => [(int) $stip['contendership_voided']],
+            'contender_awarded_title' => [(int) $stip['contender_awarded_title']],
+            'loser_leaves' => [80],
+
+            'attendance' => [(int) $news['attendance_priority']],
+            'ppv_upcoming' => [55, '55 as the headline 1 week out, 15 as a story 2 weeks out'],
+            'ppv_main_event_set' => [80],
+            'ppv_results' => [(int) $ppvMain['interbrand'], sprintf("%d for an interbrand PPV's main event, %d for a brand PPV's, 90 for the Royal Rumble winner", $ppvMain['interbrand'], $ppvMain['brand'])],
+            'survivor_series_teams' => [40],
+            'mitb_qualified' => [30, '30 from a Qualifying Match, 10 when a spot is filled on the card'],
+            'survivor_series_qualified' => [30],
+            'mitb_winner' => [75],
+            'interbrand_series_result' => [95],
+
+            'rivalry_started' => [25],
+            'rivalry_heating_up' => [30],
+            'rivalry_milestone' => [60],
+            'rivalry_concluded' => [70],
+            'rivalry_blowoff' => [70],
+
+            'free_agent_signed' => [(int) $news['free_agent_signed_priority']],
+            'legend_signed' => [60],
+            'debut' => [30],
+            'released' => [20],
+            'contract_expiring' => [(int) $news['contract_expiring_priority']],
+            'trade_completed' => [85],
+            'redraft_pick' => [100],
+            'defection_attempt' => [40],
+            'defection_blocked' => [45],
+            'defection_completed' => [85],
+            'season_reset' => [100],
+            'redraft_results' => [100],
+
+            'promo_result' => [$promo],
+            'call_out_face' => [$promo + 5],
+            'call_out_heel' => [$promo + 5],
+            'slander_result' => [75],
+            'interference_promo_result' => [75],
+
+            'injury' => [50, '50 for a serious injury, 20 for a minor one'],
+            'injury_escalated' => [50],
+            'injury_return' => [25],
+            'contract_demand' => [(int) $morale['contract_demand']],
+            'title_demand' => [(int) $morale['title_demand']],
+            'morale_unrest' => [(int) $morale['morale_unrest']],
+
+            'ratings_war' => [0],
+            'ratings_streak' => [0],
+
+            'faction_formed' => [(int) $faction['formed']],
+            'faction_member_added' => [(int) $faction['member_added']],
+            'faction_title_won' => [(int) $faction['title_won']],
+            'faction_title_lost' => [(int) $faction['title_lost']],
+            'faction_interbrand_win' => [(int) $faction['interbrand_win']],
+            'faction_disbanded' => [(int) $faction['disbanded']],
+
+            'tickets_on_sale' => [1, $filler],
+            'brand_spotlight' => [1, $filler],
+            'superstar_recap' => [1, $filler],
+            'injury_report' => [1, $filler],
+            'locker_room_note' => [1, $filler],
+            'welcome' => [100],
+        ];
     }
 
     /**

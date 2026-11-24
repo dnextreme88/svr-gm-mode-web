@@ -5,6 +5,7 @@ use App\Enums\NewsTier;
 use App\Models\NewsEvent;
 use App\Models\Save;
 use App\Services\Matches\ShowResolver;
+use App\Services\News\NewsTemplates;
 use App\Services\Week\WeekResolver;
 use Tests\Support\Card;
 use Tests\Support\FixedOutcomes;
@@ -53,4 +54,15 @@ it('says nothing about a 3-win streak', function () {
 it('snaps only a streak of 10 or more', function () {
     expect(streakNews(streakWeek('Kane', 10), NewsEventType::StreakSnapped))->not->toBeNull()
         ->and(streakNews(streakWeek('Kane', 9), NewsEventType::StreakSnapped))->toBeNull();
+});
+
+it('tells a snapped 10+ streak as the upset win (Upset Win merged in, 2026-11-21)', function () {
+    $news = streakNews(streakWeek('Kane', 12), NewsEventType::StreakSnapped);
+    $summary = app(NewsTemplates::class)->summary(NewsEventType::StreakSnapped, $news->payload);
+
+    expect($news->tier)->toBe(NewsTier::Headline)
+        ->and($news->rendered_text)->toBe('Kane snaps the unbreakable streak!')
+        ->and($summary)->toStartWith('Nobody expected it, but Kane pulled off the upset of the year')
+        ->and($summary)->toContain('Edge came in on a 12-match winning streak')
+        ->and(NewsEventType::tryFrom('upset_win'))->toBeNull();
 });

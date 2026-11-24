@@ -8,6 +8,7 @@ use App\Enums\FixedSlotKind;
 use App\Enums\InjurySeverity;
 use App\Enums\LedgerCategory;
 use App\Enums\MitbStatus;
+use App\Enums\NewsBrand;
 use App\Enums\NewsEventType;
 use App\Enums\NewsTier;
 use App\Enums\RosterType;
@@ -580,8 +581,9 @@ describe('re-draft', function () {
 
         app(ReDraftService::class)->run($save);
 
-        $event = NewsEvent::where('save_id', $save->id)->where('type', NewsEventType::RedraftResults)->sole();
-        $summary = app(NewsTemplates::class)->summary(NewsEventType::RedraftResults, $event->payload);
+        // House rule (2026-11-21): one Re-draft Picks headline, no line per pick.
+        $event = NewsEvent::where('save_id', $save->id)->where('type', NewsEventType::RedraftPick)->sole();
+        $summary = app(NewsTemplates::class)->summary(NewsEventType::RedraftPick, $event->payload);
         $raw = redraftPicks($save)->where('brand', Brand::Raw)->map(fn ($p) => $p->saveWrestler->name())->values()->all();
 
         expect($event->week_number)->toBe(52)
@@ -590,8 +592,9 @@ describe('re-draft', function () {
             ->and(StoryText::fits($summary))->toBeTrue()
             ->and($summary)->toContain('Season 1 re-draft')
             ->and($summary)->toContain('Season 2 starts now')
+            ->and($event->brand)->toBe(NewsBrand::Both)
             ->and($summary)->toContain(...$raw)
-            ->and(NewsEvent::where('save_id', $save->id)->where('type', NewsEventType::RedraftPick)->pluck('tier')->unique()->values()->all())->toBe([NewsTier::Ticker]);
+            ->and(NewsEvent::where('save_id', $save->id)->where('type', NewsEventType::RedraftResults)->exists())->toBeFalse();
     });
 
     it('puts the re-draft first and each brand’s last WrestleMania match on its card', function () {
@@ -605,7 +608,7 @@ describe('re-draft', function () {
         $main = MatchSlot::where('show_id', interbrandShow($save, MANIA_WEEK)->id)->where('position', 8)->first();
         $mainBrand = $main->owner_brand->value;
 
-        expect($page['headlines']['neutral']['type'])->toBe('redraft_results')
+        expect($page['headlines']['neutral']['type'])->toBe('redraft_pick')
             ->and($page['headlines'][$mainBrand])->not->toBeNull()
             ->and(NewsEvent::find($page['headlines'][$mainBrand]['id'])->dedupe_key)->toBe("slot:{$main->id}");
     });

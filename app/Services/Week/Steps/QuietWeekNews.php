@@ -36,8 +36,12 @@ use Illuminate\Support\Collection;
  * - the WWE headline: tickets for whatever airs next;
  * - a brand headline: its top champion's week on the road (or the roster at
  *   WWE HQ), plus a word on the budget;
- * - brand stories: a superstar's last match, then the injury report;
- * - the ticker: locker-room morale and contracts.
+ * - brand stories: a superstar's last match, then the locker room (who's
+ *   unhappy or whose contract is running out) or, with nothing to report
+ *   there, the injury report.
+ *
+ * Season 1, week 1 opens with Vince McMahon's welcome as the WWE headline
+ * (house rule, 2026-11-21), so the season never starts on filler.
  */
 class QuietWeekNews implements WeekStep
 {
@@ -53,8 +57,13 @@ class QuietWeekNews implements WeekStep
     {
         $save = $context->save;
         $week = $context->week;
-        $page = $this->composer->compose($save, $week);
         $rng = $context->rng('news.quiet-week');
+
+        if ($week === 1) {
+            $this->news->record($save, NewsEventType::Welcome, NewsTier::Headline, NewsBrand::Both, [], priority: 100, week: $week);
+        }
+
+        $page = $this->composer->compose($save, $week);
 
         if ($page['headlines']['neutral'] === null) {
             $this->tickets($context, $rng);
@@ -72,12 +81,10 @@ class QuietWeekNews implements WeekStep
                 $this->recap($context, $brand, $roster, $rng);
             }
 
-            if ($missing >= 2) {
+            // House rule (2026-11-21): the locker room is a story now, ahead of
+            // the injury report when someone is unhappy or about to walk.
+            if ($missing >= 2 && ! $this->lockerRoom($context, $brand, $roster, $rng)) {
                 $this->injuryReport($context, $brand, $roster, $rng);
-            }
-
-            if ($page['ticker'] === [] && $roster->isNotEmpty()) {
-                $this->lockerRoom($context, $brand, $roster, $rng);
             }
         }
     }
@@ -209,15 +216,23 @@ class QuietWeekNews implements WeekStep
     }
 
     /**
-     * Ticker notes: unhappy wrestlers, contracts about to run out, or calm.
+     * The locker room story: unhappy superstars first, else contracts about
+     * to run out. False when there's nothing to report.
      *
      * @param  Collection<int, SaveWrestler>  $roster
      */
-    private function lockerRoom(WeekContext $context, Brand $brand, Collection $roster, Rng $rng): void
+    private function lockerRoom(WeekContext $context, Brand $brand, Collection $roster, Rng $rng): bool
     {
         $newsBrand = NewsBrand::from($brand->value);
         $names = fn (Collection $wrestlers): string => $wrestlers->take(3)->map(fn (SaveWrestler $w): string => $w->name())->implode(', ');
         $unhappy = $roster->filter(fn (SaveWrestler $w): bool => in_array($w->morale, [Morale::Unsatisfied, Morale::Upset], true))->values();
+
+        if ($unhappy->isNotEmpty()) {
+            $this->record($context, NewsEventType::LockerRoomNote, NewsTier::Story, $newsBrand, 'locker.unhappy', ['brand' => $brand->label(), 'names' => $names($unhappy)], $rng, array_values($unhappy->take(3)->map(fn (SaveWrestler $w): int => $w->id)->all()));
+
+            return true;
+        }
+
         $weeks = (int) config('gm.contracts.expiring_threshold_weeks');
         $expiring = Contract::with('saveWrestler.wrestler')
             ->whereIn('save_wrestler_id', $roster->pluck('id')->all())
@@ -227,17 +242,13 @@ class QuietWeekNews implements WeekStep
             ->get()
             ->map(fn (Contract $c): SaveWrestler => $c->saveWrestler);
 
-        if ($unhappy->isNotEmpty()) {
-            $this->record($context, NewsEventType::LockerRoomNote, NewsTier::Ticker, $newsBrand, 'locker.unhappy', ['brand' => $brand->label(), 'names' => $names($unhappy)], $rng);
-        }
-
         if ($expiring->isNotEmpty()) {
-            $this->record($context, NewsEventType::LockerRoomNote, NewsTier::Ticker, $newsBrand, 'locker.expiring', ['brand' => $brand->label(), 'names' => $names($expiring), 'n' => $weeks], $rng);
+            $this->record($context, NewsEventType::LockerRoomNote, NewsTier::Story, $newsBrand, 'locker.expiring', ['brand' => $brand->label(), 'names' => $names($expiring), 'n' => $weeks], $rng, array_values($expiring->take(3)->map(fn (SaveWrestler $w): int => $w->id)->all()));
+
+            return true;
         }
 
-        if ($unhappy->isEmpty() && $expiring->isEmpty()) {
-            $this->record($context, NewsEventType::LockerRoomNote, NewsTier::Ticker, $newsBrand, 'locker.calm', ['brand' => $brand->label()], $rng);
-        }
+        return false;
     }
 
     private function opponents(MatchSlot $slot, MatchParticipant $p): string

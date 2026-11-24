@@ -592,10 +592,10 @@ class ShowResolver
         }
 
         if (! $won && $wrestler->loss_streak >= (int) config('gm.news.losing_streak_min')) {
-            $this->news->record($save, NewsEventType::LosingStreak, NewsTier::Ticker, $brand, [
+            $this->news->record($save, NewsEventType::LosingStreak, NewsTier::Story, $brand, [
                 'wrestler' => $wrestler->name(),
                 'n' => $wrestler->loss_streak,
-            ], ['wrestler_ids' => [$wrestler->id]], week: $week);
+            ], ['wrestler_ids' => [$wrestler->id]], priority: (int) config('gm.news.morale_priority.losing_streak'), week: $week);
         }
     }
 

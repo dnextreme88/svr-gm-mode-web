@@ -4,6 +4,7 @@ use App\Enums\Brand;
 use App\Enums\InjurySeverity;
 use App\Enums\Morale;
 use App\Enums\NewsEventType;
+use App\Enums\NewsTier;
 use App\Models\NewsEvent;
 use App\Models\Save;
 use App\Models\SaveBrand;
@@ -13,6 +14,7 @@ use App\Services\News\NewsTemplates;
 use App\Services\Week\Steps\QuietWeekNews;
 use App\Services\Week\WeekContext;
 use App\Services\Week\WeekResolver;
+use App\Support\Text\StoryText;
 use Tests\Support\Card;
 use Tests\Support\FixedOutcomes;
 use Tests\Support\GameBuilder;
@@ -35,27 +37,48 @@ function quiet(NewsEventType $type, ?Brand $brand = null)
 it('fills every card of an empty week', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista', 'JBL']);
 
-    quietWeek($save);
-    $page = app(NewsComposer::class)->compose($save, 1);
+    quietWeek($save, 2);
+    $page = app(NewsComposer::class)->compose($save, 2);
 
+    // House rule (2026-11-21): no ticker filler any more; the brand tickers
+    // list match results.
     expect($page['headlines']['neutral']['type'])->toBe('tickets_on_sale')
         ->and($page['headlines']['raw']['type'])->toBe('brand_spotlight')
         ->and($page['headlines']['smackdown']['type'])->toBe('brand_spotlight')
         ->and(collect($page['stories']['raw'])->pluck('type')->sort()->values()->all())->toBe(['injury_report', 'superstar_recap'])
-        ->and($page['ticker'])->not->toBeEmpty()
-        ->and(collect($page['ticker'])->pluck('type')->unique()->all())->toBe(['locker_room_note']);
+        ->and($page['ticker'])->toBeEmpty();
+});
+
+it('opens season 1, week 1 with Vince McMahon’s welcome as the WWE headline', function () {
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista', 'JBL']);
+
+    quietWeek($save);
+    $page = app(NewsComposer::class)->compose($save, 1);
+    $welcome = quiet(NewsEventType::Welcome)->sole();
+    $summary = app(NewsTemplates::class)->summary(NewsEventType::Welcome, $welcome->payload);
+
+    expect($page['headlines']['neutral']['type'])->toBe('welcome')
+        ->and($welcome->rendered_text)->toBe('Welcome to Smackdown vs Raw')
+        ->and($welcome->tier)->toBe(NewsTier::Headline)
+        ->and(StoryText::paragraphs($summary))->toHaveCount(2)
+        ->and($summary)->toContain('Vince McMahon')
+        ->and(quiet(NewsEventType::TicketsOnSale))->toBeEmpty();
+
+    // Only week 1.
+    quietWeek($save, 2);
+    expect(quiet(NewsEventType::Welcome))->toHaveCount(1);
 });
 
 it('sells tickets for both weekly shows, each with its date', function () {
     $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
 
-    quietWeek($save);
+    quietWeek($save, 2);
     $tickets = quiet(NewsEventType::TicketsOnSale)->sole();
 
     expect($tickets->payload['story'])->toBe('tickets.shows')
         ->and($tickets->rendered_text)->toBe('Raw and Smackdown tickets on sale')
         ->and(app(NewsTemplates::class)->summary(NewsEventType::TicketsOnSale, $tickets->payload))
-        ->toStartWith("Monday Night Raw comes to town on April 11, 2005 and Smackdown on April 15, 2005. Buy your tickets for these shows and don't miss out on the action!");
+        ->toStartWith("Monday Night Raw comes to town on April 18, 2005 and Smackdown on April 22, 2005. Buy your tickets for these shows and don't miss out on the action!");
 });
 
 it('keeps the wording of Raw-only ticket news already recorded', function () {
@@ -131,15 +154,17 @@ it('praises a roster with no injuries in 6 months', function () {
     expect(quiet(NewsEventType::InjuryReport, Brand::Raw)->sole()->payload['story'])->toBe('injuries.clean');
 });
 
-it('puts unhappy wrestlers in the ticker', function () {
+it('puts unhappy superstars in a locker room story, ahead of the injury report', function () {
     $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
     GameBuilder::wrestler($save, 'Kane')->update(['morale' => Morale::Upset]);
 
     quietWeek($save);
     $notes = quiet(NewsEventType::LockerRoomNote, Brand::Raw);
 
-    expect($notes->pluck('payload.story')->all())->toContain('locker.unhappy')
-        ->and($notes->firstWhere('payload.story', 'locker.unhappy')->payload['names'])->toBe('Kane');
+    expect($notes->sole()->payload['story'])->toBe('locker.unhappy')
+        ->and($notes->sole()->payload['names'])->toBe('Kane')
+        ->and($notes->sole()->tier)->toBe(NewsTier::Story)
+        ->and(quiet(NewsEventType::InjuryReport, Brand::Raw))->toBeEmpty();
 });
 
 it('leaves a busy week alone', function () {

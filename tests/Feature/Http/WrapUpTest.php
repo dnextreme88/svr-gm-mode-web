@@ -33,6 +33,17 @@ it('opens the week just aired’s Financials in wrap-up mode', function () {
         ->assertInertia(fn (Assert $page) => $page->where('wrap_up', false));
 });
 
+it('keeps wrap-up mode on the rival’s Financials for the week just aired', function () {
+    $save = airedWeek();
+    $rival = $save->player_brand->value === 'raw' ? 'smackdown' : 'raw';
+
+    $this->get(route('gm.financials', ['save' => $save, 'wrap' => 1, 'brand' => $rival]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('wrap_up', true)
+            ->where('brand', $rival)
+            ->where('statement.week', $save->current_week - 1));
+});
+
 it('sends the News’ Continue to the inbox in wrap-up mode', function () {
     $save = airedWeek();
 

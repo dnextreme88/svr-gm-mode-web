@@ -91,7 +91,7 @@ export function FinanceTrend({
                                 W{w}
                             </text>
                         ))}
-                        {weeks.map((w) => {
+                        {weeks.map((w, i) => {
                             const active = w.week_number === selected;
                             const height = Math.max(2, h(w.net));
 
@@ -144,7 +144,15 @@ export function FinanceTrend({
                                         width={bar}
                                         height={height}
                                         rx={1.5}
+                                        // Bars grow out of the zero line, one
+                                        // after another (house rule, 2026-11-21).
+                                        style={{
+                                            transformOrigin:
+                                                w.net >= 0 ? 'bottom' : 'top',
+                                            animationDelay: `${Math.min(i, 40) * 14}ms`,
+                                        }}
                                         className={cn(
+                                            'gm-trend-bar',
                                             w.ppv
                                                 ? 'fill-gold'
                                                 : w.net >= 0

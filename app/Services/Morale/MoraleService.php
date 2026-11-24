@@ -87,10 +87,10 @@ class MoraleService
             $after = $this->calculator->recalculate($wrestler);
 
             if ($after === Morale::Upset && $before !== Morale::Upset) {
-                $this->news->record($save, NewsEventType::MoraleUnrest, NewsTier::Ticker, $wrestler->brand, [
+                $this->news->record($save, NewsEventType::MoraleUnrest, NewsTier::Story, $wrestler->brand, [
                     'wrestler' => $wrestler->name(),
                     'brand' => $wrestler->brand?->label(),
-                ], ['wrestler_ids' => [$wrestler->id]], week: $week);
+                ], ['wrestler_ids' => [$wrestler->id]], priority: (int) config('gm.news.morale_priority.morale_unrest'), week: $week);
             }
         }
     }
@@ -170,19 +170,19 @@ class MoraleService
         ]);
 
         if ($type === MoraleComplaintType::ContractExtension) {
-            $this->news->record($wrestler->game, NewsEventType::ContractDemand, NewsTier::Ticker, $wrestler->brand, [
+            $this->news->record($wrestler->game, NewsEventType::ContractDemand, NewsTier::Story, $wrestler->brand, [
                 'wrestler' => $name,
                 'n' => $value,
-            ], ['wrestler_ids' => [$wrestler->id]], week: $week);
+            ], ['wrestler_ids' => [$wrestler->id]], priority: (int) config('gm.news.morale_priority.contract_demand'), week: $week);
         }
 
         if ($type === MoraleComplaintType::TitleMatch) {
             $title = Championship::where('brand', $wrestler->brand)->orderBy('sort_order')->get()->first(fn (Championship $c): bool => $c->allowsWrestler($wrestler->wrestler));
 
-            $this->news->record($wrestler->game, NewsEventType::TitleDemand, NewsTier::Ticker, $wrestler->brand, [
+            $this->news->record($wrestler->game, NewsEventType::TitleDemand, NewsTier::Story, $wrestler->brand, [
                 'wrestler' => $name,
                 'title' => $title?->name,
-            ], ['wrestler_ids' => [$wrestler->id]], week: $week);
+            ], ['wrestler_ids' => [$wrestler->id]], priority: (int) config('gm.news.morale_priority.title_demand'), week: $week);
         }
     }
 }

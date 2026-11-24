@@ -371,8 +371,20 @@ const props = {
                 changes_result: false,
             },
         ],
-        groups: ['Matches', 'Brand battle'],
+        groups: ['Matches', 'Titles', 'Brand battle'],
         events: [
+            {
+                type: 'title_change',
+                label: 'Title Change',
+                group: 'Titles',
+                card: 'brand',
+                tier: 'Headline',
+                active: true,
+                priority: 100,
+                priority_note: null,
+                headline: 'New owner of the {title} was crowned!',
+                summary: '{winner} beat {loser}.',
+            },
             {
                 type: 'match_result',
                 label: 'Match Result',
@@ -380,6 +392,9 @@ const props = {
                 card: 'either',
                 tier: 'Story, ranked PPV → title → main event → gimmick (DQ and count-out wins lower). The biggest match leads a brand with no headline',
                 active: true,
+                priority: 12,
+                priority_note:
+                    '12 for an undercard match, 28 for the main event',
                 headline: '{winner} defeats {loser} at {show}.',
                 summary: '{match}: {winner} got the win over {loser}.',
                 summary_variants: [
@@ -396,6 +411,8 @@ const props = {
                 card: 'brand',
                 tier: 'Story',
                 active: false,
+                priority: 0,
+                priority_note: null,
                 headline: '{brand} wins the ratings war this week.',
                 summary: '{brand} drew the bigger audience this week.',
             },
@@ -619,7 +636,55 @@ describe('Docs page', () => {
         expect(screen.getByText(/25%, 50%, 75%, 85%/)).toBeInTheDocument();
     });
 
-    it('lists every news event by group with its card, tier and templates, then the emails', async () => {
+    it('sorts the news events by priority or name and filters them by category and card (house rule, 2026-11-21)', async () => {
+        const user = userEvent.setup();
+        window.history.replaceState(null, '', '/?tab=news');
+        render(<Docs />);
+
+        const order = () =>
+            screen
+                .getAllByTestId(/^news-event-/)
+                .map((row) => row.dataset.testid);
+
+        // Biggest news first, with each event's priority and how it varies.
+        expect(order()).toEqual([
+            'news-event-title_change',
+            'news-event-match_result',
+            'news-event-ratings_war',
+        ]);
+        expect(
+            screen.getByTestId('news-priority-match_result'),
+        ).toHaveTextContent(
+            '1212 for an undercard match, 28 for the main event',
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Priority' }));
+        expect(order()[0]).toBe('news-event-ratings_war');
+
+        await user.click(screen.getByRole('button', { name: 'Event' }));
+        expect(order()).toEqual([
+            'news-event-match_result',
+            'news-event-ratings_war',
+            'news-event-title_change',
+        ]);
+
+        await user.selectOptions(
+            screen.getByRole('combobox', { name: /Category/ }),
+            'Titles',
+        );
+        expect(order()).toEqual(['news-event-title_change']);
+
+        await user.click(screen.getByRole('radio', { name: 'WWE (0)' }));
+        expect(
+            screen.getByText('No news events match these filters.'),
+        ).toBeInTheDocument();
+        expect(window.location.search).toContain('news_category=Titles');
+        expect(window.location.search).toContain('news_card=wwe');
+
+        window.history.replaceState(null, '', '/');
+    });
+
+    it('lists every news event with its category, card, tier and templates, then the emails', async () => {
         const user = userEvent.setup();
         render(<Docs />);
 
@@ -639,7 +704,9 @@ describe('Docs page', () => {
             ),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('columnheader', { name: 'Brand battle' }),
+            within(screen.getByTestId('news-event-ratings_war')).getByText(
+                'Brand battle',
+            ),
         ).toBeInTheDocument();
 
         const result = screen.getByTestId('news-event-match_result');

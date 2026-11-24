@@ -88,8 +88,8 @@ it('writes every news summary to the rule', function () {
 it('writes every promo and quiet-week story to the rule', function () {
     foreach ([PromoStories::class, FallbackStories::class] as $class) {
         foreach (constantOf($class, 'STORIES') as $key => $variants) {
-            // Ticker lines have no summary; budget lines are part of a spotlight story.
-            if (str_starts_with($key, 'locker.') || str_starts_with($key, 'budget.')) {
+            // Budget lines are part of a spotlight story.
+            if (str_starts_with($key, 'budget.')) {
                 continue;
             }
 
@@ -103,9 +103,11 @@ it('writes every promo and quiet-week story to the rule', function () {
 });
 
 it('appends a conditional story to a news summary as its own paragraph', function () {
-    $summary = app(NewsTemplates::class)->summary(NewsEventType::UpsetWin, [
+    $summary = app(NewsTemplates::class)->summary(NewsEventType::StreakSnapped, [
         'winner' => 'Finlay',
         'loser' => 'Edge',
+        'n' => 12,
+        'show' => 'Smackdown',
         'aside_text' => ConditionalStoryTexts::render('hornswoggle_shillelagh.success', ['victim' => 'Edge', 'finlay' => 'Finlay']),
     ]);
 

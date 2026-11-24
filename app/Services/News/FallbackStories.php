@@ -94,18 +94,19 @@ class FallbackStories
             ['Injury watch on {brand}', '{wrestler} ({injury}) is the latest of {count} {brand} injuries in 6 months. Booking tired superstars in gimmick matches is a risk. The trainer has been sounding the alarm for weeks. Fatigue builds up faster than most people think. Rest days and lighter matches are the cure.'],
         ],
 
-        // Ticker: morale and contracts.
+        // Brand story (house rule, 2026-11-21): the locker room, when someone
+        // is unhappy or a contract is about to run out.
         'locker.unhappy' => [
-            ['Unhappy on {brand}: {names}', ''],
-            ['{names} are not happy with {brand} management', ''],
+            ['Unrest in the {brand} locker room', '{names} are not happy with how {brand} is treating them. The complaints have been getting louder all week. Some want more matches, some want wins, and some want a shot at gold. An unhappy superstar can try to jump to the other brand. The GM can fix most of it with the right booking. The longer it waits, the harder it gets.'],
+            ['{brand} has some unhappy superstars', 'Word from backstage is that {names} have had enough. Nobody likes sitting in catering while others get the spotlight. The mood in the {brand} locker room has turned sour. A win, a title match or simply a spot on the card would go a long way. Ignore it, and the other brand will come calling. The GM has been warned.'],
+            ['Grumbling backstage on {brand}', "{names} are making their frustrations known around {brand}. The locker room is listening, and the tension is easy to feel. Morale is a big part of what keeps a roster together. Unhappy superstars don't stay quiet for long. Some of them may already be looking at the other brand. A smart GM will deal with it before it spreads."],
+            ['{brand} morale is slipping', 'Not everyone on {brand} is smiling these days, starting with {names}. Each of them has a reason to feel overlooked. Losing streaks, long waits and empty weeks add up. The office knows exactly what would fix it. Booking them well is the quickest cure. Otherwise, the grumbling will only grow.'],
         ],
         'locker.expiring' => [
-            ['Contracts running out on {brand}: {names}', ''],
-            ['{names}: {brand} deals expire within {n} weeks', ''],
-        ],
-        'locker.calm' => [
-            ['All quiet in the {brand} locker room', ''],
-            ['The {brand} roster is happy and under contract', ''],
+            ['Contracts running out on {brand}', "{names} have {n} weeks or less left on their {brand} contracts. Without a new deal they'll walk into Free Agency. The other brand will be watching closely. A good superstar never stays on the market for long. Renewing now costs money, but losing them could cost more. The clock is ticking on a decision."],
+            ['Decision time for {brand}', "The {brand} office has some deals to look at: {names} are almost out of contract. Each has {n} weeks or less before they're free to leave. Some will be worth keeping, and some may not. A renewal is paid in full up front, so the budget matters. Letting a star walk can hurt the card for months. The GM has to choose soon."],
+            ['{brand} deals are almost up', "{names} are close to the end of their {brand} contracts, with {n} weeks or less to go. Their agents have started making calls. Free Agency is waiting if nobody acts. The rival GM never misses a chance to sign a name. Every week that passes makes a new deal more urgent. It's a busy time in the {brand} office."],
+            ['Free Agency looms on {brand}', "The {brand} contracts of {names} run out within {n} weeks. Once they do, those superstars are free to go anywhere. The locker room is wondering who will stay. The fans are wondering too. Keeping a roster together takes planning as well as money. The GM's next move will say a lot."],
         ],
     ];
 
@@ -148,14 +149,13 @@ class FallbackStories
                 'recap.lost' => 'They lost it',
                 'recap.none' => 'Nobody on the roster has wrestled yet',
             ]],
-            ['injuries', 'Brand story: the injury report (last 6 months)', [
+            ['injuries', 'Brand story: the injury report (last 6 months, when the locker room has nothing to report)', [
                 'injuries.clean' => 'No injuries',
                 'injuries.hurt' => 'Injuries, with booking advice',
             ]],
-            ['locker', 'Ticker: the locker room', [
+            ['locker', 'Brand story: the locker room (ahead of the injury report)', [
                 'locker.unhappy' => 'Unsatisfied or Upset superstars',
-                'locker.expiring' => 'Contracts about to run out',
-                'locker.calm' => 'All quiet',
+                'locker.expiring' => 'Contracts about to run out (when nobody is unhappy)',
             ]],
         ];
 

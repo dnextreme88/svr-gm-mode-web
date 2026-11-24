@@ -15,7 +15,6 @@ class NewsTemplates
      */
     private const TEMPLATES = [
         'title_change' => 'The {title} has changed hands!',
-        'title_change.legacy' => 'NEW CHAMPION! {winner} defeats {loser} for the {title} at {show}!',
         'title_retained' => 'A successful {title} defense',
         'retained_by_dq' => '{champion} keeps the gold on a technicality',
         'contender_earned_shot' => '{contender} earns a {title} shot!',
@@ -60,7 +59,6 @@ class NewsTemplates
         'losing_streak' => '{wrestler} drops {n} straight',
         'interference_finish' => '{interferer} costs {loser} the match',
         'interbrand_series_result' => '{brand} wins the brand battle!',
-        'upset_win' => 'Shocker! {winner} pulls the upset',
         'rivalry_started' => 'Bad blood brewing',
         'rivalry_heating_up' => 'A feud is boiling over',
         'rivalry_blowoff' => '{winner} settles the score',
@@ -71,7 +69,7 @@ class NewsTemplates
         'released' => '{brand} releases {wrestler}',
         'loser_leaves' => '{loser} is gone from {brand}!',
         'trade_completed' => 'Blockbuster trade!',
-        'redraft_pick' => '{brand} drafts {wrestler}',
+        'redraft_pick' => 'The Season {season} re-draft is in',
         'injury' => '{wrestler} is hurt',
         'injury_escalated' => "{wrestler}'s injury gets worse",
         'injury_return' => '{wrestler} is cleared to return!',
@@ -92,7 +90,6 @@ class NewsTemplates
         // House rule: a decisive win by someone who went in with a minor injury
         // that didn't turn serious by the end of the show.
         'match_result.injured' => '{winner} wins through the pain',
-        'match_result.legacy' => '{winner} {defeats} {loser}{by} at {show}.',
         'main_event_hype_result' => 'The main event delivers!',
         'promo_result' => '{promo} {outcome}',
         'call_out_face' => '{wrestler} calls out {wrestler_b}',
@@ -103,6 +100,7 @@ class NewsTemplates
         'superstar_recap' => "{wrestler}'s last match",
         'injury_report' => '{brand} injury report',
         'locker_room_note' => 'Locker room news',
+        'welcome' => 'Welcome to Smackdown vs Raw',
         'rivalry_milestone' => 'A rivalry the fans love',
         // Factions (house rule).
         'faction_formed' => '{faction} is born!',
@@ -122,11 +120,9 @@ class NewsTemplates
      */
     private const SUMMARIES = [
         'title_change' => "{winner} beat {loser} {how} and {walks} out with the {title}! The arena came unglued at the three-count, and the celebration spilled up the ramp and into the back. Championships are hard to win and harder to keep, and {loser} will feel this one for a long time. Everybody in the locker room watched it happen on the monitors. Now every one of them knows exactly where the gold is.\n\n{the_champion} {looks} forward to meeting new challengers that {champion_pronoun} will dethrone! A new reign starts with a target on its back, and the line of contenders forms tonight. {loser} will want a rematch, and the rest of the roster will want a turn. The first title defense is always the hardest one. The fans can't wait to see who steps up.",
-        'title_change.legacy' => '{winner} beat {loser} at {show} and walks out with the {title}. The old reign is over, and a new one starts tonight. The crowd saw history made, and they let everyone know it. {loser} will have to start over at the back of the line. The title picture on the brand looks very different this morning.',
         'title_retained' => '{challenger} came for the {title}, but {champion} found a way to win and keeps the gold. It was a hard-fought title match from the opening bell. More than once it looked like the belt was about to change hands. The champion dug deep when it mattered most. {challenger} will have to go back to the drawing board. For now, the reign rolls on.',
         'retained_by_dq' => "{challenger} won the match, but titles only change hands on a decisive win. {champion} leaves with the {title}. The crowd didn't like it one bit, and they let the champion hear about it all the way to the back. A disqualification or a count-out keeps the belt where it is, no matter who gets their hand raised. {challenger} has a strong case for another shot. This story is far from over.",
         'contender_earned_shot' => "{contender} beat champion {champion} in a Champion vs. Contender match and earned a {title} match {next_show}. {pronoun} {is} thrilled about it and determined to do {possessive} best to capture the title. Beating the champion once is a statement. Beating the champion with the gold on the line is a whole different story. The champion now has to prepare for a challenger who already knows how to win. The rematch can't come soon enough for the fans.",
-        'contender_earned_shot.legacy' => '{contender} beat champion {champion} in a Champion vs Contender match. The win earns a {title} match {next_show}. The champion walked away from this one with plenty to think about. A challenger who has already won once is a dangerous one. The title match is set, and the stakes are clear.',
         'champion_survived_challenge' => '{champion} dodged a bullet against {contender} in a Champion vs. Contender match. Feeling lucky, {pronoun_lc} {is} optimistic that the {title} is safe in the meantime. A loss would have meant a title match against {contender}, and nobody needed reminding of that. The challenger came close and pushed the champion to the limit. For tonight, at least, the champion can breathe a little easier. Others will be lining up for the same chance soon.',
         'winner_takes_all' => "{winner} won the Winner Takes All match {how} and now holds {titles}. {pronoun} headed straight to the fans to celebrate the biggest night of {possessive} career with them. Every title in the match was on the line, and every one of them now belongs to one superstar. Nobody on the roster has more gold right now. The fans in the front row got a close look at all of it.\n\nHolding more than one title means defending more than one title. Every contender on the brand now has a reason to chase {winner}. The losers will want their belts back, and they won't wait politely. It's a lot of gold to carry, and a lot of targets to wear. For tonight, though, it was all celebration.",
         'winner_takes_all.celebrate' => "{winner} won the Winner Takes All match {how} and now holds {titles}. {pronoun} headed straight to the fans to celebrate the biggest night of {possessive} career with them. Every title in the match was on the line, and every one of them now belongs to one superstar. Nobody on the roster has more gold right now. The fans in the front row got a close look at all of it.\n\nHolding more than one title means defending more than one title. Every contender on the brand now has a reason to chase {winner}. The losers will want their belts back, and they won't wait politely. It's a lot of gold to carry, and a lot of targets to wear. For tonight, though, it was all celebration.",
@@ -163,13 +159,13 @@ class NewsTemplates
         'mitb_qualified' => '{wrestler} is in the Money in the Bank ladder match at WrestleMania. Six climb, one briefcase. The briefcase is a world title shot that can be cashed in at any time. Getting into the match is the first step. Climbing the ladder is the hard part.',
         'mitb_winner' => "{wrestler} climbed the ladder and grabbed the briefcase: a world title shot they can cash in on any card for a year. Five others wanted it just as badly, and the ladder took a toll on all of them. When the briefcase came down, the crowd lost its mind. It's the most dangerous prize in the business. No champion can rest easy now.\n\nThe briefcase can be cashed in before a match, during one, or right after a title defense. It's the ultimate insurance policy. Every world champion will be checking over their shoulder. A year is a long time to wait, and a short time to plan. The clock starts now.",
         'mitb_cash_in' => "{wrestler} cashed in the Money in the Bank briefcase on {champion}, and {result}. The music hit and the whole building knew what was coming. The briefcase was a year of waiting for the right moment. This was the moment. It's the kind of thing that changes a title picture in seconds.\n\nWin or lose, the briefcase is gone now. The fans will be talking about it for weeks. The champion will remember who came for the title when they were most vulnerable. Moments like this define the year. Nobody saw it coming.",
-        'mitb_expiring' => "{wrestler}'s Money in the Bank briefcase is close to expiring. Cash it in or lose it. A world title shot doesn't stay valid forever. The champion knows it's coming and can almost count the days. The question is when, and against whom.",
+        'mitb_expiring' => "{wrestler} of {brand} still holds the Money in the Bank briefcase, and the clock is running. The Royal Rumble is over, and WrestleMania is only weeks away. If the briefcase isn't cashed in by then, it's gone for good. Every world champion on {brand} knows a shot could come at any moment. A tired champion after a long night is exactly what a briefcase holder waits for. The question is no longer if, but when.",
         'win_streak' => "{wrestler} has won {n} in a row and the locker room is taking notice. Every win makes the next opponent a little more nervous. Streaks like this get people talking about title shots. It also puts a target on the winner's back. Somebody will be looking to end it.",
-        'streak_snapped' => "{loser} had won {n} straight until {winner} stopped them at {show}. Streaks end, and this one ended in front of a stunned crowd. {winner} gets the credit for doing what nobody else could. For {loser}, it's back to square one. The rematch talk has already started.",
+        // House rule (2026-11-21): the upset win (Upset Win merged into it).
+        'streak_snapped' => "Nobody expected it, but {winner} pulled off the upset of the year at {show}. {loser} came in on a {n}-match winning streak and looked unbeatable. The crowd took a second to believe what they had just seen, and then the place erupted. {winner} did what nobody else on the roster could. For {loser}, the streak is over and it's back to square one. The rematch talk has already started.",
         'losing_streak' => '{wrestler} has lost {n} straight. Morale will suffer if this keeps up. Every loss makes the next one harder to shake off. The fans have started to notice, and so has the locker room. Something has to change, and soon.',
         'interference_finish' => '{interferer} got involved and cost {loser} the match. {winner} takes the win. The rivalry between {interferer} and {loser} spilled right into the ring. {loser} had the match under control until the interruption. Nobody will be surprised if this gets worse before it gets better.',
         'interbrand_series_result' => "{brand} won the WrestleMania interbrand series {n}–{m} and gets two manual re-draft picks. Three matches between the brands, and bragging rights on the biggest stage. The winning locker room celebrated like it had won a title. In a way, it had. The manual picks are worth more than a belt when the re-draft comes.\n\nThe winner's first two picks are its own choice, not the luck of the draw. The manual picks let the winner choose two superstars instead of leaving them to chance. Both will shape the rosters for the whole next season. The losing brand has to hope the random picks fall its way. The re-draft is next.",
-        'upset_win' => 'Nobody expected {winner} to beat {loser}, but that is exactly what happened. The crowd took a second to believe it. Then the place erupted. Upsets like this are why people watch. {loser} will be hearing about this one for a while.',
         'rivalry_started' => '{wrestler_a} and {wrestler_b} have a problem with each other. Expect them to cross paths again soon. These things rarely stay quiet once they start. Every meeting from here on will mean a little more. The fans love a good grudge.',
         'rivalry_heating_up' => 'Every meeting between {wrestler_a} and {wrestler_b} makes this feud more personal. What started as a disagreement has turned into something nastier. The crowd reacts louder every time they share a ring. Neither one is backing down. This is far from over.',
         'rivalry_blowoff' => "{winner} beat {loser} at {ppv} and finally put their rivalry to rest. It was the match the whole feud built to. Every insult and every attack came out in the ring. When the bell rang, there was no doubt who came out on top. The crowd gave both of them a standing ovation.\n\nIt's over, at least for now. {winner} gets the last word, and {loser} has to live with it. The brand gets two superstars free for new stories. Rivalries like this make careers. This one will be remembered.",
@@ -181,7 +177,12 @@ class NewsTemplates
         'released' => "{brand} let {wrestler} go. They are back in Free Agency. It's a tough day for anyone in the business. Another brand might come calling soon. For now, the roster has one fewer name on it.",
         'loser_leaves' => "{loser} lost a Loser Leaves Show match to {winner} and is gone from {brand}. Nobody can sign them for 4 weeks. Both knew what was at stake before the opening bell. One of them walked out with a career on the brand, and one walked out the door. It doesn't get more final than that.",
         'trade_completed' => 'The rosters have changed: {wrestlers_out} head to {brand_b} in exchange for {wrestlers_in}. Trades like this reshape a locker room overnight. The new arrivals will want to make an impression quickly. The ones who left will want to prove their old brand wrong. Both sides think they got the better deal.',
-        'redraft_pick' => "{brand} took {wrestler} from {source} in the WrestleMania re-draft. New brand, new locker room, new opponents. It's a fresh start that some superstars wait years for. The old brand loses a familiar face. The new one gains a name to build around.",
+        // House rule (2026-11-21): the one Re-draft Picks headline after the re-draft.
+        'redraft_pick' => "The Season {season} re-draft is in the books, and neither roster looks the way it did a week ago. Raw's new superstars are {raw_picks}. Smackdown's new arrivals are {smackdown_picks}. That's {moved} superstars who changed brands in one night. Every one of them brings their contract and their record to a new locker room. Some will thrive with a fresh start, and some will have to fight for a spot.
+
+{immunity_brand} drew the bigger crowds going into WrestleMania, {immunity_crowd}, and earned the immunity tag. The GM used the tag to exempt {immune}. The WrestleMania interbrand series decided the manual draft pick. The Singles match went to {series_singles}. The Normal Tag match went to {series_tag}. The Money in the Bank Ladder match went to {series_mitb}. {manual_brand} took the series {series_score}, and with it the manual draft pick. It spent its manual picks on {handpick}, the first names it called in the re-draft.
+
+Season {season} is officially over. Season {next_season} starts now, and both brands have been shaken up. The GMs have new faces to build around and holes to fill. Old rivalries are split across two shows, and new ones are waiting to happen. The champions stayed put, but their challengers may have changed. Expect both brands to be unique in this new season!",
         'injury' => "{wrestler} suffered a {label} ({severity}) and is out for {weeks} weeks. The medical team got to work right away. Nobody likes seeing anyone get hurt in the ring. It's a setback for the brand and for the superstar. The fans will be waiting for the comeback.",
         'injury_escalated' => "{wrestler} kept competing through an injury and it got worse: now a {label}, out for {weeks} weeks. The warning signs were there. Pushing through pain is part of the business, but it has its limits. This time the body gave out. It's a long road back from here.",
         'injury_return' => '{wrestler} has healed and is available to book again. The rehab is done and the doctors have signed off. Every superstar on the roster had to work around the absence. Now the comeback starts. The crowd will be glad to see the familiar face again.',
@@ -201,7 +202,7 @@ class NewsTemplates
         'interference_promo_result.disrupts' => "{brand} sent someone to crash {rival_brand}'s show, and it worked: the segment fell apart. The intruder made it all the way to the ring before security caught up. The cameras caught every second of the chaos. {rival_brand} will be furious, and the damage bill won't be small. The war just went to another level.",
         'interference_promo_result.embarrasses itself on' => "{brand} sent someone to crash {rival_brand}'s show one time too many, and the fans turned on it. What used to be a shock is now a routine. The crowd booed the intruder all the way out of the building. {rival_brand} came off as the victim, and it worked in their favor. Some ideas get old fast.",
         'interference_promo_result.fails to disrupt' => "{brand} tried to crash {rival_brand}'s show, but security handled it and the show went on. The intruder barely made it past the curtain. {rival_brand}'s fans cheered as security dragged them out. It was an expensive way to make the other brand look good. Better luck next time.",
-        // House rule (2026-11-15): the WrestleMania week WWE headline, written once the re-draft ends.
+        // Old news only (2026-11-15 to 2026-11-21): the re-draft's WWE headline, now `redraft_pick`.
         'redraft_results' => "The Season {season} re-draft is in the books, and neither roster looks the way it did a week ago. Raw's new superstars are {raw_picks}. Smackdown's new arrivals are {smackdown_picks}. That's {moved} superstars who changed brands in one night. Every one of them brings their contract and their record to a new locker room. Some will thrive with a fresh start, and some will have to fight for a spot.
 
 {immunity_brand} drew the bigger crowds going into WrestleMania, {immunity_crowd}, and earned the immunity tag. The GM used the tag to exempt {immune}. The WrestleMania interbrand series decided the manual draft pick. The Singles match went to {series_singles}. The Normal Tag match went to {series_tag}. The Money in the Bank Ladder match went to {series_mitb}. {manual_brand} took the series {series_score}, and with it the manual draft pick. It spent its manual picks on {handpick}, the first names it called in the re-draft.
@@ -212,7 +213,6 @@ Season {season} is officially over. Season {next_season} starts now, and both br
         'match_result' => "{winner} {defeats} {loser} in decisive fashion. {pronoun} made sure to get the win {how}. It was a thrilling {match_kind} match from start to finish. Both of them came to fight, and the crowd was with them the whole way. There were near-falls that brought the fans to their feet. In the end, one of them had a little more left. It's a win that will count for something in the weeks ahead.",
         'match_result.not_decisive' => '{winner} {defeats} {loser} via {via}. Not the cleanest win, but a win is a win. It was a {match_kind} match that ended in controversy. {loser} will feel hard done by. The crowd let both of them hear about it on the way out. A rematch would not surprise anyone.',
         'match_result.injured' => "Handicapped and determined, {winner} {defeats} {loser} in a hard-hitting match {how} despite suffering a minor injury. Remember, an injury is not a hindrance to winning the match! It was a {match_kind} match that tested every bit of {winner}'s toughness. The trainer will want a long look before the next show. The fans gave {winner} a standing ovation on the way to the back.",
-        'match_result.legacy' => "{match}: {winner} got the win over {loser}{by} at {show}. The crowd got a good match out of it. Both superstars gave it everything. Only one could walk away with the win. That's how it goes in this business.",
         'main_event_hype_result' => "{brand} hyped its main event all night, and {winner} delivered against {loser}. The crowd had been waiting for it since the doors opened. The build paid off with a finish they'll remember. Main events like that send people home happy. It's the best advertisement a show can have.",
         'promo_result' => "{brand} put {promo} on this week's show, and it {outcome}. Promos are a gamble every time. Some land and some don't. The money is spent either way. Next week brings another chance.",
         'call_out_face' => "{wrestler} grabbed a microphone and called out {wrestler_b} in front of the {brand} crowd. The fans hung on every word. It was a hero standing up to a bully. {wrestler_b} was watching from the back. The rivalry between them isn't going anywhere.",
@@ -225,7 +225,10 @@ Season {season} is officially over. Season {next_season} starts now, and both br
         'brand_spotlight' => "{brand}'s top champion spent the week with the fans in {city}, or the roster hung out at WWE HQ. Then a word on the budget.",
         'superstar_recap' => "A look back at a {brand} superstar's last match.",
         'injury_report' => "How many {brand} superstars were hurt in the last 6 months, with advice when it's too many.",
-        'locker_room_note' => 'Who is unhappy, whose contract is running out, or all quiet.',
+        'locker_room_note' => 'Who on {brand} is unhappy, or whose contract is about to run out.',
+        'welcome' => "Welcome to Smackdown vs Raw, and welcome to a brand new season of WWE. This is Vince McMahon, and I want both of my general managers to listen closely. Monday Night Raw and Friday Night Smackdown share one company, but from tonight they are rivals. Every superstar on your roster is now part of your brand's story. Book the best shows you can, and give these fans a reason to choose your night. The rosters are set, and the real work starts now.
+
+I expect a war between these two brands, but a friendly one. Compete for the crowds, compete for the headlines, and compete at the pay-per-views where both brands meet. Steal the spotlight, never the other brand's dignity. Respect the other locker room, even when you're doing everything you can to beat it. When WrestleMania is over, we'll know which GM ran the better show. May the best GM win!",
         'faction_formed' => '{members} won {wins} matches together and decided to make it official. From now on they compete as {faction}, a new {type} to watch. The wins came as a team, and now the team has a name. The rest of the roster has a new unit to worry about. Factions have a way of running a locker room. This one is just getting started.',
         'faction_member_added' => '{faction} has a new member: {wrestler} now fights alongside them. The group just got stronger. The rest of the roster will have to deal with one more opponent in the corner. New blood brings new ideas. {faction} looks more dangerous than ever.',
         'faction_title_won' => "{faction} beat {loser} {how} and walk out with the {title}! The champions look forward to meeting new challengers that they will dethrone! The whole group celebrated together in the ring. Winning gold as a team means more than winning it alone. The crowd gave them the reaction they deserved.\n\nNow comes the hard part: keeping it. Every tag team on the brand will want a shot at the new champions. {loser} will want the belts back first. A faction with gold is the most dangerous thing in a locker room. The title picture just changed for good.",
@@ -276,19 +279,14 @@ Season {season} is officially over. Season {next_season} starts now, and both br
 
     /**
      * The template key for this event: `type.variant` when the payload's
-     * `outcome` (or `won_or_lost`) names one, `type.legacy` for title change
-     * and match result news recorded before they carried `via`, else `type`.
+     * `outcome` (or `won_or_lost`) names one, else `type`.
      *
      * @param  array<string, mixed>  $payload
      * @param  array<string, string>  $templates
      */
     private function variant(NewsEventType $type, array $payload, array $templates): string
     {
-        $legacy = (in_array($type, [NewsEventType::TitleChange, NewsEventType::MatchResult], true) && ! isset($payload['via']))
-            || ($type === NewsEventType::ContenderEarnedShot && ! isset($payload['pronoun']));
-        $variant = $legacy
-            ? 'legacy'
-            : $payload['outcome'] ?? $payload['won_or_lost'] ?? null;
+        $variant = $payload['outcome'] ?? $payload['won_or_lost'] ?? null;
 
         return is_string($variant) && isset($templates["{$type->value}.{$variant}"]) ? "{$type->value}.{$variant}" : $type->value;
     }

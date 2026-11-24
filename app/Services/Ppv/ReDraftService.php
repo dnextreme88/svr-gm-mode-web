@@ -331,12 +331,6 @@ class ReDraftService
 
         if ($wrestler !== null) {
             $this->move($wrestler, $brand, $save->current_week);
-
-            $this->news->record($save, NewsEventType::RedraftPick, NewsTier::Ticker, $brand, [
-                'brand' => $brand->label(),
-                'wrestler' => $wrestler->name(),
-                'source' => $from->label(),
-            ], ['wrestler_ids' => [$wrestler->id]], priority: 20, week: $series->week_number);
         }
 
         return $pick->load('saveWrestler.wrestler');
@@ -354,7 +348,10 @@ class ReDraftService
             throw new GameRuleException('The re-draft isn’t finished yet.');
         }
 
-        $this->news->record($save, NewsEventType::RedraftResults, NewsTier::Headline, NewsBrand::Both, $this->headlinePayload($save, $series), [
+        // House rule (2026-11-21): one Re-draft Picks headline leads the WWE
+        // card after the re-draft (it replaced a ticker line per pick and the
+        // old Re-draft Results headline).
+        $this->news->record($save, NewsEventType::RedraftPick, NewsTier::Headline, NewsBrand::Both, $this->headlinePayload($save, $series), [
             'wrestler_ids' => array_values(array_filter($this->picks($save)->pluck('save_wrestler_id')->all())),
         ], priority: 100, week: $series->week_number);
 

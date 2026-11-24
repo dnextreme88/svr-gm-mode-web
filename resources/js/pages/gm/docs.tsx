@@ -5,6 +5,7 @@ import { SpecialtyBadge } from '@/components/gm/badges';
 import { PpvBug } from '@/components/gm/brand-bug';
 import { FatigueCost } from '@/components/gm/fatigue-cost';
 import { FatigueMeter } from '@/components/gm/fatigue-meter';
+import { FilterGroup } from '@/components/gm/filter-group';
 import { PageTitle, Panel } from '@/components/gm/panel';
 import { ariaSort, nextSort, SortHeader } from '@/components/gm/sort-header';
 import { successLabel } from '@/components/gm/promo-slots';
@@ -81,6 +82,10 @@ type NewsEvent = {
     card: 'brand' | 'wwe' | 'either';
     tier: string;
     active: boolean;
+    /** Its weight in the draw for headlines and stories (house rule, 2026-11-21). */
+    priority: number;
+    /** How the priority varies, where it does. */
+    priority_note: string | null;
     headline: string;
     summary: string;
     /** The summary's other readings (house rule, 2026-11-11). */
@@ -151,6 +156,8 @@ type Props = {
         streaks: Record<string, number>;
         interview_space: number;
         minor_injury: number;
+        manager: number;
+        faction: number;
         weight_class_step: number;
         min_chance: number;
     };
@@ -1088,12 +1095,27 @@ function WinningOddsDocs({ odds }: { odds?: Props['winning_odds'] }) {
                     Each competitor with a minor injury: {odds.minor_injury}%.
                 </li>
                 <li>
-                    Weight class, only when every side is a single class: +
-                    {odds.weight_class_step}% for every class a side is above
-                    the lightest side (Featherweight, Cruiserweight, Light
+                    A side with a manager in its corner (a w/ Manager match): +
+                    {odds.manager}%. When both sides have one, they cancel out.
+                </li>
+                <li>
+                    Two or more members of an active faction (a tag team or a
+                    stable) teaming on one side: +{odds.faction}%, once per
+                    side. Members on opposite sides don’t count.
+                </li>
+                <li>
+                    Weight class, only when one side clearly outweighs the rest:
+                    every side is a single class, one side alone is the
+                    heaviest, and the other sides are either all the same class
+                    or all different classes. Only that heaviest side gets +
+                    {odds.weight_class_step}% for every class it is above the
+                    lightest side (Featherweight, Cruiserweight, Light
                     Heavyweight, Heavyweight, Super Heavyweight, Ultra
-                    Heavyweight). An Ultra Heavyweight against a Featherweight
-                    is +{odds.weight_class_step * 5}%.
+                    Heavyweight). A Heavyweight against three Cruiserweights is
+                    +{odds.weight_class_step * 2}%; against two Cruiserweights
+                    and a Light Heavyweight, or with two Super Heavyweights at
+                    the top, nobody gets it. An Ultra Heavyweight against a
+                    Featherweight is +{odds.weight_class_step * 5}%.
                 </li>
                 <li>No side drops below {odds.min_chance}%.</li>
                 <li>
@@ -1517,6 +1539,217 @@ const cardLabel: Record<NewsEvent['card'], string> = {
     either: 'Raw / Smackdown or WWE',
 };
 
+type NewsSortKey = 'event' | 'priority';
+
+const NEWS_SORT_KEYS: readonly NewsSortKey[] = ['event', 'priority'];
+
+/** Biggest news first (house rule, 2026-11-21). */
+const NEWS_DEFAULT_SORT = { key: 'priority', dir: 'desc' } as const;
+
+const NEWS_CARDS = ['all', 'brand', 'wwe', 'either'] as const;
+
+type NewsCardFilter = (typeof NEWS_CARDS)[number];
+
+/**
+ * The News events, by priority or name, filtered by category and card
+ * (house rule, 2026-11-21). Ties sort by name.
+ */
+export function sortNewsEvents(
+    events: NewsEvent[],
+    sort: { key: NewsSortKey; dir: 'asc' | 'desc' } | null,
+): NewsEvent[] {
+    const by = sort ?? NEWS_DEFAULT_SORT;
+    const flip = by.dir === 'asc' ? 1 : -1;
+    const byName = (a: NewsEvent, b: NewsEvent) =>
+        a.label.localeCompare(b.label);
+
+    return [...events].sort((a, b) =>
+        by.key === 'priority'
+            ? (a.priority - b.priority) * flip || byName(a, b)
+            : byName(a, b) * flip,
+    );
+}
+
+function NewsEventsTable({
+    events,
+    groups,
+}: {
+    events: NewsEvent[];
+    groups: string[];
+}) {
+    const [sort, setSort] = useSortUrl<NewsSortKey>(
+        NEWS_SORT_KEYS,
+        'news_sort',
+        NEWS_DEFAULT_SORT,
+    );
+    const [group, setGroup] = useUrlParam('news_category', 'all');
+    const [card, setCard] = useUrlParam('news_card', 'all');
+    const cardFilter = (NEWS_CARDS as readonly string[]).includes(card)
+        ? (card as NewsCardFilter)
+        : 'all';
+    const inGroup = events.filter((e) => group === 'all' || e.group === group);
+    const shown = sortNewsEvents(
+        inGroup.filter((e) => cardFilter === 'all' || e.card === cardFilter),
+        sort,
+    );
+    const header = (key: NewsSortKey, label: string, right = false) => (
+        <th
+            aria-sort={ariaSort(sort, key)}
+            className={cn(right && 'text-right')}
+        >
+            <SortHeader
+                label={label}
+                right={right}
+                active={sort?.key === key ? sort.dir : null}
+                onClick={() =>
+                    // Priority opens on the biggest news first.
+                    setSort((s) =>
+                        s?.key !== key && key === 'priority'
+                            ? { key, dir: 'desc' }
+                            : nextSort(s, key),
+                    )
+                }
+            />
+        </th>
+    );
+
+    return (
+        <Panel title="News events" bodyClassName="p-0 overflow-x-auto">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-white/6 px-4 py-3">
+                <label className="flex items-center gap-2">
+                    <span className="gm-label">Category</span>
+                    <select
+                        className="gm-input py-1 text-sm"
+                        value={groups.includes(group) ? group : 'all'}
+                        onChange={(e) => setGroup(e.target.value)}
+                    >
+                        <option value="all">
+                            All categories ({events.length})
+                        </option>
+                        {groups.map((g) => (
+                            <option key={g} value={g}>
+                                {g} (
+                                {events.filter((e) => e.group === g).length})
+                            </option>
+                        ))}
+                    </select>
+                </label>
+                <FilterGroup
+                    label="Card"
+                    options={NEWS_CARDS.map((c) => ({
+                        value: c,
+                        label: `${c === 'all' ? 'Any card' : cardLabel[c]} (${
+                            c === 'all'
+                                ? inGroup.length
+                                : inGroup.filter((e) => e.card === c).length
+                        })`,
+                    }))}
+                    value={cardFilter}
+                    onChange={setCard}
+                />
+            </div>
+            <p className="px-4 pt-3 text-sm text-ink-dim">
+                Priority is the weight an event carries when the week’s
+                headlines and stories are drawn, and which news wins when two
+                cover the same match. Higher is bigger news.
+            </p>
+            <table className="gm-table text-sm" aria-label="News events">
+                <thead>
+                    <tr>
+                        {header('event', 'Event')}
+                        <th>Category</th>
+                        <th>Card</th>
+                        {header('priority', 'Priority', true)}
+                        <th>Plays as</th>
+                        <th>Headline and summary</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {shown.length === 0 && (
+                        <tr>
+                            <td
+                                colSpan={6}
+                                className="text-center text-ink-dim"
+                            >
+                                No news events match these filters.
+                            </td>
+                        </tr>
+                    )}
+                    {shown.map((e) => (
+                        <tr
+                            key={e.type}
+                            data-testid={`news-event-${e.type}`}
+                            className={cn(!e.active && 'opacity-60')}
+                        >
+                            <td className="font-semibold whitespace-nowrap">
+                                {e.label}
+                                {!e.active && (
+                                    <div className="mt-1">
+                                        <Badge>Not in play yet</Badge>
+                                    </div>
+                                )}
+                            </td>
+                            <td className="whitespace-nowrap text-ink-dim">
+                                {e.group}
+                            </td>
+                            <td className="whitespace-nowrap text-ink-dim">
+                                {cardLabel[e.card]}
+                            </td>
+                            <td
+                                className="min-w-24 text-right"
+                                data-testid={`news-priority-${e.type}`}
+                            >
+                                <span className="gm-num text-ink">
+                                    {e.priority}
+                                </span>
+                                {e.priority_note && (
+                                    <div className="mt-1 text-left text-xs text-ink-faint">
+                                        {e.priority_note}
+                                    </div>
+                                )}
+                            </td>
+                            <td className="min-w-48 text-ink-dim">{e.tier}</td>
+                            <td className="min-w-80">
+                                <div className="text-ink">
+                                    <Template text={e.headline} />
+                                </div>
+                                <div className="mt-1 whitespace-pre-line text-ink-dim">
+                                    <Template text={e.summary} />
+                                </div>
+                                {(e.summary_variants ?? []).length > 0 && (
+                                    <details
+                                        className="mt-2"
+                                        data-testid={`news-variants-${e.type}`}
+                                    >
+                                        <summary className="cursor-pointer text-xs text-ink-faint hover:text-ink">
+                                            {e.summary_variants!.length} other
+                                            summaries
+                                        </summary>
+                                        <ul className="mt-2 space-y-2">
+                                            {e.summary_variants!.map((v) => (
+                                                <li key={v.variant}>
+                                                    <div className="gm-label">
+                                                        {v.variant}
+                                                    </div>
+                                                    <div className="whitespace-pre-line text-ink-dim">
+                                                        <Template
+                                                            text={v.summary}
+                                                        />
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </details>
+                                )}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </Panel>
+    );
+}
+
 /** Counts read as N and M ("N-match winning streak"); the rest as words. */
 function placeholderLabel(name: string): string {
     return name.length === 1 ? name.toUpperCase() : name.replaceAll('_', ' ');
@@ -1672,12 +1905,15 @@ function QuietWeekStoriesPanel({
                         </li>
                         <li>
                             Brand stories: a random superstar’s last match, then
-                            the injury report for the last 6 months, with
-                            booking advice if anyone got hurt.
+                            the locker room (Unsatisfied or Upset superstars,
+                            else contracts about to run out) or, with nothing to
+                            report there, the injury report for the last 6
+                            months, with booking advice if anyone got hurt.
                         </li>
                         <li>
-                            Ticker: unhappy superstars and contracts about to
-                            run out, or all quiet.
+                            Season 1, week 1 never starts on filler: Vince
+                            McMahon’s Welcome to Smackdown vs Raw is the WWE
+                            headline.
                         </li>
                     </ul>
                     <p>
@@ -1848,105 +2084,7 @@ function NewsAndEmail({
                 </Panel>
             )}
 
-            <Panel title="News events" bodyClassName="p-0 overflow-x-auto">
-                <table className="gm-table text-sm">
-                    <thead>
-                        <tr>
-                            <th>Event</th>
-                            <th>Card</th>
-                            <th>Plays as</th>
-                            <th>Headline and summary</th>
-                        </tr>
-                    </thead>
-                    {news.groups.map((group) => (
-                        <tbody key={group}>
-                            <tr>
-                                <th
-                                    colSpan={4}
-                                    className="bg-white/[0.04] font-condensed tracking-[0.15em] text-ink-dim uppercase"
-                                >
-                                    {group}
-                                </th>
-                            </tr>
-                            {news.events
-                                .filter((e) => e.group === group)
-                                .map((e) => (
-                                    <tr
-                                        key={e.type}
-                                        data-testid={`news-event-${e.type}`}
-                                        className={cn(
-                                            !e.active && 'opacity-60',
-                                        )}
-                                    >
-                                        <td className="font-semibold whitespace-nowrap">
-                                            {e.label}
-                                            {!e.active && (
-                                                <div className="mt-1">
-                                                    <Badge>
-                                                        Not in play yet
-                                                    </Badge>
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td className="whitespace-nowrap text-ink-dim">
-                                            {cardLabel[e.card]}
-                                        </td>
-                                        <td className="text-ink-dim">
-                                            {e.tier}
-                                        </td>
-                                        <td>
-                                            <div className="text-ink">
-                                                <Template text={e.headline} />
-                                            </div>
-                                            <div className="mt-1 whitespace-pre-line text-ink-dim">
-                                                <Template text={e.summary} />
-                                            </div>
-                                            {(e.summary_variants ?? []).length >
-                                                0 && (
-                                                <details
-                                                    className="mt-2"
-                                                    data-testid={`news-variants-${e.type}`}
-                                                >
-                                                    <summary className="cursor-pointer text-xs text-ink-faint hover:text-ink">
-                                                        {
-                                                            e.summary_variants!
-                                                                .length
-                                                        }{' '}
-                                                        other summaries
-                                                    </summary>
-                                                    <ul className="mt-2 space-y-2">
-                                                        {e.summary_variants!.map(
-                                                            (v) => (
-                                                                <li
-                                                                    key={
-                                                                        v.variant
-                                                                    }
-                                                                >
-                                                                    <div className="gm-label">
-                                                                        {
-                                                                            v.variant
-                                                                        }
-                                                                    </div>
-                                                                    <div className="whitespace-pre-line text-ink-dim">
-                                                                        <Template
-                                                                            text={
-                                                                                v.summary
-                                                                            }
-                                                                        />
-                                                                    </div>
-                                                                </li>
-                                                            ),
-                                                        )}
-                                                    </ul>
-                                                </details>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                        </tbody>
-                    ))}
-                </table>
-            </Panel>
+            <NewsEventsTable events={news.events} groups={news.groups} />
 
             <PromoStoriesPanel promoStories={promoStories} />
 
@@ -2096,8 +2234,8 @@ function MoraleDocs({ morale }: Pick<Props, 'morale'>) {
                             superstar emails you. Content doesn’t.
                         </li>
                         <li>
-                            Turning Upset also makes the brand’s news ticker. A
-                            contract demand and a title demand do too.
+                            Turning Upset also makes a story on the brand’s news
+                            card. A contract demand and a title demand do too.
                         </li>
                         <li>
                             New signings and defectors start Happy, with fresh

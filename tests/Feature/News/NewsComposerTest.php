@@ -12,7 +12,9 @@ use App\Services\News\NewsComposer;
 use App\Services\News\NewsRecorder;
 use App\Services\News\NewsTemplates;
 use App\Services\Week\WeekResolver;
+use Illuminate\Support\Facades\File;
 use Tests\Support\Card;
+use Tests\Support\FixedOutcomes;
 use Tests\Support\GameBuilder;
 
 /*
@@ -231,16 +233,6 @@ it('dedupes title_change and streak_snapped from the same match, keeping the tit
         ->and($page['stories']['raw'][0]['tier'])->toBe('story');
 });
 
-it('keeps the old wording for title changes recorded before they carried how they were won', function () {
-    $save = GameBuilder::inSeason(raw: ['Edge'], smackdown: ['Batista']);
-    news($save, NewsEventType::TitleChange, NewsTier::Headline, NewsBrand::Raw, 100, payload: ['winner' => 'Edge', 'loser' => 'Cena', 'title' => 'WWE Championship', 'show' => 'Raw']);
-
-    $headline = app(NewsComposer::class)->compose($save, 1)['headlines']['raw'];
-
-    expect($headline['text'])->toBe('NEW CHAMPION! Edge defeats Cena for the WWE Championship at Raw!')
-        ->and($headline['summary'])->toStartWith('Edge beat Cena at Raw and walks out with the WWE Championship. The old reign is over');
-});
-
 it('has a summary for every news event type', function () {
     $templates = app(NewsTemplates::class);
 
@@ -389,4 +381,67 @@ it('falls back to the crowd when the WWE card has nothing else', function () {
     news($save, NewsEventType::Attendance, NewsTier::Headline, NewsBrand::Both, 70);
 
     expect(app(NewsComposer::class)->compose($save, 1)['headlines']['neutral']['type'])->toBe('attendance');
+});
+
+it('records no news at the Ticker tier and documents none (house rule, 2026-11-21)', function () {
+    $tiers = collect(app(NewsCatalog::class)->entries())->keyBy('type')->map(fn (array $e): string => $e['tier']);
+
+    expect($tiers->filter(fn (string $tier): bool => str_starts_with($tier, 'Ticker'))->all())->toBe([])
+        ->and($tiers['losing_streak'])->toStartWith('Story')
+        ->and($tiers['contendership_voided'])->toStartWith('Story')
+        ->and($tiers['contract_demand'])->toStartWith('Story')
+        ->and($tiers['title_demand'])->toStartWith('Story')
+        ->and($tiers['morale_unrest'])->toStartWith('Story')
+        ->and($tiers['locker_room_note'])->toStartWith('Story')
+        ->and($tiers['mitb_expiring'])->toStartWith('Headline')
+        ->and($tiers['redraft_pick'])->toStartWith('Headline')
+        ->and($tiers['welcome'])->toStartWith('Headline');
+
+    // Nothing in the game records a ticker event any more.
+    $recorded = collect(File::allFiles(app_path()))
+        ->filter(fn ($file): bool => str_contains($file->getContents(), 'NewsTier::Ticker,'))
+        ->map(fn ($file): string => $file->getFilename())
+        ->values()
+        ->all();
+
+    expect($recorded)->toBe([]);
+});
+
+it('records a losing streak as a brand story', function () {
+    GameBuilder::passiveRival();
+    $save = GameBuilder::inSeason(raw: ['Edge', 'Kane'], smackdown: ['Batista']);
+    GameBuilder::wrestler($save, 'Kane')->update(['loss_streak' => (int) config('gm.news.losing_streak_min')]);
+    Card::book($save, Card::show($save), 1, Card::singles(), [['Edge'], ['Kane']]);
+    FixedOutcomes::queue('Edge');
+
+    app(WeekResolver::class)->resolve($save->refresh());
+
+    expect(NewsEvent::where('type', NewsEventType::LosingStreak)->sole()->tier)->toBe(NewsTier::Story);
+});
+
+it('documents every event’s priority as the code records it (house rule, 2026-11-21)', function () {
+    $catalog = app(NewsCatalog::class);
+    $priorities = $catalog->priorities();
+    $checked = 0;
+
+    expect(array_keys($priorities))->toEqualCanonicalizing($catalog->types());
+
+    foreach (File::allFiles(app_path()) as $file) {
+        preg_match_all('/->record\([^;]*?NewsEventType::(\w+)[^;]*?priority:\s*(\d+)\s*[,)]/s', $file->getContents(), $matches, PREG_SET_ORDER);
+
+        foreach ($matches as [, $case, $number]) {
+            $type = constant(NewsEventType::class.'::'.$case)->value;
+            [$value, $note] = $priorities[$type] + [1 => null];
+
+            // A priority that varies names each number it can be.
+            $note === null
+                ? expect($value)->toBe((int) $number, "{$type} in {$file->getFilename()}")
+                : expect(str_contains($note, $number))->toBeTrue("{$type} in {$file->getFilename()}");
+            $checked++;
+        }
+    }
+
+    expect($checked)->toBeGreaterThan(25)
+        ->and(collect($catalog->entries())->firstWhere('type', 'title_change')['priority'])->toBe(100)
+        ->and(collect($catalog->entries())->firstWhere('type', 'losing_streak')['priority'])->toBe(20);
 });

@@ -77,7 +77,7 @@ it('covers all 8 championships, 16 promos and 15 PPVs', function () {
 
 it('lists the full §19 news catalog', function () {
     expect(NewsEventType::values())->toHaveCount(74)
-        ->toContain('attendance', 'title_change', 'retained_by_dq', 'mitb_cash_in', 'interbrand_series_result', 'defection_blocked', 'season_reset', 'match_result', 'main_event_hype_result', 'promo_result', 'contract_expiring', 'rivalry_milestone', 'rivalry_concluded', 'redraft_results', 'survivor_series_qualified');
+        ->toContain('attendance', 'title_change', 'retained_by_dq', 'mitb_cash_in', 'interbrand_series_result', 'defection_blocked', 'season_reset', 'match_result', 'main_event_hype_result', 'promo_result', 'contract_expiring', 'rivalry_milestone', 'rivalry_concluded', 'redraft_results', 'survivor_series_qualified', 'welcome');
 });
 
 it('covers every specialty family named in §21', function () {

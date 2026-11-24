@@ -84,6 +84,10 @@ it('puts the week’s biggest crowd on the WWE card and the crowds in the ticker
     airCrowdWeek($save);
 
     $event = NewsEvent::where('save_id', $save->id)->where('type', NewsEventType::Attendance)->sole();
+    // Season 1, week 1 opens on Vince's welcome (house rule, 2026-11-21);
+    // without it, the crowd is the WWE card's last resort.
+    expect(app(NewsComposer::class)->compose($save->refresh(), 1)['headlines']['neutral']['type'])->toBe('welcome');
+    NewsEvent::where('save_id', $save->id)->where('type', NewsEventType::Welcome)->delete();
     $page = app(NewsComposer::class)->compose($save->refresh(), 1);
 
     expect($page['headlines']['neutral']['id'])->toBe($event->id)
